@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ids xmlns="http://standards.buildingsmart.org/IDS" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://standards.buildingsmart.org/IDS http://standards.buildingsmart.org/IDS/1.0/ids.xsd">
+  <info>
+    <title>Exemplo MetroSP</title>
+    <version>1.0</version>
+  </info>
+  <specifications>
+    <specification name="Paredes - dados MetroSP" ifcVersion="IFC4">
+      <applicability minOccurs="0" maxOccurs="unbounded">
+        <entity><name><simpleValue>IFCWALL</simpleValue></name></entity>
+      </applicability>
+      <requirements>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_MetroSP</simpleValue></propertySet>
+          <baseName><simpleValue>CodigoAtivo</simpleValue></baseName>
+        </property>
+        <property dataType="IFCLABEL" cardinality="required">
+          <propertySet><simpleValue>Pset_MetroSP</simpleValue></propertySet>
+          <baseName><simpleValue>Disciplina</simpleValue></baseName>
+          <value>
+            <xs:restriction base="xs:string">
+              <xs:enumeration value="ARQ"/>
+              <xs:enumeration value="EST"/>
+              <xs:enumeration value="HID"/>
+            </xs:restriction>
+          </value>
+        </property>
+        <property dataType="IFCBOOLEAN" cardinality="required">
+          <propertySet><simpleValue>Pset_WallCommon</simpleValue></propertySet>
+          <baseName><simpleValue>IsExternal</simpleValue></baseName>
+        </property>
+        <material cardinality="required"/>
+      </requirements>
+    </specification>
+  </specifications>
+</ids>

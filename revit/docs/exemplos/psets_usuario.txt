@@ -1,0 +1,4 @@
+# Property sets definidos pelo usuario (exemplo)
+PropertySet:	Pset_MetroSP	I	IfcWall,IfcSlab
+	CodigoAtivo	Label	MSP_CodigoAtivo
+	Disciplina	Text	MSP_Disciplina

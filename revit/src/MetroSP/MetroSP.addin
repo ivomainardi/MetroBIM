@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>MetroSP</Name>
+    <Assembly>MetroSP\MetroSP.dll</Assembly>
+    <AddInId>8F3A2C61-4B7E-4D29-9E15-6A0C3B7D5E42</AddInId>
+    <FullClassName>MetroSP.App</FullClassName>
+    <VendorId>METROSP</VendorId>
+    <VendorDescription>Ferramentas MetroSP para Revit</VendorDescription>
+  </AddIn>
+</RevitAddIns>

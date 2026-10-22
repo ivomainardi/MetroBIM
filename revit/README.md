@@ -1,0 +1,112 @@
+# MetroSP – Add-in para Revit
+
+Aba **MetroSP** na Ribbon do Revit.
+
+| Painel | Botão | O que faz |
+|---|---|---|
+| Geral | Sobre | Mostra versão do add-in e do Revit |
+| Parâmetros | Renomear Compartilhado | Renomeia um parâmetro compartilhado da família mantendo o GUID |
+| Parâmetros | Listar Compartilhados | Duas abas: **Parâmetros do arquivo** (GUID, tipo, categorias e o .txt de origem achado pelo GUID nos arquivos de referência) e **Comparar com .txt** (painel de referências com .txt e pastas, base Metrô por usuário em `%AppData%\MetroSP\referencias.ini`; compatível, nome/tipo diferente, nome em uso, só no modelo/.txt). Exporta .txt reutilizável no Revit e .csv (visíveis, selecionados ou todos) |
+| Parâmetros | Copiar Valores | Copia valores de um parâmetro para outro (seleção, vista ou modelo; filtro por categoria), convertendo entre texto, inteiro, número, medidas e sim/não. Analisa antes por elemento, com impactos e propostas; só preencher vazios ou sobrescrever; uma operação com Ctrl+Z |
+| Classificação | Aplicar Classificação | Lê a planilha de classificação (.xlsx ou .csv: Código, Descrição e opcionais Código pai, Categorias, Edição), mostra a árvore com busca e grava `ClassificationCode = Código:Descrição` nos elementos selecionados. Janela aberta enquanto se seleciona no Revit; seleciona por categoria (vista ou modelo, opcionalmente só os sem classificação); cria/vincula o parâmetro nas categorias que não o têm; avisa quando o parâmetro é de tipo |
+| Classificação | Verificar Classificação | Confere o preenchido com a planilha: sem classificação, formato inválido, código fora da lista, descrição diferente, categoria não prevista. Propõe correções (escrita da lista, código parecido), aplica as aceitas, exporta .csv. Filtro por categoria, etiquetas clicáveis, coluna com o motivo de bloqueio, criar o parâmetro nas categorias sem ele, Reanalisar |
+| Classificação | Consistência Código×Descrição | Agrupa por código e mostra os que têm mais de uma descrição; escolhe-se a correta (a da planilha vem marcada) e unifica. Lista também descrições usadas com códigos diferentes |
+| IFC / IDS | Verificar Mapeamento IDS | Antes de exportar, verifica se parâmetros e mapeamento IFC atendem a um IDS |
+| IFC / IDS | Exportar IFC | Exporta o IFC com um setup .json do exportador e o .txt de property sets, buscados numa pasta do computador/rede ou no Autodesk Forma (Desktop Connector). Confere o .txt contra o modelo antes de exportar |
+| Modelagem | Contar Elementos | Exemplo: conta elementos por categoria |
+
+## Estrutura
+
+```
+MetroSP.sln
+src/MetroSP/
+  MetroSP.csproj        multi-versão (propriedade RevitVersion)
+  MetroSP.addin         manifesto lido pelo Revit
+  App.cs                IExternalApplication: cria a aba e os painéis
+  Commands/             um IExternalCommand por botão
+  Parametros/           lógica e janela da ferramenta de parâmetros
+  Resources/            ícones PNG (Nome32.png / Nome16.png), opcionais
+```
+
+## Compilar e testar
+
+Requisitos: SDK .NET 10 no Windows. Revit 2025, 2026 ou 2027.
+
+```
+dotnet build -c Debug -p:RevitVersion=2025
+```
+
+Em **Debug**, o build copia `MetroSP.addin` e `MetroSP.dll` para
+`%AppData%\Autodesk\Revit\Addins\<versão>\`. É só abrir o Revit.
+Na primeira vez o Revit pergunta se confia no add-in: escolha "Sempre carregar".
+
+Revit 2027 usa .NET 10; 2025 e 2026 usam .NET 8 (o csproj escolhe sozinho).
+
+## Renomear parâmetro compartilhado (mantendo GUID)
+
+O Revit não deixa renomear parâmetro compartilhado direto. O comando faz, numa única transação:
+
+1. Troca o parâmetro compartilhado por um parâmetro de família temporário (`ReplaceParameter`).
+2. Troca de volta para compartilhado usando uma definição com **o mesmo GUID** e o nome novo,
+   criada num .txt temporário.
+3. Confere se o GUID final é o mesmo; se não for, desfaz tudo.
+4. Opcional: renomeia a linha do GUID no seu arquivo de parâmetros compartilhados (com backup `.bak`).
+
+Valores, fórmulas e associações ficam preservados. Tags e tabelas que usam o parâmetro
+continuam funcionando porque elas referenciam o GUID.
+
+## Verificar mapeamento IDS (antes de exportar)
+
+Entrada: o arquivo `.ids`, opcionalmente o `.txt` de property sets definidos pelo usuário e a
+tabela de classes IFC (`.txt` salvo em Opções de IFC). Nada é exportado.
+
+Para cada especificação do IDS:
+1. Descobre quais elementos exportam como a entidade pedida (parâmetro "Exportar para IFC como",
+   senão a tabela de classes, senão o padrão do exportador).
+2. Para cada requisito de propriedade, procura o mapeamento Pset.Propriedade → parâmetro do Revit
+   e compara o tipo IFC pedido com o tipo declarado no mapeamento.
+3. Confere se o parâmetro existe nos elementos (instância ou tipo) e se o tipo de dado é compatível.
+4. Opcional: conta valores vazios e valores fora da enumeração/padrão exigido.
+5. Atributos (Name, Description, ObjectType, Tag, LongName) via parâmetros IfcName etc.;
+   classificação via parâmetros ClassificationCode; material pelos materiais do elemento.
+
+Status possíveis: OK, Aviso, SemMapeamento, ParametroAusente, TipoIncompativel, ValoresVazios,
+ValorInvalido, SemElementos, NaoVerificado. Duplo clique numa linha seleciona os elementos.
+
+Limitações da v1: aplicabilidade só por entidade (outros filtros são ignorados com aviso);
+facet partOf não verificado; limites numéricos ficam para a validação do IFC exportado (etapa 2, ifctester).
+
+Exemplos em `docs/exemplos/`.
+
+## Exportar IFC com configurações guardadas
+
+Os arquivos de configuração vêm de uma de duas origens:
+
+- **Autodesk Forma**: escolhe-se o projeto (os projetos sincronizados pelo Autodesk Desktop Connector em
+  `%USERPROFILE%\DC\ACCDocs\<Hub>\<Projeto>`; o do modelo aberto na nuvem já vem selecionado) e as
+  configurações ficam numa **pasta padrão** dentro dele, igual em todos os projetos:
+
+  ```
+  <Projeto>\Project Files\BIM\Configuracoes IFC\
+    Setups\         Civil.json, Arquitetura.json ...  (Exportar › IFC › Modificar configuração › Salvar configuração)
+    PropertySets\   Civil.txt, Arquitetura.txt ...    (property sets definidos pelo usuário)
+    Mapeamentos\    Civil.txt ...                     (tabela de mapeamento de parâmetros, opcional)
+  ```
+
+  O caminho da pasta padrão pode ser alterado na janela (fica salvo). Se o projeto ainda não tiver a pasta,
+  o botão **Criar pasta padrão** cria as subpastas e um LEIA-ME; o Desktop Connector envia para o Forma.
+- **Pasta no computador ou na rede**: qualquer pasta. Se tiver as mesmas subpastas, vale a mesma regra;
+  senão os `.json` e `.txt` são procurados nela e em até 3 níveis de subpastas.
+
+Para cada setup, o `.txt` de psets é achado nesta ordem: o `.txt` com o mesmo nome do setup em
+`PropertySets\`; o caminho gravado no `.json` (que é da máquina de quem salvou); um arquivo com o mesmo nome
+desse caminho na pasta de configurações; um `.txt` com o mesmo nome ao lado do `.json`. Dá para escolher outro.
+A tabela de mapeamento segue a mesma regra em `Mapeamentos\`.
+
+Antes de exportar, o `.txt` é lido com o mesmo leitor do Verificar IDS e a janela avisa quais parâmetros
+do mapeamento não existem no modelo. Escolhe-se a vista 3D (ou o modelo inteiro), a pasta e o nome do arquivo.
+As escolhas ficam em `%AppData%\MetroSP\ifc_export.ini`.
+
+Cada propriedade do `.json` vai para o exportador como opção, do mesmo jeito que a janela de exportação do Revit
+faz. Diferenças: o modelo de mapeamento guardado no .rvt (Revit 2025+) é ignorado para valer o `.txt`;
+vínculos não são exportados; a classificação e o endereço do projeto usados são os salvos no próprio modelo.
