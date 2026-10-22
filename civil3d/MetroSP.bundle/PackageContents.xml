@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ApplicationPackage SchemaVersion="1.0"
+                    AutodeskProduct="AutoCAD"
+                    ProductType="Application"
+                    Name="MetroSP"
+                    Description="Aba MetroSP: exportação IFC 4.3 com configuração do Autodesk Forma"
+                    AppVersion="0.2.0"
+                    Author="MetroSP"
+                    ProductCode="{D53723DB-EBA6-4428-9913-8CBC5398AB5A}"
+                    UpgradeCode="{F47F1D43-298D-467D-BC12-3DAC7B22CAE3}">
+  <CompanyDetails Name="MetroSP" />
+  <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.0" SeriesMax="R26.0" />
+
+  <!-- Civil 3D 2025 (R25.0) e 2026 (R25.1): .NET 8 -->
+  <Components Description="MetroSP 2025-2026">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R25.0" SeriesMax="R25.1" SupportPath="./Contents/" />
+    <ComponentEntry AppName="MetroSP" ModuleName="./Contents/R25/MetroSP.dll"
+                    AppDescription="Aba MetroSP e comandos MSP_*" LoadOnAutoCADStartup="True" />
+  </Components>
+
+  <!-- Civil 3D 2027 (R26.0): .NET 10, não é binário-compatível com 2025/2026 -->
+  <Components Description="MetroSP 2027">
+    <RuntimeRequirements OS="Win64" Platform="AutoCAD*" SeriesMin="R26.0" SeriesMax="R26.0" SupportPath="./Contents/" />
+    <ComponentEntry AppName="MetroSP" ModuleName="./Contents/R26/MetroSP.dll"
+                    AppDescription="Aba MetroSP e comandos MSP_*" LoadOnAutoCADStartup="True" />
+  </Components>
+</ApplicationPackage>

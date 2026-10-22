@@ -1,0 +1,29 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+      - name: Build (2025/2026 net8 + 2027 net10)
+        run: dotnet build src/MetroSP.csproj -c Release
+      - name: Empacotar bundle
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item -Recurse MetroSP.bundle out/
+          Copy-Item instalar.bat, README.md out/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MetroSP-bundle
+          path: out/
