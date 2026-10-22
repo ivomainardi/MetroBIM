@@ -1,0 +1,6 @@
+bin/
+obj/
+*.user
+.vs/
+MetroSP.bundle/Contents/R25/
+MetroSP.bundle/Contents/R26/
