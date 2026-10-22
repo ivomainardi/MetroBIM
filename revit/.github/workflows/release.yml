@@ -1,0 +1,60 @@
+# Publica uma release quando a <Version> do MetroSP.csproj muda na main.
+# Se a tag v<versão> já existe, não faz nada. Também pode ser rodado à mão em Actions.
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ler versão
+        id: versao
+        shell: pwsh
+        run: |
+          [xml]$proj = Get-Content src/MetroSP/MetroSP.csproj
+          $v = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if (-not $v) { throw 'Version não encontrada no MetroSP.csproj' }
+          $existe = git tag -l "v$v"
+          "versao=$v" >> $env:GITHUB_OUTPUT
+          "existe=$([bool]$existe)".ToLower() >> $env:GITHUB_OUTPUT
+          if ($existe) { Write-Host "Tag v$v já existe: nada a publicar." }
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.versao.outputs.existe == 'false'
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Compilar e empacotar
+        if: steps.versao.outputs.existe == 'false'
+        shell: pwsh
+        run: |
+          $v = '${{ steps.versao.outputs.versao }}'
+          if (-not (Select-String -Path NOTAS-DA-VERSAO.md -Pattern ([regex]::Escape($v)) -Quiet)) {
+            throw "NOTAS-DA-VERSAO.md não menciona a versão $v"
+          }
+          (Get-Content installer/MetroSP.iss) -replace '#define AppVersion ".*"', "#define AppVersion `"$v`"" | Set-Content installer/MetroSP.iss
+          ./build.ps1
+          Rename-Item MetroSP-instalador.zip "MetroSP-$v-instalador.zip"
+
+      - name: Publicar release
+        if: steps.versao.outputs.existe == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.versao.outputs.versao }}'
+          $arquivos = @("MetroSP-$v-instalador.zip") + @(Get-ChildItem "MetroSP-Setup-*.exe" -ErrorAction SilentlyContinue | ForEach-Object Name)
+          gh release create "v$v" @arquivos --target $env:GITHUB_SHA --title "MetroSP $v" --notes-file NOTAS-DA-VERSAO.md
