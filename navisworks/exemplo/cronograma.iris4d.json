@@ -1,0 +1,18 @@
+{
+  "formato": "iris-4d", "versao": 1, "origem": "Navisworks", "programa": "Navisworks 23.0",
+  "documento": "C:\\obras\\exemplo.nwf", "exportadoEm": "2026-10-22T14:00:00", "dataStatus": "2024-02-01",
+  "modelos": ["exemplo-EST.ifc"],
+  "tarefas": [
+    { "id": "27176", "codigo": "1", "nome": "PLANEJAMENTO", "nivel": 0, "resumo": true, "tipo": "",
+      "inicio": "2024-01-02", "fim": "2024-03-29", "inicioReal": null, "fimReal": null, "avanco": 0,
+      "campos": {}, "globalIds": [] },
+    { "id": "4031", "codigo": "1.1", "nome": "Estacas", "nivel": 1, "resumo": false, "tipo": "Construct",
+      "inicio": "2024-01-11", "fim": "2024-02-20", "inicioReal": "2024-01-15", "fimReal": null, "avanco": 40,
+      "campos": { "User 1": "BEP_EST-STC" }, "selecao": "explicita", "globalIds": ["2O2Fr$t4X7Zf8NOew3FLOH"] },
+    { "id": "4032", "codigo": "1.2", "nome": "Blocos", "nivel": 1, "resumo": false, "tipo": "Construct",
+      "inicio": "2024-02-21", "fim": "2024-03-29", "inicioReal": null, "fimReal": null, "avanco": 0,
+      "campos": {}, "selecao": "conjuntos", "globalIds": [], "erro": "exemplo de tarefa em que o Navisworks deu erro ao ler a seleção" }
+  ],
+  "semGlobalId": 0,
+  "diagnostico": null
+}
