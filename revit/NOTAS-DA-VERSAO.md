@@ -1,4 +1,21 @@
-# MetroSP 0.2.0
+# MetroSP 0.2.1
+
+Revit 2025, 2026 e 2027.
+
+## Correção: Renomear Compartilhado
+
+Na 0.2.0, o comando dizia que tinha renomeado, mas o projeto continuava mostrando o nome antigo.
+O projeto (e cada família) guarda um único registro do nome por GUID, e recarregar as famílias
+renomeadas não mudava esse registro.
+
+- O nome antigo agora é liberado no projeto e nas famílias antes de o GUID voltar com o nome novo.
+- Projeto e famílias são renomeados numa única operação: famílias renomeadas, registro antigo apagado,
+  famílias recarregadas, vínculo refeito e valores e tabelas restaurados.
+- No final o nome é conferido. Se o projeto não mostrar o nome novo, tudo é desfeito e a mensagem diz o motivo
+  (por exemplo, uma família in-place ou protegida que tem o parâmetro). Não aparece mais "renomeado" sem ter renomeado.
+- Rodar de novo num modelo em que as famílias já foram renomeadas, mas o projeto não, agora resolve.
+
+# MetroSP 0.2.0 (anterior)
 
 Revit 2025, 2026 e 2027.
 
