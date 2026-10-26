@@ -106,14 +106,16 @@ namespace MetroSP.Commands
                             "Marque \"Renomear também em todas as famílias carregadas\".");
                         return Result.Cancelled;
                     }
-                    if (plan.Binding != null)
+                    if (!janela.RenomearFamilias)
                     {
-                        // Primeiro o projeto: as famílias recarregadas depois chegam com o mesmo nome.
                         if (!Confirmar(plan, item.Nome, novoNome)) return Result.Cancelled;
                         avisos = SharedParameterRenamer.RenameInProject(app, doc, plan, novoNome);
                     }
-                    if (janela.RenomearFamilias)
+                    else
                     {
+                        // Projeto e famílias numa única operação: o projeto só mostra o nome novo se o registro
+                        // antigo do GUID for apagado e as famílias forem recarregadas já renomeadas.
+                        if (plan.Binding != null && !Confirmar(plan, item.Nome, novoNome)) return Result.Cancelled;
                         Guid guid = item.Guid;
                         int familias = janela.IncluirAninhadas ? RenomearEmFamilias.Editaveis(doc).Count : RenomearEmFamilias.ComParametro(doc, guid).Count;
                         var td = new TaskDialog("MetroSP - Renomear nas famílias")
@@ -122,24 +124,31 @@ namespace MetroSP.Commands
                             MainContent = (janela.IncluirAninhadas
                                     ? $"Serão abertas as {familias} famílias editáveis do projeto, procurando também nas aninhadas."
                                     : $"{familias} famílias têm o parâmetro.") +
-                                "\n\nCada família é aberta, o parâmetro é renomeado (mesmo GUID, valores e fórmulas mantidos) e ela é recarregada " +
-                                "no projeto. Antes da recarga os valores de tipos e instâncias são guardados e, depois, conferidos e restaurados. " +
-                                "Os arquivos .rfa da biblioteca não são alterados.\n\nRecomendado: testar primeiro numa cópia do modelo.",
+                                "\n\nCada família é aberta e o parâmetro é renomeado (mesmo GUID, valores e fórmulas mantidos). Depois o nome antigo " +
+                                "é liberado no projeto, as famílias são recarregadas e os valores de tipos e instâncias são restaurados. " +
+                                "Se no final o projeto não mostrar o nome novo, tudo é desfeito. Os arquivos .rfa da biblioteca não são alterados." +
+                                "\n\nRecomendado: testar primeiro numa cópia do modelo.",
                             CommonButtons = TaskDialogCommonButtons.Yes | TaskDialogCommonButtons.No,
                             DefaultButton = TaskDialogResult.Yes,
                         };
-                        if (td.Show() == TaskDialogResult.Yes)
+                        if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
+
+                        ResultadoFamilias rf = RenomearEmFamilias.Executar(app, doc, guid, novoNome, janela.IncluirAninhadas);
+                        if (!rf.Ok)
                         {
-                            ResultadoFamilias rf = RenomearEmFamilias.Executar(app, doc, guid, novoNome, janela.IncluirAninhadas);
-                            bool nomeOk = RenomearEmFamilias.AjustarNomeNoProjeto(doc, guid, novoNome);
-                            string final = SharedParameterElement.Lookup(doc, guid)?.GetDefinition()?.Name;
-                            avisos.Add($"Famílias: {rf.Renomeadas.Count} renomeadas ({rf.Abertas} abertas)" +
-                                       (rf.Restaurados > 0 ? $", {rf.Restaurados} valores restaurados após recarregar" : "") + ".");
-                            if (rf.Renomeadas.Count > 0) avisos.Add("Renomeadas: " + string.Join("; ", rf.Renomeadas.Take(15)) + (rf.Renomeadas.Count > 15 ? "..." : ""));
-                            avisos.AddRange(rf.Falhas.Select(f => "Falha: " + f));
-                            avisos.AddRange(rf.Avisos);
-                            if (!nomeOk) avisos.Add($"ATENÇÃO: o projeto ainda mostra o nome \"{final}\" para este GUID. Me avise para ajustarmos a ordem do processo.");
+                            var detalhes = new List<string> { "Motivo: " + rf.Motivo };
+                            detalhes.AddRange(rf.Falhas.Select(f => "Falha: " + f));
+                            detalhes.AddRange(rf.Avisos);
+                            TaskDialog.Show("MetroSP", $"O parâmetro NÃO foi renomeado e nada foi alterado. O projeto mostra \"{rf.NomeNoProjeto}\"." +
+                                "\n\n• " + string.Join("\n• ", detalhes.Take(20)));
+                            message = rf.Motivo;
+                            return Result.Failed;
                         }
+                        avisos.Add($"Famílias: {rf.Renomeadas.Count} renomeadas, {rf.Recarregadas} recarregadas ({rf.Abertas} abertas)" +
+                                   (rf.Restaurados > 0 ? $", {rf.Restaurados} valores restaurados" : "") + ".");
+                        if (rf.Renomeadas.Count > 0) avisos.Add("Renomeadas: " + string.Join("; ", rf.Renomeadas.Take(15)) + (rf.Renomeadas.Count > 15 ? "..." : ""));
+                        avisos.AddRange(rf.Falhas.Select(f => "Falha: " + f));
+                        avisos.AddRange(rf.Avisos);
                     }
                 }
             }

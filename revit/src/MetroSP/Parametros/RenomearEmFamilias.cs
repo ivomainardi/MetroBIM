@@ -15,16 +15,29 @@ namespace MetroSP.Parametros
         public List<string> Falhas { get; } = new List<string>();
         public List<string> Avisos { get; } = new List<string>();
         public int Abertas { get; set; }
+        public int Recarregadas { get; set; }
         public int Restaurados { get; set; }
         /// <summary>Nome que o projeto mostra para o GUID no final.</summary>
         public string NomeNoProjeto { get; set; }
+        /// <summary>true se o projeto passou a mostrar o nome novo. Se false, tudo foi desfeito.</summary>
+        public bool Ok { get; set; }
+        /// <summary>Por que foi desfeito, quando Ok = false.</summary>
+        public string Motivo { get; set; }
     }
 
     /// <summary>
-    /// Renomeia um parâmetro compartilhado (mesmo GUID) em todas as famílias carregadas no projeto,
-    /// inclusive aninhadas: abre cada família, renomeia (ReplaceParameter, que mantém valores e fórmulas),
-    /// trata as aninhadas e as recarrega na família mãe, e por fim recarrega no projeto mantendo os valores
-    /// do projeto (guardados antes, conferidos e restaurados depois). Os .rfa da biblioteca não são alterados.
+    /// Renomeia um parâmetro compartilhado (mesmo GUID) no projeto e em todas as famílias carregadas,
+    /// inclusive aninhadas.
+    ///
+    /// O projeto guarda um único registro (SharedParameterElement) por GUID, e o nome mostrado é o desse
+    /// registro: recarregar famílias renomeadas não muda nada enquanto ele existir. Por isso, numa única
+    /// operação (desfeita inteira se o nome final não for o novo):
+    ///   1. renomeia dentro de cada família (de dentro para fora nas aninhadas), sem recarregar ainda;
+    ///   2. guarda os valores do parâmetro em todos os elementos, o vínculo e os campos das tabelas;
+    ///   3. apaga o registro do GUID no projeto;
+    ///   4. recarrega as famílias (o GUID volta com o nome novo) e refaz o vínculo do projeto;
+    ///   5. restaura valores e campos das tabelas e confere o nome.
+    /// Os .rfa da biblioteca não são alterados.
     /// </summary>
     public static class RenomearEmFamilias
     {
@@ -58,100 +71,239 @@ namespace MetroSP.Parametros
         public static ResultadoFamilias Executar(Application app, Document doc, Guid guid, string novoNome, bool aninhadas)
         {
             var r = new ResultadoFamilias();
-            List<Family> alvos = aninhadas ? Editaveis(doc) : ComParametro(doc, guid);
-            foreach (Family f in alvos)
+            var abertas = new List<(Family Familia, Document Doc)>();
+            using (var tg = new TransactionGroup(doc, "MetroSP: renomear parâmetro compartilhado"))
             {
-                Document fd = null;
+                tg.Start();
                 try
                 {
-                    fd = doc.EditFamily(f);
-                    r.Abertas++;
-                    if (!Processar(app, fd, guid, novoNome, aninhadas, f.Name, r)) continue;
+                    // 1. Renomear dentro das famílias. Ficam abertas até o passo 4.
+                    foreach (Family f in aninhadas ? Editaveis(doc) : ComParametro(doc, guid))
+                    {
+                        Document fd = null;
+                        try
+                        {
+                            fd = doc.EditFamily(f);
+                            r.Abertas++;
+                            if (Processar(app, fd, guid, novoNome, aninhadas, f.Name, r)) { abertas.Add((f, fd)); fd = null; }
+                        }
+                        catch (Exception ex) { r.Falhas.Add($"{f.Name}: {ex.Message}"); }
+                        finally { try { fd?.Close(false); } catch { } }
+                    }
 
-                    List<FormulaFamilia.ValorGuardado> antes = FormulaFamilia.Guardar(doc, f, null);
-                    fd.LoadFamily(doc, new FormulaFamilia.CarregarMantendoValores());
-                    var (restaurados, falhas) = FormulaFamilia.Restaurar(doc, antes);
-                    r.Restaurados += restaurados;
-                    if (falhas.Count > 0)
-                        r.Falhas.Add($"{f.Name}: recarregada, mas {falhas.Count} valores não voltaram: " + string.Join(", ", falhas.Take(5)));
+                    // 2. Guardar o que se perde ao apagar o registro do GUID.
+                    SharedParameterElement spe = SharedParameterElement.Lookup(doc, guid);
+                    if (spe == null) throw new InvalidOperationException("O parâmetro não foi encontrado no projeto.");
+                    if (spe.GetDefinition().Name == novoNome && abertas.Count == 0)
+                    {
+                        r.Ok = true;
+                        r.NomeNoProjeto = novoNome;
+                        tg.Assimilate();
+                        return r;
+                    }
+                    InternalDefinition def = spe.GetDefinition();
+                    var vinculo = doc.ParameterBindings.get_Item(def) as ElementBinding;
+                    bool porTipo = vinculo is TypeBinding;
+                    var categorias = new CategorySet();
+                    if (vinculo != null) foreach (Category c in vinculo.Categories) categorias.Insert(c);
+                    ForgeTypeId grupo = def.GetGroupTypeId();
+                    ForgeTypeId tipoDado = def.GetDataType();
+                    bool visivel = def.Visible;
+                    bool variaEntreGrupos = def.VariesAcrossGroups;
+                    string nomeAntigo = def.Name;
+
+                    List<SharedParameterRenamer.SavedValue> valores =
+                        SharedParameterRenamer.ElementsWithParameter(doc, guid, true)
+                            .Concat(SharedParameterRenamer.ElementsWithParameter(doc, guid, false))
+                            .Select(e => SharedParameterRenamer.SavedValue.From(e, e.get_Parameter(guid)))
+                            .Where(v => v != null)
+                            .ToList();
+
+                    var campos = new List<(ViewSchedule View, int Index, string Titulo)>();
+                    foreach (ViewSchedule vs in new FilteredElementCollector(doc).OfClass(typeof(ViewSchedule)).Cast<ViewSchedule>())
+                    {
+                        if (vs.IsTemplate) continue;
+                        ScheduleDefinition sd = vs.Definition;
+                        IList<ScheduleFieldId> ordem = sd.GetFieldOrder();
+                        for (int i = 0; i < ordem.Count; i++)
+                        {
+                            ScheduleField f = sd.GetField(ordem[i]);
+                            if (f.ParameterId == spe.Id) campos.Add((vs, i, f.ColumnHeading));
+                        }
+                    }
+
+                    // 3. Apagar o registro do GUID no projeto.
+                    using (var t = new Transaction(doc, "MetroSP: liberar o nome do parâmetro"))
+                    {
+                        t.Start();
+                        bool liberado = SharedParameterRenamer.ApagarRegistroDoGuid(doc, guid);
+                        t.Commit();
+                        if (!liberado)
+                        {
+                            List<string> travadas = NaoEditaveis(doc, guid);
+                            throw new InvalidOperationException(
+                                "O Revit não deixou liberar o nome antigo no projeto" +
+                                (travadas.Count > 0 ? ", porque estas famílias não podem ser abertas: " + string.Join(", ", travadas) : "") + ".");
+                        }
+                    }
+
+                    // 4. Recarregar as famílias e refazer o vínculo.
+                    foreach (var (f, fd) in abertas)
+                    {
+                        try
+                        {
+                            fd.LoadFamily(doc, new FormulaFamilia.CarregarMantendoValores());
+                            r.Recarregadas++;
+                        }
+                        catch (Exception ex) { r.Falhas.Add($"{f.Name}: não recarregou ({ex.Message})"); }
+                    }
+
+                    using (var t = new Transaction(doc, "MetroSP: refazer vínculo e valores"))
+                    {
+                        t.Start();
+                        if (vinculo != null)
+                        {
+                            SharedParameterRenamer.WithTempDefinition(app, novoNome, tipoDado, guid, visivel, novaDefinicao =>
+                            {
+                                Binding novo = porTipo ? (Binding)app.Create.NewTypeBinding(categorias) : app.Create.NewInstanceBinding(categorias);
+                                if (!doc.ParameterBindings.Insert(novaDefinicao, novo, grupo))
+                                    throw new InvalidOperationException("O Revit recusou refazer o vínculo do parâmetro no projeto.");
+                            });
+                        }
+
+                        SharedParameterElement final = SharedParameterElement.Lookup(doc, guid);
+                        if (final != null && variaEntreGrupos)
+                        {
+                            try { final.GetDefinition().SetAllowVaryBetweenGroups(doc, true); }
+                            catch { r.Avisos.Add("Não foi possível reativar \"Valores podem variar por instância de grupo\"."); }
+                        }
+
+                        // 5. Restaurar valores e tabelas.
+                        int falhas = 0;
+                        foreach (var v in valores)
+                        {
+                            if (v.Restore(doc, guid)) r.Restaurados++;
+                            else if (!v.JaIgual(doc, guid)) falhas++;
+                        }
+                        if (falhas > 0) r.Avisos.Add($"{falhas} de {valores.Count} valores não puderam ser restaurados (elementos somente leitura ou em grupos).");
+
+                        if (final != null)
+                        {
+                            foreach (var (view, index, titulo) in campos)
+                            {
+                                try
+                                {
+                                    ScheduleDefinition sd = view.Definition;
+                                    if (sd.GetFieldOrder().Any(id => sd.GetField(id).ParameterId == final.Id)) continue;
+                                    SchedulableField sf = sd.GetSchedulableFields().FirstOrDefault(x => x.ParameterId == final.Id);
+                                    if (sf == null) { r.Avisos.Add($"Tabela \"{view.Name}\": campo não disponível para recriar."); continue; }
+                                    ScheduleField campo = sd.InsertField(sf, Math.Min(index, sd.GetFieldCount()));
+                                    if (!string.IsNullOrEmpty(titulo) && titulo != nomeAntigo) campo.ColumnHeading = titulo;
+                                }
+                                catch (Exception ex) { r.Avisos.Add($"Tabela \"{view.Name}\": {ex.Message}"); }
+                            }
+                        }
+                        t.Commit();
+                    }
+
+                    r.NomeNoProjeto = SharedParameterElement.Lookup(doc, guid)?.GetDefinition()?.Name;
+                    if (r.NomeNoProjeto == novoNome)
+                    {
+                        r.Ok = true;
+                        tg.Assimilate();
+                    }
+                    else
+                    {
+                        r.Motivo = r.NomeNoProjeto == null
+                            ? "o parâmetro não voltou ao projeto depois de recarregar as famílias."
+                            : $"o projeto continuou mostrando \"{r.NomeNoProjeto}\".";
+                        tg.RollBack();
+                    }
                 }
                 catch (Exception ex)
                 {
-                    r.Falhas.Add($"{f.Name}: {ex.Message}");
+                    r.Ok = false;
+                    r.Motivo = ex.Message;
+                    if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack();
                 }
                 finally
                 {
-                    try { fd?.Close(false); } catch { }
+                    foreach (var (_, fd) in abertas) try { fd.Close(false); } catch { }
                 }
             }
+            if (!r.Ok) r.NomeNoProjeto = SharedParameterElement.Lookup(doc, guid)?.GetDefinition()?.Name;
             r.Avisos.AddRange(NaoEditaveis(doc, guid).Select(n => "Não foi possível abrir: " + n));
-            r.NomeNoProjeto = SharedParameterElement.Lookup(doc, guid)?.GetDefinition()?.Name;
             return r;
         }
 
         /// <summary>
-        /// Renomeia no documento da família e, se pedido, nas aninhadas (recarregando-as nele).
-        /// O parâmetro da própria família é renomeado antes de recarregar as aninhadas, para os nomes
-        /// do mesmo GUID não ficarem diferentes dentro do arquivo. Retorna true se algo mudou.
+        /// Renomeia no documento da família e, se pedido, nas aninhadas, de dentro para fora:
+        /// o parâmetro da própria família vira parâmetro de família (liberando o nome antigo), as aninhadas
+        /// renomeadas são recarregadas, e só então ele volta a compartilhado com o nome novo.
+        /// Retorna true se a família tem o GUID (nela ou nas aninhadas) e deve ser recarregada.
         /// </summary>
         private static bool Processar(Application app, Document fd, Guid guid, string novoNome, bool aninhadas, string caminho, ResultadoFamilias r)
         {
-            bool mudou = false;
             FamilyParameter p = fd.FamilyManager.GetParameters().FirstOrDefault(x => x.IsShared && x.GUID == guid);
-            if (p != null && p.Definition.Name != novoNome)
-            {
-                SharedParameterRenamer.RenameInFamily(app, fd, p, novoNome);
-                r.Renomeadas.Add(caminho);
-                mudou = true;
-            }
-            if (!aninhadas) return mudou;
+            bool tem = p != null || SharedParameterElement.Lookup(fd, guid) != null;
 
-            foreach (Family nf in new FilteredElementCollector(fd).OfClass(typeof(Family)).Cast<Family>().Where(Editavel).ToList())
+            var filhas = new List<(string Caminho, Document Doc)>();
+            try
             {
-                Document nd = null;
-                string sub = caminho + " › " + nf.Name;
-                try
+                if (aninhadas)
                 {
-                    nd = fd.EditFamily(nf);
-                    r.Abertas++;
-                    if (!Processar(app, nd, guid, novoNome, true, sub, r)) continue;
-                    nd.LoadFamily(fd, new FormulaFamilia.CarregarMantendoValores());
-                    mudou = true;
+                    foreach (Family nf in new FilteredElementCollector(fd).OfClass(typeof(Family)).Cast<Family>().Where(Editavel).ToList())
+                    {
+                        Document nd = null;
+                        string sub = caminho + " › " + nf.Name;
+                        try
+                        {
+                            nd = fd.EditFamily(nf);
+                            r.Abertas++;
+                            if (Processar(app, nd, guid, novoNome, true, sub, r)) { filhas.Add((sub, nd)); nd = null; }
+                        }
+                        catch (Exception ex) { r.Falhas.Add($"{sub}: {ex.Message}"); }
+                        finally { try { nd?.Close(false); } catch { } }
+                    }
                 }
-                catch (Exception ex)
-                {
-                    r.Falhas.Add($"{sub}: {ex.Message}");
-                }
-                finally
-                {
-                    try { nd?.Close(false); } catch { }
-                }
-            }
-            return mudou;
-        }
+                if (!tem && filhas.Count == 0) return false;
 
-        /// <summary>
-        /// Se o projeto ainda mostrar o nome antigo para o GUID (parâmetro que só existe nas famílias),
-        /// tenta renomear direto o elemento do parâmetro no projeto.
-        /// </summary>
-        public static bool AjustarNomeNoProjeto(Document doc, Guid guid, string novoNome)
-        {
-            SharedParameterElement spe = SharedParameterElement.Lookup(doc, guid);
-            if (spe == null || spe.GetDefinition().Name == novoNome) return true;
-            using (var t = new Transaction(doc, "MetroSP: nome do parâmetro no projeto"))
-            {
-                try
+                SharedParameterRenamer.DadosParametro dados = null;
+                FamilyParameter familia = null;
+                using (var t = new Transaction(fd, "MetroSP: liberar o nome do parâmetro"))
                 {
                     t.Start();
-                    spe.Name = novoNome;
+                    if (p != null && p.Definition.Name != novoNome)
+                        dados = SharedParameterRenamer.ParaParametroDeFamilia(fd, p, out familia);
+                    else if (p == null)
+                        SharedParameterRenamer.ApagarRegistroDoGuid(fd, guid);
                     t.Commit();
                 }
-                catch
+
+                foreach (var (sub, nd) in filhas)
                 {
-                    if (t.HasStarted() && !t.HasEnded()) t.RollBack();
+                    try { nd.LoadFamily(fd, new FormulaFamilia.CarregarMantendoValores()); }
+                    catch (Exception ex) { r.Falhas.Add($"{sub}: não recarregou ({ex.Message})"); }
                 }
+
+                if (dados != null)
+                {
+                    string final;
+                    using (var t = new Transaction(fd, "MetroSP: renomear parâmetro compartilhado"))
+                    {
+                        t.Start();
+                        final = SharedParameterRenamer.ParaCompartilhado(app, fd, familia, dados, novoNome);
+                        t.Commit();
+                    }
+                    if (final == novoNome) r.Renomeadas.Add(caminho);
+                    else r.Falhas.Add($"{caminho}: a família manteve o nome \"{final}\"");
+                }
+                return true;
             }
-            return SharedParameterElement.Lookup(doc, guid)?.GetDefinition()?.Name == novoNome;
+            finally
+            {
+                foreach (var (_, nd) in filhas) try { nd.Close(false); } catch { }
+            }
         }
     }
 }

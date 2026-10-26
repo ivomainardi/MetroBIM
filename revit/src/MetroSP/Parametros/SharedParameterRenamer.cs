@@ -43,24 +43,92 @@ namespace MetroSP.Parametros
             if (fm.get_Parameter(novoNome) != null)
                 throw new InvalidOperationException($"Já existe um parâmetro chamado \"{novoNome}\" nesta família.");
 
-            WithTempDefinition(app, novoNome, param.Definition.GetDataType(), guid, ((InternalDefinition)param.Definition).Visible, novaDefinicao =>
+            using (var t = new Transaction(doc, "MetroSP: Renomear parâmetro compartilhado"))
             {
-                using (var t = new Transaction(doc, "MetroSP: Renomear parâmetro compartilhado"))
-                {
-                    t.Start();
-                    ForgeTypeId grupo = param.Definition.GetGroupTypeId();
-                    bool instancia = param.IsInstance;
+                t.Start();
+                DadosParametro dados = ParaParametroDeFamilia(doc, param, out FamilyParameter familia);
+                string final = ParaCompartilhado(app, doc, familia, dados, novoNome);
+                if (final != novoNome)
+                    throw new InvalidOperationException(
+                        $"O Revit manteve o nome \"{final}\" para este GUID nesta família (ele ainda é usado por uma família aninhada). " +
+                        "Renomeie primeiro na família aninhada. Nada foi alterado.");
+                t.Commit();
+            }
+        }
 
-                    string nomeTemp = $"__metrosp_tmp_{Guid.NewGuid():N}";
-                    FamilyParameter familia = fm.ReplaceParameter(param, nomeTemp, grupo, instancia);
-                    FamilyParameter resultado = fm.ReplaceParameter(familia, novaDefinicao, grupo, instancia);
+        /// <summary>O que é preciso para recriar o parâmetro compartilhado depois de passá-lo a parâmetro de família.</summary>
+        internal class DadosParametro
+        {
+            public Guid Guid;
+            public ForgeTypeId Grupo;
+            public ForgeTypeId TipoDado;
+            public bool Instancia;
+            public bool Visivel;
+        }
 
-                    if (resultado.GUID != guid)
-                        throw new InvalidOperationException("O GUID resultante não confere. Operação desfeita.");
+        /// <summary>
+        /// Passo 1 (dentro de uma transação aberta): troca o compartilhado por um parâmetro de família de nome
+        /// temporário, mantendo valores, fórmulas e associações, e apaga o registro do GUID no documento.
+        /// Sem apagar esse registro, o Revit reaproveita o nome antigo quando o GUID volta (era a causa de o
+        /// nome "não mudar"). Se o GUID ainda é usado por uma família aninhada, o registro fica e o nome também.
+        /// </summary>
+        internal static DadosParametro ParaParametroDeFamilia(Document doc, FamilyParameter param, out FamilyParameter familia)
+        {
+            var dados = new DadosParametro
+            {
+                Guid = param.GUID,
+                Grupo = param.Definition.GetGroupTypeId(),
+                TipoDado = param.Definition.GetDataType(),
+                Instancia = param.IsInstance,
+                Visivel = ((InternalDefinition)param.Definition).Visible,
+            };
+            familia = doc.FamilyManager.ReplaceParameter(param, $"__metrosp_tmp_{Guid.NewGuid():N}", dados.Grupo, dados.Instancia);
+            ApagarRegistroDoGuid(doc, dados.Guid);
+            return dados;
+        }
 
-                    t.Commit();
-                }
+        /// <summary>
+        /// Passo 2 (dentro de uma transação aberta): volta a compartilhado com o MESMO GUID e o nome novo.
+        /// Retorna o nome que o Revit realmente deu ao parâmetro.
+        /// </summary>
+        internal static string ParaCompartilhado(Application app, Document doc, FamilyParameter familia, DadosParametro dados, string novoNome)
+        {
+            string final = null;
+            WithTempDefinition(app, novoNome, dados.TipoDado, dados.Guid, dados.Visivel, novaDefinicao =>
+            {
+                FamilyParameter resultado = doc.FamilyManager.ReplaceParameter(familia, novaDefinicao, dados.Grupo, dados.Instancia);
+                if (resultado.GUID != dados.Guid)
+                    throw new InvalidOperationException("O GUID resultante não confere. Operação desfeita.");
+                final = resultado.Definition.Name;
             });
+            return final;
+        }
+
+        /// <summary>
+        /// Apaga o SharedParameterElement do GUID, se existir e se apagar não levar junto nenhum outro elemento.
+        /// Retorna true se o registro não existe mais. Precisa de transação aberta.
+        /// </summary>
+        internal static bool ApagarRegistroDoGuid(Document doc, Guid guid)
+        {
+            SharedParameterElement spe = SharedParameterElement.Lookup(doc, guid);
+            if (spe == null) return true;
+            using (var st = new SubTransaction(doc))
+            {
+                st.Start();
+                try
+                {
+                    ElementId id = spe.Id;
+                    ICollection<ElementId> apagados = doc.Delete(id);
+                    if (apagados.All(x => x == id) && SharedParameterElement.Lookup(doc, guid) == null)
+                    {
+                        st.Commit();
+                        return true;
+                    }
+                }
+                catch { /* em uso: fica */ }
+                if (st.HasStarted() && !st.HasEnded()) st.RollBack();
+                return false;
+            }
         }
 
         // ---------- Projeto ----------
@@ -156,6 +224,10 @@ namespace MetroSP.Parametros
 
                 SharedParameterElement novo = SharedParameterElement.Lookup(doc, guid)
                     ?? throw new InvalidOperationException("O parâmetro recriado não foi encontrado. Nada foi alterado.");
+                if (novo.GetDefinition().Name != novoNome)
+                    throw new InvalidOperationException(
+                        $"O Revit manteve o nome \"{novo.GetDefinition().Name}\" porque o parâmetro também está em famílias carregadas. " +
+                        "Marque \"Renomear também em todas as famílias carregadas\". Nada foi alterado.");
                 if (variaEntreGrupos)
                 {
                     try { novo.GetDefinition().SetAllowVaryBetweenGroups(doc, true); }
@@ -219,7 +291,7 @@ namespace MetroSP.Parametros
         /// Cria um .txt temporário com uma única definição (mesmo GUID, nome novo), executa a ação
         /// e restaura o arquivo de parâmetros compartilhados original do usuário.
         /// </summary>
-        private static void WithTempDefinition(Application app, string nome, ForgeTypeId tipoDado, Guid guid, bool visivel,
+        internal static void WithTempDefinition(Application app, string nome, ForgeTypeId tipoDado, Guid guid, bool visivel,
             Action<ExternalDefinition> acao)
         {
             string arquivoOriginal = app.SharedParametersFilename;
@@ -241,7 +313,7 @@ namespace MetroSP.Parametros
         }
 
         /// <summary>Valor de parâmetro guardado antes de apagar o parâmetro.</summary>
-        private class SavedValue
+        internal class SavedValue
         {
             private ElementId _id;
             private StorageType _tipo;
@@ -249,7 +321,7 @@ namespace MetroSP.Parametros
 
             public static SavedValue From(Element e, Parameter p)
             {
-                if (p == null || !p.HasValue) return null;
+                if (p == null || !p.HasValue || p.IsReadOnly) return null;
                 var v = new SavedValue { _id = e.Id, _tipo = p.StorageType };
                 switch (p.StorageType)
                 {
@@ -260,6 +332,21 @@ namespace MetroSP.Parametros
                     default: return null;
                 }
                 return v;
+            }
+
+            /// <summary>true se o elemento já tem o valor guardado (nada a restaurar).</summary>
+            public bool JaIgual(Document doc, Guid guid)
+            {
+                Parameter p = doc.GetElement(_id)?.get_Parameter(guid);
+                if (p == null || p.StorageType != _tipo) return false;
+                switch (_tipo)
+                {
+                    case StorageType.String: return (p.AsString() ?? "") == ((string)_valor ?? "");
+                    case StorageType.Integer: return p.AsInteger() == (int)_valor;
+                    case StorageType.Double: return Math.Abs(p.AsDouble() - (double)_valor) < 1e-9;
+                    case StorageType.ElementId: return p.AsElementId() == (ElementId)_valor;
+                }
+                return false;
             }
 
             public bool Restore(Document doc, Guid guid)

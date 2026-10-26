@@ -44,16 +44,28 @@ Revit 2027 usa .NET 10; 2025 e 2026 usam .NET 8 (o csproj escolhe sozinho).
 
 ## Renomear parâmetro compartilhado (mantendo GUID)
 
-O Revit não deixa renomear parâmetro compartilhado direto. O comando faz, numa única transação:
+O Revit não deixa renomear parâmetro compartilhado direto, e cada documento (projeto ou família) guarda
+um único registro do nome por GUID: enquanto esse registro existir, o nome antigo volta.
 
-1. Troca o parâmetro compartilhado por um parâmetro de família temporário (`ReplaceParameter`).
+**Numa família:**
+
+1. Troca o parâmetro compartilhado por um parâmetro de família temporário (`ReplaceParameter`)
+   e apaga o registro antigo do GUID.
 2. Troca de volta para compartilhado usando uma definição com **o mesmo GUID** e o nome novo,
    criada num .txt temporário.
-3. Confere se o GUID final é o mesmo; se não for, desfaz tudo.
-4. Opcional: renomeia a linha do GUID no seu arquivo de parâmetros compartilhados (com backup `.bak`).
+3. Confere o GUID e o nome final; se não conferirem, desfaz tudo.
 
-Valores, fórmulas e associações ficam preservados. Tags e tabelas que usam o parâmetro
-continuam funcionando porque elas referenciam o GUID.
+**No projeto, com "Renomear também em todas as famílias carregadas":**
+
+1. Renomeia dentro de cada família (de dentro para fora nas aninhadas), sem recarregar ainda.
+2. Guarda os valores do parâmetro em todos os elementos, o vínculo de projeto e os campos das tabelas.
+3. Apaga o registro antigo do GUID no projeto.
+4. Recarrega as famílias renomeadas e refaz o vínculo com o nome novo.
+5. Restaura valores e campos das tabelas e confere o nome. Se o projeto não mostrar o nome novo,
+   desfaz tudo e diz o motivo.
+
+Opcional: renomeia a linha do GUID no seu arquivo de parâmetros compartilhados (com backup `.bak`).
+Tags e tabelas continuam funcionando porque referenciam o GUID. Os .rfa da biblioteca não são alterados.
 
 ## Verificar mapeamento IDS (antes de exportar)
 
