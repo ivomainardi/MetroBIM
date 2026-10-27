@@ -57,12 +57,16 @@ um único registro do nome por GUID: enquanto esse registro existir, o nome anti
 
 **No projeto, com "Renomear também em todas as famílias carregadas":**
 
-1. Renomeia dentro de cada família (de dentro para fora nas aninhadas), sem recarregar ainda.
+O Revit só deixa apagar o registro do nome antigo no projeto quando nenhuma família carregada usa mais o GUID.
+Por isso, numa única operação (desfeita inteira se o nome final não for o novo):
+
+1. Em cada família (de dentro para fora nas aninhadas), o compartilhado vira parâmetro de família e o registro
+   do GUID na família é apagado. Cada família preparada é guardada num .rfa temporário.
 2. Guarda os valores do parâmetro em todos os elementos, o vínculo de projeto e os campos das tabelas.
-3. Apaga o registro antigo do GUID no projeto.
-4. Recarrega as famílias renomeadas e refaz o vínculo com o nome novo.
-5. Restaura valores e campos das tabelas e confere o nome. Se o projeto não mostrar o nome novo,
-   desfaz tudo e diz o motivo.
+3. Recarrega as famílias preparadas: o projeto deixa de usar o GUID.
+4. Apaga o registro antigo do GUID no projeto.
+5. Volta o parâmetro a compartilhado com o nome novo em cada família e recarrega de novo.
+6. Refaz o vínculo, restaura valores e campos das tabelas e confere o nome.
 
 Opcional: renomeia a linha do GUID no seu arquivo de parâmetros compartilhados (com backup `.bak`).
 Tags e tabelas continuam funcionando porque referenciam o GUID. Os .rfa da biblioteca não são alterados.
