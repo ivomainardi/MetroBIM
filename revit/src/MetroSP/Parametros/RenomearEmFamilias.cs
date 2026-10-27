@@ -262,6 +262,9 @@ namespace MetroSP.Parametros
         {
             FamilyParameter p = fd.FamilyManager.GetParameters().FirstOrDefault(x => x.IsShared && x.GUID == guid);
             bool tem = p != null || SharedParameterElement.Lookup(fd, guid) != null;
+            // Uma família aninhada com o parâmetro deixa o GUID registrado na família mãe. Sem o registro,
+            // nada abaixo dela tem o parâmetro: não precisa abrir as aninhadas (era o que mais tomava tempo).
+            if (!tem) return false;
 
             var filhas = new List<(string Caminho, Document Doc)>();
             try
@@ -283,7 +286,6 @@ namespace MetroSP.Parametros
                         finally { try { nd?.Close(false); } catch { } }
                     }
                 }
-                if (!tem && filhas.Count == 0) return false;
 
                 SharedParameterRenamer.DadosParametro dados = null;
                 FamilyParameter familia = null;
