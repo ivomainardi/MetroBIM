@@ -1,4 +1,26 @@
-# MetroSP 0.2.4
+# MetroSP 0.2.5
+
+Revit 2025, 2026 e 2027.
+
+## Correção: Renomear Compartilhado com famílias
+
+Na 0.2.4 o comando parava com "O Revit não deixou liberar o nome antigo no projeto". O Revit só deixa apagar
+o registro do nome antigo quando nenhuma família carregada usa mais o parâmetro, e a ferramenta tentava apagar
+com as famílias ainda usando. Agora são duas passagens:
+
+1. em cada família (e nas aninhadas), o parâmetro vira parâmetro de família, com valores e fórmulas, e ela é
+   recarregada assim: o projeto deixa de usar o parâmetro;
+2. o nome antigo é apagado no projeto;
+3. em cada família o parâmetro volta a ser compartilhado, com o mesmo GUID e o nome novo, e ela é recarregada de novo;
+4. o vínculo do projeto e os valores são refeitos, e o nome é conferido.
+
+Também corrigido o "Loaded Family Editing failed" em aninhadas: as famílias preparadas ficavam abertas, e o Revit
+não abre a mesma família duas vezes (acontecia com aninhadas compartilhadas, que também estão no projeto).
+Agora cada família é guardada num arquivo temporário e reaberta só quando precisa.
+
+Se ainda assim o nome antigo não puder ser liberado, a mensagem diz quais famílias continuam usando o parâmetro.
+
+# MetroSP 0.2.4 (anterior)
 
 Revit 2025, 2026 e 2027.
 
@@ -45,7 +67,7 @@ Cuidados que a ferramenta toma:
 - Em famílias de anotação (etiquetas, carimbos) nada é deletado, porque a API não mostra os rótulos de texto.
 - Tudo numa transação: Ctrl+Z no Revit desfaz depois de fechar a janela.
 
-# MetroSP 0.2.3 (anterior)
+# MetroSP 0.2.3
 
 Revit 2025, 2026 e 2027.
 

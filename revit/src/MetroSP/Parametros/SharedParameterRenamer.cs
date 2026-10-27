@@ -108,10 +108,15 @@ namespace MetroSP.Parametros
         /// Apaga o SharedParameterElement do GUID, se existir e se apagar não levar junto nenhum outro elemento.
         /// Retorna true se o registro não existe mais. Precisa de transação aberta.
         /// </summary>
-        internal static bool ApagarRegistroDoGuid(Document doc, Guid guid)
+        internal static bool ApagarRegistroDoGuid(Document doc, Guid guid) => ApagarRegistroDoGuid(doc, guid, out _);
+
+        /// <param name="motivo">Quando não apaga: o que o Revit respondeu ou o que iria junto.</param>
+        internal static bool ApagarRegistroDoGuid(Document doc, Guid guid, out string motivo)
         {
+            motivo = null;
             SharedParameterElement spe = SharedParameterElement.Lookup(doc, guid);
             if (spe == null) return true;
+            var juntos = new List<ElementId>();
             using (var st = new SubTransaction(doc))
             {
                 st.Start();
@@ -119,14 +124,22 @@ namespace MetroSP.Parametros
                 {
                     ElementId id = spe.Id;
                     ICollection<ElementId> apagados = doc.Delete(id);
-                    if (apagados.All(x => x == id) && SharedParameterElement.Lookup(doc, guid) == null)
+                    List<ElementId> outros = apagados.Where(x => x != id).ToList();
+                    if (outros.Count == 0 && SharedParameterElement.Lookup(doc, guid) == null)
                     {
                         st.Commit();
                         return true;
                     }
+                    juntos = outros;
+                    motivo = "o registro continuou no projeto depois de apagado";
                 }
-                catch { /* em uso: fica */ }
+                catch (Exception ex) { motivo = ex.Message; }
                 if (st.HasStarted() && !st.HasEnded()) st.RollBack();
+                // Depois de desfazer, os elementos existem de novo e dá para dizer quais eram.
+                if (juntos.Count > 0)
+                    motivo = $"apagar o registro levaria junto {juntos.Count} elementos: " + string.Join(", ",
+                        juntos.Take(6).Select(x => doc.GetElement(x)).Where(e => e != null)
+                            .Select(e => $"{e.GetType().Name} \"{e.Name}\"").Distinct());
                 return false;
             }
         }
