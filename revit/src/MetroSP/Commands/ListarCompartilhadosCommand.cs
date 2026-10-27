@@ -10,7 +10,7 @@ namespace MetroSP.Commands
 {
     /// <summary>
     /// Lista todos os parâmetros compartilhados do projeto ou da família aberta, com o .txt de origem,
-    /// comparação com arquivos de referência, renomear e exportar.
+    /// comparação com arquivos de referência e com a base MetroShared, renomear, exportar e deletar os sem uso.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class ListarCompartilhadosCommand : IExternalCommand
@@ -52,7 +52,9 @@ namespace MetroSP.Commands
                 uiapp.Application.SharedParametersFilename,
                 Renomear,
                 () => SharedParameterCollector.Collect(doc),
-                (lista, caminho) => SharedParameterExporter.ExportarTxt(uiapp.Application, lista, caminho));
+                (lista, caminho) => SharedParameterExporter.ExportarTxt(uiapp.Application, lista, caminho),
+                lista => UsoParametros.Analisar(doc, lista),
+                lista => UsoParametros.Deletar(doc, lista));
             new WindowInteropHelper(janela).Owner = uiapp.MainWindowHandle;
             janela.ShowDialog();
             return Result.Succeeded;

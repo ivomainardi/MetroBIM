@@ -38,6 +38,25 @@ namespace MetroSP.Parametros
         public string Situacao { get; set; }
         /// <summary>0 = ok, 1 = não está nas referências, 2 = nome ou tipo diferente.</summary>
         public int Gravidade { get; set; }
+
+        // Comparação com o .txt base (MetroShared), preenchida por SharedParameterCollector.MarcarPadrao.
+        public string Padrao { get; set; }
+        /// <summary>0 = no padrão (ou sem base), 1 = fora do padrão, 2 = duplica ou diverge de um parâmetro do padrão.</summary>
+        public int GravidadePadrao { get; set; }
+
+        // Uso no arquivo, preenchido por UsoParametros.Analisar.
+        public string Uso { get; set; } = UsoParametros.NaoVerificado;
+        /// <summary>true = a análise não achou uso e o parâmetro pode ser deletado.</summary>
+        public bool PodeDeletar { get; set; }
+        public bool UsoVerificado => Uso != UsoParametros.NaoVerificado;
+
+        /// <summary>Elemento do parâmetro no documento (ParameterElement no projeto, FamilyParameter na família).</summary>
+        internal ElementId Id { get; set; }
+        internal Definition Definicao { get; set; }
+        internal FamilyParameter ParametroFamilia { get; set; }
+
+        /// <summary>Chave estável entre recargas do modelo.</summary>
+        internal string Chave => Compartilhado ? Guid.ToString() : "ns:" + Nome;
     }
 
     /// <summary>Linha da aba "Comparar com .txt".</summary>
@@ -181,6 +200,83 @@ namespace MetroSP.Parametros
             }
         }
 
+        /// <summary>
+        /// Compara cada parâmetro com o .txt base (o MetroShared, a mesma base das outras ferramentas):
+        /// no padrão, nome diferente do padrão, duplicado (mesmo nome do padrão com outro GUID), parecido
+        /// com um nome do padrão, ou fora do padrão. Marca também nomes repetidos dentro do próprio arquivo.
+        /// </summary>
+        public static void MarcarPadrao(List<SharedParameterInfo> itens, SharedParamTxt padrao)
+        {
+            Dictionary<string, SharedParamDef> parecidos = null;
+            if (padrao != null)
+            {
+                parecidos = new Dictionary<string, SharedParamDef>();
+                foreach (SharedParamDef d in padrao.Definicoes)
+                {
+                    string k = NomeNormalizado(d.Nome);
+                    if (k.Length > 0 && !parecidos.ContainsKey(k)) parecidos[k] = d;
+                }
+            }
+            // Nomes repetidos no arquivo com GUIDs diferentes (ex.: "Classificação" e "Classificacao").
+            var repetidos = new HashSet<string>(itens
+                .GroupBy(i => NomeNormalizado(i.Nome))
+                .Where(g => g.Key.Length > 0 && g.Select(i => i.Chave).Distinct().Count() > 1)
+                .Select(g => g.Key));
+
+            foreach (SharedParameterInfo i in itens)
+            {
+                string texto;
+                int grav;
+                if (padrao == null)
+                {
+                    texto = "(sem base)";
+                    grav = 0;
+                }
+                else if (i.Compartilhado && padrao.PorGuid.TryGetValue(i.Guid, out SharedParamDef mesmo))
+                {
+                    if (mesmo.Nome == i.Nome) { texto = "No padrão"; grav = 0; }
+                    else { texto = $"Nome diferente do padrão: \"{mesmo.Nome}\""; grav = 2; }
+                }
+                else if (padrao.PorNome.TryGetValue(i.Nome, out SharedParamDef homonimo))
+                {
+                    texto = i.Compartilhado
+                        ? $"Duplicado: o padrão tem \"{homonimo.Nome}\" com outro GUID"
+                        : $"Duplicado: o padrão tem \"{homonimo.Nome}\" (este não é compartilhado)";
+                    grav = 2;
+                }
+                else if (parecidos.TryGetValue(NomeNormalizado(i.Nome), out SharedParamDef parecido))
+                {
+                    texto = $"Parecido com o padrão: \"{parecido.Nome}\"";
+                    grav = 2;
+                }
+                else
+                {
+                    texto = "Fora do padrão";
+                    grav = 1;
+                }
+                if (repetidos.Contains(NomeNormalizado(i.Nome)))
+                {
+                    texto += " · nome repetido no arquivo";
+                    grav = Math.Max(grav, 1);
+                }
+                i.Padrao = texto;
+                i.GravidadePadrao = grav;
+            }
+        }
+
+        /// <summary>Nome sem acentos, maiúsculas, espaços e pontuação, para achar duplicados escritos de outro jeito.</summary>
+        public static string NomeNormalizado(string nome)
+        {
+            if (string.IsNullOrEmpty(nome)) return "";
+            var sb = new System.Text.StringBuilder();
+            foreach (char c in nome.Normalize(System.Text.NormalizationForm.FormD))
+            {
+                if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+                if (char.IsLetterOrDigit(c)) sb.Append(char.ToLowerInvariant(c));
+            }
+            return sb.ToString();
+        }
+
         private static List<SharedParameterInfo> FromProject(Document doc)
         {
             var itens = new List<SharedParameterInfo>();
@@ -192,6 +288,8 @@ namespace MetroSP.Parametros
                 {
                     Nome = def.Name,
                     Guid = spe.GuidValue,
+                    Id = spe.Id,
+                    Definicao = def,
                     Spec = spec,
                     TipoDeDado = SpecLabel(spec),
                     TipoTxt = TipoLegado(spec),
@@ -227,6 +325,8 @@ namespace MetroSP.Parametros
                 {
                     Nome = def.Name,
                     Compartilhado = false,
+                    Id = def.Id,
+                    Definicao = def,
                     Spec = spec,
                     TipoDeDado = SpecLabel(spec),
                     TipoTxt = TipoLegado(spec),
@@ -248,6 +348,9 @@ namespace MetroSP.Parametros
                 {
                     Nome = p.Definition.Name,
                     Guid = p.GUID,
+                    Id = p.Id,
+                    Definicao = p.Definition,
+                    ParametroFamilia = p,
                     Spec = p.Definition.GetDataType(),
                     TipoDeDado = SpecLabel(p.Definition.GetDataType()),
                     TipoTxt = TipoLegado(p.Definition.GetDataType()),
