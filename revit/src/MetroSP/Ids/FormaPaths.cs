@@ -13,11 +13,8 @@ namespace MetroSP.Ids
     /// </summary>
     public static class FormaPaths
     {
-        /// <summary>
-        /// Pasta padrão, dentro de cada projeto, com as configurações de exportação IFC. Fica relativa à pasta
-        /// do projeto para valer em qualquer projeto e qualquer máquina.
-        /// </summary>
-        public const string PastaPadraoInicial = @"Project Files\BIM\Configuracoes IFC";
+        // Subpastas da estrutura padrão (Setups, PropertySets, Mapeamentos): se o setup estiver numa pasta
+        // assim, o .txt com o mesmo nome é achado sozinho nas outras.
         public const string SubSetups = "Setups";
         public const string SubPropertySets = "PropertySets";
         public const string SubMapeamentos = "Mapeamentos";
@@ -44,22 +41,6 @@ namespace MetroSP.Ids
             }
             catch { /* pasta inacessível */ }
             return lista.OrderBy(p => p.Nome, StringComparer.CurrentCultureIgnoreCase).ToList();
-        }
-
-        /// <summary>Cria a pasta padrão com as subpastas e um LEIA-ME. O Desktop Connector envia para o Forma.</summary>
-        public static void CriarPastaPadrao(string pasta)
-        {
-            foreach (string sub in new[] { SubSetups, SubPropertySets, SubMapeamentos })
-                Directory.CreateDirectory(Path.Combine(pasta, sub));
-            string leiame = Path.Combine(pasta, "LEIA-ME.txt");
-            if (!File.Exists(leiame))
-                File.WriteAllText(leiame,
-                    "Configurações de exportação IFC usadas pelo botão MetroSP > Exportar IFC.\r\n\r\n" +
-                    SubSetups + "\\        setups .json salvos no Revit (Exportar > IFC > Modificar configuração > Salvar configuração)\r\n" +
-                    SubPropertySets + "\\  .txt de property sets definidos pelo usuário\r\n" +
-                    SubMapeamentos + "\\   .txt de mapeamento de parâmetros (opcional)\r\n\r\n" +
-                    "Dê ao .txt o mesmo nome do setup (ex.: Civil.json, Civil.txt) para ele ser escolhido sozinho.\r\n",
-                    System.Text.Encoding.UTF8);
         }
 
         /// <summary>Pasta raiz do Desktop Connector (ACCDocs), ou null se não estiver instalado.</summary>

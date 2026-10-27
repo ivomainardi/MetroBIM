@@ -12,7 +12,7 @@ Aba **MetroSP** na Ribbon do Revit.
 | Classificação | Verificar Classificação | Confere o preenchido com a planilha: sem classificação, formato inválido, código fora da lista, descrição diferente, categoria não prevista. Propõe correções (escrita da lista, código parecido), aplica as aceitas, exporta .csv. Filtro por categoria, etiquetas clicáveis, coluna com o motivo de bloqueio, criar o parâmetro nas categorias sem ele, Reanalisar |
 | Classificação | Consistência Código×Descrição | Agrupa por código e mostra os que têm mais de uma descrição; escolhe-se a correta (a da planilha vem marcada) e unifica. Lista também descrições usadas com códigos diferentes |
 | IFC / IDS | Verificar Mapeamento IDS | Antes de exportar, verifica se parâmetros e mapeamento IFC atendem a um IDS |
-| IFC / IDS | Exportar IFC | Exporta o IFC com um setup .json do exportador e o .txt de property sets, buscados numa pasta do computador/rede ou no Autodesk Forma (Desktop Connector). Confere o .txt contra o modelo antes de exportar |
+| IFC / IDS | Exportar IFC | Exporta o IFC com um setup .json do exportador e o .txt de property sets, indicados um a um (computador, rede ou Autodesk Forma pelo Desktop Connector). Confere o .txt contra o modelo antes de exportar |
 | Modelagem | Contar Elementos | Exemplo: conta elementos por categoria |
 
 ## Estrutura
@@ -92,28 +92,19 @@ Exemplos em `docs/exemplos/`.
 
 ## Exportar IFC com configurações guardadas
 
-Os arquivos de configuração vêm de uma de duas origens:
+A janela pede cada arquivo separadamente, com um **Procurar...** para cada um. Eles podem estar em
+qualquer pasta: no computador, na rede ou no Autodesk Forma pelo Desktop Connector
+(`%USERPROFILE%\DC\ACCDocs\<Hub>\<Projeto>`). Se nada foi escolhido ainda e o modelo está na nuvem,
+o Procurar começa na pasta do projeto dele.
 
-- **Autodesk Forma**: escolhe-se o projeto (os projetos sincronizados pelo Autodesk Desktop Connector em
-  `%USERPROFILE%\DC\ACCDocs\<Hub>\<Projeto>`; o do modelo aberto na nuvem já vem selecionado) e as
-  configurações ficam numa **pasta padrão** dentro dele, igual em todos os projetos:
+1. **Setup de exportação** (`.json` salvo em Exportar › IFC › Modificar configuração › Salvar configuração).
+2. **Property sets definidos pelo usuário** (`.txt`).
+3. **Tabela de mapeamento de parâmetros** (`.txt`, opcional).
 
-  ```
-  <Projeto>\Project Files\BIM\Configuracoes IFC\
-    Setups\         Civil.json, Arquitetura.json ...  (Exportar › IFC › Modificar configuração › Salvar configuração)
-    PropertySets\   Civil.txt, Arquitetura.txt ...    (property sets definidos pelo usuário)
-    Mapeamentos\    Civil.txt ...                     (tabela de mapeamento de parâmetros, opcional)
-  ```
-
-  O caminho da pasta padrão pode ser alterado na janela (fica salvo). Se o projeto ainda não tiver a pasta,
-  o botão **Criar pasta padrão** cria as subpastas e um LEIA-ME; o Desktop Connector envia para o Forma.
-- **Pasta no computador ou na rede**: qualquer pasta. Se tiver as mesmas subpastas, vale a mesma regra;
-  senão os `.json` e `.txt` são procurados nela e em até 3 níveis de subpastas.
-
-Para cada setup, o `.txt` de psets é achado nesta ordem: o `.txt` com o mesmo nome do setup em
-`PropertySets\`; o caminho gravado no `.json` (que é da máquina de quem salvou); um arquivo com o mesmo nome
-desse caminho na pasta de configurações; um `.txt` com o mesmo nome ao lado do `.json`. Dá para escolher outro.
-A tabela de mapeamento segue a mesma regra em `Mapeamentos\`.
+Ao escolher um setup, os `.txt` que ele indica preenchem os campos 2 e 3, se forem achados nesta máquina:
+o caminho gravado no `.json` (que é da máquina de quem salvou), um arquivo com o mesmo nome perto do setup,
+ou, se o setup estiver numa pasta `Setups\`, o `.txt` com o mesmo nome em `PropertySets\` e `Mapeamentos\`
+ao lado dela. Dá para trocar qualquer um. As três escolhas ficam lembradas para a próxima exportação.
 
 Antes de exportar, o `.txt` é lido com o mesmo leitor do Verificar IDS e a janela avisa quais parâmetros
 do mapeamento não existem no modelo. Escolhe-se a vista 3D (ou o modelo inteiro), a pasta e o nome do arquivo.

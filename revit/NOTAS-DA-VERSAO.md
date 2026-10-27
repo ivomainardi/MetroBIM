@@ -1,4 +1,20 @@
-# MetroSP 0.2.2
+# MetroSP 0.2.3
+
+Revit 2025, 2026 e 2027.
+
+## Exportar IFC: cada arquivo é indicado pelo usuário
+
+Sai a pasta padrão (e o botão "Criar pasta padrão"). A janela agora pede, cada um com o seu **Procurar...**:
+
+1. o **setup de exportação** (.json);
+2. o **.txt de property sets**;
+3. a **tabela de mapeamento de parâmetros** (.txt, opcional).
+
+Os arquivos podem estar em qualquer pasta: computador, rede ou Forma pelo Desktop Connector. Ao escolher
+o setup, os .txt indicados nele são preenchidos quando achados nesta máquina, e dá para trocar qualquer um.
+As três escolhas ficam lembradas para a próxima exportação. A conferência dos parâmetros contra o modelo continua.
+
+# MetroSP 0.2.2 (anterior)
 
 Revit 2025, 2026 e 2027.
 
@@ -17,7 +33,7 @@ com o Revit ocupado.
   o empréstimo de elementos no worksharing.
 - **Exportar IFC:** indica que a exportação está em andamento (o exportador do Revit não informa a porcentagem).
 
-# MetroSP 0.2.1 (anterior)
+# MetroSP 0.2.1
 
 Revit 2025, 2026 e 2027.
 
