@@ -15,6 +15,8 @@ namespace MetroSP.Parametros
     /// "Parâmetros do arquivo" (todos, com o .txt de origem achado pelo GUID nas referências) e
     /// "Comparar com .txt" (painel de arquivos de referência e compatibilidade com o modelo).
     /// Filtro por coluna, ordenação por várias colunas, renomear e exportar .txt/.csv.
+    /// A base (o .txt do MetroShared, a mesma das outras ferramentas) marca o que está fora do padrão ou duplicado;
+    /// Verificar uso e Deletar removem os parâmetros sem uso.
     /// </summary>
     public class ListaCompartilhadosWindow : Window
     {
@@ -23,6 +25,12 @@ namespace MetroSP.Parametros
         private readonly Func<List<SharedParameterInfo>> _recarregar;
         /// <summary>Grava o .txt pela API do Revit; retorna os itens que falharam.</summary>
         private readonly Func<List<SharedParameterInfo>, string, List<string>> _exportarTxt;
+        /// <summary>Preenche Uso e PodeDeletar dos itens (lê o modelo).</summary>
+        private readonly Action<List<SharedParameterInfo>> _analisarUso;
+        /// <summary>Deleta os itens numa transação; retorna os que falharam.</summary>
+        private readonly Func<List<SharedParameterInfo>, List<string>> _deletar;
+        /// <summary>Resultado de Verificar uso por parâmetro, mantido quando o modelo é relido.</summary>
+        private readonly Dictionary<string, (string Uso, bool PodeDeletar)> _usos = new Dictionary<string, (string, bool)>();
         private readonly string _documento;
         private readonly string _arquivoRevit;
         private readonly bool _ehFamilia;
@@ -48,6 +56,7 @@ namespace MetroSP.Parametros
         private readonly Button _atualizarTxt;
         private readonly Button _definirBase;
         private readonly Button _remover;
+        private readonly Button _base;
         private readonly TextBlock _rodapeInfo;
         private FilterableGrid _gridArquivo;
         private FilterableGrid _gridComparar;
@@ -56,7 +65,9 @@ namespace MetroSP.Parametros
         public ListaCompartilhadosWindow(List<SharedParameterInfo> itens, string documento, bool ehFamilia, string arquivoRevit,
             Func<SharedParameterInfo, string, string, bool?, bool> renomear,
             Func<List<SharedParameterInfo>> recarregar,
-            Func<List<SharedParameterInfo>, string, List<string>> exportarTxt)
+            Func<List<SharedParameterInfo>, string, List<string>> exportarTxt,
+            Action<List<SharedParameterInfo>> analisarUso,
+            Func<List<SharedParameterInfo>, List<string>> deletar)
         {
             _itens = itens;
             _documento = documento;
@@ -65,6 +76,8 @@ namespace MetroSP.Parametros
             _renomear = renomear;
             _recarregar = recarregar;
             _exportarTxt = exportarTxt;
+            _analisarUso = analisarUso;
+            _deletar = deletar;
             _refs = ReferenceLibrary.Abrir();
             _soProjeto = !ehFamilia;
 
@@ -79,8 +92,16 @@ namespace MetroSP.Parametros
             // Aba 1: parâmetros do arquivo.
             _dockArquivo = new DockPanel();
             _resumoArquivo = new WrapPanel();
+            _base = new Button
+            {
+                ToolTip = "O .txt do MetroShared usado como padrão: marca o que está fora dele ou duplicado.\n" +
+                          "É a mesma base que as outras ferramentas do MetroSP usam (ex.: Aplicar Classificação).",
+                Margin = new Thickness(0, 0, 16, 0),
+                MinWidth = 0,
+            };
+            _base.Click += (s, e) => AbrirMenuBase(_base);
             _dockArquivo.Children.Add(BarraSuperior(_resumoArquivo,
-                "Shift+clique no cabeçalho ordena por várias colunas · duplo clique renomeia"));
+                "Shift+clique no cabeçalho ordena por várias colunas · duplo clique renomeia", _base));
 
             // Aba 2: comparar com .txt.
             _dockComparar = new DockPanel();
@@ -136,6 +157,21 @@ namespace MetroSP.Parametros
             _abas.SelectionChanged += (s, e) => { if (e.Source == _abas) AtualizarRodape(); };
 
             // Rodapé.
+            var verificarUso = new Button
+            {
+                Content = "Verificar uso",
+                ToolTip = _ehFamilia
+                    ? "Procura valores nos tipos, fórmulas, associações a elementos e rótulos de cota."
+                    : "Procura valores nos elementos das categorias vinculadas, campos de tabelas e regras de filtros.",
+            };
+            var deletarBtn = new Button
+            {
+                Content = "Deletar sem uso...",
+                ToolTip = "Deleta os selecionados que a verificação achou sem uso (sem seleção: os visíveis sem uso).\n" +
+                          "Os que estão em uso nunca são deletados. Ctrl+Z no Revit desfaz.",
+            };
+            verificarUso.Click += (s, e) => VerificarUso();
+            deletarBtn.Click += (s, e) => DeletarSemUso();
             var copiar = new Button { Content = "Copiar GUID" };
             var exportar = new Button { Content = "Exportar ▾" };
             var renomearBtn = new Button { Content = "Renomear...", Style = Theme.PrimaryButton };
@@ -147,7 +183,7 @@ namespace MetroSP.Parametros
 
             _rodapeInfo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
             var rodape = new DockPanel();
-            StackPanel botoes = Theme.Buttons(copiar, exportar, renomearBtn, fechar);
+            StackPanel botoes = Theme.Buttons(verificarUso, deletarBtn, copiar, exportar, renomearBtn, fechar);
             DockPanel.SetDock(botoes, Dock.Right);
             rodape.Children.Add(botoes);
             rodape.Children.Add(_rodapeInfo);
@@ -305,6 +341,8 @@ namespace MetroSP.Parametros
             {
                 _refs.Carregar(_arquivoRevit);
                 SharedParameterCollector.Enriquecer(_itens, _refs);
+                SharedParameterCollector.MarcarPadrao(_itens, Base);
+                AplicarUsos();
                 if (_txtSelecionado != null)
                     _txtSelecionado = _refs.Arquivos.FirstOrDefault(a => string.Equals(a.Caminho, _txtSelecionado.Caminho, StringComparison.OrdinalIgnoreCase));
                 if (_txtSelecionado == null) _txtSelecionado = _refs.Arquivos.FirstOrDefault();
@@ -313,6 +351,18 @@ namespace MetroSP.Parametros
                 MontarComparacao();
             }
             finally { Cursor = null; }
+        }
+
+        /// <summary>O .txt base (MetroShared), se estiver definido e foi lido.</summary>
+        private SharedParamTxt Base => _refs.Arquivos.FirstOrDefault(a => a.EhBase && a.Erro == null);
+
+        private void AplicarUsos()
+        {
+            foreach (SharedParameterInfo i in _itens)
+            {
+                if (_usos.TryGetValue(i.Chave, out var u)) { i.Uso = u.Uso; i.PodeDeletar = u.PodeDeletar; }
+                else { i.Uso = UsoParametros.NaoVerificado; i.PodeDeletar = false; }
+            }
         }
 
         /// <summary>Lê de novo os parâmetros do modelo (depois de renomear).</summary>
@@ -324,6 +374,7 @@ namespace MetroSP.Parametros
 
         private void MontarAbaArquivo()
         {
+            var filtros = _gridArquivo?.Estado();
             if (_gridArquivo != null) _dockArquivo.Children.Remove(_gridArquivo);
 
             var g = new FilterableGrid(_itens, typeof(SharedParameterInfo));
@@ -336,14 +387,18 @@ namespace MetroSP.Parametros
             if (_ehFamilia) g.AddColumn("Fórmula", nameof(SharedParameterInfo.Formula), 90);
             g.AddColumn("Arquivo de origem", nameof(SharedParameterInfo.Origem), 170, wrap: true);
             g.AddColumn("Grupo no .txt", nameof(SharedParameterInfo.GrupoNoArquivo), 110);
-            g.AddColumn("Situação no .txt", nameof(SharedParameterInfo.Situacao), 160, fill: true);
+            g.AddColumn("Situação no .txt", nameof(SharedParameterInfo.Situacao), 160);
+            g.AddColumn("Padrão (base)", nameof(SharedParameterInfo.Padrao), 200, wrap: true);
+            g.AddColumn("Uso", nameof(SharedParameterInfo.Uso), 200, wrap: true, fill: true);
             g.SingleLine = _umaLinha;
             g.ExtraFilter = o => !_soProjeto || ((SharedParameterInfo)o).Vinculado;
             g.Refresh();
+            g.Restaurar(filtros);
             g.Grid.LoadingRow += (s, e) =>
             {
                 var i = (SharedParameterInfo)e.Row.Item;
-                e.Row.Background = i.Gravidade == 2 ? Theme.LinhaProblema : i.Gravidade == 1 ? Theme.LinhaAviso : Theme.LinhaNormal;
+                int grav = Math.Max(i.Gravidade, i.GravidadePadrao);
+                e.Row.Background = grav == 2 ? Theme.LinhaProblema : grav == 1 ? Theme.LinhaAviso : Theme.LinhaNormal;
             };
             g.Grid.MouseDoubleClick += (s, e) => RenomearSelecionado();
             g.Filtered += AtualizarRodape;
@@ -372,6 +427,20 @@ namespace MetroSP.Parametros
                 int incompativeis = escopo.Count(i => i.Gravidade == 2);
                 _resumoArquivo.Children.Add(Theme.Chip($"{semOrigem} sem origem", destaque: semOrigem > 0));
                 _resumoArquivo.Children.Add(Theme.Chip($"{incompativeis} incompatíveis", escuro: incompativeis > 0));
+            }
+            SharedParamTxt b = Base;
+            _base.Content = b == null ? "Base MetroShared: escolher ▾" : $"Base: {b.Nome} ▾";
+            if (b != null)
+            {
+                int fora = escopo.Count(i => i.GravidadePadrao == 1);
+                int duplicados = escopo.Count(i => i.GravidadePadrao == 2);
+                _resumoArquivo.Children.Add(Theme.Chip($"{fora} fora do padrão", destaque: fora > 0));
+                _resumoArquivo.Children.Add(Theme.Chip($"{duplicados} duplicados ou divergentes do padrão", escuro: duplicados > 0));
+            }
+            if (escopo.Any(i => i.UsoVerificado))
+            {
+                int semUso = escopo.Count(i => i.PodeDeletar);
+                _resumoArquivo.Children.Add(Theme.Chip($"{semUso} sem uso", destaque: semUso > 0));
             }
             AtualizarRodape();
         }
@@ -601,6 +670,123 @@ namespace MetroSP.Parametros
             CarregarReferencias();
         }
 
+        /// <summary>Parâmetros selecionados na aba atual (na comparação, só os que estão no modelo).</summary>
+        private List<SharedParameterInfo> Selecionados() =>
+            NaAbaComparar
+                ? _gridComparar?.Grid.SelectedItems.Cast<ComparacaoItem>().Select(c => c.Modelo).Where(m => m != null).ToList() ?? new List<SharedParameterInfo>()
+                : _gridArquivo?.Grid.SelectedItems.Cast<SharedParameterInfo>().ToList() ?? new List<SharedParameterInfo>();
+
+        private void VerificarUso()
+        {
+            Cursor = Cursors.Wait;
+            try
+            {
+                using (Ui.Progresso.Abrir("Verificar uso dos parâmetros", podeCancelar: true))
+                    _analisarUso(_itens);
+            }
+            catch (OperationCanceledException) { return; }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Não foi possível verificar o uso:\n" + ex.Message, Title);
+                return;
+            }
+            finally { Cursor = null; }
+            foreach (SharedParameterInfo i in _itens) _usos[i.Chave] = (i.Uso, i.PodeDeletar);
+            MontarAbaArquivo();
+            MontarComparacao();
+        }
+
+        private void DeletarSemUso()
+        {
+            List<SharedParameterInfo> alvo = Selecionados();
+            bool porSelecao = alvo.Count > 0;
+            if (!porSelecao)
+                alvo = NaAbaComparar
+                    ? _gridComparar?.VisibleItems<ComparacaoItem>().Select(c => c.Modelo).Where(m => m != null).ToList() ?? new List<SharedParameterInfo>()
+                    : _gridArquivo?.VisibleItems<SharedParameterInfo>().ToList() ?? new List<SharedParameterInfo>();
+            if (alvo.Count == 0) { MessageBox.Show(this, "Nenhum parâmetro selecionado ou visível.", Title); return; }
+
+            if (alvo.Any(i => !i.UsoVerificado))
+            {
+                if (MessageBox.Show(this, "Antes de deletar é preciso verificar o uso dos parâmetros no arquivo. Verificar agora?",
+                        Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                VerificarUso();
+                if (alvo.Any(i => !i.UsoVerificado)) return;
+                // Os objetos não mudam ao verificar: alvo continua válido.
+            }
+
+            List<SharedParameterInfo> deletaveis = alvo.Where(i => i.PodeDeletar).ToList();
+            List<SharedParameterInfo> emUso = alvo.Where(i => !i.PodeDeletar).ToList();
+            if (deletaveis.Count == 0)
+            {
+                MessageBox.Show(this, (porSelecao ? "Nenhum dos selecionados" : "Nenhum dos visíveis") + " está sem uso:\n\n" + Lista(emUso, i => $"{i.Nome}: {i.Uso}"), Title);
+                return;
+            }
+
+            string onde = _ehFamilia ? "da família" : "do projeto (o vínculo de parâmetro de projeto é removido)";
+            string texto = $"Deletar {deletaveis.Count} parâmetro(s) sem uso {onde}?\n\n" +
+                           Lista(deletaveis, i => i.Compartilhado ? $"{i.Nome}   ({i.Guid})" : $"{i.Nome}   (não compartilhado)") +
+                           (emUso.Count > 0 ? $"\n\n{emUso.Count} em uso ficam como estão." : "") +
+                           "\n\nDá para desfazer com Ctrl+Z no Revit depois de fechar esta janela.";
+            if (MessageBox.Show(this, texto, Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+
+            List<string> falhas;
+            try { falhas = _deletar(deletaveis); }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Não foi possível deletar:\n" + ex.Message, Title);
+                return;
+            }
+            foreach (SharedParameterInfo i in deletaveis) _usos.Remove(i.Chave);
+            RecarregarModelo();
+            int ok = deletaveis.Count - falhas.Count;
+            MessageBox.Show(this, $"{ok} parâmetro(s) deletado(s)." +
+                (falhas.Count > 0 ? "\n\nNão deletados:\n" + Lista(falhas, f => f) : ""), Title);
+        }
+
+        private static string Lista<T>(List<T> itens, Func<T, string> texto) =>
+            "• " + string.Join("\n• ", itens.Take(20).Select(texto)) + (itens.Count > 20 ? $"\n... e mais {itens.Count - 20}" : "");
+
+        private void AbrirMenuBase(Button origem)
+        {
+            var menu = new ContextMenu { PlacementTarget = origem, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+            var escolher = new MenuItem { Header = "Escolher o .txt do MetroShared..." };
+            escolher.Click += (s, e) => EscolherBase();
+            menu.Items.Add(escolher);
+            List<SharedParamTxt> outros = _refs.Arquivos.Where(a => !a.EhBase && a.Erro == null).ToList();
+            if (outros.Count > 0)
+            {
+                menu.Items.Add(new Separator());
+                foreach (SharedParamTxt a in outros)
+                {
+                    var m = new MenuItem { Header = "Usar como base: " + a.Nome, ToolTip = a.Caminho };
+                    m.Click += (s, e) => { _txtSelecionado = a; DefinirBase(); };
+                    menu.Items.Add(m);
+                }
+            }
+            menu.IsOpen = true;
+        }
+
+        private void EscolherBase()
+        {
+            var dialogo = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Arquivo de parâmetros compartilhados do MetroShared (base)",
+                Filter = "Parâmetros compartilhados (*.txt)|*.txt|Todos os arquivos (*.*)|*.*",
+            };
+            if (dialogo.ShowDialog(this) != true) return;
+            SharedParamTxt lido = SharedParamTxt.Ler(dialogo.FileName);
+            if (lido.Erro != null || lido.Definicoes.Count == 0)
+            {
+                MessageBox.Show(this, lido.Erro != null ? "Não foi possível ler o arquivo:\n" + lido.Erro : "O arquivo não tem parâmetros compartilhados.", Title);
+                return;
+            }
+            _refs.Adicionar(dialogo.FileName);
+            _refs.Base = dialogo.FileName;
+            _refs.Salvar();
+            CarregarReferencias();
+        }
+
         private void CopiarGuid()
         {
             IEnumerable<Guid> guids = NaAbaComparar
@@ -751,9 +937,9 @@ namespace MetroSP.Parametros
             }
             else
             {
-                cabecalho = "Nome;GUID;Tipo;Grupo;Onde está;Instância/Tipo;Categorias;Visível;Fórmula;Arquivo de origem;Grupo no .txt;Situação no .txt";
+                cabecalho = "Nome;GUID;Tipo;Grupo;Onde está;Instância/Tipo;Categorias;Visível;Fórmula;Arquivo de origem;Grupo no .txt;Situação no .txt;Padrão (base);Uso";
                 linhas = Itens(_gridArquivo, NoEscopo, e)
-                    .Select(i => new[] { i.Nome, i.GuidTexto, i.TipoDeDado, i.Grupo, i.Onde, i.InstanciaOuTipo, i.Categorias, i.Visivel, i.Formula, i.Origem, i.GrupoNoArquivo, i.Situacao })
+                    .Select(i => new[] { i.Nome, i.GuidTexto, i.TipoDeDado, i.Grupo, i.Onde, i.InstanciaOuTipo, i.Categorias, i.Visivel, i.Formula, i.Origem, i.GrupoNoArquivo, i.Situacao, i.Padrao, i.Uso })
                     .ToList();
             }
             if (linhas.Count == 0) { MessageBox.Show(this, "Nenhum item para exportar.", Title); return; }

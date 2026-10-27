@@ -10,6 +10,41 @@ família quando o parâmetro está registrado nela (o que acontece quando alguma
 sem o parâmetro, ela é aberta, conferida e fechada na hora. Em modelos com muitas famílias aninhadas, o número
 de aberturas cai muito; a contagem aparece no relatório final ("N abertas").
 
+## Listar Compartilhados: base MetroShared e deletar parâmetros sem uso
+
+**Base MetroShared.** O botão **Base** (acima da tabela, na aba "Parâmetros do arquivo") escolhe o .txt do
+MetroShared. É a mesma base que as outras ferramentas já usam (Aplicar Classificação, por exemplo), guardada em
+`%AppData%\MetroSP\referencias.ini`; quem já tinha definido a base em "Comparar com .txt" não precisa fazer nada.
+A nova coluna **Padrão (base)** mostra, para cada parâmetro:
+
+- **No padrão**: mesmo GUID e mesmo nome do MetroShared;
+- **Nome diferente do padrão**: mesmo GUID, outro nome;
+- **Duplicado**: o MetroShared tem um parâmetro com esse nome, mas com outro GUID (ou o do arquivo não é compartilhado);
+- **Parecido com o padrão**: o nome só difere em acentos, maiúsculas, espaços ou pontuação (ex.: "Classificacao");
+- **Fora do padrão**: não existe no MetroShared;
+- **nome repetido no arquivo**: dois parâmetros do arquivo com o mesmo nome (ou parecido) e GUIDs diferentes.
+
+Os contadores no topo e a cor da linha acompanham. A coluna também sai no .csv.
+
+**Verificar uso e Deletar sem uso**, no rodapé. *Verificar uso* preenche a coluna **Uso**:
+
+- no projeto: valor preenchido em algum elemento (ou tipo, para vínculo de tipo) das categorias vinculadas,
+  campo de alguma tabela, regra de algum filtro;
+- na família: valor em algum tipo, fórmula própria ou na fórmula de outro parâmetro, associação a parâmetros de
+  elementos (visibilidade, material, família aninhada...), rótulo de cota.
+
+*Deletar sem uso...* deleta os selecionados (sem seleção: os visíveis com os filtros atuais) que a verificação
+achou sem uso, depois de mostrar a lista para confirmar. Os que estão em uso nunca são deletados. Para auditar os
+duplicados fora do MetroShared: filtre a coluna Padrão, clique em Verificar uso e em Deletar sem uso.
+
+Cuidados que a ferramenta toma:
+
+- No projeto, deletar remove o vínculo de parâmetro de projeto, como o **Remover** do diálogo Parâmetros de projeto.
+  O registro do GUID fica no arquivo, porque alguma família carregada pode usá-lo.
+- Parâmetros que existem só por causa de famílias ou etiquetas carregadas não são deletados daqui: apague nas famílias.
+- Em famílias de anotação (etiquetas, carimbos) nada é deletado, porque a API não mostra os rótulos de texto.
+- Tudo numa transação: Ctrl+Z no Revit desfaz depois de fechar a janela.
+
 # MetroSP 0.2.3 (anterior)
 
 Revit 2025, 2026 e 2027.
