@@ -1,4 +1,23 @@
-# MetroSP 0.2.1
+# MetroSP 0.2.2
+
+Revit 2025, 2026 e 2027.
+
+## Novo: janela de progresso nas operações longas
+
+Uma janela mostra a etapa atual, a barra com "N de total", o item em andamento, o tempo decorrido
+com estimativa do que falta e um histórico do que já foi feito. Ela continua se atualizando mesmo
+com o Revit ocupado.
+
+- **Renomear Compartilhado:** as 4 etapas (renomear dentro das famílias, guardar valores, recarregar,
+  restaurar), com o nome de cada família aberta, aninhadas incluídas. Tem botão **Cancelar**: o que já foi
+  feito é desfeito e o projeto fica como estava.
+- **Verificar Classificação:** análise elemento a elemento e as famílias abertas para ler fórmulas.
+- **Remover fórmula da família:** uma família por vez, com **Cancelar** (as que já foram recarregadas ficam).
+- **Gravar classificação** (Aplicar, Verificar e Consistência): aparece a partir de 200 elementos, incluindo
+  o empréstimo de elementos no worksharing.
+- **Exportar IFC:** indica que a exportação está em andamento (o exportador do Revit não informa a porcentagem).
+
+# MetroSP 0.2.1 (anterior)
 
 Revit 2025, 2026 e 2027.
 
@@ -15,7 +34,7 @@ renomeadas não mudava esse registro.
   (por exemplo, uma família in-place ou protegida que tem o parâmetro). Não aparece mais "renomeado" sem ter renomeado.
 - Rodar de novo num modelo em que as famílias já foram renomeadas, mas o projeto não, agora resolve.
 
-# MetroSP 0.2.0 (anterior)
+# MetroSP 0.2.0
 
 Revit 2025, 2026 e 2027.
 

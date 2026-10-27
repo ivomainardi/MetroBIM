@@ -225,8 +225,11 @@ namespace MetroSP.Classificacao
             var linhas = new List<LinhaVerificacao>();
             _chaves.Clear();
             FormulaFamilia.LimparCache();
-            foreach (Element e in elementos)
+            List<Element> todos = elementos.ToList();
+            Ui.Progresso.Atual?.Etapa($"Analisando {todos.Count} elementos", todos.Count);
+            foreach (Element e in todos)
             {
+                Ui.Progresso.Atual?.Avancar(e.Category?.Name);
                 AlvoClassificacao a = Alvo(doc, e, parametro);
                 var l = new LinhaVerificacao
                 {
@@ -468,9 +471,13 @@ namespace MetroSP.Classificacao
                 }
             }
 
+            // Daqui em diante não há mais perguntas: mostra o andamento quando a gravação é grande.
+            using Ui.Progresso progresso = Ui.Progresso.Atual == null && pendentes.Count >= 200 ? Ui.Progresso.Abrir(nomeTransacao) : null;
+
             // Worksharing: pega emprestado; o que estiver com outra pessoa fica de fora, com o nome do dono.
             if (doc.IsWorkshared && pendentes.Count > 0)
             {
+                Ui.Progresso.Atual?.Etapa($"Pegando {pendentes.Count} elementos emprestados (worksharing)");
                 var ids = pendentes.Select(x => x.Dono.Id).ToList();
                 ICollection<ElementId> obtidos;
                 try { obtidos = WorksharingUtils.CheckoutElements(doc, ids); }
@@ -499,6 +506,7 @@ namespace MetroSP.Classificacao
             // Somente leitura que sobrou: explica o motivo (o parâmetro é lido de novo, pois liberar os grupos muda isso).
             var editaveis = new List<(Element Dono, Parameter P, string Valor)>();
             _chaves.Clear();
+            Ui.Progresso.Atual?.Etapa("Conferindo o que pode ser gravado");
             foreach (var (dono, _, valor) in pendentes)
             {
                 Parameter p = Param(dono, parametro);
@@ -509,11 +517,13 @@ namespace MetroSP.Classificacao
             pendentes = editaveis;
 
             if (pendentes.Count == 0) return r;
+            Ui.Progresso.Atual?.Etapa($"Gravando {parametro} em {pendentes.Count} elementos", pendentes.Count);
             using (var t = new Transaction(doc, "MetroSP: " + nomeTransacao))
             {
                 t.Start();
                 foreach (var (dono, p, valor) in pendentes)
                 {
+                    Ui.Progresso.Atual?.Avancar(dono.Name);
                     string erro = null;
                     try { if (!p.Set(valor)) erro = "O Revit recusou o valor"; }
                     catch (Exception ex) { erro = dono.GroupId != ElementId.InvalidElementId ? "Em grupo: " + ex.Message : ex.Message; }

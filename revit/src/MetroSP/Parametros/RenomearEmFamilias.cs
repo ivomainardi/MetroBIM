@@ -4,6 +4,7 @@ using System.Linq;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.DB;
 using MetroSP.Classificacao;
+using MetroSP.Ui;
 
 namespace MetroSP.Parametros
 {
@@ -68,7 +69,7 @@ namespace MetroSP.Parametros
                 .Select(s => s.Family.Name + (s.Family.IsInPlace ? " (in-place)" : " (não editável)"))
                 .Distinct().OrderBy(n => n).ToList();
 
-        public static ResultadoFamilias Executar(Application app, Document doc, Guid guid, string novoNome, bool aninhadas)
+        public static ResultadoFamilias Executar(Application app, Document doc, Guid guid, string novoNome, bool aninhadas, Progresso progresso = null)
         {
             var r = new ResultadoFamilias();
             var abertas = new List<(Family Familia, Document Doc)>();
@@ -78,18 +79,28 @@ namespace MetroSP.Parametros
                 try
                 {
                     // 1. Renomear dentro das famílias. Ficam abertas até o passo 4.
-                    foreach (Family f in aninhadas ? Editaveis(doc) : ComParametro(doc, guid))
+                    List<Family> familias = aninhadas ? Editaveis(doc) : ComParametro(doc, guid);
+                    progresso?.Etapa($"1/4  Renomeando dentro das famílias ({familias.Count})", familias.Count);
+                    foreach (Family f in familias)
                     {
+                        progresso?.ParaSeCancelado();
+                        progresso?.Item("Abrindo " + f.Name);
                         Document fd = null;
                         try
                         {
                             fd = doc.EditFamily(f);
                             r.Abertas++;
-                            if (Processar(app, fd, guid, novoNome, aninhadas, f.Name, r)) { abertas.Add((f, fd)); fd = null; }
+                            int antes = r.Renomeadas.Count;
+                            if (Processar(app, fd, guid, novoNome, aninhadas, f.Name, r, progresso)) { abertas.Add((f, fd)); fd = null; }
+                            for (int i = antes; i < r.Renomeadas.Count; i++) progresso?.Log("Renomeado em " + r.Renomeadas[i]);
                         }
-                        catch (Exception ex) { r.Falhas.Add($"{f.Name}: {ex.Message}"); }
+                        catch (OperationCanceledException) { throw; }
+                        catch (Exception ex) { r.Falhas.Add($"{f.Name}: {ex.Message}"); progresso?.Log($"Falha em {f.Name}: {ex.Message}"); }
                         finally { try { fd?.Close(false); } catch { } }
+                        progresso?.Avancar();
                     }
+                    progresso?.ParaSeCancelado();
+                    progresso?.Etapa("2/4  Guardando valores, vínculo e tabelas do projeto");
 
                     // 2. Guardar o que se perde ao apagar o registro do GUID.
                     SharedParameterElement spe = SharedParameterElement.Lookup(doc, guid);
@@ -148,15 +159,19 @@ namespace MetroSP.Parametros
                     }
 
                     // 4. Recarregar as famílias e refazer o vínculo.
+                    progresso?.Etapa($"3/4  Recarregando as famílias no projeto ({abertas.Count})", abertas.Count);
                     foreach (var (f, fd) in abertas)
                     {
+                        progresso?.Item("Recarregando " + f.Name);
                         try
                         {
                             fd.LoadFamily(doc, new FormulaFamilia.CarregarMantendoValores());
                             r.Recarregadas++;
                         }
-                        catch (Exception ex) { r.Falhas.Add($"{f.Name}: não recarregou ({ex.Message})"); }
+                        catch (Exception ex) { r.Falhas.Add($"{f.Name}: não recarregou ({ex.Message})"); progresso?.Log($"{f.Name} não recarregou: {ex.Message}"); }
+                        progresso?.Avancar();
                     }
+                    progresso?.Etapa($"4/4  Refazendo o vínculo e restaurando {valores.Count} valores");
 
                     using (var t = new Transaction(doc, "MetroSP: refazer vínculo e valores"))
                     {
@@ -223,7 +238,8 @@ namespace MetroSP.Parametros
                 catch (Exception ex)
                 {
                     r.Ok = false;
-                    r.Motivo = ex.Message;
+                    r.Motivo = ex is OperationCanceledException ? "cancelado pelo usuário." : ex.Message;
+                    progresso?.Etapa("Desfazendo...");
                     if (tg.HasStarted() && !tg.HasEnded()) tg.RollBack();
                 }
                 finally
@@ -242,7 +258,7 @@ namespace MetroSP.Parametros
         /// renomeadas são recarregadas, e só então ele volta a compartilhado com o nome novo.
         /// Retorna true se a família tem o GUID (nela ou nas aninhadas) e deve ser recarregada.
         /// </summary>
-        private static bool Processar(Application app, Document fd, Guid guid, string novoNome, bool aninhadas, string caminho, ResultadoFamilias r)
+        private static bool Processar(Application app, Document fd, Guid guid, string novoNome, bool aninhadas, string caminho, ResultadoFamilias r, Progresso progresso)
         {
             FamilyParameter p = fd.FamilyManager.GetParameters().FirstOrDefault(x => x.IsShared && x.GUID == guid);
             bool tem = p != null || SharedParameterElement.Lookup(fd, guid) != null;
@@ -258,9 +274,10 @@ namespace MetroSP.Parametros
                         string sub = caminho + " › " + nf.Name;
                         try
                         {
+                            progresso?.Item("Abrindo " + sub);
                             nd = fd.EditFamily(nf);
                             r.Abertas++;
-                            if (Processar(app, nd, guid, novoNome, true, sub, r)) { filhas.Add((sub, nd)); nd = null; }
+                            if (Processar(app, nd, guid, novoNome, true, sub, r, progresso)) { filhas.Add((sub, nd)); nd = null; }
                         }
                         catch (Exception ex) { r.Falhas.Add($"{sub}: {ex.Message}"); }
                         finally { try { nd?.Close(false); } catch { } }
