@@ -1,4 +1,16 @@
-# MetroSP 0.2.3
+# MetroSP 0.2.4
+
+Revit 2025, 2026 e 2027.
+
+## Renomear Compartilhado mais rápido com famílias aninhadas
+
+Com "Incluir famílias aninhadas" marcado, a 0.2.3 abria todas as famílias aninhadas de todas as famílias,
+em todos os níveis, mesmo as que não tinham nada a ver com o parâmetro. Agora só abre as aninhadas de uma
+família quando o parâmetro está registrado nela (o que acontece quando alguma aninhada o usa). Nas famílias
+sem o parâmetro, ela é aberta, conferida e fechada na hora. Em modelos com muitas famílias aninhadas, o número
+de aberturas cai muito; a contagem aparece no relatório final ("N abertas").
+
+# MetroSP 0.2.3 (anterior)
 
 Revit 2025, 2026 e 2027.
 
@@ -14,7 +26,7 @@ Os arquivos podem estar em qualquer pasta: computador, rede ou Forma pelo Deskto
 o setup, os .txt indicados nele são preenchidos quando achados nesta máquina, e dá para trocar qualquer um.
 As três escolhas ficam lembradas para a próxima exportação. A conferência dos parâmetros contra o modelo continua.
 
-# MetroSP 0.2.2 (anterior)
+# MetroSP 0.2.2
 
 Revit 2025, 2026 e 2027.
 
