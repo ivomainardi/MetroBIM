@@ -109,7 +109,11 @@ namespace MetroSP.Commands
                     if (!janela.RenomearFamilias)
                     {
                         if (!Confirmar(plan, item.Nome, novoNome)) return Result.Cancelled;
-                        avisos = SharedParameterRenamer.RenameInProject(app, doc, plan, novoNome);
+                        using (var progresso = Ui.Progresso.Abrir("Renomear parâmetro compartilhado"))
+                        {
+                            progresso.Etapa($"Recriando \"{novoNome}\" e restaurando {plan.ElementosComValor} valores");
+                            avisos = SharedParameterRenamer.RenameInProject(app, doc, plan, novoNome);
+                        }
                     }
                     else
                     {
@@ -133,7 +137,9 @@ namespace MetroSP.Commands
                         };
                         if (td.Show() != TaskDialogResult.Yes) return Result.Cancelled;
 
-                        ResultadoFamilias rf = RenomearEmFamilias.Executar(app, doc, guid, novoNome, janela.IncluirAninhadas);
+                        ResultadoFamilias rf;
+                        using (var progresso = Ui.Progresso.Abrir($"Renomear \"{item.Nome}\" → \"{novoNome}\"", podeCancelar: true))
+                            rf = RenomearEmFamilias.Executar(app, doc, guid, novoNome, janela.IncluirAninhadas, progresso);
                         if (!rf.Ok)
                         {
                             var detalhes = new List<string> { "Motivo: " + rf.Motivo };

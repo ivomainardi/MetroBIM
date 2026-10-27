@@ -48,7 +48,12 @@ namespace MetroSP.Commands
                     falhas.SetClearAfterRollback(true);
                     t.SetFailureHandlingOptions(falhas);
 
-                    exportou = doc.Export(janela.PastaSaida, janela.NomeArquivo + ".ifc", opcoes);
+                    using (var progresso = Ui.Progresso.Abrir("Exportar IFC"))
+                    {
+                        progresso.Etapa($"Exportando {janela.NomeArquivo}.ifc com o setup {setup.Nome}");
+                        progresso.Item("O exportador do Revit não informa o andamento; em modelos grandes pode levar alguns minutos.");
+                        exportou = doc.Export(janela.PastaSaida, janela.NomeArquivo + ".ifc", opcoes);
+                    }
 
                     if (exportou && setup.GravaGuid) t.Commit();
                     else t.RollBack();

@@ -151,7 +151,11 @@ namespace MetroSP.Classificacao
                 return;
             }
             Cursor = Cursors.Wait;
-            try { _linhas = ClassificationCore.Verificar(_doc, NoEscopo(), _planilha.Lista, _config.Parametro); }
+            try
+            {
+                using (Ui.Progresso.Abrir("Verificar classificação"))
+                    _linhas = ClassificationCore.Verificar(_doc, NoEscopo(), _planilha.Lista, _config.Parametro);
+            }
             catch (Exception ex)
             {
                 MessageBox.Show(this, "Não foi possível verificar:\n" + ex.Message, Title);
@@ -284,7 +288,8 @@ namespace MetroSP.Classificacao
             List<string> ok, falhas;
             try
             {
-                (ok, falhas) = FormulaFamilia.Remover(_doc, familias.Select(id => _doc.GetElement(id)).OfType<Family>(), _config.Parametro);
+                using (Ui.Progresso.Abrir("Remover fórmula da família", podeCancelar: true))
+                    (ok, falhas) = FormulaFamilia.Remover(_doc, familias.Select(id => _doc.GetElement(id)).OfType<Family>(), _config.Parametro);
             }
             finally { Cursor = null; }
             MessageBox.Show(this, $"Fórmula removida em {ok.Count} {(ok.Count == 1 ? "família" : "famílias")}." +

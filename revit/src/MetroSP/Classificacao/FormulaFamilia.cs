@@ -33,6 +33,7 @@ namespace MetroSP.Classificacao
             Document fam = null;
             try
             {
+                Ui.Progresso.Atual?.Log("Lendo a família " + f.Name);
                 fam = doc.EditFamily(f);
                 FamilyParameter p = fam.FamilyManager.get_Parameter(nome);
                 if (p != null && !string.IsNullOrWhiteSpace(p.Formula)) formula = p.Formula;
@@ -148,8 +149,17 @@ namespace MetroSP.Classificacao
         {
             var ok = new List<string>();
             var falhas = new List<string>();
-            foreach (Family f in familias.GroupBy(x => x.Id).Select(g => g.First()))
+            List<Family> lista = familias.GroupBy(x => x.Id).Select(g => g.First()).ToList();
+            Ui.Progresso progresso = Ui.Progresso.Atual;
+            progresso?.Etapa($"Removendo a fórmula de {nome} e recarregando {lista.Count} famílias", lista.Count);
+            foreach (Family f in lista)
             {
+                if (progresso?.Cancelado == true)
+                {
+                    falhas.Add($"{f.Name}: não processada (cancelado)");
+                    continue;
+                }
+                progresso?.Item(f.Name);
                 Document fam = null;
                 try
                 {
@@ -178,6 +188,8 @@ namespace MetroSP.Classificacao
                 {
                     try { fam?.Close(false); } catch { }
                 }
+                progresso?.Avancar();
+                progresso?.Log(falhas.Count > 0 && falhas[falhas.Count - 1].StartsWith(f.Name + ":") ? "Falha: " + falhas[falhas.Count - 1] : "OK: " + f.Name);
             }
             return (ok, falhas);
         }
