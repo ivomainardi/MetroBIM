@@ -50,8 +50,8 @@ faz cada versão do Civil 3D carregar a DLL certa sozinha.
 
 ## Instalar
 
-Baixe o artefato **MetroSP-bundle** da última execução do workflow *build* (aba Actions),
-descompacte, rode `instalar.bat` e reinicie o Civil 3D.
+Compile (seção abaixo) para gerar as DLLs em `MetroSP.bundle\Contents\R25` e `R26`,
+rode `instalar.bat` e reinicie o Civil 3D. As DLLs não ficam versionadas no Git.
 O bundle vai para `%APPDATA%\Autodesk\ApplicationPlugins` e serve para as três versões ao mesmo tempo.
 Para instalar para todos os usuários da máquina, copie `MetroSP.bundle` para `C:\ProgramData\Autodesk\ApplicationPlugins`.
 
