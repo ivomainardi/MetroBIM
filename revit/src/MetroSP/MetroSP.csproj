@@ -11,7 +11,7 @@
 
   <PropertyGroup>
     <AssemblyName>MetroSP</AssemblyName>
-    <Version>0.2.5</Version>
+    <Version>0.2.6</Version>
     <RootNamespace>MetroSP</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
@@ -28,6 +28,8 @@
   <!-- Revit 2027 roda em .NET 10 (exigido pelo pacote Nice3point.Revit.Api 2027). -->
   <PropertyGroup Condition="'$(RevitVersion)' &gt;= '2027'">
     <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 2027+: property sets do usuário ficam no modelo (IFCUserDefinedPropertySet), não mais só no .txt. -->
+    <DefineConstants>$(DefineConstants);REVIT2027_OR_GREATER</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition="'$(RevitVersion)' &lt; '2025'">
     <TargetFramework>net48</TargetFramework>

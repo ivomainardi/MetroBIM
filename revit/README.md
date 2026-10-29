@@ -114,6 +114,10 @@ Antes de exportar, o `.txt` é lido com o mesmo leitor do Verificar IDS e a jane
 do mapeamento não existem no modelo. Escolhe-se a vista 3D (ou o modelo inteiro), a pasta e o nome do arquivo.
 As escolhas ficam em `%AppData%\MetroSP\ifc_export.ini`.
 
+No Revit 2027 o exportador lê os property sets do usuário guardados no modelo, e não o `.txt`. Por isso o `.txt`
+escolhido é carregado no modelo logo antes de exportar, substituindo os que estavam lá, dentro da mesma transação
+da exportação (desfeita no fim, a não ser que o setup grave o GUID IFC).
+
 Cada propriedade do `.json` vai para o exportador como opção, do mesmo jeito que a janela de exportação do Revit
 faz. Diferenças: o modelo de mapeamento guardado no .rvt (Revit 2025+) é ignorado para valer o `.txt`;
 vínculos não são exportados; a classificação e o endereço do projeto usados são os salvos no próprio modelo.

@@ -1,4 +1,18 @@
-# MetroSP 0.2.5
+# MetroSP 0.2.6
+
+Revit 2025, 2026 e 2027.
+
+## Correção: Exportar IFC no Revit 2027 sem os property sets do usuário
+
+No Revit 2027 o exportador IFC passou a ler os property sets definidos pelo usuário do próprio modelo
+(os que a janela nativa cria ao importar o .txt) e ignora o .txt passado pelo plugin. Por isso os psets só
+saíam depois de configurados na janela nativa.
+
+Agora, no 2027, o .txt escolhido é carregado no modelo logo antes de exportar, no lugar dos psets que já
+estavam lá. Se o setup não grava o GUID IFC, isso é desfeito no fim e o modelo fica como estava; se grava,
+os psets do .txt ficam salvos no modelo (o relatório avisa). No 2025 e no 2026 nada muda.
+
+# MetroSP 0.2.5 (anterior)
 
 Revit 2025, 2026 e 2027.
 
@@ -20,7 +34,7 @@ Agora cada família é guardada num arquivo temporário e reaberta só quando pr
 
 Se ainda assim o nome antigo não puder ser liberado, a mensagem diz quais famílias continuam usando o parâmetro.
 
-# MetroSP 0.2.4 (anterior)
+# MetroSP 0.2.4
 
 Revit 2025, 2026 e 2027.
 

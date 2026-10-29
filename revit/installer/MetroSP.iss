@@ -2,7 +2,7 @@
 ; Instala por usuário, sem precisar de administrador, em %AppData%\Autodesk\Revit\Addins\<versão>.
 ; Gerado por build.ps1 a partir da pasta dist\.
 
-#define AppVersion "0.2.5"
+#define AppVersion "0.2.6"
 
 [Setup]
 AppId={{8F3A2C61-4B7E-4D29-9E15-6A0C3B7D5E42}
