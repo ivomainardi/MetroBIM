@@ -35,6 +35,7 @@ namespace MetroSP.Commands
             IfcExportSetup setup = janela.Setup;
             string arquivo = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
             bool exportou;
+            string avisoPsets = null;
             try
             {
                 IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista);
@@ -47,6 +48,10 @@ namespace MetroSP.Commands
                     FailureHandlingOptions falhas = t.GetFailureHandlingOptions();
                     falhas.SetClearAfterRollback(true);
                     t.SetFailureHandlingOptions(falhas);
+
+                    // Revit 2027+: o exportador lê os psets do modelo, não do .txt.
+                    if (!string.IsNullOrEmpty(janela.PropertySetsEscolhido))
+                        avisoPsets = PsetsNoModelo.Carregar(doc, janela.PropertySetsEscolhido);
 
                     using (var progresso = Ui.Progresso.Abrir("Exportar IFC"))
                     {
@@ -75,7 +80,9 @@ namespace MetroSP.Commands
             {
                 MainInstruction = "IFC exportado",
                 MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao})\n" +
-                    "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum"),
+                    "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
+                    (avisoPsets == null ? "" : "\n" + avisoPsets +
+                        (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")),
                 CommonButtons = TaskDialogCommonButtons.Close,
             };
             fim.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Abrir a pasta");
