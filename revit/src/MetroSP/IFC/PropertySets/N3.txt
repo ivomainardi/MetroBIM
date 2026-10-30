@@ -18,6 +18,7 @@
 # 00	17/07/2026		Emissão Inicial
 # 01	10/08/26		Revisão Classificacao IFc Entidade
 # 02	24/08/26		Revisão geral
+# 03	30/10/2026	Correção de formato conforme o exportador IFC da Autodesk (MetroSP): tipos Real e Length
 #
 #Arvores, Arbustos e Forrações
 #
@@ -30,7 +31,7 @@ PropertySet:	Metro	I	IfcGeographicElement
 	ListadaEmPortariaMunicipal	Boolean
 	Luminosidade	Text
 	Origem	Text
-	MudaDensidade	Number
+	MudaDensidade	Real
 	FormatoDaCopaAdulta	Text	Formato da copa (adulta)
 	Maturacao	Text
 #
@@ -40,7 +41,7 @@ PropertySet:	MetroClassificacao	I	IfcGeographicElement
 PropertySet:	MetroQto	I	IfcGeographicElement
 	Altura	Length
 	AlturaDaMuda	Length
-	DAP	Lenght
+	DAP	Length
 	DiametroDaCopaAdulta	Length	Height
 	AreaDeSuperficie	Real	Area
 	Distância de plantio	Length	DistanciaDePlantio

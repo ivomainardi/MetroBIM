@@ -22,6 +22,7 @@
 # 02		09/03/2026	Inclusão do parâmetro de texto Tipo de sistema para associar a famílias aninhadas
 # 03		21/05/2026	Atualização de dados de acordo com PSET do consorcio, disponibilizado em 13/05/2026
 # 04		31/07/2026	Ajuste categoria de SanitaryTerminal - chuveiro
+# 05	30/10/2026	Correção de formato conforme o exportador IFC da Autodesk (MetroSP): Inclinacao Ratio; TemperaturaAtivacao ThermodynamicTemperature
 #
 ## Torneiras, Registros e valvulas
 #
@@ -47,7 +48,7 @@ PropertySet:	MetroClassificacao	I	IfcValve
 PropertySet:	Metro	I	IfcPipeSegment
 	ClassePressao	Real	Classe de pressao (mca)
 	DiametroNominal	Length	Diameter
-	Inclinacao	Percent	Slope
+	Inclinacao	Ratio	Slope
 	MaterialPrincipal	Label	Material
 	TemperaturaMaxima	Real	Temperatura maxima
 	TipoDeEscoamento	Text	Tipo de escoamento
@@ -105,8 +106,8 @@ PropertySet:	Metro	I	IfcFireSuppressionTerminal
 	MaterialPrincipal	Label	Material Principal
 	DiametroNominal	Length	NominalDiameter
 	PosicaoInstalacao	Text	PosicaoInstalacao
-	TemperaturaAtivacao	Temperature	Temperatura de Ativação
-	TemperaturaAtivacao	Temperature	Temperature Rating
+	TemperaturaAtivacao	ThermodynamicTemperature	Temperatura de Ativação
+	TemperaturaAtivacao	ThermodynamicTemperature	Temperature Rating
 	TipoDeResposta	Text	Response
 	CargaIncendio	Mass	Carga
 	ClasseIncendio	Text	Classe de incendio

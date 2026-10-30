@@ -63,7 +63,7 @@ namespace MetroSP.Ids
         }
 
         private const string Instancia = "Instância", Tipo = "Tipo";
-        private static readonly string[] TiposDado = ExportMapping.TiposAceitos;
+        private static readonly string[] TiposDado = ExportMapping.TiposComuns.Concat(ExportMapping.TiposAceitos.Except(ExportMapping.TiposComuns)).ToArray();
 
         private readonly ObservableCollection<Linha> _linhas = new ObservableCollection<Linha>();
         private readonly HashSet<string> _modelo;
@@ -209,9 +209,9 @@ namespace MetroSP.Ids
             };
 
             var salvar = new Button { Content = "Salvar", IsDefault = true, Style = Theme.PrimaryButton };
-            salvar.Click += (s, e) => Salvar(_destino ?? PerguntarDestino(arquivo));
+            salvar.Click += (s, e) => { if (Validar()) Salvar(_destino ?? PerguntarDestino(arquivo)); };
             var salvarComo = new Button { Content = "Salvar como..." };
-            salvarComo.Click += (s, e) => Salvar(PerguntarDestino(arquivo));
+            salvarComo.Click += (s, e) => { if (Validar()) Salvar(PerguntarDestino(arquivo)); };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             var botoes = new List<Button>();
             if (podeRestaurar)
@@ -259,18 +259,74 @@ namespace MetroSP.Ids
             return d.ShowDialog(this) == true ? d.FileName : null;
         }
 
+        /// <summary>
+        /// Confere as linhas pelas regras do exportador IFC da Autodesk antes de salvar. Erros que fariam o exportador
+        /// ignorar propriedades impedem salvar; tipos com grafia conhecida podem ser corrigidos na hora.
+        /// </summary>
+        private bool Validar()
+        {
+            _grade.CommitEdit(DataGridEditingUnit.Row, true);
+            foreach (Linha l in _linhas)
+            {
+                // Tab separa colunas no .txt: dentro de um campo quebraria a linha.
+                l.PropertySet = l.PropertySet?.Replace('\t', ' ').Trim();
+                l.Propriedade = l.Propriedade?.Replace('\t', ' ').Trim();
+                l.Parametro = l.Parametro?.Replace('\t', ' ').Trim();
+                l.Entidades = l.Entidades?.Replace('\t', ',').Trim();
+            }
+
+            Linha bloqueia = _linhas.FirstOrDefault(l => string.IsNullOrWhiteSpace(l.PropertySet) || string.IsNullOrWhiteSpace(l.Propriedade));
+            string motivo = bloqueia != null ? "Toda propriedade precisa de property set e nome." : null;
+            if (bloqueia == null)
+            {
+                bloqueia = _linhas.FirstOrDefault(l => Entidades(l).Count == 0);
+                if (bloqueia != null)
+                    motivo = $"O property set {bloqueia.PropertySet} não tem entidades IFC. Sem elas o exportador da Autodesk ignora o cabeçalho " +
+                             "e as propriedades vão para o property set anterior. Indique ao menos uma (ex.: IfcWall ou IfcElement).";
+            }
+            if (bloqueia != null)
+            {
+                MessageBox.Show(this, motivo, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                _grade.SelectedItem = bloqueia;
+                _grade.ScrollIntoView(bloqueia);
+                return false;
+            }
+
+            List<Linha> tipos = _linhas.Where(l => !l.TipoOk).ToList();
+            if (tipos.Count > 0)
+            {
+                List<Linha> corrigiveis = tipos.Where(l => ExportMapping.TipoCorreto(l.TipoDado) != null).ToList();
+                string lista = string.Join("\n", tipos.Take(8).Select(l => $"  {l.PropertySet} › {l.Propriedade}: \"{l.TipoDado}\"" +
+                    (ExportMapping.TipoCorreto(l.TipoDado) is string c ? $" → {c}" : " (sem sugestão)"))) + (tipos.Count > 8 ? "\n  ..." : "");
+                string texto = $"{tipos.Count} propriedade(s) com tipo de dado que o exportador da Autodesk não reconhece (sairiam como Text):\n\n{lista}\n\n" +
+                               (corrigiveis.Count > 0 ? "Sim: corrigir as que têm sugestão e salvar.\nNão: salvar como está.\nCancelar: voltar para editar."
+                                                      : "Salvar assim mesmo?");
+                MessageBoxResult r = MessageBox.Show(this, texto, Title,
+                    corrigiveis.Count > 0 ? MessageBoxButton.YesNoCancel : MessageBoxButton.OKCancel, MessageBoxImage.Warning);
+                if (r == MessageBoxResult.Cancel) { _grade.SelectedItem = tipos[0]; _grade.ScrollIntoView(tipos[0]); return false; }
+                if (r == MessageBoxResult.Yes) foreach (Linha l in corrigiveis) l.TipoDado = ExportMapping.TipoCorreto(l.TipoDado);
+            }
+
+            var avisos = new List<string>();
+            foreach (string pset in _linhas.Select(l => l.PropertySet).Distinct(StringComparer.OrdinalIgnoreCase)
+                         .Where(p => p.StartsWith("Pset_", StringComparison.OrdinalIgnoreCase)))
+                avisos.Add($"\"{pset}\": nomes com Pset_ são reservados aos property sets padrão do IFC; o exportador renomeia os outros.");
+            foreach (string e in _linhas.SelectMany(Entidades).Distinct(StringComparer.OrdinalIgnoreCase)
+                         .Where(e => !e.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase)))
+                avisos.Add($"\"{e}\" não parece uma entidade IFC (deve começar com Ifc).");
+            if (avisos.Count > 0 &&
+                MessageBox.Show(this, string.Join("\n", avisos.Take(8)) + "\n\nSalvar assim mesmo?", Title,
+                    MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return false;
+            return true;
+        }
+
+        private static List<string> Entidades(Linha l) =>
+            (l.Entidades ?? "").Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(e => e.Trim()).ToList();
+
         private void Salvar(string destino)
         {
             if (destino == null) return;
-            _grade.CommitEdit(DataGridEditingUnit.Row, true);
-            Linha invalida = _linhas.FirstOrDefault(l => string.IsNullOrWhiteSpace(l.PropertySet) || string.IsNullOrWhiteSpace(l.Propriedade));
-            if (invalida != null)
-            {
-                MessageBox.Show(this, "Toda propriedade precisa de property set e nome.", Title);
-                _grade.SelectedItem = invalida;
-                _grade.ScrollIntoView(invalida);
-                return;
-            }
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destino));
@@ -295,7 +351,7 @@ namespace MetroSP.Ids
             foreach (Linha l in linhas)
             {
                 string it = l.Aplicacao == Tipo ? "T" : "I";
-                string entidades = string.Join(",", (l.Entidades ?? "").Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(e => e.Trim()));
+                string entidades = string.Join(",", Entidades(l));
                 string cabecalho = $"PropertySet:\t{l.PropertySet.Trim()}\t{it}\t{entidades}".TrimEnd('\t');
                 if (cabecalho != atual)
                 {

@@ -23,6 +23,7 @@
 # 00	30/03/2026	Emissão inicial
 # 01	08/04/2026	Adição Gradis e Portões de Uso Externo
 # 02	22/06/2026	Revisão Geral
+# 03	30/10/2026	Correção de formato conforme o exportador IFC da Autodesk (MetroSP): tipos Length e Real; MetroQto de Esquadrias Especiais em IfcWindow
 # 
 #===========================================================================================================================================
 #
@@ -107,7 +108,7 @@ PropertySet:	MetroQto	I	IfcStairFlight
 	AlturaDoSegmento1	Length	Altura do segmento_1
 	AlturaDoSegmento2	Length	Altura do segmento_2
 	AlturaPrincipal	Length	Altura
-	Altura	length	Altura_Espelho
+	Altura	Length	Altura_Espelho
 	Largura	Length	Largura
 	ProfundidadeNominal	Length	Profundidade
 	QuantidadeDeModulos	Integer	Modulo_Quantidade
@@ -137,7 +138,7 @@ PropertySet:	MetroQto	I	IfcDiscreteAccessory
 	Altura	Length	Unconnected Height
 	Espacamento	Length	Espacamento
 	Area	Area	Area
-	LarguraDoModulo	length	Modulo_Largura
+	LarguraDoModulo	Length	Modulo_Largura
 #===========================================================================================================================================
 #
 #===========================================================================================================================================
@@ -312,13 +313,13 @@ PropertySet:	MetroQto	I	IfcCovering
 	Comprimento	Length	Comprimento
 	ComprimentoDoModulo	Length	Modulo_Comprimento
 	ComprimentoNominal	Length	NominalLength
-	Comprimento	length	length
+	Comprimento	Length	length
 	Largura	Length	Width
 	LarguraDoModulo	Length	Modulo_Largura
 	Espessura	Length	Width
 	Espessura	Length	Thickness
 	Espessura	Length	Default Thickness
-	Espessura	length	Pset_CoveringCommon.Thickness[Type]
+	Espessura	Length	Pset_CoveringCommon.Thickness[Type]
 	QuantidadeDeModulos	Integer	Quantidade de Modulos
 	Volume	Volume	Volume
 #
@@ -358,7 +359,7 @@ PropertySet:	Metro	I	IfcGeographicElement
 	ListadaEmPortariaMunicipal	Boolean
 	Luminosidade	Text
 	Origem	Text
-	MudaDensidade	Number
+	MudaDensidade	Real
 	PermanenciaFoliar	Text
 	TipoDeVegetacao	Text	Tipo de Vegetação
 #
@@ -368,7 +369,7 @@ PropertySet:	MetroClassificacao	I	IfcGeographicElement
 PropertySet:	MetroQto	I	IfcGeographicElement
 	Altura	Length	Height
 	AlturaDaMuda	Length
-	DAP	length
+	DAP	Length
 	DiametroDaCopaAdulta	Length	Height
 	DistanciaDePlantio	Length	DistanciaDePlantio
 	AreaDeSuperficie	Real	Area
@@ -387,7 +388,7 @@ PropertySet:	Metro	I	IfcWindow
 	DescricaoComplementar	Text	Descricao Complementar	
 	Restricao	Boolean	Restricao
 #
-PropertySet:	MetroQto	I	IfcDoor
+PropertySet:	MetroQto	I	IfcWindow
 	Altura	Length	Height
 	AlturaDoSegmento1	Length	Altura do segmento_1
 	AlturaDoSegmento2	Length	Altura do segmento_2

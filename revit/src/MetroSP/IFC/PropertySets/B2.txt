@@ -18,6 +18,7 @@
 # 00		17/03/2025		Emissão Inicial
 # 01		14/08/2025		Inclusão de mapeamento de parâmetros para IfcSpace (#140)
 # 02		14/10/2025		Inclusão de mapeamento de parâmetros para IfcSpace (#150). Ajuste na nomenclatura da aba MetroQto (#25, #35, #46, #54, #66, #75, #82, #95, #103, #112)
+# 03	30/10/2026	Correção de formato conforme o exportador IFC da Autodesk (MetroSP): Viga Secao_Largura/Secao_Altura; Inclinacao Ratio; Janela em IfcWindow; Piso em IfcSlab,IfcCovering
 #
 #
 # 		Pilar 
@@ -36,8 +37,8 @@ PropertySet:	MetroQto	I	IfcBeam
 	CrossSectionArea	Area	Section Area
 	ComprimentoAnalitico	Length	Length	
 	ComprimentoFisico	Length	Cut Length	
-	Width	Secao_Largura
-	Height	Secao_Altura
+	Secao_Largura	Length	Width
+	Secao_Altura	Length	Height
 	Volume	Volume
 #
 #
@@ -92,7 +93,7 @@ PropertySet:	MetroQto	I	IfcDoor
 #
 #		Janela
 #
-PropertySet:	MetroQto	I	IfcDoor
+PropertySet:	MetroQto	I	IfcWindow
 	Modulo_Quantidade	Integer	Modulo_Quantidade1
 	Altura	Length	Height
 	Largura	Length	Width
@@ -109,19 +110,19 @@ PropertySet:	MetroQto	I	IfcWall,IfcCurtainWall
 #
 #Piso e Revestimento horizontal
 #
-PropertySet:	MetroQto	I	IfcWall,IfcCurtainWall
+PropertySet:	MetroQto	I	IfcSlab,IfcCovering
 	Espessura	Length	Thickness
 	Area	Area
 	Volume	Volume
 #
-PropertySet:	Metro	I	IfcWall,IfcCurtainWall
+PropertySet:	Metro	I	IfcSlab,IfcCovering
 	Inclinacao	Real	Slope
 #
 #
 # Dutos de Ventilação
 #
 PropertySet:	Metro	I	IfcFlowSegment,IfcFlowFitting
-	Inclinacao	Percentage Slope
+	Inclinacao	Ratio	Slope
 	Dimensoes	Text	Size
 #
 #

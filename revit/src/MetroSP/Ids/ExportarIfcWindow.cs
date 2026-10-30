@@ -40,6 +40,7 @@ namespace MetroSP.Ids
         private readonly TextBox _nome;
 
         private HashSet<string> _parametrosModelo;
+        private List<string> _avisosPsets = new List<string>();
 
         public IfcExportSetup Setup { get; private set; }
         public string PropertySetsEscolhido { get; private set; }
@@ -460,6 +461,7 @@ namespace MetroSP.Ids
         /// <summary>Lê o .txt com o mesmo leitor do Verificar IDS e procura os parâmetros no modelo.</summary>
         private void ConferirPsets()
         {
+            _avisosPsets = new List<string>();
             string caminho = TextoPsets();
             if (caminho.Length == 0)
             {
@@ -478,6 +480,7 @@ namespace MetroSP.Ids
             }
 
             var mapa = new ExportMapping();
+            _avisosPsets = mapa.Warnings;
             try { mapa.LoadUserDefinedPropertySets(caminho); }
             catch (Exception ex)
             {
@@ -500,7 +503,9 @@ namespace MetroSP.Ids
             if (ausentes.Count > 0)
                 texto += $" {ausentes.Count} parâmetro(s) não encontrados no modelo (ficam fora do IFC): " +
                     string.Join(", ", ausentes.Take(8)) + (ausentes.Count > 8 ? "..." : "");
-            if (mapa.Warnings.Count > 0) texto += " " + string.Join(" ", mapa.Warnings.Take(3));
+            if (mapa.Warnings.Count > 0)
+                texto += $" {mapa.Warnings.Count} problema(s) no formato do exportador da Autodesk (use Editar property sets para corrigir): " +
+                         string.Join(" ", mapa.Warnings.Take(3)) + (mapa.Warnings.Count > 3 ? " ..." : "");
             _infoPsets.Text = texto;
             _infoPsets.Foreground = Theme.Solid(ausentes.Count > 0 || mapa.Warnings.Count > 0 ? Theme.Laranja : Theme.Cinza);
         }
@@ -517,6 +522,16 @@ namespace MetroSP.Ids
             {
                 MessageBox.Show(this, $"Arquivo de property sets não encontrado:\n{psets}", Title);
                 return;
+            }
+            if (psets.Length > 0 && _avisosPsets.Count > 0)
+            {
+                MessageBoxResult r = MessageBox.Show(this,
+                    $"O .txt de property sets tem {_avisosPsets.Count} problema(s) no formato do exportador da Autodesk:\n\n" +
+                    string.Join("\n", _avisosPsets.Take(8)) + (_avisosPsets.Count > 8 ? "\n..." : "") +
+                    "\n\nSim: abrir o editor para corrigir.\nNão: exportar assim mesmo.\nCancelar: voltar.",
+                    Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+                if (r == MessageBoxResult.Cancel) return;
+                if (r == MessageBoxResult.Yes) { EditarPsets(); return; }
             }
             if (psets.Length == 0 && Setup.ExportaPsetsUsuario &&
                 MessageBox.Show(this, "O setup pede property sets do usuário, mas nenhum .txt foi indicado. Exportar sem eles?",

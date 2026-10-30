@@ -11,8 +11,12 @@ Revit 2025, 2026 e 2027.
   modelo destacadas, sugere os parâmetros do modelo, e permite acrescentar e remover propriedades. A edição de
   uma classe instalada fica salva só para o usuário, com **Restaurar padrão** para voltar ao original.
 - **Classes do MetroSP no instalador:** B2, B3, B5, B7, I1, J2, K9, M1, N3 e S5 (property sets MNEPI-L20).
-- **Conferência dos tipos de dado:** o editor e a janela apontam tipos que o exportador não aceita (ex.: "Lenght",
-  "Number", "Wattage") e sugerem a grafia certa.
+- **Conferência pelo padrão do exportador da Autodesk:** todo .txt incluído (classe, Procurar ou Forma) e toda
+  edição manual são conferidos pelas mesmas regras do leitor do exportador IFC da Autodesk: tipo de dado
+  reconhecido (senão sai como Text), cabeçalho com I/T e entidades, colunas a mais, linhas fora de um property set,
+  nomes Pset_ reservados. Ao exportar com problemas, a janela oferece abrir o editor; ao salvar no editor, os tipos
+  com grafia conhecida ("Lenght", "Number", "Wattage", "Percent"...) são corrigidos na hora.
+- Os .txt das classes B2, B3, M1, N3 e S5 foram corrigidos nesse padrão (revisão registrada no cabeçalho de cada um).
 - **Classe pelo nome do modelo:** a janela já abre com a classe indicada pelos dois últimos caracteres do nome do
   modelo (ex.: `...B3.rvt` → B3), regra que fica no `Nomenclatura.txt` e pode ser mudada.
 - **Forma online:** dá para entrar com a conta Autodesk e escolher uma pasta do Forma direto pela internet, sem o

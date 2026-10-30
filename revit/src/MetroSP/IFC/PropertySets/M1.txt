@@ -20,8 +20,8 @@
 #
 # Revision	Data	Description
 # 00	15/04/2026	Emissão inicial
-# 01	11/05/2026	Ajuste de acordo com o atualização do airtable
-[202]
+# 01	11/05/2026	Ajuste de acordo com o atualização do airtable [202]
+# 02	30/10/2026	Correção de formato conforme o exportador IFC da Autodesk (MetroSP): linha [202] solta; Area com AreaQuantity e Area em linhas separadas
 #
 #
 #
@@ -37,6 +37,7 @@ PropertySet:	MetroQto	I	IfcElement
 	Comprimento	Length	Length
 	Espessura	Length	Thickness
 	Espessura	Length	Width
-	Area	Area	AreaQuantity	Area
+	Area	Area	AreaQuantity
+	Area	Area	Area
 
 
