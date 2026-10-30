@@ -77,7 +77,12 @@ namespace MetroSP.Commands
                         exportou = doc.Export(janela.PastaSaida, janela.NomeArquivo + ".ifc", opcoes);
                     }
 
-                    if (exportou && setup.GravaGuid) t.Commit();
+                    if (exportou && setup.GravaGuid)
+                    {
+                        // Os parâmetros auxiliares dos psets (2027+) não ficam no modelo.
+                        if (!string.IsNullOrEmpty(janela.PropertySetsEscolhido)) PsetsNoModelo.Finalizar(doc, janela.PropertySetsEscolhido);
+                        t.Commit();
+                    }
                     else t.RollBack();
                 }
             }

@@ -29,7 +29,14 @@ Revit 2025, 2026 e 2027.
 No 2027 os property sets do .txt são carregados no modelo, onde cada um é guardado pelo nome. Nos .txt com um
 bloco "Metro" (ou MetroLoc, MetroQto...) por entidade, só um bloco sobrevivia, e as outras entidades saíam sem
 esses psets (no J2, só as paredes recebiam Metro/MetroLoc/MetroQto). Agora os blocos de mesmo nome são juntados
-antes de carregar, com as entidades e as propriedades unidas. O .txt original não muda. No 2025 e no 2026 nada muda.
+antes de carregar, com as entidades unidas. O .txt original não muda. No 2025 e no 2026 nada muda.
+
+No modelo, cada propriedade aponta para um só parâmetro. Quando o .txt tira a mesma propriedade de parâmetros
+diferentes conforme a entidade (MetroLoc.Nivel = Reference Level na viga e Level na laje), ou quando ela só existe
+em parte dos blocos, a exportação cria um parâmetro auxiliar temporário (MetroSP_<Pset>_<Propriedade>), preenche
+em cada elemento com o parâmetro certo para a entidade dele e o remove no fim. Assim lajes, sapatas, paredes e
+lances de escada voltam a receber o nível, o desvio, o material e as quantidades do bloco deles, e nenhuma entidade
+recebe propriedade de bloco de outra.
 J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava IfcDiscreteAccessory).
 
 ## Interface mais limpa
