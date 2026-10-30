@@ -152,7 +152,7 @@ namespace MetroSP.Ids
                         Match m = re.Match(nome);
                         if (!m.Success) continue;
                         Classe c = Por(m.Groups["classe"].Success ? m.Groups["classe"].Value : classe);
-                        if (c != null) return (c, $"pela regra \"{padrao}\" de {ArquivoNomenclatura}");
+                        if (c != null) return (c, $"pelo nome do modelo (\"{m.Value}\", regra de {ArquivoNomenclatura})");
                     }
                 }
                 catch { /* regra inválida: segue para o trecho do nome */ }
