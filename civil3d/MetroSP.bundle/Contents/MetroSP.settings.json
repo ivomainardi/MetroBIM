@@ -25,5 +25,10 @@
   "Destino": "PorDesenho",
 
   "ExportCommand": "IFCINFRAEXPORT",
-  "ExportSelectedCommand": "IFCINFRAEXPORTSELECTED"
+  "ExportSelectedCommand": "IFCINFRAEXPORTSELECTED",
+
+  // MSP_IFCALINHAMENTO: passo (m) dos pontos do eixo 3D e sistema de coordenadas do IFC.
+  // EPSG:31983 = SIRGAS 2000 / UTM 23S. Deixe "" para não gravar o sistema.
+  "AlinhamentoPasso": 1.0,
+  "SistemaCoordenadas": "EPSG:31983"
 }

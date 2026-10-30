@@ -21,10 +21,34 @@ chama `IFCINFRAEXPORT`. Assim todo mundo exporta com a mesma configuração, man
 | IFC 4.3 | Exportar IFC | `MSP_IFCEXPORT` |
 | IFC 4.3 | Exportar seleção | `MSP_IFCEXPORTSEL` |
 | IFC 4.3 | Só sincronizar | `MSP_IFCSYNC` |
+| IFC 4.3 | Alinhamento 3D | `MSP_IFCALINHAMENTO` |
 | Forma | Entrar / Sair | `MSP_FORMALOGIN` / `MSP_FORMALOGOUT` |
 | Forma | Pasta de config | `MSP_IFCPASTA` |
 | Forma | Configurações | `MSP_CONFIG` |
 | Ajuda | Sobre | `MSP_SOBRE` |
+
+## Alinhamento 3D (`MSP_IFCALINHAMENTO`)
+
+O IFC do Civil 3D grava o alinhamento como curva plana na cota 0. Este comando exporta os
+alinhamentos para um IFC 4.3 separado, já com o perfil aplicado:
+
+- **Geometria**: eixo 3D (`Axis` / `Curve3D`) com pontos a cada `AlinhamentoPasso` metros (padrão 1 m)
+  e em todo início/fim de segmento, com X e Y do alinhamento e Z do perfil. Abre com as cotas certas
+  em qualquer visualizador.
+- **Semântica IFC 4.3**: `IfcAlignment` com `IfcAlignmentHorizontal` (retas, arcos e espirais, com raios
+  e direções) e `IfcAlignmentVertical` (rampas, parábolas e curvas circulares, com rampas e raios),
+  incluindo o segmento final de comprimento zero exigido no IFC4X3_ADD2.
+- Propriedades `MetroSP_Alinhamento` (nome, perfil, estacas inicial e final, DWG de origem) e
+  `IfcMapConversion` com o sistema de `SistemaCoordenadas` (padrão `EPSG:31983`, SIRGAS 2000 / UTM 23S).
+- GUIDs estáveis: reexportar o mesmo desenho mantém os mesmos `GlobalId`, o que ajuda na federação e no
+  controle de versões no Forma.
+
+Uso: escolha `Selecionar` ou `Todos`. Se o alinhamento tiver mais de um perfil de projeto, o comando
+pergunta qual usar. O arquivo sugerido é `[desenho]-[alinhamento].ifc` na pasta do DWG.
+Esse IFC pode ser federado com o exportado pelo `IFCINFRAEXPORT`.
+
+Parábolas assimétricas viram duas parábolas que se encontram no PIV, como manda o IFC.
+Espirais não clotoides são mapeadas para o tipo IFC equivalente (cúbica, Bloss, seno, cosseno, Helmert).
 
 ## Preparação (uma vez)
 

@@ -47,6 +47,12 @@ namespace MetroSP
         public string ExportCommand { get; set; } = "IFCINFRAEXPORT";
         public string ExportSelectedCommand { get; set; } = "IFCINFRAEXPORTSELECTED";
 
+        /// <summary>Passo (m) da amostragem do eixo 3D no comando MSP_IFCALINHAMENTO.</summary>
+        public double AlinhamentoPasso { get; set; } = 1.0;
+
+        /// <summary>Sistema de coordenadas gravado no IFC (IfcMapConversion). Vazio = não grava.</summary>
+        public string SistemaCoordenadas { get; set; } = "EPSG:31983";
+
         [JsonIgnore] public string LoadedFrom { get; private set; }
 
         static readonly JsonSerializerOptions JsonOpts = new JsonSerializerOptions

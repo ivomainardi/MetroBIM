@@ -56,7 +56,9 @@ namespace MetroSP
                 Button("Exportar\nseleção", "SEL", Azul, "MSP_IFCEXPORTSEL",
                     "Baixa do Forma a configuração IFC e exporta só os objetos selecionados (IFCINFRAEXPORTSELECTED)."),
                 Button("Só\nsincronizar", "SYN", Azul, "MSP_IFCSYNC",
-                    "Atualiza os JSON de configuração IFC a partir do Forma sem exportar.")));
+                    "Atualiza os JSON de configuração IFC a partir do Forma sem exportar."),
+                Button("Alinhamento\n3D", "AL3", Azul, "MSP_IFCALINHAMENTO",
+                    "Exporta alinhamentos para IFC 4.3 com o perfil aplicado: eixo 3D com as cotas corretas e segmentos horizontais e verticais.")));
 
             tab.Panels.Add(Panel("Forma",
                 Button("Entrar", "IN", Cinza, "MSP_FORMALOGIN",
