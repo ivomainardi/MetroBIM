@@ -16,8 +16,14 @@ namespace MetroSP
 
         private static readonly string AssemblyPath = Assembly.GetExecutingAssembly().Location;
 
+        /// <summary>Versão do Revit em que o add-in foi carregado (ex.: "2025.4"), para a janela Sobre.</summary>
+        internal static string VersaoRevit { get; private set; }
+
         public Result OnStartup(UIControlledApplication application)
         {
+            try { VersaoRevit = application.ControlledApplication.SubVersionNumber; } catch { }
+            if (string.IsNullOrEmpty(VersaoRevit)) VersaoRevit = application.ControlledApplication.VersionNumber;
+
             try
             {
                 application.CreateRibbonTab(TabName);
@@ -47,7 +53,7 @@ namespace MetroSP
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Geral");
 
             AddButton<SobreCommand>(panel, "Sobre",
-                "Informações sobre o add-in MetroSP.",
+                "Informações sobre o add-in MetroSP: versão, data da compilação e ferramentas.",
                 "Sobre");
         }
 

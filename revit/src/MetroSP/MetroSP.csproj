@@ -44,6 +44,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Data da compilação, mostrada na janela Sobre. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DataCompilacao</_Parameter1>
+      <_Parameter2>$([System.DateTime]::Now.ToString("yyyy-MM-dd HH:mm"))</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Ícones 32x32 e 16x16 embutidos na DLL. -->
     <EmbeddedResource Include="Resources\**\*.png" />
     <None Include="MetroSP.addin" CopyToOutputDirectory="PreserveNewest" />

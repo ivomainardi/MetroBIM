@@ -12,6 +12,17 @@ namespace MetroSP.Ui
     /// </summary>
     internal static class MarcaRibbon
     {
+        /// <summary>O clique na logo abre a janela Sobre (não usa a API do Revit, então pode rodar fora de um comando).</summary>
+        private class AbrirSobre : System.Windows.Input.ICommand
+        {
+            public event EventHandler CanExecuteChanged { add { } remove { } }
+            public bool CanExecute(object parameter) => true;
+            public void Execute(object parameter)
+            {
+                try { SobreWindow.Mostrar(); } catch { }
+            }
+        }
+
         private const string Id = "MetroSP_Marca";
         private static AW.RibbonButton _logo;
 
@@ -60,8 +71,9 @@ namespace MetroSP.Ui
                     ShowImage = true,
                     ShowText = false,
                     Orientation = Orientation.Vertical,
-                    ToolTip = "MetroSP · desenvolvido pela Ação BIM para o Metrô de São Paulo",
+                    ToolTip = "MetroSP · desenvolvido pela Ação BIM para o Metrô de São Paulo. Clique para ver a versão e as informações do add-in.",
                     IsCheckable = false,
+                    CommandHandler = new AbrirSobre(),
                 };
                 Dimensionar(logo, logo.LargeImage);
                 _logo = logo;

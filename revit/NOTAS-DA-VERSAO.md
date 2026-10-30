@@ -22,6 +22,12 @@ Revit 2025, 2026 e 2027.
 - **Forma online:** dá para entrar com a conta Autodesk e escolher uma pasta do Forma direto pela internet, sem o
   Desktop Connector. Os arquivos dela são baixados e, a cada exportação, só o que mudou no Forma é atualizado.
 
+## Sobre
+
+- Clicar na logo Ação BIM · Metrô SP, no fim da aba MetroSP, abre a janela **Sobre** (o botão Sobre do painel
+  Geral abre a mesma): versão, data da compilação, Revit em uso, ferramentas por painel e pasta de instalação,
+  com **Copiar informações** para mandar ao suporte.
+
 # MetroSP 0.2.6 (anterior)
 
 Revit 2025, 2026 e 2027.
