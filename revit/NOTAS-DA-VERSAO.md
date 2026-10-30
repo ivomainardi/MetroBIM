@@ -24,6 +24,14 @@ Revit 2025, 2026 e 2027.
   O **Client ID** do app do MetroSP na Autodesk é informado no próprio plugin (botão "Client ID..." na janela
   Exportar IFC), sem editar arquivo.
 
+## Correção: Revit 2027 só exportava o primeiro bloco de cada property set
+
+No 2027 os property sets do .txt são carregados no modelo, onde cada um é guardado pelo nome. Nos .txt com um
+bloco "Metro" (ou MetroLoc, MetroQto...) por entidade, só um bloco sobrevivia, e as outras entidades saíam sem
+esses psets (no J2, só as paredes recebiam Metro/MetroLoc/MetroQto). Agora os blocos de mesmo nome são juntados
+antes de carregar, com as entidades e as propriedades unidas. O .txt original não muda. No 2025 e no 2026 nada muda.
+J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava IfcDiscreteAccessory).
+
 ## Sobre
 
 - Clicar na logo Ação BIM · Metrô SP, no fim da aba MetroSP, abre a janela **Sobre** (o botão Sobre do painel

@@ -25,6 +25,7 @@
 # 03	10/08/2026	Revisão localização do parâmetro nome na aba Metro
 # 04	19/09/2026	Revisão geral; Ateração no mapeamento do ClassificationCode e UC
 # 05	06/10/2026	Inclusão do parâmetro UC no Pset MetroLoc para IfcDiscreteAccessory e IfcMechanicalFastener
+# 06	30/10/2026	Correção: MetroLoc dos aparelhos de apoio em IfcMechanicalFastener (estava IfcDiscreteAccessory)
 #
 #
 #
@@ -244,7 +245,7 @@ PropertySet:	Metro	I	IfcMechanicalFastener
 	TranslacaoLongitudinal	Length	Translação longitudinal
 	TranslacaoTransversal	Length	Translacao transversal
 #
-PropertySet:	MetroLoc	I	IfcDiscreteAccessory
+PropertySet:	MetroLoc	I	IfcMechanicalFastener
 	UC	Label	UC
 #
 PropertySet:	MetroQto	I	IfcMechanicalFastener
