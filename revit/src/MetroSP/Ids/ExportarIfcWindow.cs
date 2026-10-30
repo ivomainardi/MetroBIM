@@ -10,7 +10,8 @@ using DB = Autodesk.Revit.DB;
 namespace MetroSP.Ids
 {
     /// <summary>
-    /// O usuário indica cada arquivo da exportação: o setup .json, o .txt de property sets e, se usar,
+    /// O usuário escolhe uma classe instalada com o MetroSP (que preenche os arquivos sozinha) ou indica cada
+    /// arquivo da exportação: o setup .json, o .txt de property sets e, se usar,
     /// o .txt de mapeamento de parâmetros; depois a vista e o destino. Os arquivos podem estar em qualquer
     /// pasta (computador, rede ou Forma pelo Desktop Connector) e as últimas escolhas ficam lembradas.
     /// Confere o .txt de property sets contra o modelo antes de exportar.
@@ -19,6 +20,11 @@ namespace MetroSP.Ids
     {
         private readonly DB.Document _doc;
         private readonly IfcExportSettings _settings;
+
+        private readonly ComboBox _classe;
+        private readonly TextBlock _infoClasse;
+        private bool _aplicandoClasse;
+        private const string Outros = "Outros arquivos (indicar abaixo)";
 
         private readonly TextBox _setup;
         private readonly TextBlock _infoSetup;
@@ -60,13 +66,24 @@ namespace MetroSP.Ids
 
             var corpo = new StackPanel();
             var dica = Dica(corpo);
-            dica.Text = "Indique onde está cada arquivo. Pode ser uma pasta do computador, da rede ou do Forma (pelo Desktop Connector). " +
-                        "As escolhas ficam lembradas para a próxima exportação.";
+            dica.Text = "Escolha a classe para usar as configurações que vêm com o MetroSP, ou indique onde está cada arquivo " +
+                        "(computador, rede ou Forma pelo Desktop Connector). As escolhas ficam lembradas para a próxima exportação.";
+
+            corpo.Children.Add(Theme.Label("Classe"));
+            _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
+            corpo.Children.Add(_classe);
+            _infoClasse = Dica(corpo);
 
             _setup = AddLinha(corpo, "1. Setup de exportação (.json salvo no exportador IFC)", out Button procurarSetup);
             _infoSetup = Dica(corpo);
             _psets = AddLinha(corpo, "2. Property sets definidos pelo usuário (.txt)", out Button procurarPsets);
-            _infoPsets = Dica(corpo);
+            var linhaPsets = new DockPanel { Margin = new Thickness(0, 3, 0, 0) };
+            var editarPsets = new Button { Content = "Editar property sets...", Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Top };
+            DockPanel.SetDock(editarPsets, Dock.Right);
+            linhaPsets.Children.Add(editarPsets);
+            _infoPsets = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap };
+            linhaPsets.Children.Add(_infoPsets);
+            corpo.Children.Add(linhaPsets);
             _mapeamento = AddLinha(corpo, "3. Tabela de mapeamento de parâmetros (.txt) - opcional", out Button procurarMapeamento);
             _infoMapeamento = Dica(corpo);
 
@@ -89,24 +106,37 @@ namespace MetroSP.Ids
             _mapeamento.Text = settings.Mapeamento ?? string.Empty;
             CarregarSetup(preencherTxt: string.IsNullOrEmpty(settings.PropertySets));
 
+            // Classe: aplicada de novo ao abrir, para pegar os arquivos instalados mais recentes.
+            PreencherClasses(settings.Classe);
+            _classe.SelectionChanged += (s, e) => AplicarClasse();
+            if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
+            else _infoClasse.Text = _classe.Items.Count > 1 ? "" : "Nenhuma classe instalada com o MetroSP: indique os arquivos abaixo.";
+            editarPsets.Click += (s, e) => EditarPsets();
+
             procurarSetup.Click += (s, e) =>
             {
                 string f = ProcurarArquivo(_setup.Text, "Setup de exportação IFC (*.json)|*.json|Todos os arquivos (*.*)|*.*", "Onde está o setup de exportação (.json)?");
                 if (f == null) return;
+                ParaOutros();
                 _setup.Text = f;
                 CarregarSetup(preencherTxt: true);
             };
-            _setup.LostFocus += (s, e) => { if (Setup?.Arquivo != _setup.Text.Trim()) CarregarSetup(preencherTxt: true); };
+            _setup.LostFocus += (s, e) => { if (Setup?.Arquivo != _setup.Text.Trim()) { ParaOutros(); CarregarSetup(preencherTxt: true); } };
             procurarPsets.Click += (s, e) =>
             {
                 string f = ProcurarArquivo(Inicial(_psets.Text), "Texto (*.txt)|*.txt|Todos os arquivos (*.*)|*.*", "Onde está o .txt de property sets?");
-                if (f != null) { _psets.Text = f; ConferirPsets(); }
+                if (f != null) { ParaOutros(); _psets.Text = f; ConferirPsets(); }
             };
-            _psets.LostFocus += (s, e) => ConferirPsets();
+            _psets.LostFocus += (s, e) =>
+            {
+                if (ClasseEscolhida != null && !string.Equals(TextoPsets(), ClassesIfc.Obter(ClasseEscolhida.Nome).PropertySets ?? "", StringComparison.OrdinalIgnoreCase))
+                    ParaOutros();
+                ConferirPsets();
+            };
             procurarMapeamento.Click += (s, e) =>
             {
                 string f = ProcurarArquivo(Inicial(_mapeamento.Text), "Texto (*.txt)|*.txt|Todos os arquivos (*.*)|*.*", "Onde está o .txt de mapeamento de parâmetros?");
-                if (f != null) { _mapeamento.Text = f; ConferirMapeamento(); }
+                if (f != null) { ParaOutros(); _mapeamento.Text = f; ConferirMapeamento(); }
             };
             _mapeamento.LostFocus += (s, e) => ConferirMapeamento();
             procurarSaida.Click += (s, e) => { string p = EscolherPasta(_saida.Text, "Pasta onde salvar o IFC"); if (p != null) _saida.Text = p; };
@@ -116,6 +146,109 @@ namespace MetroSP.Ids
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
 
             Theme.Apply(this, "Exportar IFC", "Indique o setup e os arquivos de mapeamento de cada exportação", corpo, Theme.Buttons(cancelar, exportar));
+        }
+
+        private void PreencherClasses(string lembrada)
+        {
+            _aplicandoClasse = true;
+            _classe.Items.Clear();
+            foreach (ClassesIfc.Classe c in ClassesIfc.Listar()) _classe.Items.Add(c);
+            _classe.Items.Add(Outros);
+            _classe.SelectedItem = _classe.Items.OfType<ClassesIfc.Classe>()
+                .FirstOrDefault(c => string.Equals(c.Nome, lembrada, StringComparison.CurrentCultureIgnoreCase)) ?? (object)Outros;
+            _aplicandoClasse = false;
+        }
+
+        private ClassesIfc.Classe ClasseEscolhida => _classe.SelectedItem as ClassesIfc.Classe;
+
+        /// <summary>Preenche os três arquivos com os da classe; o que a classe não tiver fica como está.</summary>
+        private void AplicarClasse()
+        {
+            if (_aplicandoClasse) return;
+            ClassesIfc.Classe c = ClasseEscolhida;
+            if (c == null)
+            {
+                _infoClasse.Text = "";
+                return;
+            }
+            c = ClassesIfc.Obter(c.Nome);
+            _aplicandoClasse = true;
+            try
+            {
+                if (c.Setup != null) _setup.Text = c.Setup;
+                CarregarSetup(preencherTxt: false);
+                _psets.Text = c.PropertySets ?? string.Empty;
+                _mapeamento.Text = c.Mapeamento ?? string.Empty;
+                ConferirPsets();
+                ConferirMapeamento();
+            }
+            finally { _aplicandoClasse = false; }
+
+            var faltam = new List<string>();
+            if (c.Setup == null) faltam.Add("setup (use o último escolhido ou indique abaixo)");
+            if (c.PropertySets == null) faltam.Add("property sets");
+            _infoClasse.Text = (c.Editada ? "Property sets editados por você (o padrão instalado não foi alterado). " : "Configuração instalada com o MetroSP. ") +
+                               (faltam.Count > 0 ? "A classe não traz: " + string.Join(", ", faltam) + "." : "");
+            _infoClasse.Foreground = Theme.Solid(Theme.Cinza);
+        }
+
+        /// <summary>Arquivo trocado à mão: deixa de valer a classe.</summary>
+        private void ParaOutros()
+        {
+            if (_aplicandoClasse || ClasseEscolhida == null) return;
+            _aplicandoClasse = true;
+            _classe.SelectedItem = Outros;
+            _infoClasse.Text = "";
+            _aplicandoClasse = false;
+        }
+
+        /// <summary>
+        /// Abre o .txt de property sets em tabela. Numa classe instalada, salvar grava a cópia do usuário;
+        /// num arquivo indicado à mão, pergunta onde salvar.
+        /// </summary>
+        private void EditarPsets()
+        {
+            string caminho = TextoPsets();
+            if (caminho.Length == 0 || !File.Exists(caminho))
+            {
+                MessageBox.Show(this, "Escolha uma classe ou indique um .txt de property sets que exista.", Title);
+                return;
+            }
+            ClassesIfc.Classe c = ClasseEscolhida;
+            bool daClasse = c != null && string.Equals(caminho, ClassesIfc.Obter(c.Nome).PropertySets, StringComparison.OrdinalIgnoreCase);
+            if (_parametrosModelo == null) _parametrosModelo = ParametrosDoModelo(_doc);
+
+            EditarPsetsWindow editor;
+            try
+            {
+                editor = new EditarPsetsWindow(caminho, _parametrosModelo,
+                    destino: daClasse ? ClassesIfc.CaminhoUsuario(c.Nome) : null,
+                    podeRestaurar: daClasse && c.Editada && ClassesIfc.CaminhoPadrao(c.Nome) != null) { Owner = this };
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Erro ao ler o .txt: " + ex.Message, Title);
+                return;
+            }
+            if (editor.ShowDialog() != true) return;
+
+            if (daClasse)
+            {
+                if (editor.Restaurou) ClassesIfc.RestaurarPadrao(c.Nome);
+                PreencherClasses(c.Nome);
+                AplicarClasse();
+                if (editor.ArquivoSalvo != null && !string.Equals(editor.ArquivoSalvo, ClassesIfc.CaminhoUsuario(c.Nome), StringComparison.OrdinalIgnoreCase))
+                {
+                    // "Salvar como" para outro lugar: passa a usar esse arquivo.
+                    ParaOutros();
+                    _psets.Text = editor.ArquivoSalvo;
+                }
+            }
+            else if (editor.ArquivoSalvo != null)
+            {
+                _psets.Text = editor.ArquivoSalvo;
+            }
+            ConferirPsets();
         }
 
         /// <summary>Pasta inicial do "Procurar": a do arquivo atual, senão a do setup.</summary>
@@ -290,6 +423,7 @@ namespace MetroSP.Ids
             PastaSaida = saida;
             NomeArquivo = nome;
 
+            _settings.Classe = ClasseEscolhida?.Nome;
             _settings.Setup = Setup.Arquivo;
             _settings.PropertySets = psets;
             _settings.Mapeamento = mapeamento;

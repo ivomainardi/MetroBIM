@@ -1,4 +1,17 @@
-# MetroSP 0.2.6
+# MetroSP 0.2.7
+
+Revit 2025, 2026 e 2027.
+
+## Exportar IFC: classes prontas no instalador
+
+- O instalador traz os .txt de property sets (e, quando houver, o setup .json e o mapeamento) de cada classe.
+  Na janela, basta escolher a **Classe** e exportar.
+- Continua dando para trocar qualquer arquivo pelo **Procurar...** (a classe passa para "Outros arquivos").
+- Novo **Editar property sets...**: mostra o .txt em tabela, com as propriedades cujo parâmetro não existe no
+  modelo destacadas, sugere os parâmetros do modelo, e permite acrescentar e remover propriedades. A edição de
+  uma classe instalada fica salva só para o usuário, com **Restaurar padrão** para voltar ao original.
+
+# MetroSP 0.2.6 (anterior)
 
 Revit 2025, 2026 e 2027.
 

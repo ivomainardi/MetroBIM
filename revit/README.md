@@ -12,7 +12,7 @@ Aba **MetroSP** na Ribbon do Revit.
 | Classificação | Verificar Classificação | Confere o preenchido com a planilha: sem classificação, formato inválido, código fora da lista, descrição diferente, categoria não prevista. Propõe correções (escrita da lista, código parecido), aplica as aceitas, exporta .csv. Filtro por categoria, etiquetas clicáveis, coluna com o motivo de bloqueio, criar o parâmetro nas categorias sem ele, Reanalisar |
 | Classificação | Consistência Código×Descrição | Agrupa por código e mostra os que têm mais de uma descrição; escolhe-se a correta (a da planilha vem marcada) e unifica. Lista também descrições usadas com códigos diferentes |
 | IFC / IDS | Verificar Mapeamento IDS | Antes de exportar, verifica se parâmetros e mapeamento IFC atendem a um IDS |
-| IFC / IDS | Exportar IFC | Exporta o IFC com um setup .json do exportador e o .txt de property sets, indicados um a um (computador, rede ou Autodesk Forma pelo Desktop Connector). Confere o .txt contra o modelo antes de exportar |
+| IFC / IDS | Exportar IFC | Exporta o IFC escolhendo uma classe instalada com o MetroSP ou indicando o setup .json e o .txt de property sets (computador, rede ou Autodesk Forma pelo Desktop Connector). Edita o .txt em tabela e mostra os parâmetros que não existem no modelo |
 | Modelagem | Contar Elementos | Exemplo: conta elementos por categoria |
 
 ## Estrutura
@@ -96,7 +96,30 @@ Exemplos em `docs/exemplos/`.
 
 ## Exportar IFC com configurações guardadas
 
-A janela pede cada arquivo separadamente, com um **Procurar...** para cada um. Eles podem estar em
+### Classes que vêm com o instalador
+
+O instalador traz configurações prontas, uma por classe, em `MetroSP\IFC\` ao lado da DLL:
+
+```
+IFC\
+  Setups\<Classe>.json         setup do exportador (opcional)
+  PropertySets\<Classe>.txt    property sets definidos pelo usuário
+  Mapeamentos\<Classe>.txt     tabela de mapeamento de parâmetros (opcional)
+```
+
+Na janela, basta escolher a **Classe**: os arquivos são preenchidos sozinhos. Para acrescentar ou trocar uma
+classe padrão, coloque os arquivos em `src/MetroSP/IFC/` e gere o instalador.
+
+O botão **Editar property sets...** abre o `.txt` em tabela: property set, entidades IFC, propriedade, tipo,
+parâmetro do Revit e a situação, com as linhas cujo parâmetro não existe no modelo destacadas (e um filtro para
+ver só essas). O parâmetro pode ser trocado por um do modelo, e dá para acrescentar e remover propriedades.
+Numa classe instalada, salvar grava uma cópia em `%AppData%\MetroSP\IFC\PropertySets\<Classe>.txt`, que passa
+a valer no lugar da padrão só para esse usuário; **Restaurar padrão** volta ao `.txt` instalado. Num arquivo
+indicado à mão, o editor pergunta onde salvar.
+
+### Arquivos indicados à mão
+
+Com a classe em "Outros arquivos", a janela pede cada arquivo separadamente, com um **Procurar...** para cada um. Eles podem estar em
 qualquer pasta: no computador, na rede ou no Autodesk Forma pelo Desktop Connector
 (`%USERPROFILE%\DC\ACCDocs\<Hub>\<Projeto>`). Se nada foi escolhido ainda e o modelo está na nuvem,
 o Procurar começa na pasta do projeto dele.

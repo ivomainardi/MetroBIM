@@ -11,6 +11,8 @@ namespace MetroSP.Ids
         private static readonly string FilePath =
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "MetroSP", "ifc_export.ini");
 
+        /// <summary>Última classe instalada escolhida (null = arquivos indicados à mão).</summary>
+        public string Classe { get; set; }
         /// <summary>Último setup .json escolhido.</summary>
         public string Setup { get; set; }
         /// <summary>Último .txt de property sets escolhido.</summary>
@@ -30,6 +32,7 @@ namespace MetroSP.Ids
                     .Where(p => p.Length == 2)
                     .GroupBy(p => p[0])
                     .ToDictionary(g => g.Key, g => g.Last()[1]);
+                d.TryGetValue("classe", out string classe); s.Classe = string.IsNullOrEmpty(classe) ? null : classe;
                 d.TryGetValue("setup", out string setup); s.Setup = setup;
                 d.TryGetValue("psets", out string psets); s.PropertySets = psets;
                 d.TryGetValue("mapeamento", out string mapeamento); s.Mapeamento = mapeamento;
@@ -46,6 +49,7 @@ namespace MetroSP.Ids
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
                 File.WriteAllLines(FilePath, new[]
                 {
+                    "classe=" + Classe,
                     "setup=" + Setup,
                     "psets=" + PropertySets,
                     "mapeamento=" + Mapeamento,
