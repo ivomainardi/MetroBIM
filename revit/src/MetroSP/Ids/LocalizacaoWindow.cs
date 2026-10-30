@@ -14,6 +14,7 @@ namespace MetroSP.Ids
     public class LocalizacaoWindow : Window
     {
         private readonly LocalizacaoPainel _painel;
+        private readonly TextBlock _resumo;
 
         public LocalizacaoIfc.Escolha Escolha { get; private set; }
 
@@ -28,10 +29,20 @@ namespace MetroSP.Ids
 
             _painel = new LocalizacaoPainel(local);
             var gravar = new Button { Content = "Gravar no Revit", IsDefault = true, Style = Theme.PrimaryButton, IsEnabled = local.Erro == null };
+            gravar.ToolTip = "A atualização do Location não altera o Survey Point, o Project Base Point nem as Shared Coordinates.";
             gravar.Click += (s, e) => Confirmar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
-            Theme.Apply(this, "Localização IFC", "Calcula o Location pelo Project Base Point e confere o IfcSite e o IfcBuilding",
-                _painel, Theme.Buttons(cancelar, gravar));
+            _resumo = new TextBlock { FontSize = 11.5 };
+            Theme.Apply(this, "Localização IFC", "Location pelo Project Base Point e nomes do IfcSite e do IfcBuilding",
+                _painel, Theme.Rodape(_resumo, cancelar, gravar));
+            _painel.Mudou += AtualizarResumo;
+            AtualizarResumo();
+        }
+
+        private void AtualizarResumo()
+        {
+            int n = _painel.CamposAlterados();
+            Theme.MudarResumo(_resumo, _painel.Avisos(), n == 0 ? "Nada a alterar no Revit" : $"{n} campo(s) serão gravados no Revit");
         }
 
         private void Confirmar()
