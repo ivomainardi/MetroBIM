@@ -20,7 +20,6 @@ namespace MetroSP.Ids
         private readonly TextBox _longitude;
         private readonly TextBox _endereco;
         private readonly TextBox _site;
-        private readonly CheckBox _ignorarGis;
         private readonly TextBox _edificio;
         private readonly TextBox _enderecoEdificio;
         private readonly TextBlock _situacao;
@@ -44,15 +43,9 @@ namespace MetroSP.Ids
             if (local.SistemaGis != null)
             {
                 var gis = Linha(this);
-                gis.Text = $"O Location tem o sistema de coordenadas GIS \"{local.SistemaGis}\". Com ele o exportador IFC grava um EPSG " +
-                    "(IfcProjectedCRS e IfcMapConversion), mas as coordenadas do modelo estão no PTL.";
+                gis.Text = $"O Location tem o sistema de coordenadas GIS \"{local.SistemaGis}\". Ele não muda o cálculo abaixo; " +
+                    "na exportação há a opção de ignorá-lo, para o IFC sair sem EPSG.";
                 gis.Foreground = Theme.Solid(Theme.Laranja);
-                _ignorarGis = new CheckBox
-                {
-                    Content = "Ignorar o sistema GIS: exportar e tirar o EPSG, o IfcProjectedCRS e o IfcMapConversion do IFC",
-                    Margin = new Thickness(0, 4, 0, 0),
-                };
-                Children.Add(_ignorarGis);
             }
 
             // IfcSite à esquerda, IfcBuilding à direita
@@ -77,7 +70,7 @@ namespace MetroSP.Ids
             MostrarSituacao();
 
             var nota = Linha(this);
-            nota.Text = "Ao exportar, o que estiver diferente do Revit é gravado nos campos padrão: Manage › Location " +
+            nota.Text = "Ao gravar, o que estiver diferente do Revit vai para os campos padrão: Manage › Location " +
                 "(latitude, longitude, endereço do projeto) e Informações do projeto (SiteName, nome do edifício, endereço). " +
                 "O SiteName é criado nas Informações do projeto se o modelo ainda não tiver. " +
                 "A atualização do Location não altera o Survey Point, o Project Base Point nem as Shared Coordinates.";
@@ -92,12 +85,7 @@ namespace MetroSP.Ids
                 erro = "A exportação precisa do Location corrigido pelo Project Base Point, e não foi possível calculá-lo: " + _local.Erro;
                 return null;
             }
-            if (_ignorarGis != null && _ignorarGis.IsChecked != true)
-            {
-                erro = $"O Location tem o sistema GIS \"{_local.SistemaGis}\", e com ele o exportador grava um EPSG que não vale para o PTL. " +
-                    "Marque \"Ignorar o sistema GIS\" no bloco Localização para exportar sem ele.";
-                return null;
-            }
+
             if (!Ler(_latitude.Text, out double lat) || !Ler(_longitude.Text, out double lon) || Math.Abs(lat) > 90 || Math.Abs(lon) > 180)
             {
                 erro = "Latitude e longitude precisam ser números em graus decimais (por exemplo -23.5508467 e -46.7315776).";
@@ -138,7 +126,7 @@ namespace MetroSP.Ids
             }
             double hoje = PtlMetroSP.DistanciaMetros(_local.LatitudeAtual, _local.LongitudeAtual, lat, lon);
             string texto = $"Location do Revit hoje: {Num(_local.LatitudeAtual, 8)}, {Num(_local.LongitudeAtual, 8)}" +
-                (hoje <= LocalizacaoIfc.ToleranciaLocation ? " (igual)." : $" (será atualizado; diferença de {Distancia(hoje)}).");
+                (hoje <= LocalizacaoIfc.ToleranciaLocation ? " (igual)." : $" (será atualizado ao gravar; diferença de {Distancia(hoje)}).");
             double? desvio = DesvioDoPbp();
             if (desvio > LocalizacaoIfc.ToleranciaLocation)
             {

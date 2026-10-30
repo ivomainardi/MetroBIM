@@ -75,6 +75,20 @@ namespace MetroSP.Ids
             Endereco = EnderecoAtual,
         };
 
+        /// <summary>Valores que estão hoje nos campos do Revit (o que o exportador vai usar).</summary>
+        public Escolha Atual() => new Escolha
+        {
+            Latitude = LatitudeAtual,
+            Longitude = LongitudeAtual,
+            Local = LocalAtual,
+            Site = SiteAtual,
+            Edificio = EdificioAtual,
+            Endereco = EnderecoAtual,
+        };
+
+        /// <summary>O Location do Revit já está no ponto do Project Base Point.</summary>
+        public bool LocationCorreto => Erro == null && Diferenca <= ToleranciaLocation;
+
         public static LocalizacaoIfc Calcular(Document doc)
         {
             var r = new LocalizacaoIfc();
@@ -228,10 +242,10 @@ namespace MetroSP.Ids
                 $"Distância à origem do PTL: {Num(RaioOrigem / 1000, 3)} km · fechamento da conversão: {Num(Fechamento * 1000, 4)} mm\n" +
                 $"Motor: {PtlMetroSP.Identificacao}\n" +
                 $"Location antes da exportação: {Num(LatitudeAtual, 8)}, {Num(LongitudeAtual, 8)}  (diferença de {Distancia(Diferenca)} do calculado)\n" +
-                $"IfcSite (confirmado): {Num(e.Latitude, 8)}, {Num(e.Longitude, 8)}" +
-                (desvio > ToleranciaLocation ? $"  (digitado à mão, a {Distancia(desvio)} do calculado)" : "") +
+                $"IfcSite: {Num(e.Latitude, 8)}, {Num(e.Longitude, 8)}" +
+                (desvio > ToleranciaLocation ? $"  (a {Distancia(desvio)} do Project Base Point)" : "") +
                 $" · nome \"{e.Site}\" · endereço do projeto \"{e.Local}\"\n" +
-                $"IfcBuilding (confirmado): nome \"{e.Edificio}\" · endereço \"{e.Endereco}\"";
+                $"IfcBuilding: nome \"{e.Edificio}\" · endereço \"{e.Endereco}\"";
         }
 
         // ---- Conferência do IFC exportado ----
@@ -287,7 +301,7 @@ namespace MetroSP.Ids
                     double dif = PtlMetroSP.DistanciaMetros(lat, lon, e.Latitude, e.Longitude);
                     // O exportador trunca em milionésimos de segundo (~3 cm)
                     bool ok = dif <= 0.05 && lat < 0 && lon < 0;
-                    c.Linhas.Add($"IfcSite RefLatitude/RefLongitude: {Num(lat, 8)}, {Num(lon, 8)} ({(ok ? "confere" : "NÃO confere")} com o confirmado, diferença de {Distancia(dif)})");
+                    c.Linhas.Add($"IfcSite RefLatitude/RefLongitude: {Num(lat, 8)}, {Num(lon, 8)} ({(ok ? "confere" : "NÃO confere")} com o Location, diferença de {Distancia(dif)})");
                     if (!ok) c.TemProblema = true;
                 }
             }
@@ -396,7 +410,7 @@ namespace MetroSP.Ids
             sb.AppendLine();
             sb.AppendLine(Resumo(e));
             sb.AppendLine();
-            sb.AppendLine(alteracoes.Count == 0 ? "Nenhum campo do Revit precisou ser alterado." : "Alterado no Revit antes da exportação:");
+            sb.AppendLine(alteracoes.Count == 0 ? "Nenhum campo do Revit foi alterado nesta exportação." : "Gravado no Revit nesta exportação:");
             foreach (string a in alteracoes) sb.AppendLine("- " + a);
             sb.AppendLine();
             sb.AppendLine("Conferência do IFC:");

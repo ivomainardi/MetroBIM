@@ -46,17 +46,10 @@ namespace MetroSP.Commands
             IfcExportSetup setup = janela.Setup;
             string arquivo = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
 
-            // O Location (Manage › Location) vira o RefLatitude/RefLongitude do IfcSite. A janela já calculou a lat/long
-            // pelo Project Base Point e mostrou os dados do IfcSite/IfcBuilding; o que ficou diferente vai para o Revit.
+            // A localização é gravada na etapa 1 (Localização IFC); aqui o IFC sai com o que está no Revit.
             LocalizacaoIfc local = janela.Localizacao;
-            LocalizacaoIfc.Escolha escolha = janela.LocalizacaoEscolhida;
-            List<string> alteracoes;
-            try { alteracoes = local.Aplicar(doc, escolha); }
-            catch (Exception ex)
-            {
-                TaskDialog.Show("MetroSP", "Não foi possível gravar a localização no Revit, e o IFC não foi exportado:\n" + ex.Message);
-                return Result.Failed;
-            }
+            LocalizacaoIfc.Escolha escolha = local.Atual();
+            List<string> alteracoes = janela.AlteracoesLocalizacao;
 
             bool exportou;
             string avisoPsets = null;
@@ -119,7 +112,8 @@ namespace MetroSP.Commands
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
-                    "\n\nLocalização: " + (alteracoes.Count == 0 ? "os campos do Revit já estavam como confirmado." : "gravado no Revit antes da exportação:\n- " + string.Join("\n- ", alteracoes)) +
+                    "\n\nLocalização: " + (local.LocationCorreto ? "Location confere com o Project Base Point." : "ATENÇÃO, o Location não confere com o Project Base Point.") +
+                    (alteracoes.Count == 0 ? "" : "\nGravado no Revit nesta exportação:\n- " + string.Join("\n- ", alteracoes)) +
                     "\n" + conferencia + avisosSetup,
                 ExpandedContent = local.Resumo(escolha) + (log == null ? "" : "\n\nRegistro: " + log),
                 CommonButtons = TaskDialogCommonButtons.Close,
