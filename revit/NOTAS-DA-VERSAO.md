@@ -10,6 +10,9 @@ Revit 2025, 2026 e 2027.
 - Novo **Editar property sets...**: mostra o .txt em tabela, com as propriedades cujo parâmetro não existe no
   modelo destacadas, sugere os parâmetros do modelo, e permite acrescentar e remover propriedades. A edição de
   uma classe instalada fica salva só para o usuário, com **Restaurar padrão** para voltar ao original.
+  Os selos do topo do editor filtram a tabela: o de property sets abre a escolha dos psets, o de parâmetros não
+  encontrados e o de tipos não aceitos mostram só essas linhas (novo clique desliga), e o de propriedades limpa
+  os filtros.
 - **Classes do MetroSP no instalador:** B2, B3, B5, B7, I1, J2, K9, M1, N3 e S5 (property sets MNEPI-L20).
 - **Conferência pelo padrão do exportador da Autodesk:** todo .txt incluído (classe, Procurar ou Forma) e toda
   edição manual são conferidos pelas mesmas regras do leitor do exportador IFC da Autodesk: tipo de dado

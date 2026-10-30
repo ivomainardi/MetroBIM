@@ -145,12 +145,7 @@ namespace MetroSP.Ids
             acoes.Children.Add(adicionar);
             acoes.Children.Add(remover);
             var limparFiltros = new Button { Content = "Limpar filtros", Margin = new Thickness(8, 0, 0, 0) };
-            limparFiltros.Click += (s, e) =>
-            {
-                foreach (FiltroColuna f in _filtros) { f.Texto = ""; f.Valores = null; MarcarBotao(f); }
-                _soAusentes.IsChecked = false;
-                AtualizarFiltro();
-            };
+            limparFiltros.Click += (s, e) => LimparFiltros();
             acoes.Children.Add(limparFiltros);
             corpo.Children.Add(acoes);
 
@@ -283,12 +278,25 @@ namespace MetroSP.Ids
         }
 
         private const string Vazio = "(vazio)";
+
+        // Filtro dos selos do topo: "ausentes" (parâmetro não encontrado) ou "tipos" (tipo não aceito).
+        private string _filtroSelo;
+
+        private void LimparFiltros()
+        {
+            foreach (FiltroColuna f in _filtros) { f.Texto = ""; f.Valores = null; MarcarBotao(f); }
+            _soAusentes.IsChecked = false;
+            _filtroSelo = null;
+            AtualizarFiltro();
+        }
         private readonly List<FiltroColuna> _filtros = new List<FiltroColuna>();
 
         /// <summary>A linha passa no "só com problema" e nos filtros das colunas (menos, se pedido, o de uma coluna).</summary>
         private bool Passa(Linha l, FiltroColuna exceto)
         {
             if (_soAusentes?.IsChecked == true && l.Encontrado) return false;
+            if (_filtroSelo == "ausentes" && l.ParametroNoModelo) return false;
+            if (_filtroSelo == "tipos" && l.TipoOk) return false;
             foreach (FiltroColuna f in _filtros)
             {
                 if (f == exceto) continue;
@@ -401,14 +409,41 @@ namespace MetroSP.Ids
             int ausentes = _linhas.Count(l => !l.ParametroNoModelo);
             int tipos = _linhas.Count(l => !l.TipoOk);
             int psets = _linhas.Select(l => l.PropertySet).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-            _resumo.Children.Clear();
-            _resumo.Children.Add(Theme.Chip($"{_linhas.Count} propriedades"));
             int visiveis = _vista?.Count ?? _linhas.Count;
-            if (visiveis != _linhas.Count) _resumo.Children.Add(Theme.Chip($"mostrando {visiveis} com os filtros", escuro: true));
-            _resumo.Children.Add(Theme.Chip($"{psets} property sets"));
-            _resumo.Children.Add(Theme.Chip(ausentes == 0 ? "todos os parâmetros encontrados no modelo"
-                : $"{ausentes} parâmetro(s) não encontrados no modelo (ficam fora do IFC)", destaque: ausentes > 0));
-            if (tipos > 0) _resumo.Children.Add(Theme.Chip($"{tipos} tipo(s) de dado não aceitos pelo exportador", destaque: true));
+            FiltroColuna filtroPset = _filtros.FirstOrDefault(f => f.Titulo == "Property set");
+            _resumo.Children.Clear();
+
+            // Os selos funcionam como filtro: o ativo fica escuro e um novo clique desliga.
+            _resumo.Children.Add(Selo($"{_linhas.Count} propriedades", visiveis == _linhas.Count, false,
+                "Mostrar todas as propriedades (limpa os filtros)", LimparFiltros));
+            if (visiveis != _linhas.Count)
+                _resumo.Children.Add(Selo($"mostrando {visiveis} com os filtros", true, false, "Limpar os filtros", LimparFiltros));
+            _resumo.Children.Add(Selo($"{psets} property sets", filtroPset?.Valores != null, false,
+                "Escolher quais property sets mostrar", () => { if (filtroPset != null) AbrirFiltro(filtroPset); }));
+            if (ausentes == 0)
+                _resumo.Children.Add(Theme.Chip("todos os parâmetros encontrados no modelo"));
+            else
+                _resumo.Children.Add(Selo($"{ausentes} parâmetro(s) não encontrados no modelo (ficam fora do IFC)", _filtroSelo == "ausentes", true,
+                    "Mostrar só as propriedades cujo parâmetro não existe no modelo", () => AlternarSelo("ausentes")));
+            if (tipos > 0)
+                _resumo.Children.Add(Selo($"{tipos} tipo(s) de dado não aceitos pelo exportador", _filtroSelo == "tipos", true,
+                    "Mostrar só as propriedades com tipo de dado não aceito", () => AlternarSelo("tipos")));
+        }
+
+        private void AlternarSelo(string filtro)
+        {
+            _filtroSelo = _filtroSelo == filtro ? null : filtro;
+            AtualizarFiltro();
+        }
+
+        /// <summary>Selo clicável: escuro quando o filtro dele está ativo.</summary>
+        private static Border Selo(string texto, bool ativo, bool destaque, string dica, Action clique)
+        {
+            Border b = Theme.Chip(texto, destaque: destaque && !ativo, escuro: ativo);
+            b.Cursor = System.Windows.Input.Cursors.Hand;
+            b.ToolTip = dica;
+            b.MouseLeftButtonUp += (s, e) => { e.Handled = true; clique(); };
+            return b;
         }
 
         private string PerguntarDestino(string atual)
