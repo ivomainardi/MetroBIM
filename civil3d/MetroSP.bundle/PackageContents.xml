@@ -4,7 +4,7 @@
                     ProductType="Application"
                     Name="MetroSP"
                     Description="Aba MetroSP: exportação IFC 4.3 com configuração do Autodesk Forma"
-                    AppVersion="0.3.0"
+                    AppVersion="0.4.0"
                     Author="MetroSP"
                     ProductCode="{D53723DB-EBA6-4428-9913-8CBC5398AB5A}"
                     UpgradeCode="{F47F1D43-298D-467D-BC12-3DAC7B22CAE3}">

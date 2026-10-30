@@ -20,6 +20,7 @@ namespace MetroSP
         // Azul institucional aproximado; troque pelo do manual de marca.
         static readonly Color Azul = Color.FromRgb(0x00, 0x2D, 0x72);
         static readonly Color Cinza = Color.FromRgb(0x5A, 0x63, 0x70);
+        static readonly Color Laranja = Color.FromRgb(0xD9, 0x6B, 0x00);
 
         public void Initialize()
         {
@@ -52,13 +53,15 @@ namespace MetroSP
 
             tab.Panels.Add(Panel("IFC 4.3",
                 Button("Exportar\nIFC", "IFC", Azul, "MSP_IFCEXPORT",
-                    "Baixa do Forma a configuração IFC do projeto e exporta o desenho inteiro (IFCINFRAEXPORT)."),
+                    "Aplica a configuração IFC ativa (do Forma ou local), exporta o desenho inteiro (IFCINFRAEXPORT) e coloca o alinhamento 3D no mesmo IFC."),
                 Button("Exportar\nseleção", "SEL", Azul, "MSP_IFCEXPORTSEL",
                     "Baixa do Forma a configuração IFC e exporta só os objetos selecionados (IFCINFRAEXPORTSELECTED)."),
                 Button("Só\nsincronizar", "SYN", Azul, "MSP_IFCSYNC",
                     "Atualiza os JSON de configuração IFC a partir do Forma sem exportar."),
                 Button("Alinhamento\n3D", "AL3", Azul, "MSP_IFCALINHAMENTO",
-                    "Exporta alinhamentos para IFC 4.3 com o perfil aplicado: eixo 3D com as cotas corretas e segmentos horizontais e verticais.")));
+                    "Exporta alinhamentos para IFC 4.3 com o perfil aplicado: eixo 3D com as cotas corretas e segmentos horizontais e verticais."),
+                Button("Configurar\nIFC", "CFG", Laranja, "MSP_IFCCONFIG",
+                    "Mapeamento de classes IFC, property sets, IfcProject/IfcSite/IfcBuilding e alinhamento. Importa e exporta os JSON.")));
 
             tab.Panels.Add(Panel("Forma",
                 Button("Entrar", "IN", Cinza, "MSP_FORMALOGIN",
@@ -67,7 +70,7 @@ namespace MetroSP
                     "Apaga a sessão salva neste computador."),
                 Button("Pasta de\nconfig", "DIR", Cinza, "MSP_IFCPASTA",
                     "Abre a pasta onde os JSON foram gravados (pasta do desenho)."),
-                Button("Configurações", "CFG", Cinza, "MSP_CONFIG",
+                Button("Conta e\nForma", "SET", Cinza, "MSP_CONFIG",
                     "Edita MetroSP.settings.json (Client ID, projeto e pasta do Forma).")));
 
             tab.Panels.Add(Panel("Ajuda",

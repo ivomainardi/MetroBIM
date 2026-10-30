@@ -16,7 +16,8 @@
     "IfcInfraConfiguration.json",
     "IfcInfraExportMapping.json",
     "IFCInfraExportPropertyMapping.json",
-    "IFCInfraExportPropertyMapping.csv"
+    "IFCInfraExportPropertyMapping.csv",
+    "MetroSP.ifc.json"
   ],
 
   // PorDesenho  = [pasta do DWG]\[nome do DWG]-IfcInfraConfiguration.json (recomendado)
@@ -27,8 +28,7 @@
   "ExportCommand": "IFCINFRAEXPORT",
   "ExportSelectedCommand": "IFCINFRAEXPORTSELECTED",
 
-  // MSP_IFCALINHAMENTO: passo (m) dos pontos do eixo 3D e sistema de coordenadas do IFC.
-  // EPSG:31983 = SIRGAS 2000 / UTM 23S. Deixe "" para não gravar o sistema.
-  "AlinhamentoPasso": 1.0,
-  "SistemaCoordenadas": "EPSG:31983"
+  // De onde vem o pacote de configuração IFC: "Automatico" (Forma se preenchido acima), "Forma" ou "Local".
+  // O pacote local fica em %APPDATA%\MetroSP\Config e é editado no botão "Configurar IFC".
+  "FonteConfiguracao": "Automatico"
 }

@@ -32,7 +32,8 @@ namespace MetroSP
             "IfcInfraConfiguration.json",
             "IfcInfraExportMapping.json",
             "IFCInfraExportPropertyMapping.json",
-            "IFCInfraExportPropertyMapping.csv"
+            "IFCInfraExportPropertyMapping.csv",
+            "MetroSP.ifc.json"
         };
 
         /// <summary>
@@ -47,11 +48,18 @@ namespace MetroSP
         public string ExportCommand { get; set; } = "IFCINFRAEXPORT";
         public string ExportSelectedCommand { get; set; } = "IFCINFRAEXPORTSELECTED";
 
-        /// <summary>Passo (m) da amostragem do eixo 3D no comando MSP_IFCALINHAMENTO.</summary>
-        public double AlinhamentoPasso { get; set; } = 1.0;
+        /// <summary>
+        /// De onde vem o pacote de configuração IFC antes de exportar:
+        ///  "Automatico" = Forma se ClientId/ProjectId/FolderUrn estiverem preenchidos, senão o pacote local;
+        ///  "Forma" = sempre baixa do Forma; "Local" = usa só o pacote local (editado na interface).
+        /// </summary>
+        public string FonteConfiguracao { get; set; } = "Automatico";
 
-        /// <summary>Sistema de coordenadas gravado no IFC (IfcMapConversion). Vazio = não grava.</summary>
-        public string SistemaCoordenadas { get; set; } = "EPSG:31983";
+        [JsonIgnore]
+        public bool UsesForma =>
+            string.Equals(FonteConfiguracao, "Forma", StringComparison.OrdinalIgnoreCase) ||
+            (string.Equals(FonteConfiguracao, "Automatico", StringComparison.OrdinalIgnoreCase) &&
+             !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ProjectId) && !string.IsNullOrWhiteSpace(FolderUrn));
 
         [JsonIgnore] public string LoadedFrom { get; private set; }
 

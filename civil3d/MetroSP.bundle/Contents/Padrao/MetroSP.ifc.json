@@ -1,0 +1,21 @@
+{
+  "Estrutura": {
+    "Projeto": { "Nome": null, "NomeLongo": null, "Descricao": null, "Fase": null },
+    "Terreno": { "Nome": null, "NomeLongo": null, "Descricao": null, "Latitude": null, "Longitude": null, "Elevacao": null, "Matricula": null },
+    "Edificacoes": [],
+    "SistemaCoordenadas": "EPSG:31983"
+  },
+  "Alinhamento": {
+    "AplicarNoIfc": true,
+    "Passo": 1.0,
+    "PerfisPreferidos": [ "projeto", "greide", "^PF", "^FG" ]
+  },
+  "PropriedadesProjeto": {
+    "Linha": "",
+    "UC_Subconjunto": "",
+    "AreaDeProjeto": "",
+    "Contrato": "",
+    "OrdemDeServico": "",
+    "Emitente": ""
+  }
+}

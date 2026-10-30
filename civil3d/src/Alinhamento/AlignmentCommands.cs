@@ -2,12 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Civil.ApplicationServices;
 using Autodesk.Civil.DatabaseServices;
+using MetroSP.Config;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
+using AcDocument = Autodesk.AutoCAD.ApplicationServices.Document;
 
 [assembly: CommandClass(typeof(MetroSP.Alinhamento.AlignmentCommands))]
 
@@ -16,8 +19,10 @@ namespace MetroSP.Alinhamento
     public class AlignmentCommands
     {
         /// <summary>
-        /// Exporta alinhamentos para IFC 4.3 com o perfil vertical aplicado: o eixo sai em 3D com as cotas
-        /// do perfil, e a semântica horizontal + vertical vai completa (IfcAlignmentHorizontal/Vertical).
+        /// Exporta alinhamentos para um IFC 4.3 separado, com o perfil vertical aplicado: eixo 3D com as cotas
+        /// do perfil e semântica horizontal + vertical completa (IfcAlignmentHorizontal/Vertical).
+        /// O fluxo normal (Exportar IFC) já aplica isso dentro do IFC da Autodesk; este comando serve para
+        /// gerar só os alinhamentos.
         /// </summary>
         [CommandMethod("MSP_IFCALINHAMENTO")]
         public void ExportAlignments()
@@ -27,31 +32,11 @@ namespace MetroSP.Alinhamento
             var db = doc.Database;
             try
             {
-                var cfg = Settings.Load();
-                if (db.Insunits != UnitsValue.Meters)
-                    ed.WriteMessage($"\nMetroSP: aviso - unidade do desenho é {db.Insunits}; o IFC é gravado em metros.");
-
+                var metro = ConfigPackage.LoadMetroSp();
                 var ids = SelectAlignments(ed);
                 if (ids == null || ids.Count == 0) return;
 
-                var models = new List<AlignmentModel>();
-                using (var tr = db.TransactionManager.StartTransaction())
-                {
-                    foreach (var id in ids)
-                    {
-                        var al = (Alignment)tr.GetObject(id, OpenMode.ForRead);
-                        var profile = ChooseProfile(ed, tr, al);
-                        if (profile == null)
-                            ed.WriteMessage($"\nMetroSP: {al.Name} sem perfil de projeto; vai só a geometria horizontal (sem eixo 3D).");
-
-                        var model = CivilAlignmentReader.Read(al, profile, cfg.AlinhamentoPasso);
-                        models.Add(model);
-                        ed.WriteMessage($"\nMetroSP: {al.Name}: {model.Horizontal.Count - 1} segmento(s) horizontais, " +
-                                        $"{Math.Max(0, model.Vertical.Count - 1)} vertical(is), {model.Axis3D.Count} ponto(s) no eixo 3D.");
-                    }
-                    tr.Commit();
-                }
-
+                var models = Read(doc, ids, metro.Alinhamento, interactive: true);
                 var path = AskOutputPath(ed, doc.Name, ids.Count == 1 ? models[0].Name : "Alinhamentos");
                 if (path == null) return;
 
@@ -60,7 +45,7 @@ namespace MetroSP.Alinhamento
                     ProjectName = Path.GetFileNameWithoutExtension(doc.Name),
                     SourceFile = Path.GetFileName(doc.Name),
                     Author = Environment.UserName,
-                    ProjectedCrs = cfg.SistemaCoordenadas,
+                    ProjectedCrs = metro.Estrutura?.SistemaCoordenadas,
                     Seed = db.FingerprintGuid
                 };
                 new IfcAlignmentWriter(info).Write(path, models);
@@ -70,6 +55,41 @@ namespace MetroSP.Alinhamento
             {
                 ed.WriteMessage("\nMetroSP: ERRO - " + ex.Message);
             }
+        }
+
+        /// <summary>Todos os alinhamentos do desenho, cada um com o perfil escolhido.</summary>
+        public static List<AlignmentModel> ReadAll(AcDocument doc, AlignmentOptions opts, bool interactive)
+        {
+            var ids = CivilApplication.ActiveDocument.GetAlignmentIds().Cast<ObjectId>().ToList();
+            return Read(doc, ids, opts, interactive);
+        }
+
+        static List<AlignmentModel> Read(AcDocument doc, List<ObjectId> ids, AlignmentOptions opts, bool interactive)
+        {
+            var ed = doc.Editor;
+            var db = doc.Database;
+            if (db.Insunits != UnitsValue.Meters)
+                ed.WriteMessage($"\nMetroSP: aviso - unidade do desenho é {db.Insunits}; o IFC é gravado em metros.");
+
+            var models = new List<AlignmentModel>();
+            using (var tr = db.TransactionManager.StartTransaction())
+            {
+                foreach (var id in ids)
+                {
+                    var al = (Alignment)tr.GetObject(id, OpenMode.ForRead);
+                    var profile = ChooseProfile(ed, tr, al, opts.PerfisPreferidos, interactive);
+                    if (profile == null)
+                        ed.WriteMessage($"\nMetroSP: {al.Name} sem perfil de projeto; fica só com a geometria horizontal.");
+
+                    var model = CivilAlignmentReader.Read(al, profile, opts.Passo);
+                    models.Add(model);
+                    ed.WriteMessage($"\nMetroSP: {al.Name}: {Math.Max(0, model.Horizontal.Count - 1)} segmento(s) horizontais, " +
+                                    $"{Math.Max(0, model.Vertical.Count - 1)} vertical(is), {model.Axis3D.Count} ponto(s) no eixo 3D" +
+                                    (profile != null ? $", perfil {profile.Name}." : "."));
+                }
+                tr.Commit();
+            }
+            return models;
         }
 
         static List<ObjectId> SelectAlignments(Editor ed)
@@ -91,8 +111,11 @@ namespace MetroSP.Alinhamento
             return sr.Status == PromptStatus.OK ? sr.Value.GetObjectIds().ToList() : null;
         }
 
-        /// <summary>Perfil de projeto (layout). Se houver mais de um, pergunta qual.</summary>
-        static Profile ChooseProfile(Editor ed, Transaction tr, Alignment al)
+        /// <summary>
+        /// Perfil de projeto (layout ou importado). Com mais de um: o primeiro que casar com a lista de
+        /// preferidos; se nenhum casar, pergunta (ou, sem interação, usa o primeiro em ordem alfabética).
+        /// </summary>
+        static Profile ChooseProfile(Editor ed, Transaction tr, Alignment al, List<string> preferred, bool interactive)
         {
             var candidates = al.GetProfileIds().Cast<ObjectId>()
                 .Select(id => (Profile)tr.GetObject(id, OpenMode.ForRead))
@@ -101,6 +124,15 @@ namespace MetroSP.Alinhamento
                 .ToList();
 
             if (candidates.Count <= 1) return candidates.FirstOrDefault();
+
+            foreach (var pattern in preferred ?? new List<string>())
+            {
+                if (string.IsNullOrWhiteSpace(pattern)) continue;
+                var hit = candidates.FirstOrDefault(p => Regex.IsMatch(p.Name, pattern, RegexOptions.IgnoreCase));
+                if (hit != null) return hit;
+            }
+
+            if (!interactive) return candidates[0];
 
             ed.WriteMessage($"\nPerfis de {al.Name}:");
             for (int i = 0; i < candidates.Count; i++)
