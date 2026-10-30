@@ -42,6 +42,11 @@ lances de escada voltam a receber o nível, o desvio, o material e as quantidade
 recebe propriedade de bloco de outra.
 J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava IfcDiscreteAccessory).
 
+## Exportar IFC: EPSG em branco
+
+- Nova opção "Exportar com o EPSG em branco" na seção Localização, ligada por padrão. Com ela ligada, o IFC sai sem EPSG (sem IfcMapConversion/IfcProjectedCRS) e a janela não cobra mais o dado GIS do Location.
+- Desligada, o IFC mantém o EPSG do setup ou o que o exportador do Revit gerar.
+
 ## Interface mais limpa
 
 - **Exportar IFC** reorganizada: classe numa linha (com o motivo da escolha e o Forma online como link ao lado),

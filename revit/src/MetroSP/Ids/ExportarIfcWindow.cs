@@ -60,9 +60,12 @@ namespace MetroSP.Ids
         public LocalizacaoIfc Localizacao { get; private set; }
         /// <summary>O que a etapa Localização, aberta daqui, gravou no Revit.</summary>
         public List<string> AlteracoesLocalizacao { get; } = new List<string>();
-        /// <summary>Exportar mesmo com sistema GIS no Location, tirando o EPSG do IFC depois.</summary>
-        public bool IgnorarGis => _ignorarGis?.IsChecked == true;
-        private readonly CheckBox _ignorarGis;
+        /// <summary>
+        /// EPSG em branco (padrão): o IFC sai sem código EPSG, sem IfcProjectedCRS e sem IfcMapConversion, mesmo com
+        /// sistema GIS no Location, e a falta de dado GIS não é cobrada. Desligado, vale o EPSG do setup ou do exportador.
+        /// </summary>
+        public bool EpsgEmBranco => _epsgEmBranco.IsChecked == true;
+        private readonly CheckBox _epsgEmBranco;
 
         private class Opcao
         {
@@ -127,18 +130,16 @@ namespace MetroSP.Ids
             _seloLocalizacao = Theme.Selo();
             linhaLocal.Children.Add(_seloLocalizacao);
             corpo.Children.Add(linhaLocal);
-            if (Localizacao.SistemaGis != null)
+            _epsgEmBranco = new CheckBox
             {
-                _ignorarGis = new CheckBox
-                {
-                    Content = $"Ignorar o sistema GIS \"{Localizacao.SistemaGis}\" e tirar o EPSG do IFC",
-                    ToolTip = "Exporta e tira do IFC o EPSG, o IfcProjectedCRS e o IfcMapConversion que o exportador grava por causa do sistema GIS do Location.",
-                    Margin = new Thickness(0, 6, 0, 0),
-                };
-                _ignorarGis.Checked += (s, e) => AtualizarResumo();
-                _ignorarGis.Unchecked += (s, e) => AtualizarResumo();
-                corpo.Children.Add(_ignorarGis);
-            }
+                Content = "Exportar com o EPSG em branco",
+                IsChecked = true,
+                ToolTip = "Ligado: o IFC sai sem código EPSG, IfcProjectedCRS e IfcMapConversion (coordenadas no PTL), mesmo que o Location tenha sistema GIS" +
+                          (Localizacao.SistemaGis != null ? $" (\"{Localizacao.SistemaGis}\")" : "") +
+                          ".\nDesligado: vale o EPSG do setup ou o que o exportador gravar pelo sistema GIS.",
+                Margin = new Thickness(0, 6, 0, 0),
+            };
+            corpo.Children.Add(_epsgEmBranco);
 
             // ---------- Saída ----------
             corpo.Children.Add(Theme.Secao("Saída"));
@@ -438,7 +439,6 @@ namespace MetroSP.Ids
             if (_seloMapeamento.Visibility == Visibility.Visible && ((TextBlock)_seloMapeamento.Child).Foreground is System.Windows.Media.SolidColorBrush bm && bm.Color == Theme.LaranjaTexto)
                 avisos.Add("mapeamento não encontrado");
             if (Localizacao != null && (Localizacao.Erro != null || !Localizacao.LocationCorreto)) avisos.Add("Location fora do Project Base Point");
-            if (_ignorarGis != null && _ignorarGis.IsChecked != true) avisos.Add("sistema GIS no Location");
             Theme.MudarResumo(_resumo, avisos, "Pronto para exportar");
         }
 
@@ -723,12 +723,6 @@ namespace MetroSP.Ids
                     Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
                 if (r == MessageBoxResult.Cancel) return;
                 if (r == MessageBoxResult.Yes) { AbrirLocalizacao(); return; }
-            }
-            if (_ignorarGis != null && _ignorarGis.IsChecked != true)
-            {
-                MessageBox.Show(this, $"O Location tem o sistema GIS \"{Localizacao.SistemaGis}\", e com ele o exportador grava um EPSG que não vale para o PTL. " +
-                    "Marque \"Ignorar o sistema GIS\" para exportar sem ele.", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
             }
 
             PropertySetsEscolhido = psets.Length > 0 ? psets : null;

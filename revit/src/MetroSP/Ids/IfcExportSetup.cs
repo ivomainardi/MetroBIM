@@ -136,7 +136,7 @@ namespace MetroSP.Ids
         /// Monta as opções do exportador. psets/mapeamento: arquivos escolhidos (null = não usar).
         /// vista: vista que filtra os elementos (InvalidElementId = modelo inteiro).
         /// </summary>
-        public IFCExportOptions CriarOpcoes(Document doc, string psets, string mapeamento, ElementId vista)
+        public IFCExportOptions CriarOpcoes(Document doc, string psets, string mapeamento, ElementId vista, bool epsgEmBranco = true)
         {
             var o = new IFCExportOptions();
             o.FileVersion = Versao;
@@ -182,7 +182,8 @@ namespace MetroSP.Ids
             // e EPSG em branco, para o exportador não declarar um sistema projetado que o modelo não usa.
             o.AddOption("SitePlacement", "Shared");
             o.AddOption("SelectedSite", doc.ActiveProjectLocation.Name);
-            o.AddOption("GeoRefEPSGCode", string.Empty);
+            if (epsgEmBranco) o.AddOption("GeoRefEPSGCode", string.Empty);
+            else if (EpsgDoSetup != null) o.AddOption("GeoRefEPSGCode", EpsgDoSetup);
             return o;
         }
 

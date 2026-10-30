@@ -57,7 +57,7 @@ namespace MetroSP.Commands
             string avisoPsets = null;
             try
             {
-                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista);
+                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco);
 
                 // O exportador precisa de uma transação aberta; ela é desfeita no fim,
                 // a não ser que o setup grave o GUID IFC nos elementos (como faz a janela do Revit).
@@ -101,9 +101,12 @@ namespace MetroSP.Commands
             }
 
             // Sem EPSG: se o exportador criou IfcMapConversion/IfcProjectedCRS (sistema GIS no Location), saem do arquivo.
-            string georref;
-            try { georref = LocalizacaoIfc.RemoverGeorreferencia(arquivo); }
-            catch (Exception ex) { georref = "Não foi possível tirar o EPSG do IFC: " + ex.Message; }
+            string georref = null;
+            if (janela.EpsgEmBranco)
+            {
+                try { georref = LocalizacaoIfc.RemoverGeorreferencia(arquivo); }
+                catch (Exception ex) { georref = "Não foi possível tirar o EPSG do IFC: " + ex.Message; }
+            }
             // O IfcSite sai sempre com a lat/long do Project Base Point, mesmo que o Revit não tenha aceitado no Location.
             string latLong;
             try { latLong = local.CorrigirLatLongIfc(arquivo); }
@@ -113,19 +116,19 @@ namespace MetroSP.Commands
                 escolha.Latitude = local.Latitude;
                 escolha.Longitude = local.Longitude;
             }
-            LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha);
+            LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha, janela.EpsgEmBranco);
             if (latLong != null) conferencia.Linhas.Insert(0, latLong);
             if (georref != null) conferencia.Linhas.Insert(0, georref);
             string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
                 uiapp.Application.VersionName, Ui.SobreWindow.Versao);
             string avisosSetup =
                 (setup.SitePlacementDiferente == null ? "" : $"\nO setup usa a base {setup.SitePlacementDiferente}; o IFC saiu com Shared Coordinates.") +
-                (setup.EpsgDoSetup == null ? "" : $"\nO setup tem o EPSG {setup.EpsgDoSetup}; o IFC saiu sem EPSG.");
+                (setup.EpsgDoSetup == null || !janela.EpsgEmBranco ? "" : $"\nO setup tem o EPSG {setup.EpsgDoSetup}; o IFC saiu sem EPSG.");
 
             var fim = new TaskDialog("MetroSP")
             {
                 MainInstruction = conferencia.TemProblema ? "IFC exportado, com pendências na conferência" : "IFC exportado",
-                MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · sem EPSG\n" +
+                MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · {(janela.EpsgEmBranco ? "EPSG em branco" : "EPSG do setup/exportador")}\n" +
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +

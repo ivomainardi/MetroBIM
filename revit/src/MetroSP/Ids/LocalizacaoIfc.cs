@@ -277,7 +277,7 @@ namespace MetroSP.Ids
         private static readonly Regex RxTupla = new Regex(@"\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)");
 
         /// <summary>Lê o .ifc como texto e confere esquema, RefLatitude/RefLongitude do IfcSite e a ausência de EPSG.</summary>
-        public Conferencia ConferirIfc(string arquivo, Escolha e)
+        public Conferencia ConferirIfc(string arquivo, Escolha e, bool epsgEmBranco = true)
         {
             var c = new Conferencia();
             string texto;
@@ -342,7 +342,10 @@ namespace MetroSP.Ids
             bool crs = texto.IndexOf("IFCPROJECTEDCRS", StringComparison.OrdinalIgnoreCase) >= 0;
             bool mapa = texto.IndexOf("IFCMAPCONVERSION", StringComparison.OrdinalIgnoreCase) >= 0;
             bool epsg = texto.IndexOf("'EPSG:", StringComparison.OrdinalIgnoreCase) >= 0;
-            if (crs || mapa || epsg)
+            if (!epsgEmBranco)
+                c.Linhas.Add(crs || mapa || epsg ? "Georreferência do setup/exportador mantida (EPSG, IfcProjectedCRS, IfcMapConversion)."
+                                                 : "Sem EPSG no IFC (o setup e o Location não indicam sistema GIS).");
+            else if (crs || mapa || epsg)
             {
                 c.Linhas.Add("Atenção: o IFC tem " + string.Join(", ", new[] { crs ? "IfcProjectedCRS" : null, mapa ? "IfcMapConversion" : null, epsg ? "código EPSG" : null }.Where(s => s != null)) +
                     ", mas as coordenadas estão no PTL.");
