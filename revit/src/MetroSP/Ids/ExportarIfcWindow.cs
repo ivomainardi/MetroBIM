@@ -718,8 +718,8 @@ namespace MetroSP.Ids
             if (!Localizacao.LocationCorreto)
             {
                 MessageBoxResult r = MessageBox.Show(this,
-                    "O Location do Revit não está no ponto do Project Base Point, então o IfcSite sairá com a latitude/longitude errada.\n\n" +
-                    "Sim: abrir a etapa Localização para corrigir.\nNão: exportar assim mesmo.\nCancelar: voltar.",
+                    "O Location do Revit não está no ponto do Project Base Point.\n\n" +
+                    "Sim: abrir a etapa Localização para corrigir.\nNão: exportar assim mesmo (a MetroSP grava no IfcSite a latitude/longitude do Project Base Point).\nCancelar: voltar.",
                     Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
                 if (r == MessageBoxResult.Cancel) return;
                 if (r == MessageBoxResult.Yes) { AbrirLocalizacao(); return; }
@@ -770,6 +770,8 @@ namespace MetroSP.Ids
             {
                 List<string> mudou = LocalizacaoWindow.Executar(_doc, LocalizacaoIfc.Calcular(_doc), this, System.IntPtr.Zero);
                 if (mudou != null) AlteracoesLocalizacao.AddRange(mudou);
+                string aviso = mudou?.FirstOrDefault(m => m.StartsWith("ATENÇÃO", StringComparison.Ordinal));
+                if (aviso != null) MessageBox.Show(this, aviso, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             catch (Exception ex)
             {
