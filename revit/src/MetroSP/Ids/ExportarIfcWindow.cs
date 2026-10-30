@@ -48,6 +48,11 @@ namespace MetroSP.Ids
         public DB.ElementId Vista { get; private set; } = DB.ElementId.InvalidElementId;
         public string PastaSaida { get; private set; }
         public string NomeArquivo { get; private set; }
+        /// <summary>Lat/long do Project Base Point e campos atuais do Revit.</summary>
+        public LocalizacaoIfc Localizacao { get; }
+        /// <summary>Valores de IfcSite/IfcBuilding confirmados na janela.</summary>
+        public LocalizacaoIfc.Escolha LocalizacaoEscolhida { get; private set; }
+        private readonly LocalizacaoPainel _painelLocalizacao;
 
         private class Opcao
         {
@@ -88,6 +93,11 @@ namespace MetroSP.Ids
             _infoForma = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
             linhaForma.Children.Add(_infoForma);
             corpo.Children.Add(linhaForma);
+
+            // Localização: o que vai para o IfcSite e o IfcBuilding, conferida antes de exportar.
+            Localizacao = LocalizacaoIfc.Calcular(doc);
+            _painelLocalizacao = new LocalizacaoPainel(Localizacao);
+            corpo.Children.Add(_painelLocalizacao);
 
             _setup = AddLinha(corpo, "1. Setup de exportação (.json salvo no exportador IFC)", out Button procurarSetup);
             _infoSetup = Dica(corpo);
@@ -531,6 +541,12 @@ namespace MetroSP.Ids
                 MessageBox.Show(this, "Indique um setup de exportação (.json) válido.", Title);
                 return;
             }
+            if (!Setup.EhIfc4)
+            {
+                MessageBox.Show(this, $"O setup {Setup.Nome} exporta em {Setup.DescricaoVersao}. A exportação MetroSP é em IFC4: " +
+                    "escolha ou salve um setup IFC4 (por exemplo IFC 4 Reference View).", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
             string psets = TextoPsets();
             if (psets.Length > 0 && !File.Exists(psets))
             {
@@ -574,6 +590,19 @@ namespace MetroSP.Ids
                 MessageBox.Show(this, $"{nome}.ifc já existe na pasta. Substituir?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
 
+            LocalizacaoIfc.Escolha local = _painelLocalizacao.Ler(out string erroLocal);
+            if (local == null)
+            {
+                MessageBox.Show(this, erroLocal, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+            double? desvio = _painelLocalizacao.DesvioDoPbp();
+            if (desvio > LocalizacaoIfc.ToleranciaLocation &&
+                MessageBox.Show(this, $"A latitude/longitude digitada está a {desvio.Value:0.00} m do ponto calculado pelo Project Base Point. Gravar e exportar assim mesmo?",
+                    Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+
+            LocalizacaoEscolhida = local;
             PropertySetsEscolhido = psets.Length > 0 ? psets : null;
             MapeamentoEscolhido = mapeamento.Length > 0 ? mapeamento : null;
             Vista = (_vista.SelectedItem as Opcao)?.Id ?? DB.ElementId.InvalidElementId;

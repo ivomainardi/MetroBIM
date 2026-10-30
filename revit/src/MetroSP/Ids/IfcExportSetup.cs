@@ -38,6 +38,8 @@ namespace MetroSP.Ids
             "ExportBaseQuantities", "IncludeSteelElements", "VisibleElementsOfCurrentView",
             "ExportUserDefinedPsets", "ExportUserDefinedPsetsFileName",
             "ExportUserDefinedParameterMappingFileName",
+            // Fixadas pela MetroSP: coordenadas no PTL (Shared Coordinates) e sem EPSG
+            "SitePlacement", "SelectedSite", "GeoRefEPSGCode",
         };
 
         private readonly Dictionary<string, JsonElement> _props;
@@ -175,8 +177,41 @@ namespace MetroSP.Ids
                 if (valor != null) o.AddOption(p.Key, valor);
             }
             if (!string.IsNullOrEmpty(mapeamento)) o.AddOption("ExportUserDefinedParameterMapping", "True");
+
+            // Coordenadas do IFC no PTL: base Shared Coordinates da localização ativa (a mesma do Project Base Point)
+            // e EPSG em branco, para o exportador não declarar um sistema projetado que o modelo não usa.
+            o.AddOption("SitePlacement", "Shared");
+            o.AddOption("SelectedSite", doc.ActiveProjectLocation.Name);
+            o.AddOption("GeoRefEPSGCode", string.Empty);
             return o;
         }
+
+        /// <summary>IFC4 (Coordination View, Reference View ou Design Transfer View), exigido pela exportação MetroSP.</summary>
+        public bool EhIfc4
+        {
+            get
+            {
+                string v = Versao.ToString();
+                return v == "IFC4" || v == "IFC4RV" || v == "IFC4DTV";
+            }
+        }
+
+        /// <summary>Base de coordenadas gravada no setup, se não for Shared Coordinates (a MetroSP troca por Shared).</summary>
+        public string SitePlacementDiferente
+        {
+            get
+            {
+                if (!_props.TryGetValue("SitePlacement", out JsonElement v)) return null;
+                string s = ParaOpcao(v);
+                if (string.IsNullOrEmpty(s) || s == "0" || s.Equals("Shared", StringComparison.OrdinalIgnoreCase)) return null;
+                // Valores do enum SiteTransformBasis do exportador revit-ifc
+                string[] nomes = { "Shared", "Site", "Project", "Internal", "ProjectInTN", "InternalInTN" };
+                return int.TryParse(s, out int n) && n >= 0 && n < nomes.Length ? nomes[n] : s;
+            }
+        }
+
+        /// <summary>EPSG gravado no setup (a MetroSP exporta sem ele).</summary>
+        public string EpsgDoSetup => string.IsNullOrWhiteSpace(Texto("GeoRefEPSGCode")) ? null : Texto("GeoRefEPSGCode");
 
         /// <summary>Valor como o exportador espera: o ToString() do .NET (bool "True", número na cultura atual).</summary>
         private static string ParaOpcao(JsonElement v)

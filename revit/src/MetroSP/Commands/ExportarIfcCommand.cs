@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Interop;
@@ -44,6 +45,19 @@ namespace MetroSP.Commands
 
             IfcExportSetup setup = janela.Setup;
             string arquivo = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
+
+            // O Location (Manage › Location) vira o RefLatitude/RefLongitude do IfcSite. A janela já calculou a lat/long
+            // pelo Project Base Point e mostrou os dados do IfcSite/IfcBuilding; o que ficou diferente vai para o Revit.
+            LocalizacaoIfc local = janela.Localizacao;
+            LocalizacaoIfc.Escolha escolha = janela.LocalizacaoEscolhida;
+            List<string> alteracoes;
+            try { alteracoes = local.Aplicar(doc, escolha); }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("MetroSP", "Não foi possível gravar a localização no Revit, e o IFC não foi exportado:\n" + ex.Message);
+                return Result.Failed;
+            }
+
             bool exportou;
             string avisoPsets = null;
             try
@@ -86,13 +100,23 @@ namespace MetroSP.Commands
                 return Result.Failed;
             }
 
+            LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha);
+            string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
+                uiapp.Application.VersionName, Ui.SobreWindow.Versao);
+            string avisosSetup =
+                (setup.SitePlacementDiferente == null ? "" : $"\nO setup usa a base {setup.SitePlacementDiferente}; o IFC saiu com Shared Coordinates.") +
+                (setup.EpsgDoSetup == null ? "" : $"\nO setup tem o EPSG {setup.EpsgDoSetup}; o IFC saiu sem EPSG.");
+
             var fim = new TaskDialog("MetroSP")
             {
-                MainInstruction = "IFC exportado",
-                MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao})\n" +
+                MainInstruction = conferencia.TemProblema ? "IFC exportado, com pendências na conferência" : "IFC exportado",
+                MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · sem EPSG\n" +
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
-                        (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")),
+                        (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
+                    "\n\nLocalização: " + (alteracoes.Count == 0 ? "os campos do Revit já estavam como confirmado." : "gravado no Revit antes da exportação:\n- " + string.Join("\n- ", alteracoes)) +
+                    "\n" + conferencia + avisosSetup,
+                ExpandedContent = local.Resumo(escolha) + (log == null ? "" : "\n\nRegistro: " + log),
                 CommonButtons = TaskDialogCommonButtons.Close,
             };
             fim.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Abrir a pasta");
