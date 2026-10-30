@@ -32,6 +32,15 @@ esses psets (no J2, só as paredes recebiam Metro/MetroLoc/MetroQto). Agora os b
 antes de carregar, com as entidades e as propriedades unidas. O .txt original não muda. No 2025 e no 2026 nada muda.
 J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava IfcDiscreteAccessory).
 
+## Interface mais limpa
+
+- **Exportar IFC** reorganizada: classe numa linha (com o motivo da escolha e o Forma online como link ao lado),
+  setup, property sets e mapeamento numa lista com o nome do arquivo, um selo verde ou laranja e o botão de ação
+  (o caminho completo aparece ao passar o mouse; em "Outros arquivos" os caminhos ficam editáveis), localização
+  só conferindo com o botão Localização IFC..., pasta e nome do .ifc num campo só e os avisos somados no rodapé.
+- O mesmo padrão nas outras janelas: títulos de seção e rótulos em maiúsculas pequenas, arquivos como lista com
+  selos no Verificar mapeamento IDS (com resumo no rodapé) e textos de ajuda movidos para as dicas.
+
 ## Sobre
 
 - Clicar na logo Ação BIM · Metrô SP, no fim da aba MetroSP, abre a janela **Sobre** (o botão Sobre do painel

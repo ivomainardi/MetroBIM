@@ -97,9 +97,15 @@ namespace MetroSP.Ui
             };
         }
 
-        /// <summary>Rótulo de campo (negrito, acima da caixa).</summary>
-        public static TextBlock Label(string texto) =>
-            new TextBlock { Text = texto, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 4) };
+        /// <summary>Rótulo de campo, no mesmo estilo dos títulos de seção (maiúsculas, pequeno), acima da caixa.</summary>
+        public static TextBlock Label(string texto) => new TextBlock
+        {
+            Text = texto.ToUpperInvariant(),
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Solid(Color.FromRgb(0x55, 0x55, 0x55)),
+            Margin = new Thickness(0, 10, 0, 4),
+        };
 
         /// <summary>Painel de botões alinhado à direita, com espaçamento padrão.</summary>
         public static StackPanel Buttons(params Button[] botoes)
@@ -283,6 +289,15 @@ namespace MetroSP.Ui
             Foreground = Solid(Color.FromRgb(0x55, 0x55, 0x55)),
             Margin = new Thickness(0, 12, 0, 5),
         };
+
+        /// <summary>Rótulo na mesma linha de um campo (ex.: "ESCOPO" antes da lista), no estilo dos títulos de seção.</summary>
+        public static TextBlock Rotulo(string texto)
+        {
+            TextBlock t = Secao(texto);
+            t.Margin = new Thickness(0, 0, 10, 0);
+            t.VerticalAlignment = VerticalAlignment.Center;
+            return t;
+        }
 
         /// <summary>Selo de situação; o texto e a cor mudam depois com <see cref="MudarSelo"/>.</summary>
         public static Border Selo(string texto = "", Estado estado = Estado.Neutro)

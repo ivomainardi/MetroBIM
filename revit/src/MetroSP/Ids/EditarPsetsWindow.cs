@@ -152,17 +152,12 @@ namespace MetroSP.Ids
                 AtualizarFiltro();
             };
             acoes.Children.Add(limparFiltros);
-            acoes.Children.Add(new TextBlock
-            {
-                Text = "Clique duas vezes numa célula para editar. A coluna Parâmetro do Revit sugere os parâmetros do modelo.",
-                Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0),
-                TextWrapping = TextWrapping.Wrap,
-            });
             corpo.Children.Add(acoes);
 
             _vista = new ListCollectionView(_linhas) { Filter = o => Passa((Linha)o, null) };
             _grade = new DataGrid
             {
+                ToolTip = "Clique duas vezes numa célula para editar. A coluna Parâmetro do Revit sugere os parâmetros do modelo.",
                 AutoGenerateColumns = false,
                 CanUserAddRows = false,
                 CanUserDeleteRows = false,

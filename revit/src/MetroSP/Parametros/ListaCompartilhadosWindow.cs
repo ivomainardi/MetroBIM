@@ -260,18 +260,11 @@ namespace MetroSP.Parametros
         private UIElement PainelLateral(Button adicionarTxt, Button adicionarPasta)
         {
             var painel = new DockPanel();
-            var titulo = new TextBlock { Text = "Arquivos de referência", FontWeight = FontWeights.SemiBold, FontSize = 13, Margin = new Thickness(0, 0, 0, 2) };
+            TextBlock titulo = Theme.Secao("Arquivos de referência");
+            titulo.Margin = new Thickness(0, 0, 0, 6);
+            titulo.ToolTip = "Não precisam estar carregados no Revit. Clique num arquivo para comparar.";
             DockPanel.SetDock(titulo, Dock.Top);
             painel.Children.Add(titulo);
-            var sub = new TextBlock
-            {
-                Text = "Não precisam estar carregados no Revit. Clique num arquivo para comparar.",
-                Foreground = Theme.Solid(Theme.Cinza),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 8),
-            };
-            DockPanel.SetDock(sub, Dock.Top);
-            painel.Children.Add(sub);
 
             var grade = new UniformGrid2x2(adicionarTxt, adicionarPasta, _definirBase, _remover);
             DockPanel.SetDock(grade, Dock.Bottom);
