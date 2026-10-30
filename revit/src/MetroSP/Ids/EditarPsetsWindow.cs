@@ -8,7 +8,10 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
+using System.Windows.Input;
+using System.Windows.Media;
 using MetroSP.Ui;
 
 namespace MetroSP.Ids
@@ -125,7 +128,7 @@ namespace MetroSP.Ids
             _resumo = new WrapPanel { Margin = new Thickness(0, 8, 0, 6) };
             topo.Children.Add(_resumo);
             _soAusentes = new CheckBox { Content = "Mostrar só as linhas com problema (parâmetro não encontrado ou tipo não aceito)", Margin = new Thickness(0, 0, 0, 6) };
-            _soAusentes.Click += (s, e) => { _grade.CommitEdit(DataGridEditingUnit.Row, true); _vista.Refresh(); };
+            _soAusentes.Click += (s, e) => AtualizarFiltro();
             topo.Children.Add(_soAusentes);
             if (mapa.Warnings.Count > 0)
                 topo.Children.Add(new TextBlock
@@ -141,6 +144,14 @@ namespace MetroSP.Ids
             var remover = new Button { Content = "Remover selecionadas", Margin = new Thickness(8, 0, 0, 0) };
             acoes.Children.Add(adicionar);
             acoes.Children.Add(remover);
+            var limparFiltros = new Button { Content = "Limpar filtros", Margin = new Thickness(8, 0, 0, 0) };
+            limparFiltros.Click += (s, e) =>
+            {
+                foreach (FiltroColuna f in _filtros) { f.Texto = ""; f.Valores = null; MarcarBotao(f); }
+                _soAusentes.IsChecked = false;
+                AtualizarFiltro();
+            };
+            acoes.Children.Add(limparFiltros);
             acoes.Children.Add(new TextBlock
             {
                 Text = "Clique duas vezes numa célula para editar. A coluna Parâmetro do Revit sugere os parâmetros do modelo.",
@@ -149,7 +160,7 @@ namespace MetroSP.Ids
             });
             corpo.Children.Add(acoes);
 
-            _vista = new ListCollectionView(_linhas) { Filter = o => !(_soAusentes.IsChecked == true) || !((Linha)o).Encontrado };
+            _vista = new ListCollectionView(_linhas) { Filter = o => Passa((Linha)o, null) };
             _grade = new DataGrid
             {
                 AutoGenerateColumns = false,
@@ -182,7 +193,39 @@ namespace MetroSP.Ids
             _grade.Columns.Add(ComboEditavel("Tipo", nameof(Linha.TipoDado), TiposDado.ToList(), new DataGridLength(110), 90));
             _grade.Columns.Add(ComboEditavel("Parâmetro do Revit", nameof(Linha.Parametro),
                 _modelo.OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList(), new DataGridLength(1, DataGridLengthUnitType.Star), 160));
-            _grade.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(Linha.Situacao)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = 150 });
+            _grade.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(Linha.Situacao)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = 170 });
+
+            // Filtro em cada título: o ▾ abre a caixa com busca (filtra enquanto digita) e os valores existentes.
+            Func<Linha, string>[] valores =
+            {
+                l => l.PropertySet, l => l.Aplicacao, l => l.Entidades, l => l.Propriedade, l => l.TipoDado, l => l.Parametro, l => l.Situacao,
+            };
+            for (int i = 0; i < _grade.Columns.Count; i++)
+            {
+                DataGridColumn col = _grade.Columns[i];
+                var f = new FiltroColuna { Titulo = (string)col.Header, Valor = valores[i] };
+                f.Botao = new Button
+                {
+                    Content = "▾", Width = 18, Height = 18, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0),
+                    Background = Brushes.White, BorderBrush = Theme.Solid(Theme.CinzaClaro), Focusable = false,
+                    ToolTip = $"Filtrar {f.Titulo}", VerticalAlignment = VerticalAlignment.Center,
+                };
+                f.Botao.Click += (s, e) => AbrirFiltro(f);
+                var cabecalho = new DockPanel { LastChildFill = true };
+                DockPanel.SetDock(f.Botao, Dock.Right);
+                cabecalho.Children.Add(f.Botao);
+                cabecalho.Children.Add(new TextBlock { Text = f.Titulo, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+                col.Header = cabecalho;
+                _filtros.Add(f);
+            }
+            // O cabeçalho ocupa a largura da coluna para o ▾ ficar no canto direito.
+            // Feito no Loaded: o estilo padrão do título só existe depois do Theme.Apply.
+            Loaded += (s, e) =>
+            {
+                var estiloCab = new Style(typeof(DataGridColumnHeader), TryFindResource(typeof(DataGridColumnHeader)) as Style);
+                estiloCab.Setters.Add(new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+                _grade.ColumnHeaderStyle = estiloCab;
+            };
             corpo.Children.Add(_grade);
 
             adicionar.Click += (s, e) =>
@@ -233,6 +276,131 @@ namespace MetroSP.Ids
                 "Confira de qual parâmetro do Revit sai cada propriedade do IFC", corpo, Theme.Buttons(botoes.ToArray()));
         }
 
+        /// <summary>Filtro de uma coluna: texto digitado (contém) e/ou valores marcados na lista.</summary>
+        private class FiltroColuna
+        {
+            public string Titulo;
+            public Func<Linha, string> Valor;
+            public string Texto = "";
+            /// <summary>Valores aceitos; null = todos.</summary>
+            public HashSet<string> Valores;
+            public Button Botao;
+        }
+
+        private const string Vazio = "(vazio)";
+        private readonly List<FiltroColuna> _filtros = new List<FiltroColuna>();
+
+        /// <summary>A linha passa no "só com problema" e nos filtros das colunas (menos, se pedido, o de uma coluna).</summary>
+        private bool Passa(Linha l, FiltroColuna exceto)
+        {
+            if (_soAusentes?.IsChecked == true && l.Encontrado) return false;
+            foreach (FiltroColuna f in _filtros)
+            {
+                if (f == exceto) continue;
+                string v = f.Valor(l) ?? "";
+                if (f.Valores != null && !f.Valores.Contains(v.Length == 0 ? Vazio : v)) return false;
+                if (f.Texto.Length > 0 && v.IndexOf(f.Texto, StringComparison.CurrentCultureIgnoreCase) < 0) return false;
+            }
+            return true;
+        }
+
+        private void AtualizarFiltro()
+        {
+            _grade.CommitEdit(DataGridEditingUnit.Row, true);
+            try { _vista.Refresh(); } catch (InvalidOperationException) { /* linha ainda em edição */ }
+            AtualizarResumo();
+        }
+
+        private static void MarcarBotao(FiltroColuna f)
+        {
+            bool ativo = f.Valores != null || f.Texto.Length > 0;
+            f.Botao.Background = ativo ? Theme.Solid(Theme.LaranjaClaro) : Brushes.White;
+            f.Botao.FontWeight = ativo ? FontWeights.Bold : FontWeights.Normal;
+        }
+
+        /// <summary>
+        /// Caixa do filtro, aberta pelo ▾ do título: o texto digitado filtra a tabela e a lista na hora;
+        /// as caixas de marcar escolhem valores exatos (como no Excel) e valem ao clicar OK.
+        /// </summary>
+        private void AbrirFiltro(FiltroColuna f)
+        {
+            _grade.CommitEdit(DataGridEditingUnit.Row, true);
+            var contagem = new Dictionary<string, int>();
+            foreach (Linha l in _linhas)
+            {
+                if (!Passa(l, f)) continue;
+                string v = f.Valor(l) ?? "";
+                if (v.Length == 0) v = Vazio;
+                contagem[v] = contagem.TryGetValue(v, out int n) ? n + 1 : 1;
+            }
+            List<string> valores = contagem.Keys.OrderBy(v => v == Vazio ? 0 : 1).ThenBy(v => v, StringComparer.CurrentCultureIgnoreCase).ToList();
+
+            var caixas = new List<CheckBox>();
+            var lista = new StackPanel();
+            foreach (string v in valores)
+            {
+                var c = new CheckBox { Content = $"{v}   ({contagem[v]})", Tag = v, IsChecked = f.Valores == null || f.Valores.Contains(v), Margin = new Thickness(0, 1, 0, 1) };
+                caixas.Add(c);
+                lista.Children.Add(c);
+            }
+            var tudo = new CheckBox { Content = "(Selecionar tudo)", IsChecked = caixas.All(c => c.IsChecked == true), FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 4) };
+            tudo.Click += (s, e) => { foreach (CheckBox c in caixas.Where(c => c.Visibility == Visibility.Visible)) c.IsChecked = tudo.IsChecked == true; };
+
+            var busca = new TextBox { Text = f.Texto, ToolTip = "Digite para filtrar (contém o texto)" };
+            void Mostrar()
+            {
+                string t = busca.Text.Trim();
+                foreach (CheckBox c in caixas)
+                    c.Visibility = t.Length == 0 || ((string)c.Tag).IndexOf(t, StringComparison.CurrentCultureIgnoreCase) >= 0 ? Visibility.Visible : Visibility.Collapsed;
+            }
+            busca.TextChanged += (s, e) =>
+            {
+                f.Texto = busca.Text.Trim();
+                Mostrar();
+                MarcarBotao(f);
+                AtualizarFiltro();
+            };
+            Mostrar();
+
+            var popup = new Popup { PlacementTarget = f.Botao, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true };
+            var ok = new Button { Content = "OK", Style = Theme.PrimaryButton, MinWidth = 60, IsDefault = true };
+            var limpar = new Button { Content = "Limpar filtro", MinWidth = 60 };
+            ok.Click += (s, e) =>
+            {
+                List<string> marcados = caixas.Where(c => c.IsChecked == true && c.Visibility == Visibility.Visible).Select(c => (string)c.Tag).ToList();
+                // Marcou tudo o que aparece: vale só o texto digitado.
+                f.Valores = marcados.Count == caixas.Count(c => c.Visibility == Visibility.Visible) ? null : new HashSet<string>(marcados);
+                MarcarBotao(f);
+                popup.IsOpen = false;
+                AtualizarFiltro();
+            };
+            limpar.Click += (s, e) =>
+            {
+                f.Valores = null;
+                f.Texto = "";
+                MarcarBotao(f);
+                popup.IsOpen = false;
+                AtualizarFiltro();
+            };
+
+            var corpo = new DockPanel { Width = 300 };
+            var titulo = new TextBlock { Text = "Filtrar " + f.Titulo, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) };
+            StackPanel botoes = Theme.Buttons(limpar, ok);
+            botoes.Margin = new Thickness(0, 8, 0, 0);
+            foreach (UIElement el in new UIElement[] { titulo, busca, tudo })
+            {
+                DockPanel.SetDock(el, Dock.Top);
+                corpo.Children.Add(el);
+            }
+            DockPanel.SetDock(botoes, Dock.Bottom);
+            corpo.Children.Add(botoes);
+            corpo.Children.Add(new ScrollViewer { Content = lista, MaxHeight = 300, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
+            popup.Child = new Border { Background = Brushes.White, BorderBrush = Theme.Solid(Theme.Cinza), BorderThickness = new Thickness(1), Padding = new Thickness(10), Child = corpo };
+            popup.KeyDown += (s, e) => { if (e.Key == Key.Escape) popup.IsOpen = false; };
+            popup.Opened += (s, e) => { busca.Focus(); busca.CaretIndex = busca.Text.Length; };
+            popup.IsOpen = true;
+        }
+
         private void AtualizarResumo()
         {
             int ausentes = _linhas.Count(l => !l.ParametroNoModelo);
@@ -240,6 +408,8 @@ namespace MetroSP.Ids
             int psets = _linhas.Select(l => l.PropertySet).Distinct(StringComparer.OrdinalIgnoreCase).Count();
             _resumo.Children.Clear();
             _resumo.Children.Add(Theme.Chip($"{_linhas.Count} propriedades"));
+            int visiveis = _vista?.Count ?? _linhas.Count;
+            if (visiveis != _linhas.Count) _resumo.Children.Add(Theme.Chip($"mostrando {visiveis} com os filtros", escuro: true));
             _resumo.Children.Add(Theme.Chip($"{psets} property sets"));
             _resumo.Children.Add(Theme.Chip(ausentes == 0 ? "todos os parâmetros encontrados no modelo"
                 : $"{ausentes} parâmetro(s) não encontrados no modelo (ficam fora do IFC)", destaque: ausentes > 0));
