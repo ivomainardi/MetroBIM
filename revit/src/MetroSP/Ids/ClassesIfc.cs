@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text.RegularExpressions;
 
 namespace MetroSP.Ids
 {
@@ -10,7 +11,11 @@ namespace MetroSP.Ids
     /// Configurações de IFC por classe que vêm com o instalador (pasta IFC ao lado da DLL), cada uma com o
     /// setup .json, o .txt de property sets e o .txt de mapeamento com o nome da classe. O usuário pode
     /// editar os property sets de uma classe pela janela: a cópia editada fica em %AppData%\MetroSP\IFC
-    /// e vale no lugar da padrão até ele restaurar o padrão.
+    /// e vale no lugar da padrão até ele restaurar o padrão. Com uma pasta do Forma online escolhida, a cópia
+    /// baixada dela vale sobre a instalada.
+    ///
+    /// A classe pode vir do nome do modelo: Nomenclatura.txt traz regras "padrão → classe"; sem regra que case,
+    /// vale a classe cujo nome aparece como um trecho do nome do modelo (separado por . - _ ou espaço).
     /// </summary>
     public static class ClassesIfc
     {
@@ -22,7 +27,9 @@ namespace MetroSP.Ids
             public string Mapeamento { get; set; }
             /// <summary>true quando os property sets são a cópia editada pelo usuário.</summary>
             public bool Editada { get; set; }
-            public override string ToString() => Editada ? Nome + "  (editada)" : Nome;
+            /// <summary>true quando os property sets vêm da pasta do Forma online.</summary>
+            public bool DoForma { get; set; }
+            public override string ToString() => Editada ? Nome + "  (editada)" : DoForma ? Nome + "  (Forma)" : Nome;
         }
 
         /// <summary>Pasta IFC instalada junto com o add-in.</summary>
@@ -37,7 +44,7 @@ namespace MetroSP.Ids
         public static List<Classe> Listar()
         {
             var nomes = new SortedSet<string>(StringComparer.CurrentCultureIgnoreCase);
-            foreach (string raiz in new[] { PastaPadrao, PastaUsuario })
+            foreach (string raiz in Raizes)
             {
                 Nomes(raiz, FormaPaths.SubSetups, "*.json", nomes);
                 Nomes(raiz, FormaPaths.SubPropertySets, "*.txt", nomes);
@@ -49,13 +56,15 @@ namespace MetroSP.Ids
         {
             string psetsUsuario = CaminhoUsuario(nome);
             bool editada = File.Exists(psetsUsuario);
+            string psets = editada ? psetsUsuario : Achar(FormaPaths.SubPropertySets, nome + ".txt");
             return new Classe
             {
                 Nome = nome,
                 Setup = Achar(FormaPaths.SubSetups, nome + ".json"),
-                PropertySets = editada ? psetsUsuario : Achar(FormaPaths.SubPropertySets, nome + ".txt"),
+                PropertySets = psets,
                 Mapeamento = Achar(FormaPaths.SubMapeamentos, nome + ".txt"),
                 Editada = editada,
+                DoForma = psets != null && psets.StartsWith(FormaOnline.PastaCache, StringComparison.OrdinalIgnoreCase),
             };
         }
 
@@ -63,12 +72,9 @@ namespace MetroSP.Ids
         public static string CaminhoUsuario(string nome) =>
             Path.Combine(PastaUsuario, FormaPaths.SubPropertySets, nome + ".txt");
 
-        /// <summary>Property sets da classe como vieram no instalador (null se a classe não tem .txt padrão).</summary>
-        public static string CaminhoPadrao(string nome)
-        {
-            string f = Path.Combine(PastaPadrao, FormaPaths.SubPropertySets, nome + ".txt");
-            return File.Exists(f) ? f : null;
-        }
+        /// <summary>Property sets da classe sem a edição do usuário: do Forma online ou do instalador (null se não houver).</summary>
+        public static string CaminhoPadrao(string nome) =>
+            new[] { FormaOnline.PastaCache, PastaPadrao }.Select(r => Path.Combine(r, FormaPaths.SubPropertySets, nome + ".txt")).FirstOrDefault(File.Exists);
 
         /// <summary>Apaga a cópia editada; a classe volta a usar o .txt instalado.</summary>
         public static void RestaurarPadrao(string nome)
@@ -77,9 +83,64 @@ namespace MetroSP.Ids
             if (File.Exists(f)) File.Delete(f);
         }
 
-        // Primeiro o do usuário, depois o instalado.
+        // Ordem de preferência: do usuário, do Forma online, instalado.
+        private static string[] Raizes => new[] { PastaUsuario, FormaOnline.PastaCache, PastaPadrao };
+
         private static string Achar(string sub, string arquivo) =>
-            new[] { PastaUsuario, PastaPadrao }.Select(r => Path.Combine(r, sub, arquivo)).FirstOrDefault(File.Exists);
+            Raizes.Select(r => Path.Combine(r, sub, arquivo)).FirstOrDefault(File.Exists);
+
+        // ---------- nomenclatura ----------
+
+        public const string ArquivoNomenclatura = "Nomenclatura.txt";
+
+        /// <summary>Regras de nomenclatura em uso (do usuário, do Forma online ou instaladas), ou null.</summary>
+        public static string ArquivoDeRegras =>
+            Raizes.Select(r => Path.Combine(r, ArquivoNomenclatura)).FirstOrDefault(File.Exists);
+
+        /// <summary>
+        /// Classe indicada pelo nome do modelo, e o motivo (para mostrar). Regras em Nomenclatura.txt, uma por linha:
+        ///   &lt;padrão&gt; [tab ou ;] &lt;Classe&gt;
+        /// O padrão usa * e ? e vale para o nome inteiro sem .rvt (ex.: "*-ARQ-*"); começando com "re:" é uma
+        /// expressão regular, e o grupo nomeado "classe", se houver, dá a classe. Linhas com # são comentários.
+        /// </summary>
+        public static (Classe Classe, string Motivo) DoNomeDoModelo(string titulo, IList<Classe> classes)
+        {
+            if (string.IsNullOrWhiteSpace(titulo) || classes == null || classes.Count == 0) return (null, null);
+            string nome = titulo.EndsWith(".rvt", StringComparison.OrdinalIgnoreCase) ? titulo.Substring(0, titulo.Length - 4) : titulo;
+            Classe Por(string n) => classes.FirstOrDefault(c => string.Equals(c.Nome, n?.Trim(), StringComparison.CurrentCultureIgnoreCase));
+
+            string regras = ArquivoDeRegras;
+            if (regras != null)
+            {
+                try
+                {
+                    foreach (string linha in File.ReadAllLines(regras))
+                    {
+                        string l = linha.Trim();
+                        if (l.Length == 0 || l.StartsWith("#")) continue;
+                        int sep = l.IndexOf('\t') >= 0 ? l.IndexOf('\t') : l.LastIndexOf(';');
+                        string padrao = sep > 0 ? l.Substring(0, sep).Trim() : l;
+                        string classe = sep > 0 ? l.Substring(sep + 1).Trim() : null;
+
+                        Regex re = padrao.StartsWith("re:", StringComparison.OrdinalIgnoreCase)
+                            ? new Regex(padrao.Substring(3).Trim(), RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)
+                            : new Regex("^" + Regex.Escape(padrao).Replace("\\*", ".*").Replace("\\?", ".") + "$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+                        Match m = re.Match(nome);
+                        if (!m.Success) continue;
+                        Classe c = Por(m.Groups["classe"].Success ? m.Groups["classe"].Value : classe);
+                        if (c != null) return (c, $"pela regra \"{padrao}\" de {ArquivoNomenclatura}");
+                    }
+                }
+                catch { /* regra inválida: segue para o trecho do nome */ }
+            }
+
+            foreach (string trecho in nome.Split(new[] { '.', '-', '_', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+            {
+                Classe c = Por(trecho);
+                if (c != null) return (c, $"pelo trecho \"{trecho}\" do nome do modelo");
+            }
+            return (null, null);
+        }
 
         private static void Nomes(string raiz, string sub, string padrao, SortedSet<string> nomes)
         {

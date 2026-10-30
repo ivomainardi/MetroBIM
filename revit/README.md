@@ -117,6 +117,26 @@ Numa classe instalada, salvar grava uma cópia em `%AppData%\MetroSP\IFC\Propert
 a valer no lugar da padrão só para esse usuário; **Restaurar padrão** volta ao `.txt` instalado. Num arquivo
 indicado à mão, o editor pergunta onde salvar.
 
+### Classe pelo nome do modelo
+
+Ao abrir a janela, a classe é escolhida pelo nome do modelo. Um `Nomenclatura.txt` (instalado em `IFC\`, na pasta
+do Forma online ou em `%AppData%\MetroSP\IFC\`) traz regras, uma por linha: `<padrão>` + tab (ou `;`) + `<Classe>`.
+O padrão usa `*` e `?` sobre o nome sem `.rvt` (ex.: `*-ARQ-*	Arquitetura`); começando com `re:` é uma expressão
+regular, e o grupo `(?<classe>...)` pode dar a classe direto. Sem regra que case, vale a classe cujo nome aparece
+como trecho do nome do modelo (separado por `.`, `-`, `_` ou espaço). A janela mostra por que a classe foi escolhida.
+
+### Forma online (sem Desktop Connector)
+
+O MetroSP pode ler uma pasta do Autodesk Forma pela internet. Precisa de um app na Autodesk (aps.autodesk.com ›
+My Apps, tipo "Desktop, Mobile, Single-Page App", callback `http://localhost:47312/metrosp/`, API Data Management)
+liberado pelo admin em Account Admin › Custom Integrations; o Client ID vai em `IFC\forma-online.ini`.
+
+Na janela, **Entrar...** abre o navegador para o login Autodesk (uma vez; o acesso fica guardado criptografado para o
+usuário do Windows) e **Escolher pasta...** navega por hubs, projetos e pastas. A pasta pode ter `Setups\`,
+`PropertySets\` e `Mapeamentos\`, ou os `.json` e `.txt` soltos, e um `Nomenclatura.txt`. Ela é copiada para
+`%LocalAppData%\MetroSP\FormaOnline\` e, a cada vez que o Exportar IFC abre, só o que tem versão nova no Forma é
+baixado. Sem internet, vale a última cópia. As classes da pasta valem sobre as instaladas.
+
 ### Arquivos indicados à mão
 
 Com a classe em "Outros arquivos", a janela pede cada arquivo separadamente, com um **Procurar...** para cada um. Eles podem estar em

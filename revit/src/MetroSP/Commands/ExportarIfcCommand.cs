@@ -26,7 +26,17 @@ namespace MetroSP.Commands
             }
 
             IfcExportSettings settings = IfcExportSettings.Load();
-            var janela = new ExportarIfcWindow(doc, settings);
+
+            // Pasta do Forma online: baixa o que mudou lá desde a última vez (sem rede, vale a última cópia).
+            string resultadoForma = null;
+            if (FormaOnline.Conectado && FormaOnline.PastaEscolhida() != null)
+                using (var p = Ui.Progresso.Abrir("Forma online"))
+                {
+                    p.Etapa("Conferindo atualizações das configurações de IFC no Forma");
+                    resultadoForma = FormaOnline.Sincronizar().ToString();
+                }
+
+            var janela = new ExportarIfcWindow(doc, settings, resultadoForma);
             new WindowInteropHelper(janela).Owner = uiapp.MainWindowHandle;
             bool ok = janela.ShowDialog() == true;
             settings.Save();

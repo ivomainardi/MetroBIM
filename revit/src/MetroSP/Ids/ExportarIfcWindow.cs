@@ -23,6 +23,9 @@ namespace MetroSP.Ids
 
         private readonly ComboBox _classe;
         private readonly TextBlock _infoClasse;
+        private readonly TextBlock _infoForma;
+        private readonly Button _botaoForma;
+        private string _motivoClasse;
         private bool _aplicandoClasse;
         private const string Outros = "Outros arquivos (indicar abaixo)";
 
@@ -52,7 +55,8 @@ namespace MetroSP.Ids
             public override string ToString() => Texto;
         }
 
-        public ExportarIfcWindow(DB.Document doc, IfcExportSettings settings)
+        /// <param name="resultadoForma">Resultado da atualização do Forma online feita ao abrir (null se não houve).</param>
+        public ExportarIfcWindow(DB.Document doc, IfcExportSettings settings, string resultadoForma = null)
         {
             _doc = doc;
             _settings = settings;
@@ -73,6 +77,16 @@ namespace MetroSP.Ids
             _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
             corpo.Children.Add(_classe);
             _infoClasse = Dica(corpo);
+
+            // Forma online: pasta com as configurações, lida pela internet (sem Desktop Connector).
+            var linhaForma = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+            _botaoForma = new Button { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Top };
+            _botaoForma.Click += (s, e) => MenuForma();
+            DockPanel.SetDock(_botaoForma, Dock.Right);
+            linhaForma.Children.Add(_botaoForma);
+            _infoForma = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+            linhaForma.Children.Add(_infoForma);
+            corpo.Children.Add(linhaForma);
 
             _setup = AddLinha(corpo, "1. Setup de exportação (.json salvo no exportador IFC)", out Button procurarSetup);
             _infoSetup = Dica(corpo);
@@ -108,7 +122,9 @@ namespace MetroSP.Ids
 
             // Classe: aplicada de novo ao abrir, para pegar os arquivos instalados mais recentes.
             PreencherClasses(settings.Classe);
-            _classe.SelectionChanged += (s, e) => AplicarClasse();
+            ClasseDoNome();
+            _classe.SelectionChanged += (s, e) => { _motivoClasse = null; AplicarClasse(); };
+            MostrarForma(resultadoForma);
             if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
             else _infoClasse.Text = _classe.Items.Count > 1 ? "" : "Nenhuma classe instalada com o MetroSP: indique os arquivos abaixo.";
             editarPsets.Click += (s, e) => EditarPsets();
@@ -161,6 +177,116 @@ namespace MetroSP.Ids
 
         private ClassesIfc.Classe ClasseEscolhida => _classe.SelectedItem as ClassesIfc.Classe;
 
+        /// <summary>Se o nome do modelo indica uma classe (Nomenclatura.txt ou trecho do nome), ela é escolhida.</summary>
+        private void ClasseDoNome()
+        {
+            (ClassesIfc.Classe c, string motivo) = ClassesIfc.DoNomeDoModelo(_doc.Title, _classe.Items.OfType<ClassesIfc.Classe>().ToList());
+            if (c == null) return;
+            _aplicandoClasse = true;
+            _classe.SelectedItem = c;
+            _aplicandoClasse = false;
+            _motivoClasse = motivo;
+        }
+
+        /// <summary>Mostra a situação do Forma online e o que o botão faz.</summary>
+        public void MostrarForma(string resultadoSync = null)
+        {
+            FormaOnline.Pasta pasta = FormaOnline.PastaEscolhida();
+            if (!FormaOnline.Configurado)
+            {
+                _infoForma.Text = "Forma online: não configurado neste computador (falta o Client ID do app do MetroSP).";
+                _botaoForma.Visibility = Visibility.Collapsed;
+                return;
+            }
+            _botaoForma.Visibility = Visibility.Visible;
+            if (!FormaOnline.Conectado)
+            {
+                _infoForma.Text = "Forma online: entre com a conta Autodesk para usar uma pasta do Forma sem o Desktop Connector.";
+                _botaoForma.Content = "Entrar...";
+            }
+            else if (pasta == null)
+            {
+                _infoForma.Text = "Forma online: conectado. Escolha a pasta com as configurações de IFC.";
+                _botaoForma.Content = "Escolher pasta...";
+            }
+            else
+            {
+                _infoForma.Text = "Forma online: " + pasta.Descricao + (resultadoSync != null ? " · " + resultadoSync : "");
+                _botaoForma.Content = "Forma...";
+            }
+            _infoForma.Foreground = Theme.Solid(resultadoSync != null && !char.IsDigit(resultadoSync[0]) ? Theme.Laranja : Theme.Cinza);
+        }
+
+        private void MenuForma()
+        {
+            try
+            {
+                if (!FormaOnline.Conectado)
+                {
+                    using (var p = Progresso.Abrir("Entrar na Autodesk", podeCancelar: true))
+                    {
+                        p.Etapa("Conclua o login no navegador que abriu.");
+                        FormaOnline.Entrar(() => p.Cancelado);
+                    }
+                    if (FormaOnline.PastaEscolhida() == null) EscolherPastaForma();
+                }
+                else if (FormaOnline.PastaEscolhida() == null) EscolherPastaForma();
+                else
+                {
+                    var menu = new ContextMenu { PlacementTarget = _botaoForma, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+                    void Opcao(string texto, Action acao)
+                    {
+                        var m = new MenuItem { Header = texto };
+                        m.Click += (s, e) => { try { acao(); } catch (Exception ex) { ErroForma(ex); } };
+                        menu.Items.Add(m);
+                    }
+                    Opcao("Atualizar agora", AtualizarForma);
+                    Opcao("Trocar pasta...", EscolherPastaForma);
+                    Opcao("Parar de usar o Forma online", () => { FormaOnline.EscolherPasta(null); RecarregarClasses(); MostrarForma(); });
+                    Opcao("Sair da conta Autodesk", () => { FormaOnline.Sair(); RecarregarClasses(); MostrarForma(); });
+                    menu.IsOpen = true;
+                    return;
+                }
+            }
+            catch (Exception ex) { ErroForma(ex); }
+            MostrarForma();
+        }
+
+        private void ErroForma(Exception ex)
+        {
+            if (ex is OperationCanceledException) return;
+            MessageBox.Show(this, ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+
+        private void EscolherPastaForma()
+        {
+            var w = new FormaPastaWindow { Owner = this };
+            if (w.ShowDialog() != true) return;
+            FormaOnline.EscolherPasta(w.Escolhida);
+            AtualizarForma();
+        }
+
+        private void AtualizarForma()
+        {
+            FormaOnline.ResultadoSync r;
+            using (var p = Progresso.Abrir("Forma online"))
+            {
+                p.Etapa("Baixando as configurações de IFC do Forma");
+                r = FormaOnline.Sincronizar();
+            }
+            RecarregarClasses();
+            MostrarForma(r.ToString());
+        }
+
+        /// <summary>Lista as classes de novo (depois de baixar do Forma) mantendo a escolhida, ou a indicada pelo nome.</summary>
+        private void RecarregarClasses()
+        {
+            string atual = ClasseEscolhida?.Nome;
+            PreencherClasses(atual);
+            if (atual == null || ClasseEscolhida == null) ClasseDoNome();
+            if (ClasseEscolhida != null) AplicarClasse();
+        }
+
         /// <summary>Preenche os três arquivos com os da classe; o que a classe não tiver fica como está.</summary>
         private void AplicarClasse()
         {
@@ -187,7 +313,9 @@ namespace MetroSP.Ids
             var faltam = new List<string>();
             if (c.Setup == null) faltam.Add("setup (use o último escolhido ou indique abaixo)");
             if (c.PropertySets == null) faltam.Add("property sets");
-            _infoClasse.Text = (c.Editada ? "Property sets editados por você (o padrão instalado não foi alterado). " : "Configuração instalada com o MetroSP. ") +
+            _infoClasse.Text = (_motivoClasse != null ? $"Classe indicada {_motivoClasse}. " : "") +
+                               (c.Editada ? "Property sets editados por você (o padrão não foi alterado). "
+                                : c.DoForma ? "Property sets da pasta do Forma online. " : "Configuração instalada com o MetroSP. ") +
                                (faltam.Count > 0 ? "A classe não traz: " + string.Join(", ", faltam) + "." : "");
             _infoClasse.Foreground = Theme.Solid(Theme.Cinza);
         }
