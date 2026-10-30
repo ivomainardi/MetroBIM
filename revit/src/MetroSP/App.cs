@@ -82,6 +82,11 @@ namespace MetroSP
                 "Verifica, antes de exportar, se os parâmetros e o mapeamento de exportação IFC atendem a um arquivo IDS.",
                 "Ids");
 
+            AddButton<LocalizacaoIfcCommand>(panel, "Localização\nIFC",
+                "Etapa 1 da exportação: calcula a latitude/longitude pelo Project Base Point (PTL do Metrô) e grava em Manage › Location, " +
+                "com o nome do IfcSite e os dados do IfcBuilding.",
+                "Localizacao");
+
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
                 "Exporta o IFC com o setup (.json) e o mapeamento de property sets (.txt) guardados numa pasta do computador ou no Autodesk Forma.",
                 "IfcExportar");

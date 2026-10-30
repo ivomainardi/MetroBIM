@@ -48,11 +48,14 @@ namespace MetroSP.Ids
         public DB.ElementId Vista { get; private set; } = DB.ElementId.InvalidElementId;
         public string PastaSaida { get; private set; }
         public string NomeArquivo { get; private set; }
-        /// <summary>Lat/long do Project Base Point e campos atuais do Revit.</summary>
-        public LocalizacaoIfc Localizacao { get; }
-        /// <summary>Valores de IfcSite/IfcBuilding confirmados na janela.</summary>
-        public LocalizacaoIfc.Escolha LocalizacaoEscolhida { get; private set; }
-        private readonly LocalizacaoPainel _painelLocalizacao;
+        /// <summary>Lat/long do Project Base Point e campos atuais do Revit (recalculado depois da etapa Localização).</summary>
+        public LocalizacaoIfc Localizacao { get; private set; }
+        /// <summary>O que a etapa Localização, aberta daqui, gravou no Revit.</summary>
+        public List<string> AlteracoesLocalizacao { get; } = new List<string>();
+        /// <summary>Exportar mesmo com sistema GIS no Location, tirando o EPSG do IFC depois.</summary>
+        public bool IgnorarGis => _ignorarGis?.IsChecked == true;
+        private readonly TextBlock _infoLocalizacao;
+        private readonly CheckBox _ignorarGis;
 
         private class Opcao
         {
@@ -94,10 +97,27 @@ namespace MetroSP.Ids
             linhaForma.Children.Add(_infoForma);
             corpo.Children.Add(linhaForma);
 
-            // Localização: o que vai para o IfcSite e o IfcBuilding, conferida antes de exportar.
+            // Localização: a etapa 1 (botão Localização IFC) grava o Location; aqui só confere e oferece abrir a etapa.
             Localizacao = LocalizacaoIfc.Calcular(doc);
-            _painelLocalizacao = new LocalizacaoPainel(Localizacao);
-            corpo.Children.Add(_painelLocalizacao);
+            corpo.Children.Add(Theme.Label("Localização no IFC (IfcSite e IfcBuilding)"));
+            var linhaLocal = new DockPanel();
+            var abrirLocal = new Button { Content = "Localização...", Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Top };
+            abrirLocal.Click += (s, e) => AbrirLocalizacao();
+            DockPanel.SetDock(abrirLocal, Dock.Right);
+            linhaLocal.Children.Add(abrirLocal);
+            _infoLocalizacao = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+            linhaLocal.Children.Add(_infoLocalizacao);
+            corpo.Children.Add(linhaLocal);
+            if (Localizacao.SistemaGis != null)
+            {
+                _ignorarGis = new CheckBox
+                {
+                    Content = $"Ignorar o sistema GIS \"{Localizacao.SistemaGis}\" do Location: exportar e tirar do IFC o EPSG, o IfcProjectedCRS e o IfcMapConversion",
+                    Margin = new Thickness(0, 4, 0, 0),
+                };
+                corpo.Children.Add(_ignorarGis);
+            }
+            MostrarLocalizacao();
 
             _setup = AddLinha(corpo, "1. Setup de exportação (.json salvo no exportador IFC)", out Button procurarSetup);
             _infoSetup = Dica(corpo);
@@ -590,19 +610,22 @@ namespace MetroSP.Ids
                 MessageBox.Show(this, $"{nome}.ifc já existe na pasta. Substituir?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
 
-            LocalizacaoIfc.Escolha local = _painelLocalizacao.Ler(out string erroLocal);
-            if (local == null)
+            if (!Localizacao.LocationCorreto)
             {
-                MessageBox.Show(this, erroLocal, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBoxResult r = MessageBox.Show(this,
+                    "O Location do Revit não está no ponto do Project Base Point, então o IfcSite sairá com a latitude/longitude errada.\n\n" +
+                    "Sim: abrir a etapa Localização para corrigir.\nNão: exportar assim mesmo.\nCancelar: voltar.",
+                    Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+                if (r == MessageBoxResult.Cancel) return;
+                if (r == MessageBoxResult.Yes) { AbrirLocalizacao(); return; }
+            }
+            if (_ignorarGis != null && _ignorarGis.IsChecked != true)
+            {
+                MessageBox.Show(this, $"O Location tem o sistema GIS \"{Localizacao.SistemaGis}\", e com ele o exportador grava um EPSG que não vale para o PTL. " +
+                    "Marque \"Ignorar o sistema GIS\" para exportar sem ele.", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-            double? desvio = _painelLocalizacao.DesvioDoPbp();
-            if (desvio > LocalizacaoIfc.ToleranciaLocation &&
-                MessageBox.Show(this, $"A latitude/longitude digitada está a {desvio.Value:0.00} m do ponto calculado pelo Project Base Point. Gravar e exportar assim mesmo?",
-                    Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
-                return;
 
-            LocalizacaoEscolhida = local;
             PropertySetsEscolhido = psets.Length > 0 ? psets : null;
             MapeamentoEscolhido = mapeamento.Length > 0 ? mapeamento : null;
             Vista = (_vista.SelectedItem as Opcao)?.Id ?? DB.ElementId.InvalidElementId;
@@ -615,6 +638,45 @@ namespace MetroSP.Ids
             _settings.Mapeamento = mapeamento;
             _settings.PastaSaida = saida;
             DialogResult = true;
+        }
+
+        /// <summary>Mostra se o Location confere com o Project Base Point.</summary>
+        private void MostrarLocalizacao()
+        {
+            LocalizacaoIfc l = Localizacao;
+            string ponto = $"{l.LatitudeAtual.ToString("F8", System.Globalization.CultureInfo.InvariantCulture)}, {l.LongitudeAtual.ToString("F8", System.Globalization.CultureInfo.InvariantCulture)}";
+            if (l.Erro != null)
+            {
+                _infoLocalizacao.Text = "Não foi possível conferir o Location pelo Project Base Point: " + l.Erro;
+                _infoLocalizacao.Foreground = Theme.Solid(Theme.Laranja);
+            }
+            else if (!l.LocationCorreto)
+            {
+                _infoLocalizacao.Text = $"O Location ({ponto}) está a {(l.Diferenca < 1000 ? l.Diferenca.ToString("0.00") + " m" : (l.Diferenca / 1000).ToString("0.0") + " km")} " +
+                    "do ponto do Project Base Point. Use Localização... (ou o botão Localização IFC) antes de exportar.";
+                _infoLocalizacao.Foreground = Theme.Solid(Theme.Laranja);
+            }
+            else
+            {
+                _infoLocalizacao.Text = $"Location confere com o Project Base Point ({ponto}). IfcSite: \"{l.SiteAtual}\" · IfcBuilding: \"{l.EdificioAtual}\".";
+                _infoLocalizacao.Foreground = Theme.Solid(Theme.Cinza);
+            }
+        }
+
+        /// <summary>Abre a etapa Localização, grava no Revit e confere de novo.</summary>
+        private void AbrirLocalizacao()
+        {
+            try
+            {
+                List<string> mudou = LocalizacaoWindow.Executar(_doc, LocalizacaoIfc.Calcular(_doc), this, System.IntPtr.Zero);
+                if (mudou != null) AlteracoesLocalizacao.AddRange(mudou);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Não foi possível gravar a localização no Revit:\n" + ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            Localizacao = LocalizacaoIfc.Calcular(_doc);
+            MostrarLocalizacao();
         }
 
         private string TextoPsets() => (_psets.Text ?? string.Empty).Trim();

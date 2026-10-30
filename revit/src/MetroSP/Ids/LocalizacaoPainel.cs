@@ -19,6 +19,7 @@ namespace MetroSP.Ids
         private readonly TextBox _latitude;
         private readonly TextBox _longitude;
         private readonly TextBox _endereco;
+        private readonly TextBox _site;
         private readonly TextBox _edificio;
         private readonly TextBox _enderecoEdificio;
         private readonly TextBlock _situacao;
@@ -39,20 +40,29 @@ namespace MetroSP.Ids
                 pbp.Text = $"Project Base Point (PTL): E {Num(local.Este, 3)} m · N {Num(local.Norte, 3)} m · elevação {Num(local.Elevacao, 3)} m. " +
                     "Latitude e longitude abaixo calculadas por ele (NBR 14166, SIRGAS 2000).";
 
-            var grade = new Grid { Margin = new Thickness(0, 4, 0, 0) };
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            Children.Add(grade);
+            if (local.SistemaGis != null)
+            {
+                var gis = Linha(this);
+                gis.Text = $"O Location tem o sistema de coordenadas GIS \"{local.SistemaGis}\". Ele não muda o cálculo abaixo; " +
+                    "na exportação há a opção de ignorá-lo, para o IFC sair sem EPSG.";
+                gis.Foreground = Theme.Solid(Theme.Laranja);
+            }
 
-            Titulo(grade, 0, "IfcSite");
-            _latitude = Campo(grade, 1, 0, "Latitude", Num(p.Latitude, 8));
-            _longitude = Campo(grade, 1, 2, "Longitude", Num(p.Longitude, 8));
-            _endereco = Campo(grade, 2, 0, "Endereço do projeto", p.Local, largo: true);
-            Titulo(grade, 3, "IfcBuilding");
-            _edificio = Campo(grade, 4, 0, "Nome do edifício", p.Edificio, largo: true);
-            _enderecoEdificio = Campo(grade, 5, 0, "Endereço", p.Endereco, largo: true);
+            // IfcSite à esquerda, IfcBuilding à direita
+            var colunas = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            colunas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            colunas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) });
+            colunas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Children.Add(colunas);
+
+            Grid site = Coluna(colunas, 0, "IfcSite");
+            _site = Campo(site, 1, "Nome", p.Site);
+            _latitude = Campo(site, 2, "Latitude", Num(p.Latitude, 8));
+            _longitude = Campo(site, 3, "Longitude", Num(p.Longitude, 8));
+            _endereco = Campo(site, 4, "Endereço", p.Local);
+            Grid edificio = Coluna(colunas, 2, "IfcBuilding");
+            _edificio = Campo(edificio, 1, "Nome", p.Edificio);
+            _enderecoEdificio = Campo(edificio, 2, "Endereço", p.Endereco);
 
             _situacao = Linha(this);
             _latitude.TextChanged += (s, e) => MostrarSituacao();
@@ -60,8 +70,9 @@ namespace MetroSP.Ids
             MostrarSituacao();
 
             var nota = Linha(this);
-            nota.Text = "Ao exportar, o que estiver diferente do Revit é gravado nos campos padrão: Manage › Location " +
-                "(latitude, longitude, endereço do projeto) e Informações do projeto (nome do edifício, endereço). " +
+            nota.Text = "Ao gravar, o que estiver diferente do Revit vai para os campos padrão: Manage › Location " +
+                "(latitude, longitude, endereço do projeto) e Informações do projeto (SiteName, nome do edifício, endereço). " +
+                "O SiteName é criado nas Informações do projeto se o modelo ainda não tiver. " +
                 "A atualização do Location não altera o Survey Point, o Project Base Point nem as Shared Coordinates.";
         }
 
@@ -74,6 +85,7 @@ namespace MetroSP.Ids
                 erro = "A exportação precisa do Location corrigido pelo Project Base Point, e não foi possível calculá-lo: " + _local.Erro;
                 return null;
             }
+
             if (!Ler(_latitude.Text, out double lat) || !Ler(_longitude.Text, out double lon) || Math.Abs(lat) > 90 || Math.Abs(lon) > 180)
             {
                 erro = "Latitude e longitude precisam ser números em graus decimais (por exemplo -23.5508467 e -46.7315776).";
@@ -89,6 +101,7 @@ namespace MetroSP.Ids
                 Latitude = lat,
                 Longitude = lon,
                 Local = _endereco.Text.Trim(),
+                Site = _site.Text.Trim(),
                 Edificio = _edificio.Text.Trim(),
                 Endereco = _enderecoEdificio.Text.Trim(),
             };
@@ -113,7 +126,7 @@ namespace MetroSP.Ids
             }
             double hoje = PtlMetroSP.DistanciaMetros(_local.LatitudeAtual, _local.LongitudeAtual, lat, lon);
             string texto = $"Location do Revit hoje: {Num(_local.LatitudeAtual, 8)}, {Num(_local.LongitudeAtual, 8)}" +
-                (hoje <= LocalizacaoIfc.ToleranciaLocation ? " (igual)." : $" (será atualizado; diferença de {Distancia(hoje)}).");
+                (hoje <= LocalizacaoIfc.ToleranciaLocation ? " (igual)." : $" (será atualizado ao gravar; diferença de {Distancia(hoje)}).");
             double? desvio = DesvioDoPbp();
             if (desvio > LocalizacaoIfc.ToleranciaLocation)
             {
@@ -142,26 +155,30 @@ namespace MetroSP.Ids
             }
         }
 
-        private static void Titulo(Grid grade, int linha, string texto)
+        /// <summary>Coluna com título e duas colunas internas (rótulo, caixa).</summary>
+        private static Grid Coluna(Grid colunas, int coluna, string titulo)
         {
-            grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var t = new TextBlock { Text = texto, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
-            Grid.SetRow(t, linha);
-            Grid.SetColumnSpan(t, 4);
-            grade.Children.Add(t);
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var t = new TextBlock { Text = titulo, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 6, 0, 2) };
+            Grid.SetColumnSpan(t, 2);
+            g.Children.Add(t);
+            Grid.SetColumn(g, coluna);
+            colunas.Children.Add(g);
+            return g;
         }
 
-        private static TextBox Campo(Grid grade, int linha, int coluna, string rotulo, string valor, bool largo = false)
+        private static TextBox Campo(Grid grade, int linha, string rotulo, string valor)
         {
             while (grade.RowDefinitions.Count <= linha) grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            var r = new TextBlock { Text = rotulo, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(coluna == 0 ? 0 : 12, 2, 6, 2) };
+            var r = new TextBlock { Text = rotulo, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 8, 2) };
             Grid.SetRow(r, linha);
-            Grid.SetColumn(r, coluna);
             grade.Children.Add(r);
             var box = new TextBox { Text = valor ?? string.Empty, VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 2, 0, 2) };
             Grid.SetRow(box, linha);
-            Grid.SetColumn(box, coluna + 1);
-            if (largo) Grid.SetColumnSpan(box, 3);
+            Grid.SetColumn(box, 1);
             grade.Children.Add(box);
             return box;
         }
