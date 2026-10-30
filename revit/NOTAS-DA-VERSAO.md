@@ -21,6 +21,8 @@ Revit 2025, 2026 e 2027.
   modelo (ex.: `...B3.rvt` → B3), regra que fica no `Nomenclatura.txt` e pode ser mudada.
 - **Forma online:** dá para entrar com a conta Autodesk e escolher uma pasta do Forma direto pela internet, sem o
   Desktop Connector. Os arquivos dela são baixados e, a cada exportação, só o que mudou no Forma é atualizado.
+  O **Client ID** do app do MetroSP na Autodesk é informado no próprio plugin (botão "Client ID..." na janela
+  Exportar IFC), sem editar arquivo.
 
 ## Sobre
 

@@ -49,6 +49,27 @@ namespace MetroSP.Ids
             LerIni(Path.Combine(ClassesIfc.PastaPadrao, "forma-online.ini"), "client_id");
 
         public static bool Configurado => !string.IsNullOrWhiteSpace(ClientId);
+
+        private static string ArquivoClientId => Path.Combine(PastaApp, "forma-online.ini");
+
+        /// <summary>Client ID informado na janela do plugin (vale para este usuário neste computador).</summary>
+        public static string ClientIdDoUsuario => LerIni(ArquivoClientId, "client_id");
+
+        /// <summary>Client IDs da Autodesk têm só letras e números (hoje, 32 caracteres).</summary>
+        public static bool ClientIdValido(string id) =>
+            !string.IsNullOrWhiteSpace(id) && System.Text.RegularExpressions.Regex.IsMatch(id.Trim(), "^[A-Za-z0-9]{16,64}$");
+
+        /// <summary>Grava o Client ID do usuário; vazio apaga e volta ao instalado (se houver). Trocar o app desfaz o login.</summary>
+        public static void GravarClientId(string id)
+        {
+            id = id?.Trim() ?? "";
+            if (id == (ClientId ?? "")) return;
+            Directory.CreateDirectory(PastaApp);
+            if (id.Length == 0) { if (File.Exists(ArquivoClientId)) File.Delete(ArquivoClientId); }
+            else File.WriteAllLines(ArquivoClientId, new[] { "# Client ID do app do MetroSP na Autodesk, informado no plugin.", "client_id=" + id });
+            _token = null;
+            try { File.Delete(ArquivoToken); } catch { }
+        }
         public static bool Conectado => Configurado && File.Exists(ArquivoToken);
 
         /// <summary>Pasta do Forma escolhida para as configurações.</summary>

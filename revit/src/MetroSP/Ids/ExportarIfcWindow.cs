@@ -193,14 +193,13 @@ namespace MetroSP.Ids
         public void MostrarForma(string resultadoSync = null)
         {
             FormaOnline.Pasta pasta = FormaOnline.PastaEscolhida();
+            _botaoForma.Visibility = Visibility.Visible;
             if (!FormaOnline.Configurado)
             {
-                _infoForma.Text = "Forma online: não configurado neste computador (falta o Client ID do app do MetroSP).";
-                _botaoForma.Visibility = Visibility.Collapsed;
-                return;
+                _infoForma.Text = "Forma online: informe o Client ID do app do MetroSP na Autodesk para usar uma pasta do Forma.";
+                _botaoForma.Content = "Client ID...";
             }
-            _botaoForma.Visibility = Visibility.Visible;
-            if (!FormaOnline.Conectado)
+            else if (!FormaOnline.Conectado)
             {
                 _infoForma.Text = "Forma online: entre com a conta Autodesk para usar uma pasta do Forma sem o Desktop Connector.";
                 _botaoForma.Content = "Entrar...";
@@ -222,6 +221,10 @@ namespace MetroSP.Ids
         {
             try
             {
+                if (!FormaOnline.Configurado)
+                {
+                    if (!InformarClientId()) { MostrarForma(); return; }
+                }
                 if (!FormaOnline.Conectado)
                 {
                     using (var p = Progresso.Abrir("Entrar na Autodesk", podeCancelar: true))
@@ -245,12 +248,23 @@ namespace MetroSP.Ids
                     Opcao("Trocar pasta...", EscolherPastaForma);
                     Opcao("Parar de usar o Forma online", () => { FormaOnline.EscolherPasta(null); RecarregarClasses(); MostrarForma(); });
                     Opcao("Sair da conta Autodesk", () => { FormaOnline.Sair(); RecarregarClasses(); MostrarForma(); });
+                    Opcao("Client ID...", () => { if (InformarClientId()) { RecarregarClasses(); MostrarForma(); } });
                     menu.IsOpen = true;
                     return;
                 }
             }
             catch (Exception ex) { ErroForma(ex); }
             MostrarForma();
+        }
+
+        /// <summary>Pede o Client ID; true se mudou.</summary>
+        private bool InformarClientId()
+        {
+            string antes = FormaOnline.ClientId;
+            var w = new FormaClientIdWindow { Owner = this };
+            if (w.ShowDialog() != true) return false;
+            FormaOnline.GravarClientId(w.ClientId);
+            return FormaOnline.ClientId != antes;
         }
 
         private void ErroForma(Exception ex)
