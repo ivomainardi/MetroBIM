@@ -41,7 +41,9 @@ namespace MetroSP.Commands
             new WindowInteropHelper(janela).Owner = uiapp.MainWindowHandle;
             bool ok = janela.ShowDialog() == true;
             settings.Save();
-            if (!ok) return Result.Cancelled;
+            // Cancelado ou Falhou faz o Revit desfazer tudo do comando, inclusive o Location gravado pela janela.
+            Result Fim(Result r) => janela.AlteracoesLocalizacao.Count > 0 ? Result.Succeeded : r;
+            if (!ok) return Fim(Result.Cancelled);
 
             IfcExportSetup setup = janela.Setup;
             string arquivo = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
@@ -89,20 +91,30 @@ namespace MetroSP.Commands
             catch (Exception ex)
             {
                 TaskDialog.Show("MetroSP", "Erro ao exportar o IFC:\n" + ex.Message);
-                return Result.Failed;
+                return Fim(Result.Failed);
             }
 
             if (!exportou || !File.Exists(arquivo))
             {
                 TaskDialog.Show("MetroSP", "O Revit não conseguiu exportar o IFC. Confira o setup e tente pela janela de exportação do Revit para ver a mensagem do exportador.");
-                return Result.Failed;
+                return Fim(Result.Failed);
             }
 
             // Sem EPSG: se o exportador criou IfcMapConversion/IfcProjectedCRS (sistema GIS no Location), saem do arquivo.
             string georref;
             try { georref = LocalizacaoIfc.RemoverGeorreferencia(arquivo); }
             catch (Exception ex) { georref = "Não foi possível tirar o EPSG do IFC: " + ex.Message; }
+            // O IfcSite sai sempre com a lat/long do Project Base Point, mesmo que o Revit não tenha aceitado no Location.
+            string latLong;
+            try { latLong = local.CorrigirLatLongIfc(arquivo); }
+            catch (Exception ex) { latLong = "Não foi possível corrigir a latitude/longitude do IfcSite: " + ex.Message; }
+            if (local.Erro == null)
+            {
+                escolha.Latitude = local.Latitude;
+                escolha.Longitude = local.Longitude;
+            }
             LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha);
+            if (latLong != null) conferencia.Linhas.Insert(0, latLong);
             if (georref != null) conferencia.Linhas.Insert(0, georref);
             string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
                 uiapp.Application.VersionName, Ui.SobreWindow.Versao);
@@ -117,7 +129,9 @@ namespace MetroSP.Commands
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
-                    "\n\nLocalização: " + (local.LocationCorreto ? "Location confere com o Project Base Point." : "ATENÇÃO, o Location não confere com o Project Base Point.") +
+                    "\n\nLocalização: " + (local.LocationCorreto ? "Location confere com o Project Base Point." :
+                        local.Erro == null ? "o Location do Revit não confere com o Project Base Point; o IfcSite saiu com a latitude/longitude do Project Base Point." :
+                        "ATENÇÃO, o Location não pôde ser conferido pelo Project Base Point.") +
                     (alteracoes.Count == 0 ? "" : "\nGravado no Revit nesta exportação:\n- " + string.Join("\n- ", alteracoes)) +
                     "\n" + conferencia + avisosSetup,
                 ExpandedContent = local.Resumo(escolha) + (log == null ? "" : "\n\nRegistro: " + log),

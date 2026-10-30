@@ -192,6 +192,20 @@ namespace MetroSP.Ids
                 if (t.Commit() != TransactionStatus.Committed)
                     throw new InvalidOperationException("o Revit não aceitou a alteração.");
             }
+            if (latLong)
+            {
+                // Com sistema GIS no Location, o Revit pode ignorar a lat/long sem dar erro: confere o que ficou.
+                SiteLocation gravado = doc.ActiveProjectLocation.GetSiteLocation();
+                double latG = gravado.Latitude * 180 / Math.PI, lonG = gravado.Longitude * 180 / Math.PI;
+                double resto = PtlMetroSP.DistanciaMetros(latG, lonG, e.Latitude, e.Longitude);
+                if (resto > ToleranciaLocation)
+                {
+                    mudou.RemoveAll(m => m.StartsWith("Location: latitude/longitude", StringComparison.Ordinal));
+                    mudou.Add($"ATENÇÃO: o Revit não aceitou a latitude/longitude no Location (ficou {Num(latG, 8)}, {Num(lonG, 8)}" +
+                        (string.IsNullOrEmpty(gravado.GeoCoordinateSystemId) ? "" : $"; o sistema GIS \"{gravado.GeoCoordinateSystemId}\" trava esses campos") +
+                        "). Na exportação, a MetroSP grava no IfcSite a latitude/longitude do Project Base Point.");
+                }
+            }
             return mudou;
         }
 
@@ -382,6 +396,45 @@ namespace MetroSP.Ids
             File.WriteAllText(arquivo, sem, latin1);
             return $"Removidos do IFC: {string.Join(", ", achadas.Cast<Match>().Select(m => m.Groups[2].Value.Equals("MAPCONVERSION", StringComparison.OrdinalIgnoreCase) ? "IfcMapConversion" : "IfcProjectedCRS"))} " +
                 "(o exportador os criou pelo sistema GIS do Location; as coordenadas estão no PTL).";
+        }
+
+        /// <summary>
+        /// Grava no IfcSite do arquivo a RefLatitude/RefLongitude calculada pelo Project Base Point, se o exportador
+        /// saiu com outra (Location do Revit errado ou travado pelo sistema GIS). Devolve o que fez, ou null se já conferia.
+        /// </summary>
+        public string CorrigirLatLongIfc(string arquivo)
+        {
+            if (Erro != null) return null;
+            Encoding latin1 = Encoding.GetEncoding(28591);
+            string texto = File.ReadAllText(arquivo, latin1);
+            Match site = RxSite.Match(texto);
+            if (!site.Success) return null;
+            System.Text.RegularExpressions.Group args = site.Groups[1];
+            MatchCollection tuplas = RxTupla.Matches(args.Value);
+            if (tuplas.Count < 2) return null;
+            double latIfc = DeTupla(tuplas[0]), lonIfc = DeTupla(tuplas[1]);
+            double dif = PtlMetroSP.DistanciaMetros(latIfc, lonIfc, Latitude, Longitude);
+            if (dif <= 0.05) return null;
+
+            // Troca só as duas primeiras tuplas do IfcSite (RefLatitude e RefLongitude), de trás para frente.
+            var sb = new StringBuilder(texto);
+            sb.Remove(args.Index + tuplas[1].Index, tuplas[1].Length).Insert(args.Index + tuplas[1].Index, ParaTupla(Longitude));
+            sb.Remove(args.Index + tuplas[0].Index, tuplas[0].Length).Insert(args.Index + tuplas[0].Index, ParaTupla(Latitude));
+            File.WriteAllText(arquivo, sb.ToString(), latin1);
+            return $"IfcSite RefLatitude/RefLongitude corrigida no IFC para {Num(Latitude, 8)}, {Num(Longitude, 8)} (Project Base Point); " +
+                $"o exportador tinha gravado {Num(latIfc, 6)}, {Num(lonIfc, 6)}, que é o que está no Location do Revit.";
+        }
+
+        /// <summary>Graus decimais → (graus, minutos, segundos, milionésimos) com o mesmo sinal, como o exportador grava.</summary>
+        private static string ParaTupla(double graus)
+        {
+            int sinal = graus < 0 ? -1 : 1;
+            long micro = (long)Math.Round(Math.Abs(graus) * 3600e6);
+            long g = micro / 3600000000L; micro -= g * 3600000000L;
+            long m = micro / 60000000L; micro -= m * 60000000L;
+            long sec = micro / 1000000L; micro -= sec * 1000000L;
+            string C(long v) => (v == 0 ? 0 : sinal * v).ToString(CultureInfo.InvariantCulture);
+            return $"({C(g)},{C(m)},{C(sec)},{C(micro)})";
         }
 
         /// <summary>(graus, minutos, segundos, milionésimos), todos com o mesmo sinal.</summary>

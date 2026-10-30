@@ -33,9 +33,10 @@ namespace MetroSP.Commands
             }
             if (mudou == null) return Result.Cancelled;
 
+            bool recusado = mudou.Exists(m => m.StartsWith("ATENÇÃO", StringComparison.Ordinal));
             TaskDialog.Show("MetroSP", mudou.Count == 0
                 ? "Os campos do Revit já estavam como confirmado. Nada foi alterado."
-                : "Gravado no Revit:\n- " + string.Join("\n- ", mudou) + "\n\nAgora é só usar o Exportar IFC.");
+                : "Gravado no Revit:\n- " + string.Join("\n- ", mudou) + (recusado ? "" : "\n\nAgora é só usar o Exportar IFC."));
             return Result.Succeeded;
         }
     }
