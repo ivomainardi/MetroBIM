@@ -33,11 +33,37 @@ namespace MetroSP.Ids
         public double LongitudeAtual { get; private set; }
         /// <summary>Distância entre o Location atual e o calculado (m).</summary>
         public double Diferenca { get; private set; }
+        /// <summary>Endereço do projeto em Manage › Location (vai para o endereço do IfcSite/IfcBuilding).</summary>
+        public string LocalAtual { get; private set; }
+        /// <summary>Informações do projeto › Nome do edifício (IfcBuilding.Name).</summary>
+        public string EdificioAtual { get; private set; }
+        /// <summary>Informações do projeto › Endereço (IfcPostalAddress do IfcBuilding).</summary>
+        public string EnderecoAtual { get; private set; }
         /// <summary>Motivo que impede a correção (e a exportação), ou null.</summary>
         public string Erro { get; private set; }
 
-        public bool PrecisaAtualizar => Erro == null && Diferenca > ToleranciaLocation;
-        public string LinkMapa => "https://www.openstreetmap.org/?mlat=" + Num(Latitude, 8) + "&mlon=" + Num(Longitude, 8) + "#map=18/" + Num(Latitude, 8) + "/" + Num(Longitude, 8);
+        public static string LinkMapa(double lat, double lon) =>
+            "https://www.openstreetmap.org/?mlat=" + Num(lat, 8) + "&mlon=" + Num(lon, 8) + "#map=18/" + Num(lat, 8) + "/" + Num(lon, 8);
+
+        /// <summary>Valores de localização confirmados na janela, que vão para o IFC e para os campos do Revit.</summary>
+        public class Escolha
+        {
+            public double Latitude { get; set; }
+            public double Longitude { get; set; }
+            public string Local { get; set; }
+            public string Edificio { get; set; }
+            public string Endereco { get; set; }
+        }
+
+        /// <summary>Valores iniciais da janela: lat/long calculada pelo PBP e os textos atuais do Revit.</summary>
+        public Escolha Proposta() => new Escolha
+        {
+            Latitude = Erro == null ? Latitude : LatitudeAtual,
+            Longitude = Erro == null ? Longitude : LongitudeAtual,
+            Local = LocalAtual,
+            Edificio = EdificioAtual,
+            Endereco = EnderecoAtual,
+        };
 
         public static LocalizacaoIfc Calcular(Document doc)
         {
@@ -45,9 +71,14 @@ namespace MetroSP.Ids
             ProjectLocation ativa = doc.ActiveProjectLocation;
             SiteLocation site = ativa?.GetSiteLocation();
             r.NomeLocalizacao = ativa?.Name;
+            ProjectInfo info = doc.ProjectInformation;
+            try { r.EdificioAtual = info?.BuildingName ?? string.Empty; }
+            catch (Autodesk.Revit.Exceptions.InvalidOperationException) { r.EdificioAtual = string.Empty; }
+            r.EnderecoAtual = info?.Address ?? string.Empty;
             if (site == null) return r.Falha("o modelo não tem Location (Manage › Location).");
             r.LatitudeAtual = site.Latitude * 180 / Math.PI;
             r.LongitudeAtual = site.Longitude * 180 / Math.PI;
+            r.LocalAtual = site.PlaceName ?? string.Empty;
 
             // Com um sistema GIS no Location, o exportador preenche sozinho o EPSG (IfcProjectedCRS/IfcMapConversion).
             if (!string.IsNullOrEmpty(site.GeoCoordinateSystemId))
@@ -87,28 +118,66 @@ namespace MetroSP.Ids
             return r;
         }
 
-        /// <summary>Grava a lat/long no Location numa transação própria, que fica no modelo (e pode ser desfeita com Ctrl+Z).</summary>
-        public void Aplicar(Document doc)
+        /// <summary>
+        /// Grava nos campos padrão do Revit o que difere da escolha: lat/long e endereço em Manage › Location,
+        /// nome do edifício e endereço em Informações do projeto. Transação própria, que fica no modelo
+        /// (pode ser desfeita com Ctrl+Z). Devolve o que mudou, vazio se nada mudou.
+        /// </summary>
+        public List<string> Aplicar(Document doc, Escolha e)
         {
-            using (var t = new Transaction(doc, "MetroSP: Location pelo Project Base Point"))
+            var mudou = new List<string>();
+            bool latLong = PtlMetroSP.DistanciaMetros(LatitudeAtual, LongitudeAtual, e.Latitude, e.Longitude) > ToleranciaLocation;
+            bool local = !MesmoTexto(LocalAtual, e.Local);
+            bool edificio = !MesmoTexto(EdificioAtual, e.Edificio);
+            bool endereco = !MesmoTexto(EnderecoAtual, e.Endereco);
+            if (!latLong && !local && !edificio && !endereco) return mudou;
+
+            using (var t = new Transaction(doc, "MetroSP: localização para o IFC"))
             {
                 t.Start();
                 SiteLocation site = doc.ActiveProjectLocation.GetSiteLocation();
-                site.Latitude = Latitude * Math.PI / 180;
-                site.Longitude = Longitude * Math.PI / 180;
+                if (latLong)
+                {
+                    site.Latitude = e.Latitude * Math.PI / 180;
+                    site.Longitude = e.Longitude * Math.PI / 180;
+                    mudou.Add($"Location: latitude/longitude {Num(e.Latitude, 8)}, {Num(e.Longitude, 8)}");
+                }
+                if (local)
+                {
+                    site.PlaceName = e.Local ?? string.Empty;
+                    mudou.Add("Location: endereço do projeto \"" + e.Local + "\"");
+                }
+                if (edificio)
+                {
+                    doc.ProjectInformation.BuildingName = e.Edificio ?? string.Empty;
+                    mudou.Add("Informações do projeto: nome do edifício \"" + e.Edificio + "\"");
+                }
+                if (endereco)
+                {
+                    doc.ProjectInformation.Address = e.Endereco ?? string.Empty;
+                    mudou.Add("Informações do projeto: endereço \"" + e.Endereco + "\"");
+                }
                 if (t.Commit() != TransactionStatus.Committed)
-                    throw new InvalidOperationException("o Revit não aceitou a alteração do Location.");
+                    throw new InvalidOperationException("o Revit não aceitou a alteração.");
             }
+            return mudou;
         }
 
+        private static bool MesmoTexto(string a, string b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.Ordinal);
+
         /// <summary>Texto para a confirmação e para o log.</summary>
-        public string Resumo()
+        public string Resumo(Escolha e)
         {
+            double desvio = PtlMetroSP.DistanciaMetros(Latitude, Longitude, e.Latitude, e.Longitude);
             return $"Project Base Point (PTL, localização \"{NomeLocalizacao}\"): E {Num(Este, 3)} m, N {Num(Norte, 3)} m, elevação {Num(Elevacao, 3)} m\n" +
                 $"Latitude/longitude calculadas (SIRGAS 2000): {Num(Latitude, 8)}, {Num(Longitude, 8)}  ({Gms(Latitude, "S", "N")}, {Gms(Longitude, "W", "E")})\n" +
-                $"Location atual: {Num(LatitudeAtual, 8)}, {Num(LongitudeAtual, 8)}  (diferença de {Distancia(Diferenca)})\n" +
                 $"Distância à origem do PTL: {Num(RaioOrigem / 1000, 3)} km · fechamento da conversão: {Num(Fechamento * 1000, 4)} mm\n" +
-                $"Motor: {PtlMetroSP.Identificacao}";
+                $"Motor: {PtlMetroSP.Identificacao}\n" +
+                $"Location antes da exportação: {Num(LatitudeAtual, 8)}, {Num(LongitudeAtual, 8)}  (diferença de {Distancia(Diferenca)} do calculado)\n" +
+                $"IfcSite (confirmado): {Num(e.Latitude, 8)}, {Num(e.Longitude, 8)}" +
+                (desvio > ToleranciaLocation ? $"  (digitado à mão, a {Distancia(desvio)} do calculado)" : "") +
+                $" · endereço do projeto \"{e.Local}\"\n" +
+                $"IfcBuilding (confirmado): nome \"{e.Edificio}\" · endereço \"{e.Endereco}\"";
         }
 
         // ---- Conferência do IFC exportado ----
@@ -126,7 +195,7 @@ namespace MetroSP.Ids
         private static readonly Regex RxTupla = new Regex(@"\(\s*(-?\d+)\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*(?:,\s*(-?\d+)\s*)?\)");
 
         /// <summary>Lê o .ifc como texto e confere esquema, RefLatitude/RefLongitude do IfcSite e a ausência de EPSG.</summary>
-        public Conferencia ConferirIfc(string arquivo)
+        public Conferencia ConferirIfc(string arquivo, Escolha e)
         {
             var c = new Conferencia();
             string texto;
@@ -161,12 +230,22 @@ namespace MetroSP.Ids
                 else
                 {
                     double lat = DeTupla(tuplas[0]), lon = DeTupla(tuplas[1]);
-                    double dif = PtlMetroSP.DistanciaMetros(lat, lon, Latitude, Longitude);
+                    double dif = PtlMetroSP.DistanciaMetros(lat, lon, e.Latitude, e.Longitude);
                     // O exportador trunca em milionésimos de segundo (~3 cm)
                     bool ok = dif <= 0.05 && lat < 0 && lon < 0;
-                    c.Linhas.Add($"IfcSite RefLatitude/RefLongitude: {Num(lat, 8)}, {Num(lon, 8)} ({(ok ? "confere" : "NÃO confere")} com o PBP, diferença de {Distancia(dif)})");
+                    c.Linhas.Add($"IfcSite RefLatitude/RefLongitude: {Num(lat, 8)}, {Num(lon, 8)} ({(ok ? "confere" : "NÃO confere")} com o confirmado, diferença de {Distancia(dif)})");
                     if (!ok) c.TemProblema = true;
                 }
+            }
+
+            Match edificio = RxEdificio.Match(texto);
+            if (!edificio.Success) c.Linhas.Add("IfcBuilding não encontrado no arquivo.");
+            else
+            {
+                string nome = TextoIfc(edificio.Groups[1].Value);
+                bool ok = MesmoTexto(nome, e.Edificio) || (string.IsNullOrWhiteSpace(e.Edificio) && string.IsNullOrEmpty(nome));
+                c.Linhas.Add($"IfcBuilding Name: \"{nome}\"" + (ok ? "" : $" (esperado \"{e.Edificio}\")"));
+                if (!ok) c.TemProblema = true;
             }
 
             bool crs = texto.IndexOf("IFCPROJECTEDCRS", StringComparison.OrdinalIgnoreCase) >= 0;
@@ -182,6 +261,27 @@ namespace MetroSP.Ids
             return c;
         }
 
+        /// <summary>Nome (3º atributo) do IfcBuilding: string IFC ou $.</summary>
+        private static readonly Regex RxEdificio = new Regex(@"=\s*IFCBUILDING\s*\(\s*'[^']*'\s*,\s*[^,]*,\s*('(?:[^']|'')*'|\$)", RegexOptions.IgnoreCase);
+        private static readonly Regex RxX2 = new Regex(@"\\X2\\((?:[0-9A-Fa-f]{4})+)\\X0\\");
+        private static readonly Regex RxX = new Regex(@"\\X\\([0-9A-Fa-f]{2})");
+
+        /// <summary>Decodifica uma string STEP ('...' com '' e \X2\...\X0\ / \X\hh); $ vira vazio.</summary>
+        private static string TextoIfc(string bruto)
+        {
+            if (bruto == "$" || bruto.Length < 2) return string.Empty;
+            string t = bruto.Substring(1, bruto.Length - 2).Replace("''", "'");
+            t = RxX2.Replace(t, m =>
+            {
+                string hex = m.Groups[1].Value;
+                var sb = new StringBuilder();
+                for (int i = 0; i < hex.Length; i += 4) sb.Append((char)Convert.ToInt32(hex.Substring(i, 4), 16));
+                return sb.ToString();
+            });
+            t = RxX.Replace(t, m => ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString());
+            return t.Replace("\\\\", "\\");
+        }
+
         /// <summary>(graus, minutos, segundos, milionésimos), todos com o mesmo sinal.</summary>
         private static double DeTupla(Match m)
         {
@@ -195,7 +295,7 @@ namespace MetroSP.Ids
         // ---- Log ----
 
         /// <summary>Grava &lt;arquivo&gt;.ifc.log.txt ao lado do IFC. Devolve o caminho, ou null se não conseguiu.</summary>
-        public string GravarLog(Document doc, string arquivoIfc, string setup, bool atualizou, Conferencia conferencia, string revit, string plugin)
+        public string GravarLog(Document doc, string arquivoIfc, string setup, Escolha e, List<string> alteracoes, Conferencia conferencia, string revit, string plugin)
         {
             var sb = new StringBuilder();
             sb.AppendLine("MetroSP · exportação IFC · registro do Location");
@@ -206,8 +306,10 @@ namespace MetroSP.Ids
             sb.AppendLine("Setup IFC: " + setup + " · base Shared Coordinates · EPSG em branco");
             sb.AppendLine("IFC: " + arquivoIfc);
             sb.AppendLine();
-            sb.AppendLine(Resumo());
-            sb.AppendLine(atualizou ? "Location atualizado antes da exportação." : "Location já estava correto; não foi alterado.");
+            sb.AppendLine(Resumo(e));
+            sb.AppendLine();
+            sb.AppendLine(alteracoes.Count == 0 ? "Nenhum campo do Revit precisou ser alterado." : "Alterado no Revit antes da exportação:");
+            foreach (string a in alteracoes) sb.AppendLine("- " + a);
             sb.AppendLine();
             sb.AppendLine("Conferência do IFC:");
             sb.AppendLine(conferencia?.ToString() ?? "não feita");
