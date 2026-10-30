@@ -1,0 +1,206 @@
+#
+# User Defined PropertySet Definition File
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name 1>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	<Property Name 2>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	...
+#
+# Data types supported: Area, Boolean, ClassificationReference, ColorTemperature, Count, Currency, 
+#	ElectricalCurrent, ElectricalEfficacy, ElectricalVoltage, Force, Frequency, Identifier, 
+#	Illuminance, Integer, Label, Length, Logical, LuminousFlux, LuminousIntensity, 
+#	NormalisedRatio, PlaneAngle, PositiveLength, PositivePlaneAngle, PositiveRatio, Power, 
+#	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
+#	VolumetricFlowRate
+#
+#
+#
+#
+# Revision	Data	Description
+# 00	06/10/2026	Emissão inicial
+#
+#
+#
+#===========================================================================================================================================
+# Vigas
+#
+PropertySet:	Metro	I	IfcBeam
+	Material	Label	Structural Material
+	SecaoTipo	Label	Section Shape
+	ModuloElasticidade	Real	YoungModulus
+	Resistencia	Pressure	Resistencia
+	Nome	Label	Mark
+	Cor	Text	Cor
+	TRRF	Label	FireResistanceRating
+	Galvanizacao	Boolean	Galvanizacao
+	MassaLinear	Real	Nominal Weight
+#
+PropertySet:	MetroLoc	I	IfcBeam
+	Nivel	Label	Reference Level
+	Nivel_Base desvio	Length	Start Level Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcBeam
+	ComprimentoAnalitico	PositiveLength	Length
+	ComprimentoFisico	PositiveLength	Cut Length
+	AlturaDaSecao	PositiveLength	Height
+	LarguraDaSecao	PositiveLength	Width
+	DiametroDaSecao	PositiveLength	Diameter
+	AreaDaSecao	Area	Section Area
+	Peso	Real	Weight
+	Espessura	PositiveLength	Wall Nominal Thickness
+	EspessuraDaFlange	PositiveLength	Flange Thickness
+	EspessuraDaAlma	PositiveLength	Web Thickness
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Pilares
+#
+PropertySet:	Metro	I	IfcColumn
+	Material	Label	Structural Material
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	SecaoTipo	Label	Section Shape
+	Cor	Text	Cor
+	TRRF	Label	FireResistanceRating
+	Galvanizacao	Boolean	Galvanizacao
+	MassaLinear	Real	Nominal Weight
+#
+PropertySet:	MetroLoc	I	IfcColumn
+	Nivel_Topo	Label	Top Level
+	Nivel_Topo desvio	Length	Top Offset
+	Nivel_Base	Label	Base Level
+	Nivel_Base desvio	Length	Base Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcColumn
+	Altura	PositiveLength	Length
+	AlturaDaSecao	PositiveLength	Height
+	LarguraDaSecao	PositiveLength	Width
+	DiametroDaSecao	PositiveLength	Diameter
+	AreaDaSecao	Area	Section Area
+	Peso	Real	Weight
+	Espessura	PositiveLength	Wall Nominal Thickness
+	EspessuraDaFlange	PositiveLength	Flange Thickness
+	EspessuraDaAlma	PositiveLength	Web Thickness
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Lajes e Grades de Piso
+#
+PropertySet:	Metro	I	IfcSlab
+	Material	Label	Structural Material
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TRRF	Label	FireResistanceRating
+	Galvanizacao	Boolean	Galvanizacao
+	MassaPorArea	Real	MassaPorArea
+#
+PropertySet:	MetroLoc	I	IfcSlab
+	Nivel	Label	Level
+	Nivel_Base desvio	Length	Height Offset From Level
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcSlab
+	Area	Area	Area
+	Volume	Volume	Volume
+	Peso	Real	Weight
+	Comprimento	PositiveLength	Length
+	Largura	PositiveLength	Width
+	Altura	PositiveLength	Height
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Escadas
+#
+PropertySet:	Metro	I	IfcStair
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TRRF	Label	FireResistanceRating
+	Galvanizacao	Boolean	Galvanizacao
+	MassaPorArea	Real	MassaPorArea
+#
+PropertySet:	MetroLoc	I	IfcStair
+	Nivel_Base	Label	Base Level
+	Nivel_Base desvio	Length	Base Offset
+	Nivel_Topo	Label	Top Level
+	Nivel_Topo desvio	Length	Top Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcStair
+	ProfundidadeDaPisada	Length	Actual Tread Depth
+	AlturaDoEspelho	PositiveLength	Actual Riser Height
+	NumeroDeEspelhos	Integer	Actual Number of Risers
+	Peso	Real	Weight
+#
+PropertySet:	Metro	I	IfcStairFlight
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TRRF	Label	FireResistanceRating
+	Galvanizacao	Boolean	Galvanizacao
+	MassaPorArea	Real	MassaPorArea
+#
+PropertySet:	MetroLoc	I	IfcStairFlight
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcStairFlight
+	ProfundidadeDaPisada	Length	Actual Tread Depth
+	AlturaDoEspelho	PositiveLength	Actual Riser Height
+	NumeroDeEspelhos	Integer	Actual Number of Risers
+	Peso	Real	Weight
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Chapas
+#
+PropertySet:	Metro	I	IfcPlate
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TRRF	Label	FireResistanceRating
+	Galvanizacao	Boolean	Galvanizacao
+	MassaPorArea	Real	MassaPorArea
+#
+PropertySet:	MetroLoc	I	IfcPlate
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcPlate
+	Largura	Length	Actual Tread Depth
+	Comprimento	Volume	Length
+	Espessura	PositiveLength	Thickness
+	Peso	Real	Weight
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Geral
+#
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Label	ClassificationCode
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Linha de Vida
+#
+PropertySet:	MetroClassificacao	I	IfcRailing
+	CodigoMetro	Label	ClassificationCode
+#
+PropertySet:	Metro	I	IfcRailing
+	Resistencia	Pressure	Resistencia
+#
+PropertySet:	MetroLoc	I	IfcRailing
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcRailing
+	Comprimento	Length	Length
+#-------------------------------------------------------------------------------------------------------------------------------------------

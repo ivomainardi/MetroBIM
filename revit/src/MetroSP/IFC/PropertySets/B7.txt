@@ -1,0 +1,136 @@
+#
+# User Defined PropertySet Definition File
+#
+# Alexandre Jeronymo Rodrigues	alexandrejeronymo@gmail.com
+#
+# Formato:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<lista de entidades separada por ','>
+#	<Nome da propriedade IFC>	<Tipo de dado>	<Nome do parametro no Revit, se diferente do IFC>
+#
+# Tipos de dado aceitos (cabecalho oficial de DefaultUserDefinedParameterSets.txt,
+# repositorio Autodesk/revit-ifc):
+#	Acceleration, AngularVelocity, Area, AreaDensity, Boolean, ClassificationReference,
+#	ColorTemperature, Count, Currency, DynamicViscosity, ElectricCurrent, ElectricVoltage,
+#	Energy, ElectricalEfficacy, Force, Frequency, HeatFluxDensity, HeatingValue, Identifier,
+#	Illuminance, Integer, IonConcentration, IsothermalMoistureCapacity, Label, Length,
+#	LinearForce, LinearMoment, LinearStiffness, LinearVelocity, Logical, LuminousFlux,
+#	LuminousIntensity, Mass, MassDensity, MassFlowRate, MassPerLength, ModulusOfElasticity,
+#	MoistureDiffusivity, MomentOfInertia, NormalisedRatio, Numeric, PlanarForce, PlaneAngle,
+#	PositiveLength, PositivePlaneAngle, PositiveRatio, Power, Pressure, Ratio, Real,
+#	RotationalFrequency, SoundPower, SoundPressure, SpecificHeatCapacity, Text,
+#	ThermalConductivity, ThermalExpansionCoefficient, ThermalResistance, ThermalTransmittance,
+#	ThermodynamicTemperature, Time, Torque, VaporPermeability, Volume, VolumetricFlowRate,
+#	WarpingConstant
+#
+#	ATENCAO: os tokens corretos sao ElectricVoltage e ElectricCurrent (sem o "al").
+#	Nao existe token "Mass" em versoes antigas do exportador - confirmar na versao em uso.
+#
+# Revision	Data			Description
+# 00		09/02/2026		Emissao inicial
+# 01		11/09/2026		Nomes IFC alinhados a matriz Luminotecnica _B7 (coluna IFC_Propriedade);
+#				tipos de dado alinhados a coluna IFC_TipoDado; nomes de parametro
+#				Revit alinhados a Metro_SharedParam.txt; corrigido "Lenght";
+#				MetroQTO renomeado para MetroQto; acrescentado Aparencia;
+#				acrescentados psets do Driver (IfcElectricAppliance);
+#				removida linha solta "IfcSwitchingDevice".
+# 02		22/09/2026		Alinhado a Luminotecnica-Base (22/09/2026): Poste Externo passa a
+#				IfcColumn e Suporte/braco entra como IfcMember - acrescentados
+#				psets de ambos. MaterialDoCorpo declarado como Text (token
+#				"Material" da matriz nao e aceito pelo exportador). Removido
+#				o bloco opcional (parametros fora da matriz).
+#
+# ============================================================================
+# LUMINARIAS - IfcLightFixture
+# ============================================================================
+#
+PropertySet:	Metro	I	IfcLightFixture
+	Aparencia	Text	Aparencia
+	BaseDaLampada	Text	Base da Lampada
+	CaracteristicasDoDifusorRefletor	Text	Caracteristicas do difusor/refletor
+	DescricaoComplementar	Text	Descricao Complementar
+	DriverIncorporado	Boolean	Driver Incorporado
+	FatorDePotencia	Real	Fator de Potencia
+	FluxoLuminoso	LuminousFlux	Fluxo luminoso
+	IluminacaoDeAclaramento	Boolean	Iluminacao de Aclaramento
+	IndiceDeProtecao	Text	Indice de Protecao
+	IndiceDeReproducaoDeCor	Integer	Indice de Reproducao de Cor
+	IndiceIK	Integer	Indice IK
+	LEDIncorporado	Boolean	LED incorporado
+	Massa	Mass	Massa
+	MaterialDoCorpo	Text	Material_Corpo
+	MaterialDoDifusor	Text	Material_Difusor
+	Potencia	Power	Potencia
+	QuantidadeDeLampada	Integer	Quantidade de Lampada
+	TemperaturaDaCor	Text	Temperatura da Cor
+	TemperaturaDeOperacao	ThermodynamicTemperature	Temperatura de operacao
+	TensaoNominal	ElectricVoltage	Tensao Nominal
+	TipoDeLampadaLED	Text	Tipo de Lampada/LED
+	VidaUtil	Text	Vida util
+#
+PropertySet:	MetroClassificacao	I	IfcLightFixture
+	CodigoMetro	Text	ClassificationCode
+#
+PropertySet:	MetroQto	I	IfcLightFixture
+	Altura	Length	Altura
+	AlturaDaInstalacao	Length	Altura de Instalacao
+	Comprimento	Length	Comprimento
+	Diametro	Length	Diametro
+	Largura	Length	Largura
+#
+# ============================================================================
+# DRIVER - IfcElectricAppliance
+# Subconjunto conforme coluna "Elemento: Driver" da matriz Luminotecnica _B7
+# ============================================================================
+#
+PropertySet:	Metro	I	IfcElectricAppliance
+	DescricaoComplementar	Text	Descricao Complementar
+	FatorDePotencia	Real	Fator de Potencia
+	IluminacaoDeAclaramento	Boolean	Iluminacao de Aclaramento
+	IndiceDeProtecao	Text	Indice de Protecao
+	Massa	Mass	Massa
+	Potencia	Power	Potencia
+	TemperaturaDeOperacao	ThermodynamicTemperature	Temperatura de operacao
+	TensaoNominal	ElectricVoltage	Tensao Nominal
+	VidaUtil	Text	Vida util
+#
+PropertySet:	MetroClassificacao	I	IfcElectricAppliance
+	CodigoMetro	Text	ClassificationCode
+#
+PropertySet:	MetroQto	I	IfcElectricAppliance
+	Altura	Length	Altura
+	Comprimento	Length	Comprimento
+	Largura	Length	Largura
+#
+# ============================================================================
+# POSTE EXTERNO - IfcColumn
+# Subconjunto conforme coluna "Elemento: Poste Externo" da matriz Luminotecnica-Base
+# ============================================================================
+#
+PropertySet:	Metro	I	IfcColumn
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	Descricao Complementar
+	MaterialDoCorpo	Text	Material_Corpo
+#
+PropertySet:	MetroClassificacao	I	IfcColumn
+	CodigoMetro	Text	ClassificationCode
+#
+PropertySet:	MetroQto	I	IfcColumn
+	Altura	Length	Altura
+	Diametro	Length	Diametro
+#
+# ============================================================================
+# SUPORTE / BRACO - IfcMember
+# Subconjunto conforme coluna "Elemento: Suporte/braco" da matriz Luminotecnica-Base
+# ============================================================================
+#
+PropertySet:	Metro	I	IfcMember
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	Descricao Complementar
+	MaterialDoCorpo	Text	Material_Corpo
+#
+PropertySet:	MetroClassificacao	I	IfcMember
+	CodigoMetro	Text	ClassificationCode
+#
+PropertySet:	MetroQto	I	IfcMember
+	Comprimento	Length	Comprimento
+#

@@ -10,8 +10,11 @@ Revit 2025, 2026 e 2027.
 - Novo **Editar property sets...**: mostra o .txt em tabela, com as propriedades cujo parâmetro não existe no
   modelo destacadas, sugere os parâmetros do modelo, e permite acrescentar e remover propriedades. A edição de
   uma classe instalada fica salva só para o usuário, com **Restaurar padrão** para voltar ao original.
-- **Classe pelo nome do modelo:** a janela já abre com a classe indicada pelo nome do arquivo, por regras num
-  `Nomenclatura.txt` ou pelo trecho do nome igual ao nome da classe.
+- **Classes do MetroSP no instalador:** B2, B3, B5, B7, I1, J2, K9, M1, N3 e S5 (property sets MNEPI-L20).
+- **Conferência dos tipos de dado:** o editor e a janela apontam tipos que o exportador não aceita (ex.: "Lenght",
+  "Number", "Wattage") e sugerem a grafia certa.
+- **Classe pelo nome do modelo:** a janela já abre com a classe indicada pelos dois últimos caracteres do nome do
+  modelo (ex.: `...B3.rvt` → B3), regra que fica no `Nomenclatura.txt` e pode ser mudada.
 - **Forma online:** dá para entrar com a conta Autodesk e escolher uma pasta do Forma direto pela internet, sem o
   Desktop Connector. Os arquivos dela são baixados e, a cada exportação, só o que mudou no Forma é atualizado.
 

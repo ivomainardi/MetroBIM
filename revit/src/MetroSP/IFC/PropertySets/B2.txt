@@ -1,0 +1,154 @@
+#
+# User Defined PropertySet Definition File
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name 1>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	<Property Name 2>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	...
+#
+# Data types supported: Area, Boolean, ClassificationReference, ColorTemperature, Count, Currency, 
+#	ElectricalCurrent, ElectricalEfficacy, ElectricalVoltage, Force, Frequency, Identifier, 
+#	Illuminance, Integer, Label, Length, Logical, LuminousFlux, LuminousIntensity, 
+#	NormalisedRatio, PlaneAngle, PositiveLength, PositivePlaneAngle, PositiveRatio, Power, 
+#	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
+#	VolumetricFlowRate
+#
+# Revision	Data			Description
+# 00		17/03/2025		Emissão Inicial
+# 01		14/08/2025		Inclusão de mapeamento de parâmetros para IfcSpace (#140)
+# 02		14/10/2025		Inclusão de mapeamento de parâmetros para IfcSpace (#150). Ajuste na nomenclatura da aba MetroQto (#25, #35, #46, #54, #66, #75, #82, #95, #103, #112)
+#
+#
+# 		Pilar 
+#
+PropertySet:	MetroQto	I	IfcColumn
+	Altura	Length	Length
+	CrossSectionArea	Area	Section Area
+	Secao_Largura	Length	Width
+	Secao_Altura	Length	Height
+	Volume	Volume
+#
+#
+# 		Viga
+#
+PropertySet:	MetroQto	I	IfcBeam
+	CrossSectionArea	Area	Section Area
+	ComprimentoAnalitico	Length	Length	
+	ComprimentoFisico	Length	Cut Length	
+	Width	Secao_Largura
+	Height	Secao_Altura
+	Volume	Volume
+#
+#
+# 		Escada; Escada Marinheiro
+#
+PropertySet:	MetroQto	I	IfcStair
+	Altura	Length	Desired Stair Height
+#
+PropertySet:	Metro	I	IfcStair
+	Espelho_Altura	Length	Actual Riser Height
+	NumeroEspelhos	Length	Actual Number of Risers
+	Pisada_Profundidade	Length	Actual Tread Depth
+#
+PropertySet:	MetroQto	I	IfcStairFlight
+	Altura	Length	Run Height
+	Largura	Length
+#
+PropertySet:	Metro	I	IfcStairFlight
+	Espelho_Altura	Length	Actual Riser Height
+	NumeroEspelhos	Length	Actual Number of Risers
+	Pisada_Profundidade	Length	Actual Tread Depth
+#
+#
+#		Gradil, Guarda-corpo e Corrimão
+#
+PropertySet:	MetroQto	I	IfcRailing
+	Altura	Length
+	Comprimento	Length	Length
+	Modulo_Largura	Length
+	Modulo_Quantidade	Integer
+#
+#
+#		Cabine Sanitária
+#
+PropertySet:	MetroQto	I	IfcFurnishingElement
+	Modulo_Largura	Length
+	Modulo_Quantidade	Integer	Modulo_Quantidade1
+#
+#
+#		Porta
+#
+PropertySet:	MetroQto	I	IfcDoor
+	Altura_Bandeira	Length	Altura do segmento_2
+	Altura_Porta	Length	Altura do segmento_1
+	Altura_Livre	Length
+	Modulo_Largura	Length
+	Largura_Livre	Length
+	Modulo_Quantidade	Integer	Modulo_Quantidade1
+	Altura	Length	Height
+	Largura	Length	Width
+#
+#
+#		Janela
+#
+PropertySet:	MetroQto	I	IfcDoor
+	Modulo_Quantidade	Integer	Modulo_Quantidade1
+	Altura	Length	Height
+	Largura	Length	Width
+#
+#
+#Parede e Revestimento vertical
+#
+PropertySet:	MetroQto	I	IfcWall,IfcCurtainWall
+	Altura	Length	Unconnected Height
+	Espessura	Length	Width
+	Area	Area
+	Volume	Volume
+#
+#
+#Piso e Revestimento horizontal
+#
+PropertySet:	MetroQto	I	IfcWall,IfcCurtainWall
+	Espessura	Length	Thickness
+	Area	Area
+	Volume	Volume
+#
+PropertySet:	Metro	I	IfcWall,IfcCurtainWall
+	Inclinacao	Real	Slope
+#
+#
+# Dutos de Ventilação
+#
+PropertySet:	Metro	I	IfcFlowSegment,IfcFlowFitting
+	Inclinacao	Percentage Slope
+	Dimensoes	Text	Size
+#
+#
+# Aba MetroFase
+#
+PropertySet:	MetroFase	I	IfcElement
+	Phase Created	Text
+#
+#
+# Parâmetro Restrição
+#
+PropertySet:	Metro	I	IfcElement
+	Restricao	Boolean
+#
+#
+# Spaces
+#
+PropertySet:	Metro	I	IfcSpace
+	Código Funcional	Text	Number
+	Descrição	Text	IfcLongName
+	Nome do Ambiente	Text	Name
+	Grupo	Text
+	Anotação	Text	Anotacao
+	Função	Text	Occupancy
+#
+PropertySet:	MetroQto	I	IfcSpace
+	Área	Area	Area
+	Perímetro	Length	Perimeter
+	Altura	Length	Unbounded Height
+	Volume	Volume	Volume

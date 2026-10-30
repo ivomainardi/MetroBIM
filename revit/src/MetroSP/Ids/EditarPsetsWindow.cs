@@ -33,8 +33,20 @@ namespace MetroSP.Ids
             public string TipoDado { get => _tipo; set => Set(ref _tipo, value); }
             public string Parametro { get => _parametro; set => Set(ref _parametro, value); }
 
-            public bool Encontrado => !string.IsNullOrWhiteSpace(Parametro) && Modelo != null && Modelo.Contains(Parametro.Trim());
-            public string Situacao => string.IsNullOrWhiteSpace(Parametro) ? "Sem parâmetro" : Encontrado ? "Encontrado" : "Não encontrado no modelo";
+            public bool ParametroNoModelo => !string.IsNullOrWhiteSpace(Parametro) && Modelo != null && Modelo.Contains(Parametro.Trim());
+            public bool TipoOk => ExportMapping.TipoAceito(TipoDado);
+            /// <summary>Linha sem problema: parâmetro existe no modelo e o tipo é aceito pelo exportador.</summary>
+            public bool Encontrado => ParametroNoModelo && TipoOk;
+            public string Situacao
+            {
+                get
+                {
+                    var p = new List<string>();
+                    if (!TipoOk) p.Add(ExportMapping.TipoCorreto(TipoDado) is string certo ? $"Tipo: use {certo}" : "Tipo não aceito");
+                    p.Add(string.IsNullOrWhiteSpace(Parametro) ? "Sem parâmetro" : ParametroNoModelo ? "Encontrado" : "Não encontrado no modelo");
+                    return string.Join(" · ", p);
+                }
+            }
 
             public event PropertyChangedEventHandler PropertyChanged;
             private void Set(ref string campo, string valor, [CallerMemberName] string nome = null)
@@ -42,7 +54,7 @@ namespace MetroSP.Ids
                 if (campo == valor) return;
                 campo = valor;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nome));
-                if (nome == nameof(Parametro))
+                if (nome == nameof(Parametro) || nome == nameof(TipoDado))
                 {
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Encontrado)));
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Situacao)));
@@ -51,16 +63,11 @@ namespace MetroSP.Ids
         }
 
         private const string Instancia = "Instância", Tipo = "Tipo";
-        private static readonly string[] TiposDado =
-        {
-            "Text", "Label", "Identifier", "Boolean", "Logical", "Integer", "Real", "Length", "PositiveLength", "Area", "Volume",
-            "Count", "Ratio", "PositiveRatio", "PlaneAngle", "Currency", "ThermalTransmittance", "MassDensity", "Pressure",
-            "Force", "Frequency", "Illuminance", "LuminousFlux", "ElectricalCurrent", "ElectricalVoltage", "PowerMeasure",
-            "VolumetricFlowRate", "MassFlowRate", "ThermodynamicTemperature",
-        };
+        private static readonly string[] TiposDado = ExportMapping.TiposAceitos;
 
         private readonly ObservableCollection<Linha> _linhas = new ObservableCollection<Linha>();
         private readonly HashSet<string> _modelo;
+        private readonly List<string> _cabecalho;
         private readonly string _destino;
         private readonly ListCollectionView _vista;
         private readonly DataGrid _grade;
@@ -89,6 +96,9 @@ namespace MetroSP.Ids
 
             var mapa = new ExportMapping();
             mapa.LoadUserDefinedPropertySets(arquivo);
+            // Comentários do início (formato, revisões) são mantidos ao salvar.
+            _cabecalho = File.ReadLines(arquivo).TakeWhile(l => l.Trim().Length == 0 || l.TrimStart().StartsWith("#"))
+                .Where(l => !l.Contains("salvo pelo MetroSP")).ToList();
             foreach (PropertyMapping p in mapa.Properties)
                 _linhas.Add(new Linha
                 {
@@ -114,7 +124,7 @@ namespace MetroSP.Ids
             topo.Children.Add(new TextBlock { Text = arquivo, Foreground = Theme.Solid(Theme.Cinza), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = arquivo });
             _resumo = new WrapPanel { Margin = new Thickness(0, 8, 0, 6) };
             topo.Children.Add(_resumo);
-            _soAusentes = new CheckBox { Content = "Mostrar só os parâmetros não encontrados no modelo", Margin = new Thickness(0, 0, 0, 6) };
+            _soAusentes = new CheckBox { Content = "Mostrar só as linhas com problema (parâmetro não encontrado ou tipo não aceito)", Margin = new Thickness(0, 0, 0, 6) };
             _soAusentes.Click += (s, e) => { _grade.CommitEdit(DataGridEditingUnit.Row, true); _vista.Refresh(); };
             topo.Children.Add(_soAusentes);
             if (mapa.Warnings.Count > 0)
@@ -169,8 +179,9 @@ namespace MetroSP.Ids
             _grade.Columns.Add(Lista("Aplica em", nameof(Linha.Aplicacao), new[] { Instancia, Tipo }, 80));
             _grade.Columns.Add(Texto("Entidades IFC", nameof(Linha.Entidades), 150));
             _grade.Columns.Add(Texto("Propriedade", nameof(Linha.Propriedade), 150));
-            _grade.Columns.Add(Lista("Tipo", nameof(Linha.TipoDado), TiposDado, 90));
-            _grade.Columns.Add(Parametro(_modelo.OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList()));
+            _grade.Columns.Add(ComboEditavel("Tipo", nameof(Linha.TipoDado), TiposDado.ToList(), new DataGridLength(110), 90));
+            _grade.Columns.Add(ComboEditavel("Parâmetro do Revit", nameof(Linha.Parametro),
+                _modelo.OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList(), new DataGridLength(1, DataGridLengthUnitType.Star), 160));
             _grade.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(Linha.Situacao)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = 150 });
             corpo.Children.Add(_grade);
 
@@ -224,13 +235,15 @@ namespace MetroSP.Ids
 
         private void AtualizarResumo()
         {
-            int ausentes = _linhas.Count(l => !l.Encontrado);
+            int ausentes = _linhas.Count(l => !l.ParametroNoModelo);
+            int tipos = _linhas.Count(l => !l.TipoOk);
             int psets = _linhas.Select(l => l.PropertySet).Distinct(StringComparer.OrdinalIgnoreCase).Count();
             _resumo.Children.Clear();
             _resumo.Children.Add(Theme.Chip($"{_linhas.Count} propriedades"));
             _resumo.Children.Add(Theme.Chip($"{psets} property sets"));
             _resumo.Children.Add(Theme.Chip(ausentes == 0 ? "todos os parâmetros encontrados no modelo"
                 : $"{ausentes} parâmetro(s) não encontrados no modelo (ficam fora do IFC)", destaque: ausentes > 0));
+            if (tipos > 0) _resumo.Children.Add(Theme.Chip($"{tipos} tipo(s) de dado não aceitos pelo exportador", destaque: true));
         }
 
         private string PerguntarDestino(string atual)
@@ -261,7 +274,7 @@ namespace MetroSP.Ids
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destino));
-                File.WriteAllText(destino, Gerar(_linhas), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+                File.WriteAllText(destino, Gerar(_linhas, _cabecalho), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
             }
             catch (Exception ex)
             {
@@ -273,9 +286,10 @@ namespace MetroSP.Ids
         }
 
         /// <summary>Texto no formato do exportador: um cabeçalho PropertySet por grupo seguido das propriedades.</summary>
-        internal static string Gerar(IEnumerable<Linha> linhas)
+        internal static string Gerar(IEnumerable<Linha> linhas, IEnumerable<string> comentarios = null)
         {
             var sb = new StringBuilder();
+            foreach (string l in comentarios ?? Enumerable.Empty<string>()) sb.AppendLine(l);
             sb.AppendLine("# Property sets definidos pelo usuário - salvo pelo MetroSP em " + DateTime.Now.ToString("dd/MM/yyyy HH:mm"));
             string atual = null;
             foreach (Linha l in linhas)
@@ -301,24 +315,24 @@ namespace MetroSP.Ids
         private static DataGridComboBoxColumn Lista(string titulo, string campo, IEnumerable<string> valores, double largura) =>
             new DataGridComboBoxColumn { Header = titulo, ItemsSource = valores.ToList(), SelectedItemBinding = new Binding(campo), Width = largura };
 
-        /// <summary>Coluna do parâmetro: caixa editável com os parâmetros do modelo como sugestão.</summary>
-        private static DataGridTemplateColumn Parametro(List<string> sugestoes)
+        /// <summary>Coluna com caixa editável e sugestões (aceita também o que não está na lista, para mostrar o que veio do .txt).</summary>
+        private static DataGridTemplateColumn ComboEditavel(string titulo, string campo, List<string> sugestoes, DataGridLength largura, double minimo)
         {
             var leitura = new FrameworkElementFactory(typeof(TextBlock));
-            leitura.SetBinding(TextBlock.TextProperty, new Binding(nameof(Linha.Parametro)));
+            leitura.SetBinding(TextBlock.TextProperty, new Binding(campo));
             leitura.SetValue(TextBlock.PaddingProperty, new Thickness(2, 0, 2, 0));
 
             var edicao = new FrameworkElementFactory(typeof(ComboBox));
             edicao.SetValue(ComboBox.IsEditableProperty, true);
             edicao.SetValue(ComboBox.IsTextSearchEnabledProperty, true);
             edicao.SetValue(ItemsControl.ItemsSourceProperty, sugestoes);
-            edicao.SetBinding(ComboBox.TextProperty, new Binding(nameof(Linha.Parametro)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+            edicao.SetBinding(ComboBox.TextProperty, new Binding(campo) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
 
             return new DataGridTemplateColumn
             {
-                Header = "Parâmetro do Revit",
-                Width = new DataGridLength(1, DataGridLengthUnitType.Star),
-                MinWidth = 160,
+                Header = titulo,
+                Width = largura,
+                MinWidth = minimo,
                 CellTemplate = new DataTemplate { VisualTree = leitura },
                 CellEditingTemplate = new DataTemplate { VisualTree = edicao },
             };

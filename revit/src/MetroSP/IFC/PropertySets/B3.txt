@@ -1,0 +1,407 @@
+#
+# User Defined PropertySet Definition File
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name 1>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	<Property Name 2>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	...
+#
+# Data types supported: Area, Boolean, ClassificationReference, ColorTemperature, Count, Currency, 
+#	ElectricalCurrent, ElectricalEfficacy, ElectricalVoltage, Force, Frequency, Identifier, 
+#	Illuminance, Integer, Label, Length, Logical, LuminousFlux, LuminousIntensity, 
+#	NormalisedRatio, PlaneAngle, PositiveLength, PositivePlaneAngle, PositiveRatio, Power, 
+#	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
+#	VolumetricFlowRate
+#===========================================================================================================================================
+#
+# Entities: 	IfcDoor, IfcRailing, IfcDiscreteAccessory, IfcWasteTerminal, IfcSanitaryTerminal, IfcFurniture, IfcWall, 
+#	IfcCurtainWall, IfcCovering, IfcSpace, IfcFurnishingElement, IfcStairFlightType
+# 
+#
+# Revision	Data	Description
+# 00	30/03/2026	Emissão inicial
+# 01	08/04/2026	Adição Gradis e Portões de Uso Externo
+# 02	22/06/2026	Revisão Geral
+# 
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Portas e Portões / Tampas para Alçapões
+PropertySet:	MetroClassificacao	I	IfcDoor
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcDoor
+	Aparencia	Text	Aparencia
+	CodigoDaFerragem	Text	Ferragem_Codigo
+	CodigoDoVao	Text	Codigo do Vao	
+	DescricaoComplementar	Text	Descricao Complementar	
+	GrupoDeMestragem	Text	Mestragem
+	Mola	Boolean	Mola
+	Restricao	Boolean	Restricao
+	SCA	Boolean	SCA
+	TipoDeMola	Text	Tipo de Mola
+	Espacamento	Text	Espacamento
+#
+PropertySet:	MetroQto	I	IfcDoor
+	Altura	Length	Height
+	AlturaDoSegmento1	Length	Altura do segmento_1
+	AlturaDoSegmento2	Length	Altura do segmento_2
+	AlturaLivre	Length	Altura_Livre
+	Area	Area	Area
+	AreaBruta	Area	Area
+	Comprimento	Length	Modulo_Comprimento
+	Largura	Length	Width
+	LarguraDoModulo	Length	Modulo_Largura
+	LarguraDoSegmento1	Length	Largura do segmento_1
+	LarguraDoSegmento2	Length	Largura do segmento_2
+	LarguraLivre	Length	Largura_Livre
+	QuantidadeDeModulos	Integer	Modulo_Quantidade
+	QuantidadeDeModulos1	Integer	Modulo_Quantidade1
+	QuantidadeDeModulos2	Integer	Modulo_Quantidade2
+	ModuloDimensao1	Length	Modulo_Dimensao1
+	ModuloDimensao2	Length	Modulo_Dimensao2
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Corrimãos, Guarda-Corpos e Elementos de Proteção (Balizadores etc.)
+#
+PropertySet:	MetroClassificacao	I	IfcRailing
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcRailing
+	DescricaoComplementar	Text	Descricao Complementar
+	Restricao	Boolean	Restricao
+	Aparencia	Text	Aparencia
+#
+PropertySet:	MetroQto	I	IfcRailing
+	Altura	Length	Height
+	Length	Length	Comprimento
+	ComprimentoDoModulo	Length	Modulo_Comprimento
+	Largura	Length	Width
+	LarguraLivre	Length	Largura_Livre
+	QuantidadeDeModulos	Integer	Modulo_Quantidade
+	Comprimento	Length	Length
+	Area	Area	Area
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Escadas Fixas Verticais (Tipo Marinheiro)
+#
+PropertySet:	MetroClassificacao	I	IfcStairFlight
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcStairFlight
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	Descricao Complementar
+	Restricao	Boolean	Restricao
+#
+PropertySet:	MetroQto	I	IfcStairFlight
+	Altura	Length	Length
+	Altura do Modulo	Length	Altura do Modulo
+	AlturaDoSegmento1	Length	Altura do segmento_1
+	AlturaDoSegmento2	Length	Altura do segmento_2
+	AlturaPrincipal	Length	Altura
+	Altura	length	Altura_Espelho
+	Largura	Length	Largura
+	ProfundidadeNominal	Length	Profundidade
+	QuantidadeDeModulos	Integer	Modulo_Quantidade
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Arremates e cantoneiras Esquadrias Fachada
+#
+PropertySet:	MetroClassificacao	I	IfcDiscreteAccessory
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcDiscreteAccessory
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	Descricao Complementar
+	Restricao	Boolean	Restricao
+#
+PropertySet:	MetroQto	I	IfcDiscreteAccessory
+	Espessura	Length	Espessura
+	Largura	Length	Largura
+	Comprimento	Length	Comprimento
+	Comprimento	Length	Length
+	ProfundidadeNominal	Length	Profundidade
+	Altura	Length	Altura
+	Altura	Length	Height
+	Altura	Length	Unconnected Height
+	Espacamento	Length	Espacamento
+	Area	Area	Area
+	LarguraDoModulo	length	Modulo_Largura
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Tampas para canaletas e ralos
+#
+PropertySet:	MetroClassificacao	I	IfcWasteTerminal
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcWasteTerminal
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	Descricao Complementar
+	Restricao	Boolean	Restricao
+	Espacamento	Length	Espacamento
+#
+PropertySet:	MetroQto	I	IfcWasteTerminal
+	Area	Area	Area
+	Modulo_Comprimento	Length	Modulo_Comprimento
+	Modulo_Largura	Length	Modulo_Largura
+	Modulo_Quantidade	Integer	Modulo_Quantidade
+	NominalBodyLength	Length	NominalBodyLength
+	NominalBodyWidth	Length	NominalBodyWidth
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Louças e Acessórios Sanitários (Barras de Apoio, Saboneteiras, Papeleiras etc.)
+#
+PropertySet:	MetroClassificacao	I	IfcSanitaryTerminal
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcSanitaryTerminal
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	Descricao Complementar
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Mobiliários Fixos, Espelhos e Superfícies (Prateleiras, Bancadas, Tampos etc.) / Divisórias
+#
+PropertySet:	MetroClassificacao	T	IfcFurniture
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcFurniture
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	Descricao Complementar
+	Espacamento	Length	Espacamento
+	Restricao	Boolean	Restricao
+#
+PropertySet:	MetroQto	I	IfcFurniture
+	NominalHeight	Length	NominalHeight
+	AreaBruta	Area	Area
+	NominalLength	Length	NominalLength
+	Espessura	Length	Width
+	Largura	Length	Largura
+	LarguraDoModulo	Length	Modulo_Largura
+	LarguraDoSegmento1	Length	Largura do segmento_1
+	LarguraDoSegmento2	Length	Largura do segmento_2
+	ProfundidadeNominal	Length	Profundidade
+	QuantidadeDeModulos	Integer	Modulo_Quantidade
+	Altura	Length	Length
+	Comprimento	Length	Comprimento
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Cabines e Fechamentos (SSO etc.)
+#
+PropertySet:	MetroClassificacao	T	IfcFurnishingElement
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcFurnishingElement
+	Aparencia	Text	Aparencia
+	CodigoDaFerragem	Text	Ferragem_Codigo
+	DescricaoComplementar	Text	Descricao Complementar
+	GrupoDeMestragem	Text	Grupo de Mestragem
+	Mestragem	Text	Mestragem
+	Mola	Boolean	Mola
+	TipoDeMola	Text	Tipo de Mola
+	Espacamento	Length	Espacamento
+	Restricao	Boolean	Restricao
+#
+PropertySet:	MetroQto	I	IfcFurnishingElement
+	NominalHeight	Length	NominalHeight
+	AreaBruta	Area	Area
+	NominalLength	Length	NominalLength
+	Espessura	Length	Width
+	Largura	Length	Largura
+	LarguraDoModulo	Length	Modulo_Largura
+	LarguraDoSegmento1	Length	Largura do segmento_1
+	LarguraDoSegmento2	Length	Largura do segmento_2
+	ProfundidadeNominal	Length	Profundidade
+	QuantidadeDeModulos	Integer	Modulo_Quantidade
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Parede Gradis Externos
+#
+PropertySet:	MetroClassificacao	T	IfcWall
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	T	IfcWall
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	DescricaoComplementar
+	Restricao	Boolean	Restricao
+#
+PropertySet:	MetroQto	I	IfcWall
+	Altura	Length	Length
+	Altura	Length	Height
+	Area	Area	Area
+	AreaLiquida	Area	Area
+	AreaBruta	Area	Area
+	Comprimento	Length	Comprimento
+	ComprimentoNominal	Length	NominalLength
+	Comprimento	Length	Length
+	Espessura	Length	Width
+	Volume	Volume	Volume
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+#Parede e revestimentos verticais
+#
+PropertySet:	MetroClassificacao	T	IfcCurtainWall
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	T	IfcCurtainWall
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	DescricaoComplementar
+	Restricao	Boolean	Restricao
+#
+PropertySet:	MetroQto	I	IfcCurtainWall
+	Altura	Length	Length
+	Altura	Length	Height
+	Area	Area	Area
+	AreaLiquida	Area	Area
+	AreaBruta	Area	Area
+	Comprimento	Length	Comprimento
+	ComprimentoNominal	Length	NominalLength
+	Espessura	Length	Width
+	Volume	Volume	Volume
+	Length	Length	Largura
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Revestimentos de Superfícies Verticais / Revestimentos de Piso
+#
+PropertySet:	MetroClassificacao	T	IfcCovering
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	T	IfcCovering
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	DescricaoComplementar
+	Restricao	Boolean	Restricao
+	Espacamento	Text	Espacamento
+#
+PropertySet:	MetroQto	I	IfcCovering
+	Altura	Length	Length
+	Altura	Length	Height
+	Altura	Length	Altura do espelho
+	Area	Area	Area
+	AreaLiquida	Area	Area
+	AreaBruta	Area	Area
+	Comprimento	Length	Comprimento
+	ComprimentoDoModulo	Length	Modulo_Comprimento
+	ComprimentoNominal	Length	NominalLength
+	Comprimento	length	length
+	Largura	Length	Width
+	LarguraDoModulo	Length	Modulo_Largura
+	Espessura	Length	Width
+	Espessura	Length	Thickness
+	Espessura	Length	Default Thickness
+	Espessura	length	Pset_CoveringCommon.Thickness[Type]
+	QuantidadeDeModulos	Integer	Quantidade de Modulos
+	Volume	Volume	Volume
+#
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Spaces
+#
+PropertySet:	Metro	I	IfcSpace
+	Código Funcional	Text	Number
+	Descrição	Text	IfcLongName
+	Nome do Ambiente	Text	Name
+	Grupo	Text
+	Anotação	Text	Anotacao
+	Função	Text	Occupancy
+#
+PropertySet:	MetroQto	I	IfcSpace
+	Área	Area	Area
+	Perímetro	Length	Perimeter
+	Altura	Length	Unbounded Height
+	Volume	Volume	Volume
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Paisagismo e Inserção Urbana - Árvores, Palmeiras, Arbustos, Forrações e Terreno
+#
+PropertySet:	Metro	I	IfcGeographicElement
+#
+	NomeCientifico	Text
+	NomePopular	Text
+	DescricaoComplementar	Text
+	EpocaFlorada	Text
+	EmPortariaMunicipal	Boolean	ListadaEmPortariaMunicipal
+	FormatoDaCopaAdulta	Text	Formato da copa (adulta)
+	FrutoGeraRisco	Boolean	FrutoGeraRisco
+	Maturacao	Text	Maturacao
+	ListadaEmPortariaMunicipal	Boolean
+	Luminosidade	Text
+	Origem	Text
+	MudaDensidade	Number
+	PermanenciaFoliar	Text
+	TipoDeVegetacao	Text	Tipo de Vegetação
+#
+PropertySet:	MetroClassificacao	I	IfcGeographicElement
+	CodigoMetro	Label	ClassificationCode
+#
+PropertySet:	MetroQto	I	IfcGeographicElement
+	Altura	Length	Height
+	AlturaDaMuda	Length
+	DAP	length
+	DiametroDaCopaAdulta	Length	Height
+	DistanciaDePlantio	Length	DistanciaDePlantio
+	AreaDeSuperficie	Real	Area
+	AreaDeProjecao	Area	Projected Area
+#===========================================================================================================================================
+#
+#===========================================================================================================================================
+# Esquadrias Especiais
+PropertySet:	MetroClassificacao	I	IfcWindow
+	CodigoMetro	Label	ClassificationCode
+	IdentificadorDeTipo	Label	Identificador de Tipo
+#
+PropertySet:	Metro	I	IfcWindow
+	Aparencia	Text	Aparencia
+	CodigoDoVao	Text	Codigo do Vao	
+	DescricaoComplementar	Text	Descricao Complementar	
+	Restricao	Boolean	Restricao
+#
+PropertySet:	MetroQto	I	IfcDoor
+	Altura	Length	Height
+	AlturaDoSegmento1	Length	Altura do segmento_1
+	AlturaDoSegmento2	Length	Altura do segmento_2
+	AlturaLivre	Length	Altura_Livre
+	Area	Area	Area
+	Comprimento	Length	Modulo_Comprimento
+	Largura	Length	Width
+	LarguraDoModulo	Length	Modulo_Largura
+	LarguraDoSegmento1	Length	Largura do segmento_1
+	LarguraDoSegmento2	Length	Largura do segmento_2
+	LarguraLivre	Length	Largura_Livre
+	QuantidadeDeModulos	Integer	Modulo_Quantidade
+	QuantidadeDeModulos1	Integer	Modulo_Quantidade1
+	QuantidadeDeModulos2	Integer	Modulo_Quantidade2
+#===========================================================================================================================================
+#
+#===========================================================================================================================================

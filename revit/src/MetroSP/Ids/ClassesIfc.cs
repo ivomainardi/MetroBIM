@@ -106,8 +106,32 @@ namespace MetroSP.Ids
         public static (Classe Classe, string Motivo) DoNomeDoModelo(string titulo, IList<Classe> classes)
         {
             if (string.IsNullOrWhiteSpace(titulo) || classes == null || classes.Count == 0) return (null, null);
-            string nome = titulo.EndsWith(".rvt", StringComparison.OrdinalIgnoreCase) ? titulo.Substring(0, titulo.Length - 4) : titulo;
             Classe Por(string n) => classes.FirstOrDefault(c => string.Equals(c.Nome, n?.Trim(), StringComparison.CurrentCultureIgnoreCase));
+            foreach (string nome in NomesBase(titulo))
+            {
+                var r = DoNome(nome, Por);
+                if (r.Classe != null) return r;
+            }
+            return (null, null);
+        }
+
+        /// <summary>
+        /// O nome do modelo e, depois, o nome sem os acréscimos que o Revit e o Windows põem no fim:
+        /// cópia local ("_usuario"), cópia baixada (" (1)") e modelo desanexado ("_detached", "_desanexado").
+        /// </summary>
+        private static IEnumerable<string> NomesBase(string titulo)
+        {
+            string nome = titulo.Trim();
+            if (nome.EndsWith(".rvt", StringComparison.OrdinalIgnoreCase)) nome = nome.Substring(0, nome.Length - 4);
+            yield return nome;
+            string limpo = Regex.Replace(nome, @"\s*\(\d+\)$", "");
+            foreach (string sufixo in new[] { "_" + Environment.UserName, "_detached", "_desanexado", "_backup" })
+                if (limpo.EndsWith(sufixo, StringComparison.OrdinalIgnoreCase)) limpo = limpo.Substring(0, limpo.Length - sufixo.Length);
+            if (limpo != nome) yield return limpo;
+        }
+
+        private static (Classe Classe, string Motivo) DoNome(string nome, Func<string, Classe> Por)
+        {
 
             string regras = ArquivoDeRegras;
             if (regras != null)

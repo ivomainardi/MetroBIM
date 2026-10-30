@@ -1,0 +1,39 @@
+#
+# User Defined PropertySet Definition File
+#
+# Alexandre Jeronymo Rodrigues	alexandrejeronymo@gmail.com
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name 1>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	<Property Name 2>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	...
+#
+# Data types supported: Area, Boolean, ClassificationReference, ColorTemperature, Count, Currency, 
+#	ElectricalCurrent, ElectricalEfficacy, ElectricalVoltage, Force, Frequency, Identifier, 
+#	Illuminance, Integer, Label, Length, Logical, LuminousFlux, LuminousIntensity, 
+#	NormalisedRatio, PlaneAngle, PositiveLength, PositivePlaneAngle, PositiveRatio, Power, 
+#	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
+#	VolumetricFlowRate
+#
+# Revision	Data			Description
+# 00		14/05/26		Emissão inicial
+# 01		10/07/26		Ajustar os parametros AlturaDeInstacao, AlturaDoTirante e Largura
+# Comunicação Visual
+#
+PropertySet:	Metro	I	IfcFurniture
+	CodigoAuxiliar	Label	Codigo Auxiliar
+	Aparencia	Text	Aparencia
+	DescricaoComplementar	Text	DescricaoComplementar
+#
+#
+PropertySet:	MetroClassificacao	I	IfcFurniture
+	CodigoMetro	Label	ClassificationCode
+#
+#
+PropertySet:	MetroQto	I	IfcFurniture
+	Altura	Length	Altura
+	AlturaDeInstalacao	Length	Altura de Instalacao
+	AlturaDoTirante	Length	Altura do tirante
+	Area	Area	Area
+	Largura	Length	Largura
+	Largura	Length	Comprimento

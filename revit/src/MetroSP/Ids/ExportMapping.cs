@@ -89,6 +89,8 @@ namespace MetroSP.Ids
                         PropertySet = parts[0],
                         OnType = parts[1].Equals("T", StringComparison.OrdinalIgnoreCase),
                     };
+                    if (parts.Count > 2 && parts[2].Contains(' ') && !parts[2].Contains(','))
+                        Warnings.Add($"{Path.GetFileName(path)} linha {n}: entidades separadas por espaço (\"{parts[2]}\"); separe com vírgula.");
                     if (parts.Count > 2)
                         header.Entities.AddRange(parts[2].Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(e => e.Trim()));
                     continue;
@@ -111,6 +113,11 @@ namespace MetroSP.Ids
                 };
                 p.Entities.AddRange(header.Entities);
                 Properties.Add(p);
+                if (!TipoAceito(p.FileType))
+                    Warnings.Add($"{Path.GetFileName(path)} linha {n}: tipo \"{p.FileType}\" de {p.Property} não é aceito pelo exportador" +
+                                 (TipoCorreto(p.FileType) is string certo ? $" (escreva \"{certo}\")." : "."));
+                if (cols.Length > 3)
+                    Warnings.Add($"{Path.GetFileName(path)} linha {n}: colunas a mais em {p.Property} (só valem propriedade, tipo e parâmetro).");
             }
         }
 
@@ -141,6 +148,43 @@ namespace MetroSP.Ids
             CategoryMapping m = Categories.FirstOrDefault(c =>
                 string.Equals(c.Category, category, StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(c.SubCategory));
             return m?.IfcClass;
+        }
+
+        /// <summary>Tipos de dado aceitos no .txt (cabeçalho do DefaultUserDefinedParameterSets.txt do exportador).</summary>
+        public static readonly string[] TiposAceitos =
+        {
+            "Text", "Label", "Identifier", "Boolean", "Logical", "Integer", "Real", "Numeric", "Count",
+            "Length", "PositiveLength", "Area", "Volume", "PlaneAngle", "PositivePlaneAngle", "Ratio", "PositiveRatio", "NormalisedRatio",
+            "Mass", "MassDensity", "MassFlowRate", "MassPerLength", "Force", "LinearForce", "PlanarForce", "Pressure", "Power", "Energy",
+            "ElectricCurrent", "ElectricVoltage", "ElectricalCurrent", "ElectricalVoltage", "ElectricalEfficacy", "Frequency",
+            "Illuminance", "LuminousFlux", "LuminousIntensity", "ColorTemperature", "ThermodynamicTemperature", "ThermalTransmittance",
+            "ThermalConductivity", "ThermalResistance", "ThermalExpansionCoefficient", "SpecificHeatCapacity", "HeatFluxDensity", "HeatingValue",
+            "VolumetricFlowRate", "Currency", "ClassificationReference", "Time", "Torque", "Acceleration", "AngularVelocity", "AreaDensity",
+            "DynamicViscosity", "IonConcentration", "IsothermalMoistureCapacity", "LinearMoment", "LinearStiffness", "LinearVelocity",
+            "ModulusOfElasticity", "MoistureDiffusivity", "MomentOfInertia", "RotationalFrequency", "SoundPower", "SoundPressure",
+            "VaporPermeability", "WarpingConstant",
+        };
+
+        /// <summary>true se o tipo está escrito exatamente como o exportador espera.</summary>
+        public static bool TipoAceito(string tipo) => TiposAceitos.Contains(tipo ?? "", StringComparer.Ordinal);
+
+        /// <summary>Grafia certa de um tipo escrito com outras maiúsculas/minúsculas, ou de erros comuns ("Lenght"). null se não houver.</summary>
+        public static string TipoCorreto(string tipo)
+        {
+            if (string.IsNullOrWhiteSpace(tipo)) return null;
+            string t = tipo.Trim();
+            string mesmo = TiposAceitos.FirstOrDefault(a => string.Equals(a, t, StringComparison.OrdinalIgnoreCase));
+            if (mesmo != null) return mesmo == t ? null : mesmo;
+            switch (t.ToLowerInvariant())
+            {
+                case "lenght": return "Length";
+                case "number": return "Real";
+                case "wattage": return "Power";
+                case "temperature": return "ThermodynamicTemperature";
+                case "ifcelectricalvoltage": return "ElectricVoltage";
+                case "percent": case "percentage": return "Ratio";
+                default: return null;
+            }
         }
 
         public static string FileTypeToIfc(string fileType)

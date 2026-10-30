@@ -1,0 +1,263 @@
+#
+# User Defined PropertySet Definition File
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name 1>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	<Property Name 2>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	...
+#
+# Data types supported: Area, Boolean, ClassificationReference, ColorTemperature, Count, Currency, 
+#	ElectricalCurrent, ElectricalEfficacy, ElectricalVoltage, Force, Frequency, Identifier, 
+#	Illuminance, Integer, Label, Length, Logical, LuminousFlux, LuminousIntensity, 
+#	NormalisedRatio, PlaneAngle, PositiveLength, PositivePlaneAngle, PositiveRatio, Power, 
+#	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
+#	VolumetricFlowRate
+#
+#
+# Entities: IfcBeam, IfcColumn, IfcWall, IfcStair, IfcFooting,IfcTendon
+#
+#
+# Revision	Data	Description
+# 00	29/10/2025	Emissão inicial
+# 01	05/12/2025	Inclusão do mapeamento para a classe IfcFooting [202]
+# 02	02/07/2026	Inclusão do mapeamentoIfcGeographicElement, IfcTendon,
+# 03	10/08/2026	Revisão localização do parâmetro nome na aba Metro
+# 04	19/09/2026	Revisão geral; Ateração no mapeamento do ClassificationCode e UC
+# 05	06/10/2026	Inclusão do parâmetro UC no Pset MetroLoc para IfcDiscreteAccessory e IfcMechanicalFastener
+#
+#
+#
+#===========================================================================================================================================
+# Vigas
+#
+PropertySet:	Metro	I	IfcBeam
+	Material	Label	Structural Material
+	SecaoTipo	Label	Section Shape
+	ModuloElasticidade	Real	YoungModulus
+	Cobrimento	Length	ConcreteCover
+	TaxaAco	Real	ReinforcementVolumeRatio
+	Resistencia	Pressure	Resistencia
+	Nome	Label	Mark
+#
+PropertySet:	MetroLoc	I	IfcBeam
+	Nivel	Label	Reference Level
+	Nivel_Base desvio	Length	Start Level Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcBeam
+	ComprimentoAnalitico	PositiveLength	Length
+	ComprimentoFisico	PositiveLength	Cut Length
+	AlturaDaSecao	PositiveLength	Height
+	Volume	Volume	Volume
+	LarguraDaSecao	PositiveLength	Width
+	DiametroDaSecao	PositiveLength	Diameter
+	AreaDaSecao	Area	Section Area
+	AreaDeForma	Area	FormSurfaceArea
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Pilares
+#
+PropertySet:	Metro	I	IfcColumn
+	Cobrimento	Length	ConcreteCover
+	Material	Label	Structural Material
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	SecaoTipo	Label	Section Shape
+	TaxaAco	Real	ReinforcementVolumeRatio
+#
+PropertySet:	MetroLoc	I	IfcColumn
+	Nivel_Topo	Label	Top Level
+	Nivel_Topo desvio	Length	Top Offset
+	Nivel_Base	Label	Base Level
+	Nivel_Base desvio	Length	Base Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcColumn
+	Altura	PositiveLength	Length
+	AreaDaSecao	Area	Section Area
+	AlturaDaSecao	PositiveLength	Height
+	Volume	Volume	Volume
+	LarguraDaSecao	PositiveLength	Width
+	DiametroDaSecao	PositiveLength	Diameter
+	AreaDeForma	Area	FormSurfaceArea
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Lajes
+#
+PropertySet:	Metro	I	IfcSlab
+	Cobrimento	Length	ConcreteCover
+	Material	Label	Structural Material
+	Material	Label	Monolithic Material
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TaxaAco	Real	ReinforcementVolumeRatio
+#
+PropertySet:	MetroLoc	I	IfcSlab
+	Nivel	Label	Level
+	Nivel_Base desvio	Length	Height Offset From Level
+	Nivel_Base desvio	Length	DraftBaseOffset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcSlab
+	Area	Area	Area
+	Volume	Volume	Volume
+	AreaDeForma	Area	FormSurfaceArea
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Paredes
+#
+PropertySet:	Metro	I	IfcWall
+	Cobrimento	Length	ConcreteCover
+	Material	Label	Structural Material
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TaxaAco	Real	ReinforcementVolumeRatio
+#
+PropertySet:	MetroLoc	I	IfcWall
+	Nivel_Topo	Label	Top Constraint
+	Nivel_Topo desvio	Length	Top Offset
+	Nivel_Base	Label	Base Constraint
+	Nivel_Base desvio	Length	Base Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcWall
+	Comprimento	PositiveLength	Length
+	Altura	PositiveLength	Unconnected Height
+	Altura	PositiveLength	Height
+	Largura	PositiveLength	Width
+	Area	Area	Area
+	Volume	Volume	Volume
+	AreaDeForma	Area	FormSurfaceArea
+	Area	Area	Section Area
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Escadas
+#
+PropertySet:	Metro	I	IfcStair
+	Cobrimento	Length	ConcreteCover
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TRRF	Label	FireResistanceRating
+	TaxaAco	Real	ReinforcementVolumeRatio
+#
+PropertySet:	MetroLoc	I	IfcStair
+	Nivel_Base	Label	Base Level
+	Nivel_Base desvio	Length	Base Offset
+	Nivel_Topo	Label	Top Level
+	Nivel_Topo desvio	Length	Top Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcStair
+	ProfundidadeDaPisada	Length	Actual Tread Depth
+	Volume	Volume	Volume
+	AlturaDoEspelho	PositiveLength	Actual Riser Height
+	NumeroDeEspelhos	Integer	Actual Number of Risers
+	AreaDeForma	Area	FormSurfaceArea
+	Altura	PositiveLength	Desired Stair Height
+#
+PropertySet:	Metro	I	IfcStairFlight
+	Cobrimento	Length	ConcreteCover
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TRRF	Label	FireResistanceRating
+	TaxaAco	Real	ReinforcementVolumeRatio
+	Material	Label	Monolithic Material
+#
+PropertySet:	MetroLoc	I	IfcStairFlight
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcStairFlight
+	ProfundidadeDaPisada	Length	Actual Tread Depth
+	Volume	Volume	Volume
+	AlturaDoEspelho	PositiveLength	Actual Riser Height
+	NumeroDeEspelhos	Integer	Actual Number of Risers
+	AreaDeForma	Area	FormSurfaceArea
+	Largura	PositiveLength	Actual Run Width
+	Altura	PositiveLength	Run Height
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Blocos
+#
+PropertySet:	Metro	I	IfcFooting
+	Cobrimento	Length	ConcreteCover
+	Material	Label	Structural Material
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	TaxaAco	Real	ReinforcementVolumeRatio
+#
+PropertySet:	MetroLoc	I	IfcFooting
+	Nivel	Label	Level
+	Nivel_Base desvio	Length	Height Offset From Level
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcFooting
+	Comprimento	PositiveLength	Length
+	Largura	PositiveLength	Width
+	Altura	PositiveLength	Foundation Thickness
+	Volume	Volume	Volume
+	AreaDeForma	Area	FormSurfaceArea
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Juntas de dilatação
+#
+PropertySet:	Metro	I	IfcDiscreteAccessory
+	Material	Label	Material
+	Tipo	Text	Tipo
+#
+PropertySet:	MetroLoc	I	IfcDiscreteAccessory
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcDiscreteAccessory
+	Comprimento	PositiveLength	Length
+	Largura	PositiveLength	Width
+	Espessura	PositiveLength	Thickness
+	Volume	Volume	Volume
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Aparelhos de apoio
+#
+PropertySet:	Metro	I	IfcMechanicalFastener
+	Material	Label	Material
+	Tipo	Text	Tipo
+	Rotacao	PlaneAngle	Rotacao
+	TranslacaoLongitudinal	Length	Translação longitudinal
+	TranslacaoTransversal	Length	Translacao transversal
+#
+PropertySet:	MetroLoc	I	IfcDiscreteAccessory
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcMechanicalFastener
+	Comprimento	PositiveLength	Length
+	Largura	PositiveLength	Width
+	Espessura	PositiveLength	Thickness
+	Volume	Volume	Volume
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Geral
+#
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Label	ClassificationCode
+#-------------------------------------------------------------------------------------------------------------------------------------------
