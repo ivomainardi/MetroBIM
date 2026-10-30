@@ -22,22 +22,30 @@ namespace MetroSP.Ids
         private readonly IfcExportSettings _settings;
 
         private readonly ComboBox _classe;
-        private readonly TextBlock _infoClasse;
-        private readonly TextBlock _infoForma;
+        private readonly Border _seloClasse;
         private readonly Button _botaoForma;
         private string _motivoClasse;
         private bool _aplicandoClasse;
         private const string Outros = "Outros arquivos (indicar abaixo)";
 
+        // Cada arquivo: nome no item, selo de situação, detalhe em cinza e o caminho (editável só em "Outros").
         private readonly TextBox _setup;
+        private readonly TextBlock _arqSetup;
+        private readonly Border _seloSetup;
         private readonly TextBlock _infoSetup;
         private readonly TextBox _psets;
+        private readonly TextBlock _arqPsets;
+        private readonly Border _seloPsets;
         private readonly TextBlock _infoPsets;
         private readonly TextBox _mapeamento;
+        private readonly TextBlock _arqMapeamento;
+        private readonly Border _seloMapeamento;
         private readonly TextBlock _infoMapeamento;
+        private readonly List<FrameworkElement> _caminhos = new List<FrameworkElement>();
         private readonly ComboBox _vista;
-        private readonly TextBox _saida;
-        private readonly TextBox _nome;
+        private readonly TextBox _arquivo;
+        private readonly TextBlock _resumo;
+        private readonly Border _seloLocalizacao;
 
         private HashSet<string> _parametrosModelo;
         private List<string> _avisosPsets = new List<string>();
@@ -54,7 +62,6 @@ namespace MetroSP.Ids
         public List<string> AlteracoesLocalizacao { get; } = new List<string>();
         /// <summary>Exportar mesmo com sistema GIS no Location, tirando o EPSG do IFC depois.</summary>
         public bool IgnorarGis => _ignorarGis?.IsChecked == true;
-        private readonly TextBlock _infoLocalizacao;
         private readonly CheckBox _ignorarGis;
 
         private class Opcao
@@ -71,79 +78,83 @@ namespace MetroSP.Ids
             _settings = settings;
 
             Title = "MetroSP - Exportar IFC";
-            Width = 680;
+            Width = 660;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.CanResize;
             MinWidth = 540;
 
             var corpo = new StackPanel();
-            var dica = Dica(corpo);
-            dica.Text = "Escolha a classe para usar as configurações que vêm com o MetroSP, ou indique onde está cada arquivo " +
-                        "(computador, rede ou Forma pelo Desktop Connector). As escolhas ficam lembradas para a próxima exportação.";
 
-            corpo.Children.Add(Theme.Label("Classe"));
-            _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
-            corpo.Children.Add(_classe);
-            _infoClasse = Dica(corpo);
-
-            // Forma online: pasta com as configurações, lida pela internet (sem Desktop Connector).
-            var linhaForma = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
-            _botaoForma = new Button { Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Top };
+            // ---------- Classe ----------
+            var secaoClasse = Theme.Secao("Classe");
+            secaoClasse.Margin = new Thickness(0, 0, 0, 5);
+            corpo.Children.Add(secaoClasse);
+            var linhaClasse = new DockPanel();
+            _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Width = 150, VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Classe instalada com o MetroSP (preenche o setup e os .txt sozinha), ou \"Outros arquivos\" para indicar cada um." };
+            DockPanel.SetDock(_classe, Dock.Left);
+            linhaClasse.Children.Add(_classe);
+            _seloClasse = Theme.Selo();
+            _seloClasse.Margin = new Thickness(8, 0, 0, 0);
+            DockPanel.SetDock(_seloClasse, Dock.Left);
+            linhaClasse.Children.Add(_seloClasse);
+            // Forma online: link discreto que abre o menu (Client ID, entrar, pasta).
+            _botaoForma = Theme.Link("Forma online");
+            _botaoForma.HorizontalAlignment = HorizontalAlignment.Right;
+            _botaoForma.Margin = new Thickness(12, 0, 0, 0);
             _botaoForma.Click += (s, e) => MenuForma();
-            DockPanel.SetDock(_botaoForma, Dock.Right);
-            linhaForma.Children.Add(_botaoForma);
-            _infoForma = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-            linhaForma.Children.Add(_infoForma);
-            corpo.Children.Add(linhaForma);
+            linhaClasse.Children.Add(_botaoForma);
+            corpo.Children.Add(linhaClasse);
 
-            // Localização: a etapa 1 (botão Localização IFC) grava o Location; aqui só confere e oferece abrir a etapa.
+            // ---------- Arquivos ----------
+            corpo.Children.Add(Theme.Secao("Arquivos da exportação"));
+            corpo.Children.Add(Theme.Grupo(out StackPanel arquivos));
+            _setup = ItemArquivo(arquivos, "Setup", "Trocar...", primeiro: true, out _arqSetup, out _seloSetup, out _infoSetup, out Button procurarSetup, out _);
+            _psets = ItemArquivo(arquivos, "Property sets", "Trocar...", primeiro: false, out _arqPsets, out _seloPsets, out _infoPsets, out Button procurarPsets, out StackPanel acoesPsets);
+            var editarPsets = new Button { Content = "Editar...", Margin = new Thickness(0, 0, 6, 0) };
+            acoesPsets.Children.Insert(0, editarPsets);
+            _mapeamento = ItemArquivo(arquivos, "Mapeamento", "Indicar...", primeiro: false, out _arqMapeamento, out _seloMapeamento, out _infoMapeamento, out Button procurarMapeamento, out _);
+
+            // ---------- Localização: a etapa 1 (botão Localização IFC) grava o Location; aqui só confere ----------
             Localizacao = LocalizacaoIfc.Calcular(doc);
-            corpo.Children.Add(Theme.Label("Localização no IFC (IfcSite e IfcBuilding)"));
+            corpo.Children.Add(Theme.Secao("Localização"));
             var linhaLocal = new DockPanel();
-            var abrirLocal = new Button { Content = "Localização...", Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Top };
+            var abrirLocal = new Button { Content = "Localização IFC...", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             abrirLocal.Click += (s, e) => AbrirLocalizacao();
             DockPanel.SetDock(abrirLocal, Dock.Right);
             linhaLocal.Children.Add(abrirLocal);
-            _infoLocalizacao = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-            linhaLocal.Children.Add(_infoLocalizacao);
+            _seloLocalizacao = Theme.Selo();
+            linhaLocal.Children.Add(_seloLocalizacao);
             corpo.Children.Add(linhaLocal);
             if (Localizacao.SistemaGis != null)
             {
                 _ignorarGis = new CheckBox
                 {
-                    Content = $"Ignorar o sistema GIS \"{Localizacao.SistemaGis}\" do Location: exportar e tirar do IFC o EPSG, o IfcProjectedCRS e o IfcMapConversion",
-                    Margin = new Thickness(0, 4, 0, 0),
+                    Content = $"Ignorar o sistema GIS \"{Localizacao.SistemaGis}\" e tirar o EPSG do IFC",
+                    ToolTip = "Exporta e tira do IFC o EPSG, o IfcProjectedCRS e o IfcMapConversion que o exportador grava por causa do sistema GIS do Location.",
+                    Margin = new Thickness(0, 6, 0, 0),
                 };
+                _ignorarGis.Checked += (s, e) => AtualizarResumo();
+                _ignorarGis.Unchecked += (s, e) => AtualizarResumo();
                 corpo.Children.Add(_ignorarGis);
             }
-            MostrarLocalizacao();
 
-            _setup = AddLinha(corpo, "1. Setup de exportação (.json salvo no exportador IFC)", out Button procurarSetup);
-            _infoSetup = Dica(corpo);
-            _psets = AddLinha(corpo, "2. Property sets definidos pelo usuário (.txt)", out Button procurarPsets);
-            var linhaPsets = new DockPanel { Margin = new Thickness(0, 3, 0, 0) };
-            var editarPsets = new Button { Content = "Editar property sets...", Margin = new Thickness(6, 0, 0, 0), VerticalAlignment = VerticalAlignment.Top };
-            DockPanel.SetDock(editarPsets, Dock.Right);
-            linhaPsets.Children.Add(editarPsets);
-            _infoPsets = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap };
-            linhaPsets.Children.Add(_infoPsets);
-            corpo.Children.Add(linhaPsets);
-            _mapeamento = AddLinha(corpo, "3. Tabela de mapeamento de parâmetros (.txt) - opcional", out Button procurarMapeamento);
-            _infoMapeamento = Dica(corpo);
-
-            // Vista e destino
-            corpo.Children.Add(Theme.Label("Elementos a exportar"));
-            _vista = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
+            // ---------- Saída ----------
+            corpo.Children.Add(Theme.Secao("Saída"));
+            _vista = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(0, 0, 0, 6) };
             corpo.Children.Add(_vista);
-
-            _saida = AddLinha(corpo, "Pasta de saída", out Button procurarSaida);
-            corpo.Children.Add(Theme.Label("Nome do arquivo"));
-            _nome = new TextBox { Text = NomePadrao(doc) };
-            corpo.Children.Add(_nome);
+            var linhaArquivo = new DockPanel();
+            var procurarSaida = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
+            DockPanel.SetDock(procurarSaida, Dock.Right);
+            linhaArquivo.Children.Add(procurarSaida);
+            _arquivo = new TextBox { VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Pasta e nome do arquivo .ifc" };
+            linhaArquivo.Children.Add(_arquivo);
+            corpo.Children.Add(linhaArquivo);
 
             PreencherVistas();
-            _saida.Text = settings.PastaSaida ?? string.Empty;
+            string pastaSaida = settings.PastaSaida ?? string.Empty;
+            _arquivo.Text = pastaSaida.Length > 0 ? Path.Combine(pastaSaida, NomePadrao(doc) + ".ifc") : NomePadrao(doc) + ".ifc";
 
             // Restaura as últimas escolhas sem trocar os .txt pelos do setup.
             _setup.Text = settings.Setup ?? string.Empty;
@@ -157,7 +168,7 @@ namespace MetroSP.Ids
             _classe.SelectionChanged += (s, e) => { _motivoClasse = null; AplicarClasse(); };
             MostrarForma(resultadoForma);
             if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
-            else _infoClasse.Text = _classe.Items.Count > 1 ? "" : "Nenhuma classe instalada com o MetroSP: indique os arquivos abaixo.";
+            else MostrarClasse(_classe.Items.Count > 1 ? null : "Nenhuma classe instalada: indique os arquivos.");
             editarPsets.Click += (s, e) => EditarPsets();
 
             procurarSetup.Click += (s, e) =>
@@ -186,13 +197,17 @@ namespace MetroSP.Ids
                 if (f != null) { ParaOutros(); _mapeamento.Text = f; ConferirMapeamento(); }
             };
             _mapeamento.LostFocus += (s, e) => ConferirMapeamento();
-            procurarSaida.Click += (s, e) => { string p = EscolherPasta(_saida.Text, "Pasta onde salvar o IFC"); if (p != null) _saida.Text = p; };
+            procurarSaida.Click += (s, e) => SalvarComo();
 
             var exportar = new Button { Content = "Exportar", IsDefault = true, Style = Theme.PrimaryButton };
             exportar.Click += (s, e) => Confirmar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
+            _resumo = new TextBlock { FontSize = 11.5 };
 
-            Theme.Apply(this, "Exportar IFC", "Indique o setup e os arquivos de mapeamento de cada exportação", corpo, Theme.Buttons(cancelar, exportar));
+            MostrarLocalizacao();
+            MostrarCaminhos();
+            Theme.Apply(this, "Exportar IFC", "Indique o setup e os arquivos de mapeamento de cada exportação", corpo, Theme.Rodape(_resumo, cancelar, exportar));
+            AtualizarResumo();
         }
 
         private void PreencherClasses(string lembrada)
@@ -219,32 +234,34 @@ namespace MetroSP.Ids
             _motivoClasse = motivo;
         }
 
-        /// <summary>Mostra a situação do Forma online e o que o botão faz.</summary>
+        /// <summary>Mostra a situação do Forma online no link (o detalhe vai na dica).</summary>
         public void MostrarForma(string resultadoSync = null)
         {
             FormaOnline.Pasta pasta = FormaOnline.PastaEscolhida();
-            _botaoForma.Visibility = Visibility.Visible;
+            string texto, dica;
             if (!FormaOnline.Configurado)
             {
-                _infoForma.Text = "Forma online: informe o Client ID do app do MetroSP na Autodesk para usar uma pasta do Forma.";
-                _botaoForma.Content = "Client ID...";
+                texto = "Forma online: desligado";
+                dica = "Informe o Client ID do app do MetroSP na Autodesk para usar uma pasta do Forma sem o Desktop Connector.";
             }
             else if (!FormaOnline.Conectado)
             {
-                _infoForma.Text = "Forma online: entre com a conta Autodesk para usar uma pasta do Forma sem o Desktop Connector.";
-                _botaoForma.Content = "Entrar...";
+                texto = "Forma online: entrar";
+                dica = "Entre com a conta Autodesk para usar uma pasta do Forma sem o Desktop Connector.";
             }
             else if (pasta == null)
             {
-                _infoForma.Text = "Forma online: conectado. Escolha a pasta com as configurações de IFC.";
-                _botaoForma.Content = "Escolher pasta...";
+                texto = "Forma online: escolher pasta";
+                dica = "Conectado. Escolha a pasta com as configurações de IFC.";
             }
             else
             {
-                _infoForma.Text = "Forma online: " + pasta.Descricao + (resultadoSync != null ? " · " + resultadoSync : "");
-                _botaoForma.Content = "Forma...";
+                texto = "Forma: " + pasta.Descricao.Split('›').Last().Trim();
+                dica = pasta.Descricao + (resultadoSync != null ? "\n" + resultadoSync : "") + "\nClique para atualizar, trocar a pasta ou sair.";
             }
-            _infoForma.Foreground = Theme.Solid(resultadoSync != null && !char.IsDigit(resultadoSync[0]) ? Theme.Laranja : Theme.Cinza);
+            _botaoForma.Content = texto;
+            _botaoForma.ToolTip = dica;
+            _botaoForma.Foreground = Theme.Solid(resultadoSync != null && !char.IsDigit(resultadoSync[0]) ? Theme.LaranjaTexto : System.Windows.Media.Color.FromRgb(0x55, 0x55, 0x55));
         }
 
         private void MenuForma()
@@ -339,7 +356,8 @@ namespace MetroSP.Ids
             ClassesIfc.Classe c = ClasseEscolhida;
             if (c == null)
             {
-                _infoClasse.Text = "";
+                MostrarClasse(null);
+                MostrarCaminhos();
                 return;
             }
             c = ClassesIfc.Obter(c.Nome);
@@ -356,13 +374,86 @@ namespace MetroSP.Ids
             finally { _aplicandoClasse = false; }
 
             var faltam = new List<string>();
-            if (c.Setup == null) faltam.Add("setup (use o último escolhido ou indique abaixo)");
+            if (c.Setup == null) faltam.Add("setup (vale o último escolhido)");
             if (c.PropertySets == null) faltam.Add("property sets");
-            _infoClasse.Text = (_motivoClasse != null ? $"Classe indicada {_motivoClasse}. " : "") +
-                               (c.Editada ? "Property sets editados por você (o padrão não foi alterado). "
-                                : c.DoForma ? "Property sets da pasta do Forma online. " : "Configuração instalada com o MetroSP. ") +
-                               (faltam.Count > 0 ? "A classe não traz: " + string.Join(", ", faltam) + "." : "");
-            _infoClasse.Foreground = Theme.Solid(Theme.Cinza);
+            string origem = c.Editada ? "editada por você" : c.DoForma ? "do Forma online" : "instalada";
+            string selo = _motivoClasse != null ? "pelo nome do modelo" : origem;
+            string dica = (_motivoClasse != null ? $"Classe indicada {_motivoClasse}.\n" : "") +
+                          (c.Editada ? "Property sets editados por você (o padrão não foi alterado)."
+                           : c.DoForma ? "Property sets da pasta do Forma online." : "Configuração instalada com o MetroSP.") +
+                          (faltam.Count > 0 ? "\nA classe não traz: " + string.Join(", ", faltam) + "." : "");
+            if (_motivoClasse != null && origem != "instalada") selo += " · " + origem;
+            MostrarClasse(selo, dica);
+            MostrarCaminhos();
+        }
+
+        private void MostrarClasse(string selo, string dica = null) =>
+            Theme.MudarSelo(_seloClasse, selo, Theme.Estado.Neutro, dica);
+
+        /// <summary>Em "Outros arquivos" os caminhos aparecem para editar; numa classe ficam só na dica do nome.</summary>
+        private void MostrarCaminhos()
+        {
+            bool outros = ClasseEscolhida == null;
+            foreach (FrameworkElement f in _caminhos) f.Visibility = outros ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>Monta um item da lista de arquivos e devolve a caixa com o caminho.</summary>
+        private TextBox ItemArquivo(StackPanel lista, string nome, string acao, bool primeiro,
+            out TextBlock arquivo, out Border selo, out TextBlock info, out Button procurar, out StackPanel acoes)
+        {
+            arquivo = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new System.Windows.Media.FontFamily("Consolas") };
+            selo = Theme.Selo();
+            procurar = new Button { Content = acao };
+            acoes = new StackPanel { Orientation = Orientation.Horizontal };
+            acoes.Children.Add(procurar);
+            info = Theme.Detalhe();
+            var caminho = new TextBox { VerticalContentAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 0, 0) };
+            _caminhos.Add(caminho);
+            var detalhe = new StackPanel();
+            detalhe.Children.Add(info);
+            detalhe.Children.Add(caminho);
+            TextBlock a = arquivo;
+            caminho.TextChanged += (s, e) =>
+            {
+                string t = caminho.Text.Trim();
+                a.Text = t.Length == 0 ? "nenhum" : Path.GetFileName(t);
+                a.Foreground = Theme.Solid(t.Length == 0 ? Theme.Cinza : Theme.Preto);
+                a.ToolTip = t.Length == 0 ? null : t;
+            };
+            arquivo.Text = "nenhum";
+            arquivo.Foreground = Theme.Solid(Theme.Cinza);
+            lista.Children.Add(Theme.Item(nome, arquivo, selo, acoes, detalhe, primeiro));
+            return caminho;
+        }
+
+        /// <summary>Soma os avisos no rodapé, ao lado do Exportar.</summary>
+        private void AtualizarResumo()
+        {
+            if (_resumo == null) return;
+            var avisos = new List<string>();
+            if (Setup == null) avisos.Add("setup não indicado");
+            else if (!Setup.EhIfc4) avisos.Add("setup não é IFC4");
+            if (_seloPsets.Visibility == Visibility.Visible && ((TextBlock)_seloPsets.Child).Foreground is System.Windows.Media.SolidColorBrush bp && bp.Color == Theme.LaranjaTexto)
+                avisos.Add("property sets: " + ((TextBlock)_seloPsets.Child).Text);
+            if (_seloMapeamento.Visibility == Visibility.Visible && ((TextBlock)_seloMapeamento.Child).Foreground is System.Windows.Media.SolidColorBrush bm && bm.Color == Theme.LaranjaTexto)
+                avisos.Add("mapeamento não encontrado");
+            if (Localizacao != null && (Localizacao.Erro != null || !Localizacao.LocationCorreto)) avisos.Add("Location fora do Project Base Point");
+            if (_ignorarGis != null && _ignorarGis.IsChecked != true) avisos.Add("sistema GIS no Location");
+            Theme.MudarResumo(_resumo, avisos, "Pronto para exportar");
+        }
+
+        private void SalvarComo()
+        {
+            string atual = _arquivo.Text.Trim();
+            var dialogo = new Microsoft.Win32.SaveFileDialog { Filter = "IFC (*.ifc)|*.ifc", Title = "Salvar o IFC como", OverwritePrompt = false };
+            try
+            {
+                string pasta = Path.GetDirectoryName(atual);
+                if (!string.IsNullOrEmpty(pasta) && Directory.Exists(pasta)) dialogo.InitialDirectory = pasta;
+                dialogo.FileName = Path.GetFileName(atual);
+            }
+            catch { /* caminho inválido digitado */ }
+            if (dialogo.ShowDialog(this) == true) _arquivo.Text = dialogo.FileName;
         }
 
         /// <summary>Arquivo trocado à mão: deixa de valer a classe.</summary>
@@ -371,7 +462,8 @@ namespace MetroSP.Ids
             if (_aplicandoClasse || ClasseEscolhida == null) return;
             _aplicandoClasse = true;
             _classe.SelectedItem = Outros;
-            _infoClasse.Text = "";
+            MostrarClasse(null);
+            MostrarCaminhos();
             _aplicandoClasse = false;
         }
 
@@ -438,16 +530,15 @@ namespace MetroSP.Ids
             string arquivo = _setup.Text.Trim();
             if (arquivo.Length == 0)
             {
-                _infoSetup.Text = "No Revit: Exportar › IFC › Modificar configuração › Salvar configuração. Depois indique o .json aqui.";
-                _infoSetup.Foreground = Theme.Solid(Theme.Cinza);
+                Mostrar(_seloSetup, _infoSetup, "falta indicar", Theme.Estado.Aviso,
+                    "No Revit: Exportar › IFC › Modificar configuração › Salvar configuração. Depois indique o .json aqui.");
                 ConferirPsets();
                 ConferirMapeamento();
                 return;
             }
             if (!File.Exists(arquivo))
             {
-                _infoSetup.Text = "Arquivo não encontrado.";
-                _infoSetup.Foreground = Theme.Solid(Theme.Laranja);
+                Mostrar(_seloSetup, _infoSetup, "não encontrado", Theme.Estado.Aviso, "");
                 ConferirPsets();
                 ConferirMapeamento();
                 return;
@@ -463,18 +554,16 @@ namespace MetroSP.Ids
             }
             catch (Exception ex)
             {
-                _infoSetup.Text = "Não foi possível ler o setup: " + ex.Message;
-                _infoSetup.Foreground = Theme.Solid(Theme.Laranja);
+                Mostrar(_seloSetup, _infoSetup, "erro ao ler", Theme.Estado.Aviso, "Não foi possível ler o setup: " + ex.Message);
                 ConferirPsets();
                 ConferirMapeamento();
                 return;
             }
 
-            var partes = new List<string> { Setup.Nome, Setup.DescricaoVersao };
+            var partes = new List<string> { Setup.Nome };
             if (Setup.SoVisiveisNaVista) partes.Add("só elementos visíveis na vista");
             if (Setup.GravaGuid) partes.Add("grava o GUID IFC nos elementos");
-            _infoSetup.Text = string.Join(" · ", partes);
-            _infoSetup.Foreground = Theme.Solid(Theme.Cinza);
+            Mostrar(_seloSetup, _infoSetup, Setup.DescricaoVersao, Setup.EhIfc4 ? Theme.Estado.Ok : Theme.Estado.Aviso, string.Join(" · ", partes));
 
             if (preencherTxt)
             {
@@ -492,14 +581,22 @@ namespace MetroSP.Ids
             ConferirMapeamento();
         }
 
+        /// <summary>Selo e detalhe de um item de arquivo; depois refaz o resumo do rodapé.</summary>
+        private void Mostrar(Border selo, TextBlock info, string textoSelo, Theme.Estado estado, string detalhe, string dica = null)
+        {
+            Theme.MudarSelo(selo, textoSelo, estado, dica);
+            info.Text = detalhe ?? "";
+            info.Visibility = string.IsNullOrEmpty(detalhe) ? Visibility.Collapsed : Visibility.Visible;
+            AtualizarResumo();
+        }
+
         private void ConferirMapeamento()
         {
             string caminho = _mapeamento.Text.Trim();
             bool doSetup = Setup != null && string.Equals(caminho, Setup.MapeamentoParametros.Caminho, StringComparison.OrdinalIgnoreCase);
-            _infoMapeamento.Text = caminho.Length == 0 ? "Sem mapeamento: os parâmetros saem com os nomes do Revit."
-                : !File.Exists(caminho) ? "Arquivo não encontrado."
-                : doSetup ? $"Indicado pelo setup ({Setup.MapeamentoParametros.Situacao})." : "";
-            _infoMapeamento.Foreground = Theme.Solid(caminho.Length > 0 && !File.Exists(caminho) ? Theme.Laranja : Theme.Cinza);
+            if (caminho.Length == 0) Mostrar(_seloMapeamento, _infoMapeamento, "nomes do Revit", Theme.Estado.Neutro, "Opcional. Sem mapeamento, os parâmetros saem com os nomes do Revit.");
+            else if (!File.Exists(caminho)) Mostrar(_seloMapeamento, _infoMapeamento, "não encontrado", Theme.Estado.Aviso, "");
+            else Mostrar(_seloMapeamento, _infoMapeamento, "ok", Theme.Estado.Ok, doSetup ? $"Indicado pelo setup ({Setup.MapeamentoParametros.Situacao})." : "");
         }
 
         /// <summary>Lê o .txt com o mesmo leitor do Verificar IDS e procura os parâmetros no modelo.</summary>
@@ -512,14 +609,13 @@ namespace MetroSP.Ids
                 string motivo = Setup == null ? "" :
                     Setup.ExportaPsetsUsuario ? $"O setup pede psets do usuário, mas o .txt não foi achado ({Setup.PropertySets.Situacao})."
                     : "O setup não usa psets do usuário. Escolha um .txt para incluí-los.";
-                _infoPsets.Text = motivo;
-                _infoPsets.Foreground = Theme.Solid(Setup != null && Setup.ExportaPsetsUsuario ? Theme.Laranja : Theme.Cinza);
+                bool pede = Setup != null && Setup.ExportaPsetsUsuario;
+                Mostrar(_seloPsets, _infoPsets, pede ? "falta indicar" : "nenhum", pede ? Theme.Estado.Aviso : Theme.Estado.Neutro, motivo);
                 return;
             }
             if (!File.Exists(caminho))
             {
-                _infoPsets.Text = "Arquivo não encontrado.";
-                _infoPsets.Foreground = Theme.Solid(Theme.Laranja);
+                Mostrar(_seloPsets, _infoPsets, "não encontrado", Theme.Estado.Aviso, "");
                 return;
             }
 
@@ -528,8 +624,7 @@ namespace MetroSP.Ids
             try { mapa.LoadUserDefinedPropertySets(caminho); }
             catch (Exception ex)
             {
-                _infoPsets.Text = "Erro ao ler o .txt: " + ex.Message;
-                _infoPsets.Foreground = Theme.Solid(Theme.Laranja);
+                Mostrar(_seloPsets, _infoPsets, "erro ao ler", Theme.Estado.Aviso, "Erro ao ler o .txt: " + ex.Message);
                 return;
             }
 
@@ -543,15 +638,15 @@ namespace MetroSP.Ids
             string origem = Setup != null && string.Equals(caminho, Setup.PropertySets.Caminho, StringComparison.OrdinalIgnoreCase)
                 ? $" ({Setup.PropertySets.Situacao})" : "";
             int psets = mapa.Properties.Select(p => p.PropertySet).Distinct(StringComparer.OrdinalIgnoreCase).Count();
-            string texto = $"{mapa.Properties.Count} propriedades em {psets} psets{origem}.";
-            if (ausentes.Count > 0)
-                texto += $" {ausentes.Count} parâmetro(s) não encontrados no modelo (ficam fora do IFC): " +
-                    string.Join(", ", ausentes.Take(8)) + (ausentes.Count > 8 ? "..." : "");
-            if (mapa.Warnings.Count > 0)
-                texto += $" {mapa.Warnings.Count} problema(s) no formato do exportador da Autodesk (use Editar property sets para corrigir): " +
-                         string.Join(" ", mapa.Warnings.Take(3)) + (mapa.Warnings.Count > 3 ? " ..." : "");
-            _infoPsets.Text = texto;
-            _infoPsets.Foreground = Theme.Solid(ausentes.Count > 0 || mapa.Warnings.Count > 0 ? Theme.Laranja : Theme.Cinza);
+            string texto = $"{mapa.Properties.Count} propriedades em {psets} psets{origem}";
+            var problemas = new List<string>();
+            if (ausentes.Count > 0) problemas.Add(ausentes.Count == 1 ? "1 parâmetro faltando" : $"{ausentes.Count} parâmetros faltando");
+            if (mapa.Warnings.Count > 0) problemas.Add(mapa.Warnings.Count == 1 ? "1 problema de formato" : $"{mapa.Warnings.Count} problemas de formato");
+            var dica = new List<string>();
+            if (ausentes.Count > 0) dica.Add("Não encontrados no modelo (ficam fora do IFC): " + string.Join(", ", ausentes.Take(12)) + (ausentes.Count > 12 ? "..." : ""));
+            if (mapa.Warnings.Count > 0) dica.Add("Formato do exportador da Autodesk (corrija em Editar): " + string.Join(" ", mapa.Warnings.Take(4)) + (mapa.Warnings.Count > 4 ? " ..." : ""));
+            Mostrar(_seloPsets, _infoPsets, problemas.Count > 0 ? string.Join(" · ", problemas) : "ok",
+                problemas.Count > 0 ? Theme.Estado.Aviso : Theme.Estado.Ok, texto, string.Join("\n", dica));
         }
 
         private void Confirmar()
@@ -593,13 +688,23 @@ namespace MetroSP.Ids
                 MessageBox.Show(this, $"Tabela de mapeamento não encontrada:\n{mapeamento}", Title);
                 return;
             }
-            string saida = _saida.Text.Trim();
-            if (!Directory.Exists(saida))
+            string destino = _arquivo.Text.Trim();
+            string saida, nome;
+            try
             {
-                MessageBox.Show(this, "Indique uma pasta de saída que exista.", Title);
+                saida = Path.GetDirectoryName(destino) ?? "";
+                nome = Path.GetFileName(destino);
+            }
+            catch
+            {
+                MessageBox.Show(this, "Caminho do arquivo inválido.", Title);
                 return;
             }
-            string nome = _nome.Text.Trim();
+            if (saida.Length == 0 || !Directory.Exists(saida))
+            {
+                MessageBox.Show(this, "Indique o caminho completo do .ifc, numa pasta que exista (use Procurar...).", Title);
+                return;
+            }
             if (nome.EndsWith(".ifc", StringComparison.OrdinalIgnoreCase)) nome = nome.Substring(0, nome.Length - 4);
             if (nome.Length == 0 || nome.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
             {
@@ -644,23 +749,18 @@ namespace MetroSP.Ids
         private void MostrarLocalizacao()
         {
             LocalizacaoIfc l = Localizacao;
-            string ponto = $"{l.LatitudeAtual.ToString("F8", System.Globalization.CultureInfo.InvariantCulture)}, {l.LongitudeAtual.ToString("F8", System.Globalization.CultureInfo.InvariantCulture)}";
+            var ci = System.Globalization.CultureInfo.InvariantCulture;
+            string ponto = $"{l.LatitudeAtual.ToString("F6", ci)}, {l.LongitudeAtual.ToString("F6", ci)}";
             if (l.Erro != null)
-            {
-                _infoLocalizacao.Text = "Não foi possível conferir o Location pelo Project Base Point: " + l.Erro;
-                _infoLocalizacao.Foreground = Theme.Solid(Theme.Laranja);
-            }
+                Theme.MudarSelo(_seloLocalizacao, "Location não conferido", Theme.Estado.Aviso, "Não foi possível conferir o Location pelo Project Base Point: " + l.Erro);
             else if (!l.LocationCorreto)
-            {
-                _infoLocalizacao.Text = $"O Location ({ponto}) está a {(l.Diferenca < 1000 ? l.Diferenca.ToString("0.00") + " m" : (l.Diferenca / 1000).ToString("0.0") + " km")} " +
-                    "do ponto do Project Base Point. Use Localização... (ou o botão Localização IFC) antes de exportar.";
-                _infoLocalizacao.Foreground = Theme.Solid(Theme.Laranja);
-            }
+                Theme.MudarSelo(_seloLocalizacao,
+                    $"Location a {(l.Diferenca < 1000 ? l.Diferenca.ToString("0.00") + " m" : (l.Diferenca / 1000).ToString("0.0") + " km")} do Project Base Point",
+                    Theme.Estado.Aviso, $"Location atual: {ponto}. Use Localização IFC... antes de exportar.");
             else
-            {
-                _infoLocalizacao.Text = $"Location confere com o Project Base Point ({ponto}). IfcSite: \"{l.SiteAtual}\" · IfcBuilding: \"{l.EdificioAtual}\".";
-                _infoLocalizacao.Foreground = Theme.Solid(Theme.Cinza);
-            }
+                Theme.MudarSelo(_seloLocalizacao, $"Location conferido: {ponto}", Theme.Estado.Ok,
+                    $"Confere com o Project Base Point.\nIfcSite: \"{l.SiteAtual}\"\nIfcBuilding: \"{l.EdificioAtual}\"");
+            AtualizarResumo();
         }
 
         /// <summary>Abre a etapa Localização, grava no Revit e confere de novo.</summary>
@@ -724,31 +824,6 @@ namespace MetroSP.Ids
             return nome;
         }
 
-        private TextBox AddLinha(Panel panel, string label, out Button procurar)
-        {
-            panel.Children.Add(Theme.Label(label));
-            var linha = new DockPanel();
-            procurar = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
-            DockPanel.SetDock(procurar, Dock.Right);
-            linha.Children.Add(procurar);
-            var box = new TextBox { VerticalContentAlignment = VerticalAlignment.Center };
-            linha.Children.Add(box);
-            panel.Children.Add(linha);
-            return box;
-        }
-
-        private static TextBlock Dica(Panel panel)
-        {
-            var t = new TextBlock
-            {
-                Foreground = Theme.Solid(Theme.Cinza),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 3, 0, 0),
-            };
-            panel.Children.Add(t);
-            return t;
-        }
-
         /// <summary>
         /// Abre o seletor de arquivo na pasta do arquivo atual. Sem nada escolhido ainda, começa no projeto
         /// do Forma do modelo aberto (Desktop Connector), se houver.
@@ -768,13 +843,6 @@ namespace MetroSP.Ids
             if (!string.IsNullOrEmpty(pasta) && Directory.Exists(pasta)) dialogo.InitialDirectory = pasta;
             if (File.Exists(a)) dialogo.FileName = Path.GetFileName(a);
             return dialogo.ShowDialog(this) == true ? dialogo.FileName : null;
-        }
-
-        private string EscolherPasta(string inicial, string titulo)
-        {
-            var dialogo = new Microsoft.Win32.OpenFolderDialog { Title = titulo };
-            if (!string.IsNullOrEmpty(inicial) && Directory.Exists(inicial)) dialogo.InitialDirectory = inicial;
-            return dialogo.ShowDialog(this) == true ? dialogo.FolderName : null;
         }
     }
 }

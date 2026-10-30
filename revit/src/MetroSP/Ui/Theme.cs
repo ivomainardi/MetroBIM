@@ -20,6 +20,9 @@ namespace MetroSP.Ui
         public static readonly Color Cinza = Color.FromRgb(0x8A, 0x8A, 0x8A);
         public static readonly Color CinzaClaro = Color.FromRgb(0xE6, 0xE6, 0xE6);
         public static readonly Color CinzaFundo = Color.FromRgb(0xF5, 0xF5, 0xF5);
+        public static readonly Color Verde = Color.FromRgb(0x2F, 0x7A, 0x3D);
+        public static readonly Color VerdeClaro = Color.FromRgb(0xE2, 0xF1, 0xE4);
+        public static readonly Color LaranjaTexto = Color.FromRgb(0x8A, 0x45, 0x00);
 
         public static SolidColorBrush Solid(Color c)
         {
@@ -264,6 +267,153 @@ namespace MetroSP.Ui
             s.Setters.Add(new Setter(Control.FontSizeProperty, 13.0));
             s.Setters.Add(new Setter(Control.ForegroundProperty, Solid(Preto)));
             return s;
+        }
+
+        // ---------- layout enxuto: seções, listas com selos e rodapé com resumo ----------
+
+        /// <summary>Situação mostrada num selo: neutro (cinza), ok (verde) ou aviso (laranja).</summary>
+        public enum Estado { Neutro, Ok, Aviso }
+
+        /// <summary>Título de seção em maiúsculas, pequeno e cinza escuro (ex.: "ARQUIVOS DA EXPORTAÇÃO").</summary>
+        public static TextBlock Secao(string texto) => new TextBlock
+        {
+            Text = texto.ToUpperInvariant(),
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Solid(Color.FromRgb(0x55, 0x55, 0x55)),
+            Margin = new Thickness(0, 12, 0, 5),
+        };
+
+        /// <summary>Selo de situação; o texto e a cor mudam depois com <see cref="MudarSelo"/>.</summary>
+        public static Border Selo(string texto = "", Estado estado = Estado.Neutro)
+        {
+            var b = new Border
+            {
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(9, 1, 9, 2),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = new TextBlock { FontSize = 11, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis },
+            };
+            MudarSelo(b, texto, estado);
+            return b;
+        }
+
+        public static void MudarSelo(Border selo, string texto, Estado estado, string dica = null)
+        {
+            var t = (TextBlock)selo.Child;
+            t.Text = texto ?? "";
+            selo.Visibility = string.IsNullOrEmpty(texto) ? Visibility.Collapsed : Visibility.Visible;
+            selo.Background = Solid(estado == Estado.Ok ? VerdeClaro : estado == Estado.Aviso ? LaranjaClaro : CinzaClaro);
+            t.Foreground = Solid(estado == Estado.Ok ? Verde : estado == Estado.Aviso ? LaranjaTexto : Color.FromRgb(0x33, 0x33, 0x33));
+            selo.ToolTip = string.IsNullOrEmpty(dica) ? null : dica;
+        }
+
+        /// <summary>Caixa com borda fina para uma lista de itens (<see cref="Item"/>), separados por linhas.</summary>
+        public static Border Grupo(out StackPanel itens)
+        {
+            itens = new StackPanel();
+            return new Border { BorderBrush = Solid(CinzaClaro), BorderThickness = new Thickness(1), Child = itens };
+        }
+
+        /// <summary>
+        /// Linha de uma lista: nome à esquerda, conteúdo (ex.: nome do arquivo), selo e ações à direita;
+        /// o detalhe opcional vai embaixo do conteúdo, em cinza.
+        /// </summary>
+        public static Grid Item(string nome, UIElement conteudo, UIElement selo, UIElement acoes, UIElement detalhe = null, bool primeiro = false)
+        {
+            var g = new Grid { Margin = new Thickness(0) };
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(104) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            var rotulo = new TextBlock { Text = nome, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 7, 6, 7) };
+            g.Children.Add(rotulo);
+            if (conteudo is FrameworkElement fc) { fc.VerticalAlignment = VerticalAlignment.Center; fc.Margin = new Thickness(0, 7, 8, 7); }
+            if (conteudo != null) { Grid.SetColumn(conteudo, 1); g.Children.Add(conteudo); }
+            if (selo is FrameworkElement fs) fs.Margin = new Thickness(0, 0, 8, 0);
+            if (selo != null) { Grid.SetColumn(selo, 2); g.Children.Add(selo); }
+            if (acoes is FrameworkElement fa) { fa.VerticalAlignment = VerticalAlignment.Center; fa.Margin = new Thickness(0, 4, 8, 4); }
+            if (acoes != null) { Grid.SetColumn(acoes, 3); g.Children.Add(acoes); }
+            if (detalhe is FrameworkElement fd) fd.Margin = new Thickness(0, -4, 8, 7);
+            if (detalhe != null) { Grid.SetRow(detalhe, 1); Grid.SetColumn(detalhe, 1); Grid.SetColumnSpan(detalhe, 3); g.Children.Add(detalhe); }
+
+            return primeiro ? g : (Grid)Separado(g);
+        }
+
+        private static UIElement Separado(Grid g)
+        {
+            // Linha fina acima de cada item a partir do segundo.
+            var linha = new Border { BorderBrush = Solid(CinzaClaro), BorderThickness = new Thickness(0, 1, 0, 0), VerticalAlignment = VerticalAlignment.Top };
+            Grid.SetColumnSpan(linha, 4);
+            g.Children.Insert(0, linha);
+            return g;
+        }
+
+        /// <summary>Texto cinza pequeno, para detalhes embaixo de um item ou de um campo.</summary>
+        public static TextBlock Detalhe(string texto = "") => new TextBlock
+        {
+            Text = texto,
+            Foreground = Solid(Cinza),
+            FontSize = 11,
+            TextWrapping = TextWrapping.Wrap,
+        };
+
+        /// <summary>Botão com cara de link (texto sublinhado), para ações secundárias.</summary>
+        public static Button Link(string texto)
+        {
+            var t = new ControlTemplate(typeof(Button));
+            var tb = new FrameworkElementFactory(typeof(TextBlock));
+            tb.SetValue(TextBlock.TextProperty, new TemplateBindingExtension(ContentControl.ContentProperty));
+            tb.SetValue(TextBlock.TextDecorationsProperty, TextDecorations.Underline);
+            tb.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            t.VisualTree = tb;
+            var b = new Button
+            {
+                Content = texto,
+                Template = t,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Foreground = Solid(Color.FromRgb(0x55, 0x55, 0x55)),
+                VerticalAlignment = VerticalAlignment.Center,
+                MinWidth = 0,
+                Padding = new Thickness(0),
+            };
+            return b;
+        }
+
+        /// <summary>Rodapé com um resumo à esquerda (avisos ou "Pronto") e os botões à direita.</summary>
+        public static DockPanel Rodape(TextBlock resumo, params Button[] botoes)
+        {
+            var p = new DockPanel { LastChildFill = true };
+            StackPanel b = Buttons(botoes);
+            DockPanel.SetDock(b, Dock.Right);
+            p.Children.Add(b);
+            if (resumo != null)
+            {
+                resumo.VerticalAlignment = VerticalAlignment.Center;
+                resumo.TextTrimming = TextTrimming.CharacterEllipsis;
+                resumo.Margin = new Thickness(0, 0, 12, 0);
+                p.Children.Add(resumo);
+            }
+            return p;
+        }
+
+        /// <summary>Atualiza o resumo do rodapé: a lista de avisos, ou o texto de "tudo certo".</summary>
+        public static void MudarResumo(TextBlock resumo, System.Collections.Generic.IList<string> avisos, string pronto)
+        {
+            if (avisos == null || avisos.Count == 0)
+            {
+                resumo.Text = pronto;
+                resumo.Foreground = Solid(Verde);
+                resumo.ToolTip = null;
+                return;
+            }
+            resumo.Text = (avisos.Count == 1 ? "1 aviso: " : avisos.Count + " avisos: ") + string.Join(" · ", avisos);
+            resumo.Foreground = Solid(LaranjaTexto);
+            resumo.ToolTip = string.Join("\n", avisos);
         }
 
         /// <summary>Seleção das tabelas em laranja claro (em vez do azul do Windows).</summary>
