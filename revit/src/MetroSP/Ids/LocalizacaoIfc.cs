@@ -39,8 +39,16 @@ namespace MetroSP.Ids
         public string EdificioAtual { get; private set; }
         /// <summary>Informações do projeto › Endereço (IfcPostalAddress do IfcBuilding).</summary>
         public string EnderecoAtual { get; private set; }
+        /// <summary>Informações do projeto › SiteName (o exportador usa como IfcSite.Name), ou vazio.</summary>
+        public string SiteAtual { get; private set; }
+        /// <summary>Sistema de coordenadas GIS do Location (ex.: SA-SIR-23S), ou null. Com ele o exportador grava EPSG.</summary>
+        public string SistemaGis { get; private set; }
         /// <summary>Motivo que impede a correção (e a exportação), ou null.</summary>
         public string Erro { get; private set; }
+
+        /// <summary>Parâmetro de Informações do projeto que o exportador IFC lê para o nome do IfcSite.</summary>
+        public const string ParametroSite = "SiteName";
+        private static readonly Guid GuidSiteName = new Guid("5b3c1f4e-8d2a-4c7e-9f61-0a2d6e4b7c19");
 
         public static string LinkMapa(double lat, double lon) =>
             "https://www.openstreetmap.org/?mlat=" + Num(lat, 8) + "&mlon=" + Num(lon, 8) + "#map=18/" + Num(lat, 8) + "/" + Num(lon, 8);
@@ -51,6 +59,7 @@ namespace MetroSP.Ids
             public double Latitude { get; set; }
             public double Longitude { get; set; }
             public string Local { get; set; }
+            public string Site { get; set; }
             public string Edificio { get; set; }
             public string Endereco { get; set; }
         }
@@ -61,6 +70,7 @@ namespace MetroSP.Ids
             Latitude = Erro == null ? Latitude : LatitudeAtual,
             Longitude = Erro == null ? Longitude : LongitudeAtual,
             Local = LocalAtual,
+            Site = SiteAtual,
             Edificio = EdificioAtual,
             Endereco = EnderecoAtual,
         };
@@ -75,15 +85,15 @@ namespace MetroSP.Ids
             try { r.EdificioAtual = info?.BuildingName ?? string.Empty; }
             catch (Autodesk.Revit.Exceptions.InvalidOperationException) { r.EdificioAtual = string.Empty; }
             r.EnderecoAtual = info?.Address ?? string.Empty;
+            r.SiteAtual = info?.LookupParameter(ParametroSite)?.AsString() ?? string.Empty;
             if (site == null) return r.Falha("o modelo não tem Location (Manage › Location).");
             r.LatitudeAtual = site.Latitude * 180 / Math.PI;
             r.LongitudeAtual = site.Longitude * 180 / Math.PI;
             r.LocalAtual = site.PlaceName ?? string.Empty;
 
             // Com um sistema GIS no Location, o exportador preenche sozinho o EPSG (IfcProjectedCRS/IfcMapConversion).
-            if (!string.IsNullOrEmpty(site.GeoCoordinateSystemId))
-                return r.Falha($"o Location do modelo tem o sistema de coordenadas GIS \"{site.GeoCoordinateSystemId}\". " +
-                    "Com ele o exportador IFC preenche o EPSG automaticamente, e as coordenadas do modelo estão no PTL.");
+            // Não impede o cálculo: a janela pede para ignorar e a MetroSP tira essas entidades do IFC depois.
+            r.SistemaGis = string.IsNullOrEmpty(site.GeoCoordinateSystemId) ? null : site.GeoCoordinateSystemId;
 
             string falhaMotor = PtlMetroSP.Autoteste();
             if (falhaMotor != null) return r.Falha("o autoteste da conversão PTL reprovou (" + falhaMotor + ").");
@@ -128,9 +138,10 @@ namespace MetroSP.Ids
             var mudou = new List<string>();
             bool latLong = PtlMetroSP.DistanciaMetros(LatitudeAtual, LongitudeAtual, e.Latitude, e.Longitude) > ToleranciaLocation;
             bool local = !MesmoTexto(LocalAtual, e.Local);
+            bool siteNome = !MesmoTexto(SiteAtual, e.Site);
             bool edificio = !MesmoTexto(EdificioAtual, e.Edificio);
             bool endereco = !MesmoTexto(EnderecoAtual, e.Endereco);
-            if (!latLong && !local && !edificio && !endereco) return mudou;
+            if (!latLong && !local && !siteNome && !edificio && !endereco) return mudou;
 
             using (var t = new Transaction(doc, "MetroSP: localização para o IFC"))
             {
@@ -146,6 +157,13 @@ namespace MetroSP.Ids
                 {
                     site.PlaceName = e.Local ?? string.Empty;
                     mudou.Add("Location: endereço do projeto \"" + e.Local + "\"");
+                }
+                if (siteNome)
+                {
+                    Parameter par = ParametroSiteName(doc);
+                    if (par == null || par.IsReadOnly || !par.Set(e.Site ?? string.Empty))
+                        throw new InvalidOperationException($"não foi possível gravar o nome do IfcSite no parâmetro {ParametroSite} das Informações do projeto.");
+                    mudou.Add($"Informações do projeto: {ParametroSite} (nome do IfcSite) \"" + e.Site + "\"");
                 }
                 if (edificio)
                 {
@@ -163,6 +181,42 @@ namespace MetroSP.Ids
             return mudou;
         }
 
+        /// <summary>
+        /// Parâmetro SiteName das Informações do projeto. Se o modelo não tem, cria como parâmetro compartilhado
+        /// de texto (grupo IFC) a partir de um arquivo temporário. Precisa de transação aberta.
+        /// </summary>
+        private static Parameter ParametroSiteName(Document doc)
+        {
+            ProjectInfo info = doc.ProjectInformation;
+            Parameter p = info.LookupParameter(ParametroSite);
+            if (p != null) return p;
+
+            Autodesk.Revit.ApplicationServices.Application app = doc.Application;
+            string original = app.SharedParametersFilename;
+            string temp = Path.Combine(Path.GetTempPath(), "MetroSP_SiteName.txt");
+            try
+            {
+                File.WriteAllText(temp, string.Empty);
+                app.SharedParametersFilename = temp;
+                DefinitionGroup grupo = app.OpenSharedParameterFile().Groups.Create("MetroSP");
+                var opcoes = new ExternalDefinitionCreationOptions(ParametroSite, SpecTypeId.String.Text)
+                {
+                    GUID = GuidSiteName,
+                    Description = "Nome do IfcSite na exportação IFC (lido pelo exportador da Autodesk).",
+                };
+                Definition def = grupo.Definitions.Create(opcoes);
+                var cats = app.Create.NewCategorySet();
+                cats.Insert(Category.GetCategory(doc, BuiltInCategory.OST_ProjectInformation));
+                doc.ParameterBindings.Insert(def, app.Create.NewInstanceBinding(cats), GroupTypeId.Ifc);
+            }
+            finally
+            {
+                try { app.SharedParametersFilename = original ?? ""; } catch { }
+                try { File.Delete(temp); } catch { }
+            }
+            return info.LookupParameter(ParametroSite);
+        }
+
         private static bool MesmoTexto(string a, string b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.Ordinal);
 
         /// <summary>Texto para a confirmação e para o log.</summary>
@@ -176,7 +230,7 @@ namespace MetroSP.Ids
                 $"Location antes da exportação: {Num(LatitudeAtual, 8)}, {Num(LongitudeAtual, 8)}  (diferença de {Distancia(Diferenca)} do calculado)\n" +
                 $"IfcSite (confirmado): {Num(e.Latitude, 8)}, {Num(e.Longitude, 8)}" +
                 (desvio > ToleranciaLocation ? $"  (digitado à mão, a {Distancia(desvio)} do calculado)" : "") +
-                $" · endereço do projeto \"{e.Local}\"\n" +
+                $" · nome \"{e.Site}\" · endereço do projeto \"{e.Local}\"\n" +
                 $"IfcBuilding (confirmado): nome \"{e.Edificio}\" · endereço \"{e.Endereco}\"";
         }
 
@@ -238,6 +292,15 @@ namespace MetroSP.Ids
                 }
             }
 
+            Match nomeSite = RxNomeSite.Match(texto);
+            if (nomeSite.Success && !string.IsNullOrWhiteSpace(e.Site))
+            {
+                string nome = TextoIfc(nomeSite.Groups[1].Value);
+                bool ok = MesmoTexto(nome, e.Site);
+                c.Linhas.Add($"IfcSite Name: \"{nome}\"" + (ok ? "" : $" (esperado \"{e.Site}\")"));
+                if (!ok) c.TemProblema = true;
+            }
+
             Match edificio = RxEdificio.Match(texto);
             if (!edificio.Success) c.Linhas.Add("IfcBuilding não encontrado no arquivo.");
             else
@@ -263,6 +326,7 @@ namespace MetroSP.Ids
 
         /// <summary>Nome (3º atributo) do IfcBuilding: string IFC ou $.</summary>
         private static readonly Regex RxEdificio = new Regex(@"=\s*IFCBUILDING\s*\(\s*'[^']*'\s*,\s*[^,]*,\s*('(?:[^']|'')*'|\$)", RegexOptions.IgnoreCase);
+        private static readonly Regex RxNomeSite = new Regex(@"=\s*IFCSITE\s*\(\s*'[^']*'\s*,\s*[^,]*,\s*('(?:[^']|'')*'|\$)", RegexOptions.IgnoreCase);
         private static readonly Regex RxX2 = new Regex(@"\\X2\\((?:[0-9A-Fa-f]{4})+)\\X0\\");
         private static readonly Regex RxX = new Regex(@"\\X\\([0-9A-Fa-f]{2})");
 
@@ -280,6 +344,30 @@ namespace MetroSP.Ids
             });
             t = RxX.Replace(t, m => ((char)Convert.ToInt32(m.Groups[1].Value, 16)).ToString());
             return t.Replace("\\\\", "\\");
+        }
+
+        private static readonly Regex RxGeorref = new Regex(@"^#(\d+)\s*=\s*IFC(MAPCONVERSION|PROJECTEDCRS)\s*\(.*?\)\s*;[ \t]*\r?\n", RegexOptions.IgnoreCase | RegexOptions.Multiline | RegexOptions.Singleline);
+
+        /// <summary>
+        /// Tira do IFC as entidades IfcMapConversion e IfcProjectedCRS (que trazem o EPSG), já que as coordenadas
+        /// estão no PTL. Só remove se nenhuma outra entidade aponta para elas. Devolve o que fez, ou null se não havia nada.
+        /// </summary>
+        public static string RemoverGeorreferencia(string arquivo)
+        {
+            Encoding latin1 = Encoding.GetEncoding(28591); // lê e grava os bytes do STEP sem alterar nada
+            string texto = File.ReadAllText(arquivo, latin1);
+            MatchCollection achadas = RxGeorref.Matches(texto);
+            if (achadas.Count == 0) return null;
+
+            string sem = RxGeorref.Replace(texto, string.Empty);
+            foreach (Match m in achadas)
+            {
+                if (Regex.IsMatch(sem, "#" + m.Groups[1].Value + @"(?!\d)"))
+                    return "O IFC tem IfcMapConversion/IfcProjectedCRS, mas outras entidades apontam para eles; não foram removidos.";
+            }
+            File.WriteAllText(arquivo, sem, latin1);
+            return $"Removidos do IFC: {string.Join(", ", achadas.Cast<Match>().Select(m => m.Groups[2].Value.Equals("MAPCONVERSION", StringComparison.OrdinalIgnoreCase) ? "IfcMapConversion" : "IfcProjectedCRS"))} " +
+                "(o exportador os criou pelo sistema GIS do Location; as coordenadas estão no PTL).";
         }
 
         /// <summary>(graus, minutos, segundos, milionésimos), todos com o mesmo sinal.</summary>

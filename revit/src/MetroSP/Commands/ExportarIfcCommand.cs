@@ -100,7 +100,12 @@ namespace MetroSP.Commands
                 return Result.Failed;
             }
 
+            // Sem EPSG: se o exportador criou IfcMapConversion/IfcProjectedCRS (sistema GIS no Location), saem do arquivo.
+            string georref;
+            try { georref = LocalizacaoIfc.RemoverGeorreferencia(arquivo); }
+            catch (Exception ex) { georref = "Não foi possível tirar o EPSG do IFC: " + ex.Message; }
             LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha);
+            if (georref != null) conferencia.Linhas.Insert(0, georref);
             string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
                 uiapp.Application.VersionName, Ui.SobreWindow.Versao);
             string avisosSetup =
