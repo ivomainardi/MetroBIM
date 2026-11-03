@@ -51,10 +51,12 @@ namespace MetroSP.Ifc
             int axisCtx = AxisContext();
             int done = 0;
 
-            foreach (var al in _m.OfType("IFCALIGNMENT").ToList())
+            var ifcAlignments = _m.OfType("IFCALIGNMENT").ToList();
+            foreach (var al in ifcAlignments)
             {
                 var name = StepModel.Text(al.Args[2]);
-                if (name == null || !byName.TryGetValue(Norm(name), out var a))
+                var a = Match(name, byName, ifcAlignments.Count);
+                if (a == null)
                 {
                     _log($"IfcAlignment \"{name}\" sem alinhamento correspondente no desenho; mantido como veio.");
                     continue;
@@ -335,6 +337,34 @@ namespace MetroSP.Ifc
         // ================================================================== utilitários
 
         static string Norm(string s) => (s ?? "").Trim().ToUpperInvariant();
+
+        /// <summary>
+        /// Casa o IfcAlignment com o alinhamento do desenho: nome igual; senão um único nome que contenha o
+        /// outro (o exportador pode acrescentar prefixo ou sufixo); senão, se houver um só de cada lado, esse.
+        /// </summary>
+        AlignmentModel Match(string ifcName, Dictionary<string, AlignmentModel> byName, int ifcCount)
+        {
+            var n = Norm(ifcName);
+            if (n.Length > 0 && byName.TryGetValue(n, out var exact)) return exact;
+
+            if (n.Length > 0)
+            {
+                var partial = byName.Where(kv => kv.Key.Length > 0 && (n.Contains(kv.Key) || kv.Key.Contains(n))).ToList();
+                if (partial.Count == 1)
+                {
+                    _log($"IfcAlignment \"{ifcName}\" casado por semelhança com {partial[0].Value.Name}.");
+                    return partial[0].Value;
+                }
+            }
+
+            if (ifcCount == 1 && byName.Count == 1)
+            {
+                var only = byName.Values.First();
+                _log($"IfcAlignment \"{ifcName}\" é o único do arquivo; usando {only.Name}, o único do desenho.");
+                return only;
+            }
+            return null;
+        }
 
         static string Guid(string seed, string key) =>
             IfcAlignmentWriter.S(IfcAlignmentWriter.CompressGuid(MD5.HashData(Encoding.UTF8.GetBytes("MetroSP|" + seed + "|" + key))));

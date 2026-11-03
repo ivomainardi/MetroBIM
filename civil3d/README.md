@@ -20,7 +20,7 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
 5. Dispara `IFCINFRAEXPORT` (ou `IFCINFRAEXPORTSELECTED`).
 6. Quando o comando da Autodesk termina, roda `MSP_IFCPOSPROC` sobre o IFC recém-gerado:
    - guarda o original como `[arquivo].autodesk.ifc`;
-   - troca o eixo de cada `IfcAlignment` (casado pelo nome) pela polilinha 3D e acrescenta o `IfcAlignmentVertical`
+   - troca o eixo de cada `IfcAlignment` (casado pelo nome; se o exportador mudar o nome, por semelhança; se houver um só de cada lado, direto) pela polilinha 3D e acrescenta o `IfcAlignmentVertical`
      se faltar, convertendo para o sistema local do alinhamento e compensando deslocamento de origem;
    - preenche `IfcProject` e `IfcSite` (nome, descrição, latitude/longitude, cota de referência, matrícula),
      cria os `IfcBuilding` configurados sob o `IfcSite`, cria `IfcMapConversion` se faltar e grava o Pset `MetroSP_Projeto`.
