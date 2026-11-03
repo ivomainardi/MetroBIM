@@ -29,6 +29,7 @@ namespace MetroSP.Ids
         private readonly WrapPanel _selos;
         private readonly TextBlock _resumo, _origem;
         private DataGridTemplateColumn _colClasse;
+        private DataGridTextColumn _colOutro;
 
         public CategoriasIfcWindow(DB.Document doc)
         {
@@ -88,7 +89,7 @@ namespace MetroSP.Ids
             topo.Children.Add(_selos);
             var filtros = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             _soUsadas = new CheckBox { Content = "Só as categorias usadas no modelo", IsChecked = doc != null, Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
-            _soDiferentes = new CheckBox { Content = "Só as diferentes do outro esquema", VerticalAlignment = VerticalAlignment.Center };
+            _soDiferentes = new CheckBox { Content = "Só as diferentes do IFC 4.3", VerticalAlignment = VerticalAlignment.Center };
             _soUsadas.Click += (s, e) => Filtrar();
             _soDiferentes.Click += (s, e) => Filtrar();
             DockPanel.SetDock(_soUsadas, Dock.Left);
@@ -112,7 +113,8 @@ namespace MetroSP.Ids
             _grade.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding(nameof(CategoriasIfc.Linha.Exportar)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 64 });
             _grade.Columns.Add(new DataGridTextColumn { Header = "Tipo predefinido", Binding = new Binding(nameof(CategoriasIfc.Linha.Tipo)), Width = 130 });
             _grade.Columns.Add(new DataGridTextColumn { Header = "No modelo", Binding = new Binding(nameof(CategoriasIfc.Linha.NoModelo)), IsReadOnly = true, Width = 80 });
-            _grade.Columns.Add(new DataGridTextColumn { Header = "No outro esquema", Binding = new Binding(nameof(CategoriasIfc.Linha.OutroEsquema)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            _colOutro = new DataGridTextColumn { Header = "No IFC 4.3", Binding = new Binding(nameof(CategoriasIfc.Linha.OutroEsquemaTexto)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) };
+            _grade.Columns.Add(_colOutro);
             var estilo = new Style(typeof(DataGridRow));
             var dif = new DataTrigger { Binding = new Binding(nameof(CategoriasIfc.Linha.Diferente)), Value = true };
             dif.Setters.Add(new Setter(BackgroundProperty, Theme.Solid(Theme.LaranjaSelecao)));
@@ -122,7 +124,7 @@ namespace MetroSP.Ids
             corpo.Children.Add(_grade);
 
             _resumo = new TextBlock();
-            var copiar = new Button { Content = "Copiar do outro esquema..." };
+            var copiar = new Button { Content = "Copiar do outro esquema...", ToolTip = "Copia a classe e o tipo da tabela do outro esquema (IFC4 ↔ IFC 4.3) para esta, nas linhas selecionadas ou em todas." };
             copiar.Click += (s, e) => CopiarDoOutro();
             var importar = new Button { Content = "Importar .txt..." };
             importar.Click += (s, e) => Importar();
@@ -161,6 +163,9 @@ namespace MetroSP.Ids
             var vista = new ListCollectionView(_tabelas[esquema]) { Filter = o => Passa((CategoriasIfc.Linha)o) };
             _grade.ItemsSource = vista;
             _origem.Text = "Tabela: " + _origens[esquema];
+            // A última coluna mostra, para comparar, a classe da mesma categoria na tabela do outro esquema.
+            _colOutro.Header = "Classe no " + NomeEsquema(Outro);
+            _soDiferentes.Content = "Só as diferentes do " + NomeEsquema(Outro);
             Atualizar();
         }
 

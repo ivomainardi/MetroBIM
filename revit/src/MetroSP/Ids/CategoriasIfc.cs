@@ -33,6 +33,14 @@ namespace MetroSP.Ids
                 !string.Equals((Exportar ? Classe ?? "" : "não exportado") + "|" + (Tipo ?? ""), OutroEsquema, StringComparison.OrdinalIgnoreCase);
             public string Chave => (Categoria ?? "") + "|" + (Subcategoria ?? "");
             public string Resumo => (Exportar ? Classe ?? "" : "não exportado") + "|" + (Tipo ?? "");
+            /// <summary>Resumo para mostrar: "IfcSlab · FLOOR", "IfcWall" ou "não exportado".</summary>
+            public static string Mostrar(string resumo)
+            {
+                if (resumo == null) return null;
+                string[] p = resumo.Split('|');
+                return p.Length > 1 && p[1].Length > 0 ? p[0] + " · " + p[1] : p[0];
+            }
+            public string OutroEsquemaTexto => Mostrar(OutroEsquema);
             public Linha Copia() => (Linha)MemberwiseClone();
         }
 
