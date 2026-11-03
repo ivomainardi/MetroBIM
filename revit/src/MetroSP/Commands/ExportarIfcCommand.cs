@@ -54,7 +54,7 @@ namespace MetroSP.Commands
             List<string> alteracoes = janela.AlteracoesLocalizacao;
 
             bool exportou;
-            string avisoPsets = null;
+            string avisoPsets = null, avisoCategorias = null;
             try
             {
                 IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco);
@@ -71,6 +71,9 @@ namespace MetroSP.Commands
                     // Revit 2027+: o exportador lê os psets do modelo, não do .txt.
                     if (!string.IsNullOrEmpty(janela.PropertySetsEscolhido))
                         avisoPsets = PsetsNoModelo.Carregar(doc, janela.PropertySetsEscolhido);
+
+                    // Tabela de categorias → classe IFC do esquema do setup (janela Categorias IFC), se houver.
+                    avisoCategorias = CategoriasIfc.AplicarNaExportacao(doc, setup.Versao.ToString());
 
                     using (var progresso = Ui.Progresso.Abrir("Exportar IFC"))
                     {
@@ -130,6 +133,7 @@ namespace MetroSP.Commands
                 MainInstruction = conferencia.TemProblema ? "IFC exportado, com pendências na conferência" : "IFC exportado",
                 MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · {(janela.EpsgEmBranco ? "EPSG em branco" : "EPSG do setup/exportador")}\n" +
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
+                    (avisoCategorias == null ? "" : "\n" + avisoCategorias) +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
                     "\n\nLocalização: " + (local.LocationCorreto ? "Location confere com o Project Base Point." :

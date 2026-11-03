@@ -43,7 +43,7 @@ namespace MetroSP.Ui
         private static readonly (string Painel, string Ferramentas)[] Ferramentas =
         {
             ("Parâmetros", "Renomear Compartilhado, Listar Compartilhados, Copiar Valores"),
-            ("IFC / IDS", "Verificar Mapeamento IDS, Localização IFC (Location pelo Project Base Point), Arquivos IFC (setups, property sets e mapeamentos por classe), Exportar IFC (classes, editor de property sets, Forma online)"),
+            ("IFC / IDS", "Verificar Mapeamento IDS, Localização IFC (Location pelo Project Base Point), Arquivos IFC (setups, property sets e mapeamentos por classe), Categorias IFC (IFC4 e IFC 4.3), Exportar IFC (classes, editor de property sets, Forma online)"),
             ("Classificação", "Aplicar Classificação, Verificar Classificação, Consistência Código×Descrição"),
             ("Modelagem", "Contar Elementos"),
         };

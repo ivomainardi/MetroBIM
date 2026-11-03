@@ -42,6 +42,19 @@ lances de escada voltam a receber o nível, o desvio, o material e as quantidade
 recebe propriedade de bloco de outra.
 J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava IfcDiscreteAccessory).
 
+## Categorias IFC: categoria do Revit → classe IFC, em IFC4 e IFC 4.3
+
+- Novo botão **Categorias IFC** na aba MetroSP: uma tabela para IFC4 (4.0.2.1, o que o Revit grava) e outra
+  para IFC 4.3, com a lista de classes de cada esquema (o 4.3 traz IfcBuiltElement, IfcRail, IfcCourse,
+  IfcEarthworksFill, IfcGeotechnicalStratum...). Por padrão aparecem só as categorias usadas no modelo, com a
+  contagem; as linhas diferentes entre os dois esquemas ficam destacadas.
+- Sem tabela salva, começa pelo mapeamento que o modelo usa hoje. Salvar grava a sua cópia em
+  %AppData%\MetroSP\IFC\Categorias (IFC4.txt e IFC4x3.txt); também dá para importar, exportar e copiar de um
+  esquema para o outro.
+- Na exportação, a tabela do esquema do setup é gravada no modelo como modelo de mapeamento do Revit
+  ("MetroSP IFC4" ou "MetroSP IFC4x3") e fica ativa. Sem "gravar GUID", o modelo volta como estava; com ele, o
+  modelo de mapeamento MetroSP fica salvo e ativo no modelo.
+
 ## Arquivos IFC: gestão dos setups, property sets e mapeamentos
 
 - Novo botão **Arquivos IFC** na aba MetroSP (e o link **Gerenciar arquivos...** na janela Exportar IFC).

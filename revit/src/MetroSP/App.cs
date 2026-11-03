@@ -92,6 +92,11 @@ namespace MetroSP
                 "principais do setup e confira os property sets no modelo aberto.",
                 "ArquivosIfc");
 
+            AddButton<CategoriasIfcCommand>(panel, "Categorias\nIFC",
+                "Em que classe IFC cada categoria do Revit é exportada: uma tabela para IFC4 e outra para IFC 4.3. " +
+                "Na exportação, vale a tabela do esquema do setup.",
+                "CategoriasIfc");
+
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
                 "Exporta o IFC com o setup (.json) e o mapeamento de property sets (.txt) guardados numa pasta do computador ou no Autodesk Forma.",
                 "IfcExportar");
