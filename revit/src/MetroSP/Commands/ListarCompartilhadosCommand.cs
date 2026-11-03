@@ -54,7 +54,9 @@ namespace MetroSP.Commands
                 () => SharedParameterCollector.Collect(doc),
                 (lista, caminho) => SharedParameterExporter.ExportarTxt(uiapp.Application, lista, caminho),
                 lista => UsoParametros.Analisar(doc, lista),
-                lista => UsoParametros.Deletar(doc, lista));
+                lista => UsoParametros.Deletar(doc, lista),
+                lista => TrocarVinculo.Analisar(doc, lista),
+                (planos, maisComum) => TrocarVinculo.Aplicar(doc, planos, maisComum));
             new WindowInteropHelper(janela).Owner = uiapp.MainWindowHandle;
             janela.ShowDialog();
             return Result.Succeeded;
