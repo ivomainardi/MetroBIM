@@ -86,6 +86,9 @@ namespace MetroSP.Ids
         // Ordem de preferência: do usuário, do Forma online, instalado.
         private static string[] Raizes => new[] { PastaUsuario, FormaOnline.PastaCache, PastaPadrao };
 
+        /// <summary>Raízes na ordem de preferência: do usuário, do Forma online, instalada.</summary>
+        internal static string[] RaizesEmUso => Raizes;
+
         private static string Achar(string sub, string arquivo) =>
             Raizes.Select(r => Path.Combine(r, sub, arquivo)).FirstOrDefault(File.Exists);
 

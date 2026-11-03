@@ -42,6 +42,30 @@ lances de escada voltam a receber o nível, o desvio, o material e as quantidade
 recebe propriedade de bloco de outra.
 J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava IfcDiscreteAccessory).
 
+## Arquivos IFC: gestão dos setups, property sets e mapeamentos
+
+- Novo botão **Arquivos IFC** na aba MetroSP (e o link **Gerenciar arquivos...** na janela Exportar IFC).
+  Uma aba para cada tipo de arquivo, com as classes à esquerda e de onde vem cada arquivo: seu, do Forma online
+  ou instalado. Os seus valem no lugar dos outros.
+- **Vários de uma vez**: arraste (ou escolha) quantos .json e .txt quiser. O MetroSP reconhece o tipo pelo
+  conteúdo e a classe pelo nome do arquivo, mostra uma lista para conferir e trocar, e avisa o que substitui.
+- **Setup**: as opções principais aparecem abertas e editáveis (versão IFC, fase, space boundaries, divisão por
+  nível, só visíveis, quantidades, GUID e psets padrão, do Revit e de material). Salvar um setup instalado ou do
+  Forma grava uma cópia sua. Coordenadas e EPSG continuam definidos pelo MetroSP na exportação.
+- **Property sets**: cada classe é conferida no modelo aberto: parâmetros não encontrados e propriedades sem
+  valor em parte dos elementos, por property set. "Editar..." (ou clique duplo num property set) abre o editor.
+- Voltar ao padrão, apagar, mudar a classe e salvar uma cópia. Toda versão substituída ou apagada fica guardada em
+  %AppData%\MetroSP\IFC\Anteriores.
+
+## Editor de property sets: verificar e corrigir no mesmo lugar
+
+- Árvore à esquerda com cada property set e as entidades IFC dele; escolher um item filtra a grade, e o número
+  laranja mostra quantas linhas têm problema.
+- Nova coluna **No modelo**: em quantos elementos da entidade o parâmetro tem valor (ex.: "212 de 240").
+  Linhas sem valor em parte dos elementos também ficam destacadas, com um selo próprio que filtra.
+- Ao escolher uma linha com problema, um painel explica o motivo e sugere parâmetros de nome parecido que existem
+  no modelo, com a contagem; um clique troca.
+
 ## Exportar IFC: EPSG em branco
 
 - Nova opção "Exportar com o EPSG em branco" na seção Localização, ligada por padrão. Com ela ligada, o IFC sai sem EPSG (sem IfcMapConversion/IfcProjectedCRS) e a janela não cobra mais o dado GIS do Location.

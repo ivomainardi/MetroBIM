@@ -9,3 +9,7 @@ uma classe padrão, coloque os arquivos nestas pastas no código-fonte e gere o 
 
 Edições feitas pela janela não alteram estes arquivos: ficam em
 %AppData%\MetroSP\IFC\PropertySets\<Classe>.txt e valem só para o usuário.
+
+Pelo botão Arquivos IFC da aba MetroSP dá para trazer setups, property sets e mapeamentos
+(vários de uma vez), que ficam em %AppData%\MetroSP\IFC\<Setups|PropertySets|Mapeamentos>.
+Versões substituídas ficam em %AppData%\MetroSP\IFC\Anteriores.

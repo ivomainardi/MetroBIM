@@ -27,6 +27,8 @@ namespace MetroSP.Ids
         {
             private string _pset, _aplicacao, _entidades, _propriedade, _tipo, _parametro;
             internal HashSet<string> Modelo;
+            internal ModeloIfc ModeloIfc;
+            private ModeloIfc.Contagem? _contagem;
 
             public string PropertySet { get => _pset; set => Set(ref _pset, value); }
             /// <summary>"Instância" ou "Tipo".</summary>
@@ -51,16 +53,45 @@ namespace MetroSP.Ids
                 }
             }
 
+            /// <summary>Em quantos elementos das entidades o parâmetro tem valor (null sem modelo ou sem parâmetro).</summary>
+            public ModeloIfc.Contagem? Contagem
+            {
+                get
+                {
+                    if (_contagem == null && ModeloIfc != null && ParametroNoModelo)
+                        _contagem = ModeloIfc.Contar(ListaEntidades, Parametro.Trim(), Aplicacao == Tipo);
+                    return _contagem;
+                }
+            }
+            public bool SemValor => Contagem is ModeloIfc.Contagem c && c.Elementos > 0 && c.ComValor < c.Elementos;
+            public string NoModelo
+            {
+                get
+                {
+                    if (ModeloIfc == null) return "";
+                    if (!ParametroNoModelo) return "—";
+                    ModeloIfc.Contagem c = Contagem.Value;
+                    return c.Elementos == 0 ? "nenhum elemento" : c.ComValor == c.Elementos ? $"todos ({c.Elementos})" : $"{c.ComValor} de {c.Elementos}";
+                }
+            }
+            /// <summary>Linha com algo a ver: parâmetro ausente, tipo não aceito ou vazio em parte dos elementos.</summary>
+            public bool Problema => !Encontrado || SemValor;
+            internal List<string> ListaEntidades =>
+                (Entidades ?? "").Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(e => e.Trim()).ToList();
+
             public event PropertyChangedEventHandler PropertyChanged;
             private void Set(ref string campo, string valor, [CallerMemberName] string nome = null)
             {
                 if (campo == valor) return;
                 campo = valor;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nome));
-                if (nome == nameof(Parametro) || nome == nameof(TipoDado))
+                if (nome == nameof(Parametro) || nome == nameof(TipoDado) || nome == nameof(Entidades) || nome == nameof(Aplicacao))
                 {
+                    _contagem = null;
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Encontrado)));
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Situacao)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(NoModelo)));
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Problema)));
                 }
             }
         }
@@ -76,6 +107,11 @@ namespace MetroSP.Ids
         private readonly DataGrid _grade;
         private readonly WrapPanel _resumo;
         private readonly CheckBox _soAusentes;
+        private readonly ModeloIfc _modeloIfc;
+        private readonly TreeView _arvore;
+        private readonly Border _detalhe;
+        // Filtro da árvore: property set e, opcionalmente, a entidade.
+        private string _arvorePset, _arvoreEntidade;
 
         /// <summary>Arquivo gravado ao salvar (null se cancelou).</summary>
         public string ArquivoSalvo { get; private set; }
@@ -85,13 +121,18 @@ namespace MetroSP.Ids
         /// <param name="arquivo">.txt a abrir.</param>
         /// <param name="destino">Onde "Salvar" grava; null = pergunta onde salvar.</param>
         /// <param name="podeRestaurar">Mostra "Restaurar padrão" (cópia editada de uma classe instalada).</param>
-        public EditarPsetsWindow(string arquivo, ISet<string> parametrosModelo, string destino, bool podeRestaurar)
+        /// <param name="modelo">Modelo aberto, para a coluna "No modelo" e as sugestões (null = só confere os nomes).</param>
+        /// <param name="psetInicial">Property set já escolhido na árvore ao abrir.</param>
+        public EditarPsetsWindow(string arquivo, ISet<string> parametrosModelo, string destino, bool podeRestaurar,
+            ModeloIfc modelo = null, string psetInicial = null)
         {
-            _modelo = new HashSet<string>(parametrosModelo ?? new HashSet<string>(), StringComparer.OrdinalIgnoreCase);
+            _modelo = new HashSet<string>(parametrosModelo ?? (ISet<string>)modelo?.Parametros ?? new HashSet<string>(), StringComparer.OrdinalIgnoreCase);
+            _modeloIfc = modelo;
+            _arvorePset = psetInicial;
             _destino = destino;
 
             Title = "MetroSP - Property sets";
-            Width = 1040;
+            Width = 1180;
             Height = 640;
             MinWidth = 720;
             MinHeight = 400;
@@ -106,6 +147,7 @@ namespace MetroSP.Ids
                 _linhas.Add(new Linha
                 {
                     Modelo = _modelo,
+                    ModeloIfc = _modeloIfc,
                     PropertySet = p.PropertySet,
                     Aplicacao = p.OnType ? Tipo : Instancia,
                     Entidades = string.Join(",", p.Entities),
@@ -124,10 +166,14 @@ namespace MetroSP.Ids
 
             var topo = new StackPanel();
             DockPanel.SetDock(topo, Dock.Top);
-            topo.Children.Add(new TextBlock { Text = arquivo, Foreground = Theme.Solid(Theme.Cinza), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = arquivo });
+            topo.Children.Add(new TextBlock
+            {
+                Text = arquivo + (_modeloIfc != null ? $"  ·  conferido no modelo {_modeloIfc.Titulo}" : ""),
+                Foreground = Theme.Solid(Theme.Cinza), TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = arquivo,
+            });
             _resumo = new WrapPanel { Margin = new Thickness(0, 8, 0, 6) };
             topo.Children.Add(_resumo);
-            _soAusentes = new CheckBox { Content = "Mostrar só as linhas com problema (parâmetro não encontrado ou tipo não aceito)", Margin = new Thickness(0, 0, 0, 6) };
+            _soAusentes = new CheckBox { Content = "Mostrar só as linhas com problema (parâmetro não encontrado, tipo não aceito ou sem valor em algum elemento)", Margin = new Thickness(0, 0, 0, 6) };
             _soAusentes.Click += (s, e) => AtualizarFiltro();
             topo.Children.Add(_soAusentes);
             if (mapa.Warnings.Count > 0)
@@ -149,6 +195,32 @@ namespace MetroSP.Ids
             acoes.Children.Add(limparFiltros);
             corpo.Children.Add(acoes);
 
+            // Detalhe da linha escolhida: por que ela tem problema e parâmetros parecidos que existem no modelo.
+            _detalhe = new Border
+            {
+                BorderBrush = Theme.Solid(Theme.CinzaClaro), BorderThickness = new Thickness(1), Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 8, 0, 0), Visibility = Visibility.Collapsed,
+            };
+            DockPanel.SetDock(_detalhe, Dock.Bottom);
+            corpo.Children.Add(_detalhe);
+
+            // Árvore property set › entidade: escolher filtra a grade; o número laranja conta as linhas com problema.
+            _arvore = new TreeView { Width = 200, Margin = new Thickness(0, 0, 10, 0), BorderBrush = Theme.Solid(Theme.CinzaClaro) };
+            _arvore.Resources[SystemColors.HighlightBrushKey] = Theme.Solid(Theme.LaranjaSelecao);
+            _arvore.Resources[SystemColors.HighlightTextBrushKey] = Theme.Solid(Theme.Preto);
+            _arvore.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = Theme.Solid(Theme.LaranjaSelecao);
+            _arvore.Resources[SystemColors.InactiveSelectionHighlightTextBrushKey] = Theme.Solid(Theme.Preto);
+            _arvore.SelectedItemChanged += (s, e) =>
+            {
+                if (_montandoArvore) return;
+                var no = (e.NewValue as TreeViewItem)?.Tag as Tuple<string, string>;
+                _arvorePset = no?.Item1;
+                _arvoreEntidade = no?.Item2;
+                AtualizarFiltro();
+            };
+            DockPanel.SetDock(_arvore, Dock.Left);
+            corpo.Children.Add(_arvore);
+
             _vista = new ListCollectionView(_linhas) { Filter = o => Passa((Linha)o, null) };
             _grade = new DataGrid
             {
@@ -166,12 +238,15 @@ namespace MetroSP.Ids
             // ListCollectionView não aceita Refresh com uma linha em edição).
             _grade.RowEditEnding += (s, e) =>
             {
-                if (_soAusentes.IsChecked == true)
-                    Dispatcher.BeginInvoke(new Action(() => { try { _vista.Refresh(); } catch (InvalidOperationException) { } }),
-                        System.Windows.Threading.DispatcherPriority.Background);
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (_soAusentes.IsChecked == true || _filtroSelo != null) { try { _vista.Refresh(); } catch (InvalidOperationException) { } }
+                    MontarArvore();
+                    MostrarDetalhe();
+                }), System.Windows.Threading.DispatcherPriority.Background);
             };
             var estiloLinha = new Style(typeof(DataGridRow));
-            var problema = new DataTrigger { Binding = new Binding(nameof(Linha.Encontrado)), Value = false };
+            var problema = new DataTrigger { Binding = new Binding(nameof(Linha.Problema)), Value = true };
             problema.Setters.Add(new Setter(BackgroundProperty, Theme.LinhaProblema));
             estiloLinha.Triggers.Add(problema);
             _grade.RowStyle = estiloLinha;
@@ -184,11 +259,17 @@ namespace MetroSP.Ids
             _grade.Columns.Add(ComboEditavel("Parâmetro do Revit", nameof(Linha.Parametro),
                 _modelo.OrderBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList(), new DataGridLength(1, DataGridLengthUnitType.Star), 160));
             _grade.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(Linha.Situacao)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = 170 });
+            if (_modeloIfc != null)
+                _grade.Columns.Add(new DataGridTextColumn
+                {
+                    Header = "No modelo", Binding = new Binding(nameof(Linha.NoModelo)) { Mode = BindingMode.OneWay }, IsReadOnly = true, Width = 110,
+                });
 
             // Filtro em cada título: o ▾ abre a caixa com busca (filtra enquanto digita) e os valores existentes.
             Func<Linha, string>[] valores =
             {
                 l => l.PropertySet, l => l.Aplicacao, l => l.Entidades, l => l.Propriedade, l => l.TipoDado, l => l.Parametro, l => l.Situacao,
+                l => l.NoModelo,
             };
             for (int i = 0; i < _grade.Columns.Count; i++)
             {
@@ -216,6 +297,7 @@ namespace MetroSP.Ids
                 estiloCab.Setters.Add(new Setter(HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
                 _grade.ColumnHeaderStyle = estiloCab;
             };
+            _grade.SelectionChanged += (s, e) => MostrarDetalhe();
             corpo.Children.Add(_grade);
 
             adicionar.Click += (s, e) =>
@@ -224,6 +306,7 @@ namespace MetroSP.Ids
                 var nova = new Linha
                 {
                     Modelo = _modelo,
+                    ModeloIfc = _modeloIfc,
                     PropertySet = modelo?.PropertySet ?? "Pset_MetroSP",
                     Aplicacao = modelo?.Aplicacao ?? Instancia,
                     Entidades = modelo?.Entidades ?? "",
@@ -262,6 +345,7 @@ namespace MetroSP.Ids
             botoes.AddRange(new[] { cancelar, salvarComo, salvar });
 
             AtualizarResumo();
+            MontarArvore();
             Theme.Apply(this, "Property sets definidos pelo usuário",
                 "Confira de qual parâmetro do Revit sai cada propriedade do IFC", corpo, Theme.Buttons(botoes.ToArray()));
         }
@@ -287,6 +371,8 @@ namespace MetroSP.Ids
             foreach (FiltroColuna f in _filtros) { f.Texto = ""; f.Valores = null; MarcarBotao(f); }
             _soAusentes.IsChecked = false;
             _filtroSelo = null;
+            _arvorePset = _arvoreEntidade = null;
+            if (_arvore.Items.Count > 0 && _arvore.Items[0] is TreeViewItem todos) todos.IsSelected = true;
             AtualizarFiltro();
         }
         private readonly List<FiltroColuna> _filtros = new List<FiltroColuna>();
@@ -294,7 +380,13 @@ namespace MetroSP.Ids
         /// <summary>A linha passa no "só com problema" e nos filtros das colunas (menos, se pedido, o de uma coluna).</summary>
         private bool Passa(Linha l, FiltroColuna exceto)
         {
-            if (_soAusentes?.IsChecked == true && l.Encontrado) return false;
+            if (_soAusentes?.IsChecked == true && !l.Problema) return false;
+            if (_filtroSelo == "semvalor" && !l.SemValor) return false;
+            if (_arvorePset != null)
+            {
+                if (!string.Equals(l.PropertySet?.Trim(), _arvorePset, StringComparison.OrdinalIgnoreCase)) return false;
+                if (_arvoreEntidade != null && !l.ListaEntidades.Any(x => string.Equals(x, _arvoreEntidade, StringComparison.OrdinalIgnoreCase))) return false;
+            }
             if (_filtroSelo == "ausentes" && l.ParametroNoModelo) return false;
             if (_filtroSelo == "tipos" && l.TipoOk) return false;
             foreach (FiltroColuna f in _filtros)
@@ -428,6 +520,106 @@ namespace MetroSP.Ids
             if (tipos > 0)
                 _resumo.Children.Add(Selo($"{tipos} tipo(s) de dado não aceitos pelo exportador", _filtroSelo == "tipos", true,
                     "Mostrar só as propriedades com tipo de dado não aceito", () => AlternarSelo("tipos")));
+            if (_modeloIfc != null)
+            {
+                int semValor = _linhas.Count(l => l.SemValor);
+                if (semValor > 0)
+                    _resumo.Children.Add(Selo($"{semValor} sem valor em algum elemento", _filtroSelo == "semvalor", true,
+                        "Mostrar só as propriedades cujo parâmetro existe, mas está vazio em parte dos elementos", () => AlternarSelo("semvalor")));
+            }
+        }
+
+        private bool _montandoArvore;
+
+        /// <summary>Monta a árvore property set › entidades, mantendo o nó escolhido.</summary>
+        private void MontarArvore()
+        {
+            _montandoArvore = true;
+            try
+            {
+                _arvore.Items.Clear();
+                TreeViewItem No(string texto, int total, int problemas, bool negrito, Tuple<string, string> chave)
+                {
+                    var d = new DockPanel { MinWidth = 150 };
+                    var n = new TextBlock
+                    {
+                        Text = problemas > 0 ? problemas.ToString() : total.ToString(), FontSize = 10.5, Margin = new Thickness(8, 0, 0, 0),
+                        Foreground = Theme.Solid(problemas > 0 ? Theme.LaranjaTexto : Theme.Cinza), FontWeight = problemas > 0 ? FontWeights.Bold : FontWeights.Normal,
+                        ToolTip = problemas > 0 ? $"{problemas} de {total} com problema" : $"{total} propriedades",
+                    };
+                    DockPanel.SetDock(n, Dock.Right);
+                    d.Children.Add(n);
+                    d.Children.Add(new TextBlock { Text = texto, FontWeight = negrito ? FontWeights.SemiBold : FontWeights.Normal });
+                    var item = new TreeViewItem { Header = d, Tag = chave, IsExpanded = false };
+                    if ((chave == null && _arvorePset == null) ||
+                        (chave != null && string.Equals(chave.Item1, _arvorePset, StringComparison.OrdinalIgnoreCase) &&
+                         string.Equals(chave.Item2, _arvoreEntidade, StringComparison.OrdinalIgnoreCase)))
+                        item.IsSelected = true;
+                    return item;
+                }
+                _arvore.Items.Add(No("Todos", _linhas.Count, _linhas.Count(l => l.Problema), true, null));
+                foreach (var g in _linhas.Where(l => !string.IsNullOrWhiteSpace(l.PropertySet)).GroupBy(l => l.PropertySet.Trim(), StringComparer.OrdinalIgnoreCase))
+                {
+                    TreeViewItem pset = No(g.Key, g.Count(), g.Count(l => l.Problema), true, Tuple.Create(g.Key, (string)null));
+                    pset.IsExpanded = string.Equals(g.Key, _arvorePset, StringComparison.OrdinalIgnoreCase);
+                    foreach (var e in g.SelectMany(l => l.ListaEntidades.Select(x => (Entidade: x, Linha: l)))
+                                       .GroupBy(x => x.Entidade, StringComparer.OrdinalIgnoreCase)
+                                       .OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
+                        pset.Items.Add(No(e.Key, e.Count(), e.Count(x => x.Linha.Problema), false, Tuple.Create(g.Key, e.Key)));
+                    _arvore.Items.Add(pset);
+                }
+            }
+            finally { _montandoArvore = false; }
+        }
+
+        /// <summary>Painel embaixo da grade para a linha escolhida com problema: o motivo e parâmetros parecidos do modelo.</summary>
+        private void MostrarDetalhe()
+        {
+            var l = _grade.SelectedItems.Count == 1 ? _grade.SelectedItem as Linha : null;
+            if (l == null || !l.Problema)
+            {
+                _detalhe.Visibility = Visibility.Collapsed;
+                return;
+            }
+            var p = new StackPanel();
+            p.Children.Add(new TextBlock { Text = $"{l.Propriedade} · {l.PropertySet} · {string.Join(", ", l.ListaEntidades.DefaultIfEmpty("todas as entidades"))}", FontWeight = FontWeights.SemiBold });
+            string motivo;
+            if (!l.TipoOk) motivo = $"O tipo \"{l.TipoDado}\" não é aceito pelo exportador da Autodesk" + (ExportMapping.TipoCorreto(l.TipoDado) is string certo ? $" (use {certo})." : ".");
+            else if (string.IsNullOrWhiteSpace(l.Parametro)) motivo = "A propriedade não indica parâmetro do Revit.";
+            else if (!l.ParametroNoModelo) motivo = $"O parâmetro \"{l.Parametro}\" não existe neste modelo, então a propriedade sai vazia no IFC.";
+            else motivo = $"O parâmetro \"{l.Parametro}\" tem valor em {l.Contagem.Value.ComValor} de {l.Contagem.Value.Elementos} elementos; nos outros a propriedade sai vazia.";
+            p.Children.Add(new TextBlock { Text = motivo, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0) });
+
+            if (_modeloIfc != null && l.TipoOk)
+            {
+                List<(string Parametro, ModeloIfc.Contagem Contagem)> sugestoes =
+                    _modeloIfc.Sugestoes(l.ListaEntidades, l.Aplicacao == Tipo, l.Parametro, l.Propriedade);
+                var linha = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+                if (sugestoes.Count == 0)
+                    linha.Children.Add(Theme.Detalhe("Nenhum parâmetro com nome parecido e com valor nesses elementos. Escolha outro na coluna Parâmetro do Revit."));
+                else
+                {
+                    linha.Children.Add(new TextBlock { Text = "Parecidos no modelo:", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                    foreach (var (nome, c) in sugestoes)
+                    {
+                        var b = new Button
+                        {
+                            Content = $"{nome}  ·  {c.ComValor} de {c.Elementos}", Margin = new Thickness(0, 0, 6, 0), MinWidth = 0,
+                            ToolTip = $"Usar \"{nome}\" nesta linha",
+                        };
+                        string escolhido = nome;
+                        b.Click += (s, e) => { l.Parametro = escolhido; AtualizarFiltro(); MontarArvore(); MostrarDetalhe(); };
+                        linha.Children.Add(b);
+                    }
+                }
+                p.Children.Add(linha);
+                string antigo = l.Parametro?.Trim();
+                int iguais = string.IsNullOrEmpty(antigo) ? 0 : _linhas.Count(x => x != l && string.Equals(x.Parametro?.Trim(), antigo, StringComparison.OrdinalIgnoreCase));
+                if (iguais > 0 && sugestoes.Count > 0)
+                    p.Children.Add(Theme.Detalhe($"Outras {iguais} linha(s) também usam \"{antigo}\". Para trocar em todas, selecione as linhas e edite a coluna, ou troque uma a uma."));
+            }
+            _detalhe.Child = p;
+            _detalhe.Visibility = Visibility.Visible;
         }
 
         private void AlternarSelo(string filtro)
@@ -530,6 +722,8 @@ namespace MetroSP.Ids
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(destino));
+                // A versão anterior de uma cópia do usuário fica guardada (Arquivos IFC › Anteriores).
+                if (destino.StartsWith(ClassesIfc.PastaUsuario, StringComparison.OrdinalIgnoreCase)) ArquivosIfc.GuardarAnterior(destino);
                 File.WriteAllText(destino, Gerar(_linhas, _cabecalho), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
             }
             catch (Exception ex)

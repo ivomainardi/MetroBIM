@@ -87,6 +87,11 @@ namespace MetroSP
                 "com o nome do IfcSite e os dados do IfcBuilding.",
                 "Localizacao");
 
+            AddButton<ArquivosIfcCommand>(panel, "Arquivos\nIFC",
+                "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
+                "principais do setup e confira os property sets no modelo aberto.",
+                "ArquivosIfc");
+
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
                 "Exporta o IFC com o setup (.json) e o mapeamento de property sets (.txt) guardados numa pasta do computador ou no Autodesk Forma.",
                 "IfcExportar");

@@ -107,6 +107,12 @@ namespace MetroSP.Ids
             _botaoForma.HorizontalAlignment = HorizontalAlignment.Right;
             _botaoForma.Margin = new Thickness(12, 0, 0, 0);
             _botaoForma.Click += (s, e) => MenuForma();
+            var gerenciar = Theme.Link("Gerenciar arquivos...");
+            gerenciar.Margin = new Thickness(12, 0, 0, 0);
+            gerenciar.ToolTip = "Abre a janela Arquivos IFC: setups, property sets e mapeamentos de cada classe.";
+            gerenciar.Click += (s, e) => Gerenciar();
+            DockPanel.SetDock(gerenciar, Dock.Right);
+            linhaClasse.Children.Add(gerenciar);
             linhaClasse.Children.Add(_botaoForma);
             corpo.Children.Add(linhaClasse);
 
@@ -209,6 +215,34 @@ namespace MetroSP.Ids
             MostrarCaminhos();
             Theme.Apply(this, "Exportar IFC", "Indique o setup e os arquivos de mapeamento de cada exportação", corpo, Theme.Rodape(_resumo, cancelar, exportar));
             AtualizarResumo();
+        }
+
+        /// <summary>Janela Arquivos IFC; se algo mudou, recarrega as classes e os arquivos da escolhida.</summary>
+        private void Gerenciar()
+        {
+            string nome = ClasseEscolhida?.Nome;
+            var w = new ArquivosIfcWindow(_doc, nome) { Owner = this };
+            w.ShowDialog();
+            if (!w.Mudou) return;
+            PreencherClasses(nome);
+            if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
+        }
+
+        private ModeloIfc _modeloIfc;
+
+        /// <summary>Retrato do modelo para a coluna "No modelo" do editor (lido na primeira vez).</summary>
+        private ModeloIfc ModeloParaConferir()
+        {
+            if (_modeloIfc == null)
+            {
+                if (_parametrosModelo == null) _parametrosModelo = ParametrosDoModelo(_doc);
+                System.Windows.Input.Cursor antes = System.Windows.Input.Mouse.OverrideCursor;
+                System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
+                try { _modeloIfc = new ModeloIfc(_doc, _parametrosModelo); }
+                catch { /* sem a conferência por elemento, o editor confere só os nomes */ }
+                finally { System.Windows.Input.Mouse.OverrideCursor = antes; }
+            }
+            return _modeloIfc;
         }
 
         private void PreencherClasses(string lembrada)
@@ -488,7 +522,7 @@ namespace MetroSP.Ids
             {
                 editor = new EditarPsetsWindow(caminho, _parametrosModelo,
                     destino: daClasse ? ClassesIfc.CaminhoUsuario(c.Nome) : null,
-                    podeRestaurar: daClasse && c.Editada && ClassesIfc.CaminhoPadrao(c.Nome) != null) { Owner = this };
+                    podeRestaurar: daClasse && c.Editada && ClassesIfc.CaminhoPadrao(c.Nome) != null, modelo: ModeloParaConferir()) { Owner = this };
             }
             catch (Exception ex)
             {
@@ -790,28 +824,7 @@ namespace MetroSP.Ids
         }
 
         /// <summary>Nomes de parâmetros presentes nos tipos e numa instância de cada tipo.</summary>
-        private static HashSet<string> ParametrosDoModelo(DB.Document doc)
-        {
-            var nomes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            void Coletar(DB.Element e)
-            {
-                foreach (DB.Parameter p in e.Parameters)
-                {
-                    string n = p.Definition?.Name;
-                    if (!string.IsNullOrEmpty(n)) nomes.Add(n);
-                }
-            }
-            foreach (DB.Element t in new DB.FilteredElementCollector(doc).WhereElementIsElementType()) Coletar(t);
-            var tipos = new HashSet<DB.ElementId>();
-            foreach (DB.Element e in new DB.FilteredElementCollector(doc).WhereElementIsNotElementType())
-            {
-                if (e.Category == null) continue;
-                DB.ElementId tipo = e.GetTypeId();
-                if (tipo == null || tipo == DB.ElementId.InvalidElementId || tipos.Add(tipo)) Coletar(e);
-            }
-            if (doc.ProjectInformation != null) Coletar(doc.ProjectInformation);
-            return nomes;
-        }
+        private static HashSet<string> ParametrosDoModelo(DB.Document doc) => ModeloIfc.NomesDosParametros(doc);
 
         private static string NomePadrao(DB.Document doc)
         {
