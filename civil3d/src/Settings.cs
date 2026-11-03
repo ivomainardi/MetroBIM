@@ -32,7 +32,8 @@ namespace MetroSP
             "IfcInfraConfiguration.json",
             "IfcInfraExportMapping.json",
             "IFCInfraExportPropertyMapping.json",
-            "IFCInfraExportPropertyMapping.csv"
+            "IFCInfraExportPropertyMapping.csv",
+            "MetroSP.ifc.json"
         };
 
         /// <summary>
@@ -46,6 +47,19 @@ namespace MetroSP
         /// <summary>Comando do IFC Extension chamado depois da sincronização.</summary>
         public string ExportCommand { get; set; } = "IFCINFRAEXPORT";
         public string ExportSelectedCommand { get; set; } = "IFCINFRAEXPORTSELECTED";
+
+        /// <summary>
+        /// De onde vem o pacote de configuração IFC antes de exportar:
+        ///  "Automatico" = Forma se ClientId/ProjectId/FolderUrn estiverem preenchidos, senão o pacote local;
+        ///  "Forma" = sempre baixa do Forma; "Local" = usa só o pacote local (editado na interface).
+        /// </summary>
+        public string FonteConfiguracao { get; set; } = "Automatico";
+
+        [JsonIgnore]
+        public bool UsesForma =>
+            string.Equals(FonteConfiguracao, "Forma", StringComparison.OrdinalIgnoreCase) ||
+            (string.Equals(FonteConfiguracao, "Automatico", StringComparison.OrdinalIgnoreCase) &&
+             !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ProjectId) && !string.IsNullOrWhiteSpace(FolderUrn));
 
         [JsonIgnore] public string LoadedFrom { get; private set; }
 

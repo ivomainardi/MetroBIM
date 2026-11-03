@@ -16,7 +16,8 @@
     "IfcInfraConfiguration.json",
     "IfcInfraExportMapping.json",
     "IFCInfraExportPropertyMapping.json",
-    "IFCInfraExportPropertyMapping.csv"
+    "IFCInfraExportPropertyMapping.csv",
+    "MetroSP.ifc.json"
   ],
 
   // PorDesenho  = [pasta do DWG]\[nome do DWG]-IfcInfraConfiguration.json (recomendado)
@@ -25,5 +26,9 @@
   "Destino": "PorDesenho",
 
   "ExportCommand": "IFCINFRAEXPORT",
-  "ExportSelectedCommand": "IFCINFRAEXPORTSELECTED"
+  "ExportSelectedCommand": "IFCINFRAEXPORTSELECTED",
+
+  // De onde vem o pacote de configuração IFC: "Automatico" (Forma se preenchido acima), "Forma" ou "Local".
+  // O pacote local fica em %APPDATA%\MetroSP\Config e é editado no botão "Configurar IFC".
+  "FonteConfiguracao": "Automatico"
 }

@@ -4,11 +4,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Runtime;
+using MetroSP.Alinhamento;
+using MetroSP.Config;
+using MetroSP.Ifc;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 using AcDocument = Autodesk.AutoCAD.ApplicationServices.Document;
 
@@ -18,21 +21,30 @@ namespace MetroSP
 {
     public class Commands
     {
-        // Arquivos que o IFC Extension aceita com prefixo "[nome do DWG]-".
-        static readonly string[] PrefixableConfigs = { "IfcInfraConfiguration.json", "IfcInfraExportMapping.json" };
-
         const string OriginLog = "MetroSP-IFC-origem.txt";
+
+        /// <summary>Exportação em andamento: o pós-processamento roda quando o comando da Autodesk termina.</summary>
+        class PendingExport
+        {
+            public AcDocument Doc;
+            public string Command;
+            public DateTime StartUtc;
+            public string DwgDir;
+            public List<AlignmentModel> Alignments;
+        }
+
+        static PendingExport _pending;
 
         // ------------------------------------------------------------------ comandos da ribbon
 
         [CommandMethod("MSP_IFCEXPORT")]
-        public void IfcExport() => SyncAndRun(selected: false);
+        public void IfcExport() => PrepareAndRun(selected: false);
 
         [CommandMethod("MSP_IFCEXPORTSEL")]
-        public void IfcExportSelected() => SyncAndRun(selected: true);
+        public void IfcExportSelected() => PrepareAndRun(selected: true);
 
         [CommandMethod("MSP_IFCSYNC")]
-        public void IfcSync() => SyncAndRun(selected: null);
+        public void IfcSync() => PrepareAndRun(selected: null);
 
         [CommandMethod("MSP_FORMALOGIN")]
         public void FormaLogin()
@@ -65,6 +77,21 @@ namespace MetroSP
             AcApp.DocumentManager.MdiActiveDocument.Editor.WriteMessage("\nMetroSP: editando " + path);
         }
 
+        /// <summary>Janela de configurações IFC: pacote, mapeamento de classes, property sets, projeto/terreno/edificações, alinhamento.</summary>
+        [CommandMethod("MSP_IFCCONFIG")]
+        public void OpenIfcConfig()
+        {
+            var doc = AcApp.DocumentManager.MdiActiveDocument;
+            try
+            {
+                AcApp.ShowModalWindow(new Ui.ConfigWindow(DrawingFolder(doc)));
+            }
+            catch (System.Exception ex)
+            {
+                doc.Editor.WriteMessage("\nMetroSP: ERRO - " + ex.Message);
+            }
+        }
+
         [CommandMethod("MSP_IFCPASTA")]
         public void OpenConfigFolder()
         {
@@ -81,39 +108,149 @@ namespace MetroSP
                 "MetroSP para Civil 3D\n\n" +
                 "Exportação IFC 4.3 com configuração centralizada no Autodesk Forma.\n\n" +
                 "Configuração: " + (cfg.LoadedFrom ?? "(não encontrada)") + "\n" +
-                "Projeto: " + cfg.ProjectId + "\n" +
-                "Pasta: " + cfg.FolderUrn);
+                "Pacote IFC ativo: " + ConfigPackage.ActiveDir + "\n" +
+                "Projeto Forma: " + cfg.ProjectId + "\n" +
+                "Pasta Forma: " + cfg.FolderUrn);
+        }
+
+        /// <summary>
+        /// Pós-processa um IFC exportado pela Autodesk: eixo 3D dos alinhamentos, vertical, projeto/terreno/edificações.
+        /// Chamado sozinho no fim do Exportar IFC, ou à mão escolhendo o arquivo.
+        /// </summary>
+        [CommandMethod("MSP_IFCPOSPROC")]
+        public void PostProcess()
+        {
+            var doc = AcApp.DocumentManager.MdiActiveDocument;
+            var ed = doc.Editor;
+            var pending = _pending != null && _pending.Doc == doc ? _pending : null;
+            _pending = null;
+            try
+            {
+                var metro = ConfigPackage.LoadMetroSp();
+                string ifc = null;
+                if (pending != null)
+                {
+                    ifc = FindExportedIfc(pending);
+                    if (ifc == null) ed.WriteMessage("\nMetroSP: não achei o IFC recém-exportado na pasta do desenho; escolha o arquivo.");
+                }
+                if (ifc == null)
+                {
+                    var opts = new PromptOpenFileOptions("\nIFC exportado pelo Civil 3D")
+                    {
+                        Filter = "IFC (*.ifc)|*.ifc",
+                        InitialDirectory = DrawingFolder(doc)
+                    };
+                    var r = ed.GetFileNameForOpen(opts);
+                    if (r.Status != PromptStatus.OK) return;
+                    ifc = r.StringResult;
+                }
+
+                var alignments = pending?.Alignments;
+                if (alignments == null && metro.Alinhamento.AplicarNoIfc)
+                    alignments = AlignmentCommands.ReadAll(doc, metro.Alinhamento, interactive: true);
+
+                ed.WriteMessage($"\nMetroSP: pós-processando {Path.GetFileName(ifc)}...");
+                IfcPostProcessor.ProcessFile(ifc, metro.Alinhamento.AplicarNoIfc ? alignments : null,
+                    metro.Estrutura, metro.PropriedadesProjeto, m => ed.WriteMessage("\nMetroSP: " + m));
+                ed.WriteMessage($"\nMetroSP: IFC pronto: {ifc}");
+            }
+            catch (System.Exception ex) { Fail(ed, ex); }
         }
 
         // ------------------------------------------------------------------ fluxo principal
 
-        /// <param name="selected">true = exportar seleção, false = exportar tudo, null = só sincronizar.</param>
-        void SyncAndRun(bool? selected)
+        /// <param name="selected">true = exportar seleção, false = exportar tudo, null = só preparar a configuração.</param>
+        void PrepareAndRun(bool? selected)
         {
             var doc = AcApp.DocumentManager.MdiActiveDocument;
             var ed = doc.Editor;
             try
             {
                 var cfg = Settings.Load();
-                cfg.Validate();
-
                 var dwgDir = DrawingFolder(doc);
                 if (dwgDir == null && cfg.Destino != "ProgramData")
                     throw new InvalidOperationException("Salve o desenho antes: os JSON de configuração são gravados na pasta do DWG.");
 
-                ed.WriteMessage("\nMetroSP: buscando configuração IFC no Forma (o navegador pode abrir para login)...");
-                var log = new BufferedLog();
-                var written = RunBlocking(ct => SyncAsync(cfg, doc, dwgDir, log.Add, ct), log, ed);
-                ed.WriteMessage($"\nMetroSP: {written.Count} arquivo(s) de configuração atualizados a partir do Forma.");
+                if (cfg.UsesForma)
+                {
+                    cfg.Validate();
+                    ed.WriteMessage("\nMetroSP: buscando configuração IFC no Forma (o navegador pode abrir para login)...");
+                    var log = new BufferedLog();
+                    var n = RunBlocking(ct => SyncFromFormaAsync(cfg, log.Add, ct), log, ed);
+                    ed.WriteMessage($"\nMetroSP: {n} arquivo(s) atualizados a partir do Forma.");
+                }
 
+                var written = ConfigPackage.ApplyToDrawing(dwgDir, Path.GetFileNameWithoutExtension(doc.Name), cfg.Destino, ProgramDataDir);
+                ed.WriteMessage($"\nMetroSP: configuração IFC aplicada ({written.Count} arquivo(s)).");
                 if (selected == null) return;
+
+                var metro = ConfigPackage.LoadMetroSp();
+                List<AlignmentModel> alignments = null;
+                if (metro.Alinhamento.AplicarNoIfc)
+                {
+                    // Lê agora (pode perguntar o perfil); o IFC só existe depois do comando da Autodesk.
+                    alignments = AlignmentCommands.ReadAll(doc, metro.Alinhamento, interactive: true);
+                }
+
                 var cmd = selected.Value ? cfg.ExportSelectedCommand : cfg.ExportCommand;
+                _pending = new PendingExport
+                {
+                    Doc = doc,
+                    Command = cmd,
+                    StartUtc = DateTime.UtcNow,
+                    DwgDir = dwgDir,
+                    Alignments = alignments
+                };
+                doc.CommandEnded += OnCommandEnded;
+                doc.CommandCancelled += OnCommandAborted;
+                doc.CommandFailed += OnCommandAborted;
                 doc.SendStringToExecute("_." + cmd + " ", true, false, true);
             }
             catch (System.Exception ex) { Fail(ed, ex); }
         }
 
-        static async Task<List<string>> SyncAsync(Settings cfg, AcDocument doc, string dwgDir, Action<string> log, CancellationToken ct)
+        static void OnCommandEnded(object sender, CommandEventArgs e)
+        {
+            var doc = (AcDocument)sender;
+            if (_pending == null || _pending.Doc != doc ||
+                !string.Equals(e.GlobalCommandName, _pending.Command, StringComparison.OrdinalIgnoreCase)) return;
+            Unhook(doc);
+            doc.SendStringToExecute("_MSP_IFCPOSPROC ", true, false, true);
+        }
+
+        static void OnCommandAborted(object sender, CommandEventArgs e)
+        {
+            var doc = (AcDocument)sender;
+            if (_pending == null || !string.Equals(e.GlobalCommandName, _pending.Command, StringComparison.OrdinalIgnoreCase)) return;
+            Unhook(doc);
+            _pending = null;
+            doc.Editor.WriteMessage("\nMetroSP: exportação cancelada; IFC não pós-processado.");
+        }
+
+        static void Unhook(AcDocument doc)
+        {
+            doc.CommandEnded -= OnCommandEnded;
+            doc.CommandCancelled -= OnCommandAborted;
+            doc.CommandFailed -= OnCommandAborted;
+        }
+
+        /// <summary>IFC gravado depois do início da exportação, na pasta do desenho ou em Documentos.</summary>
+        static string FindExportedIfc(PendingExport p)
+        {
+            var dirs = new[] { p.DwgDir, Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) }
+                .Where(d => !string.IsNullOrEmpty(d) && Directory.Exists(d));
+            return dirs
+                .SelectMany(d => Directory.EnumerateFiles(d, "*.ifc"))
+                .Where(f => !f.EndsWith(".autodesk.ifc", StringComparison.OrdinalIgnoreCase))
+                .Select(f => new FileInfo(f))
+                .Where(f => f.LastWriteTimeUtc >= p.StartUtc.AddSeconds(-2))
+                .OrderByDescending(f => f.LastWriteTimeUtc)
+                .Select(f => f.FullName)
+                .FirstOrDefault();
+        }
+
+        /// <summary>Baixa do Forma para o pacote ativo os arquivos de configuração reconhecidos.</summary>
+        static async Task<int> SyncFromFormaAsync(Settings cfg, Action<string> log, CancellationToken ct)
         {
             var client = new FormaClient(cfg, log);
             var remote = await client.ListFolderAsync(ct);
@@ -123,70 +260,39 @@ namespace MetroSP
                 : remote.Where(r => r.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ||
                                     r.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)).ToList();
 
-            var missing = (cfg.Files ?? new List<string>())
-                .Where(f => !remote.Any(r => string.Equals(f, r.Name, StringComparison.OrdinalIgnoreCase)));
-            foreach (var m in missing) log("aviso: \"" + m + "\" não existe na pasta do Forma.");
-
+            foreach (var m in (cfg.Files ?? new List<string>()).Where(f => !remote.Any(r => string.Equals(f, r.Name, StringComparison.OrdinalIgnoreCase))))
+                log("aviso: \"" + m + "\" não existe na pasta do Forma.");
             if (wanted.Count == 0) throw new InvalidOperationException("Nenhum arquivo de configuração encontrado na pasta do Forma.");
 
-            var dwgName = Path.GetFileNameWithoutExtension(doc.Name);
-            var written = new List<string>();
             var origin = new StringBuilder();
             origin.AppendLine($"Configuração IFC baixada do Autodesk Forma em {DateTime.Now:yyyy-MM-dd HH:mm:ss} por {Environment.UserName}");
             origin.AppendLine($"Projeto: {cfg.ProjectId}  Pasta: {cfg.FolderUrn}");
 
+            int n = 0;
             foreach (var f in wanted)
             {
+                var kind = ConfigPackage.FileNames.FirstOrDefault(kv => string.Equals(kv.Value, f.Name, StringComparison.OrdinalIgnoreCase)).Key;
+                if (kind == ConfigKind.Unknown)
+                {
+                    log($"aviso: {f.Name} não é um arquivo de configuração conhecido; ignorado.");
+                    continue;
+                }
                 var data = await client.DownloadAsync(f, ct);
-                if (f.Name.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) EnsureValidJson(f.Name, data);
-
-                var target = TargetPath(cfg, dwgDir, dwgName, f.Name);
-                Directory.CreateDirectory(Path.GetDirectoryName(target));
-                if (File.Exists(target) && !File.ReadAllBytes(target).SequenceEqual(data))
-                    File.Copy(target, target + ".bak", overwrite: true);
-                File.WriteAllBytes(target, data);
-
-                written.Add(target);
-                log($"{f.Name} v{f.VersionNumber} ({f.LastModifiedBy}, {f.LastModified}) -> {target}");
-                origin.AppendLine($"{f.Name}\tv{f.VersionNumber}\t{f.LastModified}\t{f.LastModifiedBy}\t{f.VersionId}\t-> {target}");
+                ConfigPackage.Write(kind, data);
+                n++;
+                log($"{f.Name} v{f.VersionNumber} ({f.LastModifiedBy}, {f.LastModified})");
+                origin.AppendLine($"{f.Name}\tv{f.VersionNumber}\t{f.LastModified}\t{f.LastModifiedBy}\t{f.VersionId}");
             }
-
-            File.WriteAllText(Path.Combine(dwgDir ?? ProgramDataDir, OriginLog), origin.ToString(), Encoding.UTF8);
-            return written;
-        }
-
-        static string TargetPath(Settings cfg, string dwgDir, string dwgName, string fileName)
-        {
-            switch (cfg.Destino)
-            {
-                case "ProgramData":
-                    return Path.Combine(ProgramDataDir, fileName);
-                case "PastaDesenho":
-                    return Path.Combine(dwgDir, fileName);
-                default: // PorDesenho
-                    var prefix = PrefixableConfigs.Any(p => string.Equals(p, fileName, StringComparison.OrdinalIgnoreCase));
-                    return Path.Combine(dwgDir, prefix ? dwgName + "-" + fileName : fileName);
-            }
-        }
-
-        static void EnsureValidJson(string name, byte[] data)
-        {
-            try
-            {
-                using var _ = JsonDocument.Parse(data, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true });
-            }
-            catch (JsonException ex)
-            {
-                throw new InvalidOperationException($"{name} no Forma não é um JSON válido (linha {ex.LineNumber + 1}): {ex.Message}");
-            }
+            File.WriteAllText(Path.Combine(ConfigPackage.ActiveDir, OriginLog), origin.ToString(), Encoding.UTF8);
+            return n;
         }
 
         // ------------------------------------------------------------------ utilitários
 
-        static string ProgramDataDir =>
+        internal static string ProgramDataDir =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "Autodesk", "Civil3D");
 
-        static string DrawingFolder(AcDocument doc)
+        internal static string DrawingFolder(AcDocument doc)
         {
             // Desenho nunca salvo: Database.Filename aponta para o template ou fica vazio.
             var saved = Convert.ToInt32(AcApp.GetSystemVariable("DWGTITLED")) == 1;

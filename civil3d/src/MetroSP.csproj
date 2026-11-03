@@ -4,7 +4,7 @@
     Um build gera duas DLLs:
       net8.0-windows  -> Contents\R25\MetroSP.dll  (Civil 3D 2025 = R25.0 e 2026 = R25.1)
       net10.0-windows -> Contents\R26\MetroSP.dll  (Civil 3D 2027 = R26.0)
-    As referências da API vêm do NuGet oficial da Autodesk (AutoCAD.NET), então não é
+    As referências da API vêm do NuGet oficial da Autodesk (AutoCAD.NET e Civil3D.NET), então não é
     preciso ter as três versões instaladas para compilar.
       dotnet build src\MetroSP.csproj -c Release
   -->
@@ -17,7 +17,7 @@
     <RootNamespace>MetroSP</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
-    <Version>0.2.0</Version>
+    <Version>0.4.0</Version>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <BundleContents>$(MSBuildProjectDirectory)\..\MetroSP.bundle\Contents</BundleContents>
@@ -26,15 +26,18 @@
   <PropertyGroup Condition="'$(TargetFramework)' == 'net8.0-windows'">
     <AcadSeries>R25</AcadSeries>
     <AcadApiVersion>25.0.1</AcadApiVersion>
+    <CivilApiVersion>13.7.145</CivilApiVersion>
   </PropertyGroup>
   <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <AcadSeries>R26</AcadSeries>
     <AcadApiVersion>26.0.0</AcadApiVersion>
+    <CivilApiVersion>13.9.628</CivilApiVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <!-- ExcludeAssets=runtime: as DLLs da Autodesk já estão no Civil 3D, não vão para o bundle. -->
     <PackageReference Include="AutoCAD.NET" Version="$(AcadApiVersion)" ExcludeAssets="runtime" />
+    <PackageReference Include="Civil3D.NET" Version="$(CivilApiVersion)" ExcludeAssets="runtime" />
   </ItemGroup>
 
   <!-- Depois de cada build, copia a DLL para a pasta da série dentro do bundle. -->
