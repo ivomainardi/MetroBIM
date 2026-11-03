@@ -1,0 +1,17 @@
+{
+  "MapCADLayerName": [
+    { "Name": "^G-3D-.*", "IfcExportAs": "IfcBuiltElement.USERDEFINED", "Export": true },
+    { "Name": "^U-3D-TRILHO.*", "IfcExportAs": "IfcRail.RAIL", "Export": true },
+    { "Name": "^U-3D-DORMENTE.*", "IfcExportAs": "IfcTrackElement.SLEEPER", "Export": true },
+    { "Name": "^T-HM-.*", "IfcExportAs": "IfcAnnotation", "Export": false },
+    { "Name": "^TOP-.*", "IfcExportAs": "IfcAnnotation", "Export": false },
+    { "Name": "^F-.*", "IfcExportAs": "IfcAnnotation", "Export": false },
+    { "Name": "^A-.*", "IfcExportAs": "IfcAnnotation", "Export": false }
+  ],
+  "MapBlockName": [
+    { "Name": "^U - AMV.*", "IfcExportAs": "IfcElementAssembly.TURNOUTPANEL", "Export": true },
+    { "Name": "^U_parachoque.*", "IfcExportAs": "IfcTrackElement.VEHICLESTOP", "Export": true },
+    { "Name": "^U_dormente_.*", "IfcExportAs": "IfcTrackElement.SLEEPER", "Export": true },
+    { "Name": "^(LOGOMETR.*|A11|notas|ESCALA|PLANTA_CHAVE.*|Malha_Lote.*)$", "IfcExportAs": "IfcAnnotation", "Export": false }
+  ]
+}

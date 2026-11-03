@@ -1,0 +1,34 @@
+{
+  // Client ID do app criado em https://aps.autodesk.com/myapps (tipo "Desktop, Mobile, Single-Page App").
+  "ClientId": "",
+
+  // Tem que ser exatamente o Callback URL cadastrado no app APS.
+  "CallbackUrl": "http://localhost:8765/metrosp/callback",
+
+  // Projeto do Forma (Autodesk Docs). GUID da URL do projeto; o prefixo "b." é colocado sozinho.
+  "ProjectId": "",
+
+  // URN da pasta com os JSON. Abra a pasta no navegador e copie o valor de "folderUrn=" da URL.
+  "FolderUrn": "",
+
+  // Arquivos baixados. Lista vazia [] = todos os .json e .csv da pasta.
+  "Files": [
+    "IfcInfraConfiguration.json",
+    "IfcInfraExportMapping.json",
+    "IFCInfraExportPropertyMapping.json",
+    "IFCInfraExportPropertyMapping.csv",
+    "MetroSP.ifc.json"
+  ],
+
+  // PorDesenho  = [pasta do DWG]\[nome do DWG]-IfcInfraConfiguration.json (recomendado)
+  // PastaDesenho = [pasta do DWG]\IfcInfraConfiguration.json
+  // ProgramData  = C:\ProgramData\Autodesk\Civil3D\ (vale para todos os desenhos da máquina)
+  "Destino": "PorDesenho",
+
+  "ExportCommand": "IFCINFRAEXPORT",
+  "ExportSelectedCommand": "IFCINFRAEXPORTSELECTED",
+
+  // De onde vem o pacote de configuração IFC: "Automatico" (Forma se preenchido acima), "Forma" ou "Local".
+  // O pacote local fica em %APPDATA%\MetroSP\Config e é editado no botão "Configurar IFC".
+  "FonteConfiguracao": "Automatico"
+}
