@@ -94,7 +94,7 @@ namespace MetroSP
 
             AddButton<CategoriasIfcCommand>(panel, "Categorias\nIFC",
                 "Em que classe IFC cada categoria do Revit é exportada: uma tabela para IFC4 e outra para IFC 4.3. " +
-                "Na exportação, vale a tabela do esquema do setup.",
+                "Na exportação, vale a tabela do IFC schema do setup.",
                 "CategoriasIfc");
 
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",

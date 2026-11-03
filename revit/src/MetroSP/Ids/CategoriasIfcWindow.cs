@@ -72,7 +72,7 @@ namespace MetroSP.Ids
             DockPanel.SetDock(topo, Dock.Top);
             var linhaEsquema = new DockPanel();
             var esquemas = new StackPanel { Orientation = Orientation.Horizontal };
-            esquemas.Children.Add(Theme.Rotulo("Esquema"));
+            esquemas.Children.Add(Theme.Rotulo("IFC schema"));
             var r4 = new RadioButton { Content = "IFC4 (4.0.2.1)", IsChecked = true, Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center, GroupName = "esq" };
             var r43 = new RadioButton { Content = "IFC 4.3", VerticalAlignment = VerticalAlignment.Center, GroupName = "esq" };
             r4.Checked += (s, e) => TrocarEsquema(CategoriasIfc.Ifc4);
@@ -105,7 +105,7 @@ namespace MetroSP.Ids
             _grade = new DataGrid
             {
                 AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, HeadersVisibility = DataGridHeadersVisibility.Column,
-                SelectionMode = DataGridSelectionMode.Extended, ToolTip = "Clique duas vezes na classe ou no tipo para editar. A lista de classes muda com o esquema.",
+                SelectionMode = DataGridSelectionMode.Extended, ToolTip = "Clique duas vezes na classe ou no tipo para editar. A lista de classes muda com o IFC schema.",
             };
             Theme.StyleSelection(_grade);
             _grade.Columns.Add(new DataGridTextColumn { Header = "Categoria do Revit", Binding = new Binding(nameof(CategoriasIfc.Linha.Categoria)), IsReadOnly = true, Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
@@ -124,7 +124,7 @@ namespace MetroSP.Ids
             corpo.Children.Add(_grade);
 
             _resumo = new TextBlock();
-            var copiar = new Button { Content = "Copiar do outro esquema...", ToolTip = "Copia a classe e o tipo da tabela do outro esquema (IFC4 ↔ IFC 4.3) para esta, nas linhas selecionadas ou em todas." };
+            var copiar = new Button { Content = "Copiar do outro IFC schema...", ToolTip = "Copia a classe e o tipo da tabela do outro IFC schema (IFC4 ↔ IFC 4.3) para esta, nas linhas selecionadas ou em todas." };
             copiar.Click += (s, e) => CopiarDoOutro();
             var importar = new Button { Content = "Importar .txt..." };
             importar.Click += (s, e) => Importar();
@@ -202,7 +202,7 @@ namespace MetroSP.Ids
             _selos.Children.Add(Theme.Chip($"{diferentes} diferentes do {NomeEsquema(Outro)}", destaque: diferentes > 0));
             if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{semClasse} usadas sem classe ou não exportadas", destaque: true));
             _resumo.Text = _alteradas.Count > 0 ? "Alterações não salvas em " + string.Join(" e ", _alteradas.Select(NomeEsquema))
-                : "Na exportação vale a tabela do esquema do setup (IFC4, Reference View e Design Transfer View usam a do IFC4).";
+                : "Na exportação vale a tabela do IFC schema do setup (IFC4, Reference View e Design Transfer View usam a do IFC4).";
             _resumo.Foreground = Theme.Solid(_alteradas.Count > 0 ? Theme.LaranjaTexto : Theme.Cinza);
         }
 
