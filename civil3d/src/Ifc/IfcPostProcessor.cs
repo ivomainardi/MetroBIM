@@ -52,8 +52,13 @@ namespace MetroSP.Ifc
             int axisCtx = AxisContext();
             int done = 0;
 
-            var ifcAlignments = _m.OfType("IFCALIGNMENT").ToList();
+            // A IFC 4.3 Extension grava cada perfil como um IfcAlignment filho do alinhamento (agregado a ele),
+            // com horizontal compartilhado e vertical próprio. Os filhos ficam como vieram: só os de nível
+            // superior são casados com o desenho.
+            var children = ChildAlignments();
+            var ifcAlignments = _m.OfType("IFCALIGNMENT").Where(al => !children.ContainsKey(al.Id) || children[al.Id] == 0).ToList();
             var used = new HashSet<AlignmentModel>();
+            var empty = new List<(StepEntity al, AlignmentModel a)>();
             double[] knownShift = null;
             foreach (var al in ifcAlignments)
             {
@@ -65,15 +70,34 @@ namespace MetroSP.Ifc
                     _log($"IfcAlignment \"{name}\" sem alinhamento correspondente no desenho; mantido como veio.");
                     continue;
                 }
+
+                var toLocal = PlacementMatrix(StepModel.Ref(al.Args[5])).Inverse();
+                var hasHorizontal = LayoutSegments(al.Id, "IFCALIGNMENTHORIZONTAL").Any();
+                var shift = hasHorizontal ? DetectShift(al.Id, a, toLocal) : new double[3];
+                if (knownShift == null && hasHorizontal && a.Horizontal.Count > 0) knownShift = shift;
+
+                var profiles = children.Where(kv => kv.Value == al.Id && HasLayout(kv.Key, "IFCALIGNMENTVERTICAL"))
+                    .Select(kv => StepModel.Text(_m.Get(kv.Key).Args[2]) ?? "").ToList();
+                if (HasLayout(al.Id, "IFCALIGNMENTVERTICAL")) profiles.Add(name);
+                if (profiles.Count > 0)
+                {
+                    var chosen = a.ProfileName != null && profiles.Any(p => p.IndexOf(a.ProfileName, StringComparison.OrdinalIgnoreCase) >= 0);
+                    _log($"{a.Name}: a Autodesk já gravou o 3D ({profiles.Count} perfil(is)" +
+                         (a.ProfileName == null ? "" : chosen ? $", entre eles {a.ProfileName}" : $"; {a.ProfileName} não está entre eles") + "); mantido como veio.");
+                    done++;
+                    continue;
+                }
+                if (!hasHorizontal)
+                {
+                    if (a.Horizontal.Count > 0) empty.Add((al, a));
+                    else _log($"{a.Name}: veio sem geometria e o desenho não tem horizontal; mantido como veio.");
+                    continue;
+                }
                 if (a.Axis3D.Count < 2)
                 {
                     _log($"{a.Name}: sem perfil, mantido como veio.");
                     continue;
                 }
-
-                var toLocal = PlacementMatrix(StepModel.Ref(al.Args[5])).Inverse();
-                var shift = DetectShift(al.Id, a, toLocal);
-                if (knownShift == null && a.Horizontal.Count > 0) knownShift = shift;
 
                 double[] Local(double[] p) => toLocal.Apply(p[0], p[1], p[2], shift);
 
@@ -82,6 +106,8 @@ namespace MetroSP.Ifc
                 done++;
                 _log($"{a.Name}: eixo 3D aplicado ({a.Axis3D.Count} pontos, perfil {a.ProfileName}).");
             }
+
+            foreach (var (al, a) in empty) done += Refill(al, a, axisCtx, knownShift);
 
             var missing = alignments.Where(a => !used.Contains(a) && a.Horizontal.Count > 0).ToList();
             if (missing.Count > 0) done += AddMissing(missing, axisCtx, knownShift);
@@ -95,6 +121,110 @@ namespace MetroSP.Ifc
         /// Alinhamentos do desenho que o exportador da Autodesk não gravou: entram completos (horizontal,
         /// vertical, eixo 3D), agregados ao IfcProject e referenciados no IfcSite, como no IFC 4.3.
         /// </summary>
+        /// <summary>IfcAlignment filho → IfcAlignment pai (pai 0 = agregado a outra coisa).</summary>
+        Dictionary<int, int> ChildAlignments()
+        {
+            var map = new Dictionary<int, int>();
+            foreach (var r in _m.OfType("IFCRELAGGREGATES"))
+            {
+                var parent = StepModel.Ref(r.Args[4]);
+                if (_m.TypeOf(parent) != "IFCALIGNMENT") continue;
+                foreach (var c in StepModel.RefList(r.Args[5]))
+                    if (_m.TypeOf(c) == "IFCALIGNMENT") map[c] = parent;
+            }
+            return map;
+        }
+
+        bool HasLayout(int alignmentId, string layoutType) =>
+            _m.OfType("IFCRELNESTS").Any(n => StepModel.Ref(n.Args[4]) == alignmentId &&
+                                              StepModel.RefList(n.Args[5]).Any(r => _m.TypeOf(r) == layoutType));
+
+        /// <summary>
+        /// IfcAlignment que a Autodesk gravou vazio (horizontal sem segmentos, sem perfis): recebe horizontal,
+        /// vertical e eixo 3D do desenho no próprio lugar, mantendo GUID, nome, propriedades e estacas.
+        /// </summary>
+        int Refill(StepEntity al, AlignmentModel a, int axisCtx, double[] knownShift)
+        {
+            var site = _m.OfType("IFCSITE").FirstOrDefault();
+            var placement = StepModel.Ref(al.Args[5]);
+            var toLocal = (placement != 0 ? PlacementMatrix(placement) : Matrix.Identity).Inverse();
+            var shift = knownShift ?? new double[3];
+            double[] Local(double[] p) => toLocal.Apply(p[0], p[1], p.Length > 2 ? p[2] : 0, shift);
+            var o = Local(new[] { 0.0, 0.0, 0.0 });
+            var x = Local(new[] { 1.0, 0.0, 0.0 });
+            var rotation = Math.Atan2(x[1] - o[1], x[0] - o[0]);
+            if (knownShift == null)
+                _log($"aviso: {a.Name}: nenhum alinhamento da Autodesk para conferir o deslocamento de coordenadas.");
+
+            // Sai o horizontal vazio (e a polilinha 2D dele); o resto do alinhamento fica.
+            foreach (var n in _m.OfType("IFCRELNESTS").Where(n => StepModel.Ref(n.Args[4]) == al.Id).ToList())
+            {
+                var related = StepModel.RefList(n.Args[5]);
+                var layouts = related.Where(r => _m.TypeOf(r) == "IFCALIGNMENTHORIZONTAL").ToList();
+                if (layouts.Count == 0) continue;
+                foreach (var h in layouts)
+                {
+                    RemoveShape(StepModel.Ref(_m.Get(h).Args[6]));
+                    DetachProperties(h);
+                    _m.Remove(h);
+                }
+                var rest = related.Except(layouts).ToList();
+                if (rest.Count == 0) _m.Remove(n.Id);
+                else _m.SetArg(n.Id, 5, StepModel.RefListText(rest));
+            }
+            RemoveShape(StepModel.Ref(al.Args[6]));
+
+            var gid = StepModel.Text(al.Args[0]) ?? a.Name;
+            var first = _m.LastId + 1;
+            var writer = new IfcAlignmentWriter(new IfcExportInfo { SourceFile = SourceFile ?? "", Seed = "refill|" + gid }, _m.AddRaw);
+            var temp = writer.WriteAlignment(a, placement != 0 ? "#" + placement : "$", axisCtx, Local, rotation);
+
+            // O que o escritor pendurou no alinhamento novo passa para o da Autodesk.
+            var token = "#" + temp;
+            for (int id = first; id <= _m.LastId; id++)
+            {
+                var e = _m.Get(id);
+                if (e == null || id == temp) continue;
+                for (int i = 0; i < e.Args.Count; i++)
+                    if (e.Args[i].Contains(token)) _m.SetArg(id, i, ReplaceRef(e.Args[i], temp, al.Id));
+            }
+            _m.SetArg(al.Id, 6, _m.Get(temp).Args[6]);
+            _m.Remove(temp);
+            _log($"{a.Name}: veio vazio da Autodesk; preenchido com o desenho ({a.Horizontal.Count} segmento(s) horizontais, " +
+                 $"{a.Vertical.Count} vertical(is), {a.Axis3D.Count} pontos no eixo 3D, perfil {a.ProfileName}).");
+            return 1;
+        }
+
+        static string ReplaceRef(string arg, int from, int to) =>
+            System.Text.RegularExpressions.Regex.Replace(arg, "#" + from + @"(?!\d)", "#" + to);
+
+        /// <summary>Tira a entidade dos IfcRelDefinesByProperties; relação vazia sai, e o pset junto se ninguém mais o usa.</summary>
+        void DetachProperties(int id)
+        {
+            var rels = _m.OfType("IFCRELDEFINESBYPROPERTIES").ToList();
+            foreach (var r in rels)
+            {
+                var objs = StepModel.RefList(r.Args[4]);
+                if (!objs.Remove(id)) continue;
+                if (objs.Count > 0) { _m.SetArg(r.Id, 4, StepModel.RefListText(objs)); continue; }
+                var pset = StepModel.Ref(r.Args[5]);
+                _m.Remove(r.Id);
+                if (pset != 0 && !rels.Any(o => o.Id != r.Id && StepModel.Ref(o.Args[5]) == pset)) _m.Remove(pset);
+            }
+        }
+
+        /// <summary>
+        /// Remove um IfcProductDefinitionShape e as representações dele. As curvas ficam: a Autodesk as
+        /// referencia também em estilos e layers.
+        /// </summary>
+        void RemoveShape(int pds)
+        {
+            if (pds == 0 || _m.TypeOf(pds) != "IFCPRODUCTDEFINITIONSHAPE") return;
+            foreach (var rep in StepModel.RefList(_m.Get(pds).Args[2]))
+                if (_m.TypeOf(rep) == "IFCSHAPEREPRESENTATION") _m.Remove(rep);
+            _m.Remove(pds);
+        }
+
         int AddMissing(List<AlignmentModel> missing, int axisCtx, double[] knownShift)
         {
             var project = _m.OfType("IFCPROJECT").FirstOrDefault();

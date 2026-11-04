@@ -29,8 +29,11 @@ Os dois endereços ficam em `ExtensaoAutodeskUrl` e `VersoesMetroSpUrl` no `Metr
 6. Quando o comando da Autodesk termina, roda `MSP_IFCPOSPROC` sobre o IFC recém-gerado:
    - guarda o original como `[arquivo].autodesk.ifc`;
    - acrescenta completo (horizontal, vertical, eixo 3D) o alinhamento que a Autodesk não gravar, agregado ao `IfcProject` e referenciado no `IfcSite`;
-   - troca o eixo de cada `IfcAlignment` (casado pelo nome; se o exportador mudar o nome, por semelhança; se houver um só de cada lado, direto) pela polilinha 3D e acrescenta o `IfcAlignmentVertical`
-     se faltar, convertendo para o sistema local do alinhamento e compensando deslocamento de origem;
+   - casa cada `IfcAlignment` de nível superior com o desenho (pelo nome; se o exportador mudar o nome, por semelhança; se houver um só de cada lado, direto);
+   - se a Autodesk já gravou os perfis (a IFC 4.3 Extension 2026 grava cada perfil como um `IfcAlignment` filho, com vertical próprio), mantém como veio;
+   - se o alinhamento veio vazio (horizontal sem segmentos), preenche no lugar com horizontal, vertical e eixo 3D do desenho, mantendo GUID, nome, propriedades e estacas;
+   - se veio só com o horizontal, troca o eixo pela polilinha 3D e acrescenta o `IfcAlignmentVertical`,
+     convertendo para o sistema local do alinhamento e compensando deslocamento de origem;
    - preenche `IfcProject` e `IfcSite` (nome, descrição, latitude/longitude, cota de referência, matrícula),
      cria as instalações configuradas sob o `IfcSite` (a linha como `IfcRailway`, estações como `IfcBuilding`; também `IfcBridge` e `IfcRoad`), cria `IfcMapConversion` se faltar e grava o Pset `MetroSP_Projeto`.
    `MSP_IFCPOSPROC` também pode ser rodado à mão, escolhendo um IFC já exportado.
