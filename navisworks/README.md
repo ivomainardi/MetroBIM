@@ -62,3 +62,12 @@ Se aparecer o aviso de objetos sem GlobalId, o modelo carregado no Navisworks n�
 - `globalIds` são os objetos da tarefa. Se a tarefa aponta para um grupo (arquivo, pavimento, camada), entram os objetos de dentro dele. Se aponta só para a geometria, entra o objeto acima.
 
 O formato é aberto: outro programa (ou um script) que grave esse JSON também entra no Iris pelo mesmo caminho.
+
+## Ligação com o Iris
+
+O código do plugin fica só neste repositório. O Iris (`ivomainardi/Iris`) lê o `.iris4d.json` em `web/src/js/85-cron.js` (`parseIris4D`). O contrato entre os dois é o exemplo `exemplo/cronograma.iris4d.json`, igual ao `samples/cronograma-navisworks.iris4d.json` do Iris:
+
+- aqui, `python tests/teste_formato-iris4d.py` confere que o `IrisExport.cs` grava todos os campos do exemplo (roda antes de cada versão, fora do GitHub; no GitHub só à mão, em Actions › Testes › Run workflow);
+- no Iris, `tests/teste_formato-iris4d.py` confere que o leitor só usa campos do exemplo e, com este repositório clonado ao lado (`../MetroSP_Navisworks`), que o plugin grava cada um.
+
+Campo novo no formato: gravar no plugin, pôr no exemplo aqui e no Iris, e só então ler no Iris.
