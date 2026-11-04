@@ -42,10 +42,11 @@ namespace MetroSP.Ui
 
         private static readonly (string Painel, string Ferramentas)[] Ferramentas =
         {
-            ("Parâmetros", "Renomear Compartilhado, Listar Compartilhados, Copiar Valores"),
+            ("Parâmetros", "Renomear Compartilhado, Listar Compartilhados, Copiar Valores, Gerenciar Parâmetros (criar pela planilha, exportar, adicionar em famílias)"),
+            ("Dados", "Planilha de Dados (Excel ida e volta), Editar em Massa, Filtrar e Colorir"),
             ("IFC / IDS", "Verificar Mapeamento IDS, Localização IFC (Location pelo Project Base Point), Arquivos IFC (setups, property sets e mapeamentos por classe), Categorias IFC (IFC4 e IFC 4.3), Exportar IFC (classes, editor de property sets, Forma online)"),
             ("Classificação", "Aplicar Classificação, Verificar Classificação, Consistência Código×Descrição"),
-            ("Modelagem", "Contar Elementos"),
+            ("Modelagem", "Contar Elementos, Renomear Famílias e tipos"),
         };
 
         /// <summary>Abre a janela sobre o Revit (pela logo da Ribbon ou pelo botão Sobre).</summary>

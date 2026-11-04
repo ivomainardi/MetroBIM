@@ -2,6 +2,27 @@
 
 Revit 2025, 2026 e 2027.
 
+## Novo painel Dados e ferramentas de parâmetros
+
+- **Planilha de Dados:** escolha o escopo (seleção, vista ativa ou modelo), as categorias e os parâmetros, e
+  exporte um .xlsx com uma linha por elemento e uma coluna por parâmetro (parâmetros de tipo aparecem com
+  [tipo]; identificação e somente leitura em cinza). Edite no Excel e importe: a janela mostra só as células
+  que mudaram, com o valor atual e o novo, e aponta o que não converte, o que é somente leitura e linhas do mesmo
+  tipo pedindo valores diferentes. Nada é gravado antes de "Gravar alterações" (uma operação, Ctrl+Z desfaz).
+- **Editar em Massa:** um parâmetro em muitos elementos: definir valor, acrescentar prefixo ou sufixo,
+  localizar e substituir (com expressão regular) ou limpar. O texto aceita outros parâmetros entre chaves,
+  por exemplo `{Nível}-{Marca}`, além de {Categoria}, {Família}, {Tipo} e {Id}. Prévia antes de gravar.
+- **Filtrar e Colorir:** regras sobre parâmetros (vazio, igual, diferente, contém, começa com, termina com,
+  maior, menor) combinadas com E ou OU. O resultado pode ser selecionado, isolado na vista (temporário) ou
+  colorido por valor de um parâmetro, com legenda clicável; "Limpar cores" tira as cores dos filtrados.
+- **Gerenciar Parâmetros** (painel Parâmetros): lista e exporta os parâmetros de projeto do modelo; cria vários
+  de uma vez a partir de uma planilha (nome, tipo de dado, instância ou tipo, categorias, grupo, descrição, GUID),
+  acrescentando categorias aos que já existem; e acrescenta parâmetros do arquivo de compartilhados em várias
+  famílias de uma vez (abre, altera e recarrega cada família).
+- **Renomear Famílias** (painel Modelagem): famílias e tipos por regra (prefixo, sufixo, substituir, maiúsculas,
+  minúsculas ou modelo com {Nome}, {Família}, {Categoria} e parâmetros do tipo), com prévia, conferência de nomes
+  repetidos e de caracteres que o Revit não aceita.
+
 ## Exportar IFC: classes prontas no instalador
 
 - O instalador traz os .txt de property sets (e, quando houver, o setup .json e o mapeamento) de cada classe.

@@ -35,6 +35,7 @@ namespace MetroSP
 
             CreateGeralPanel(application);
             CreateParametrosPanel(application);
+            CreateDadosPanel(application);
             CreateIfcPanel(application);
             CreateClassificacaoPanel(application);
             CreateModelagemPanel(application);
@@ -72,6 +73,30 @@ namespace MetroSP
             AddButton<CopiarValoresCommand>(panel, "Copiar\nValores",
                 "Copia valores de um parâmetro para outro, inclusive entre tipos de dado diferentes. Mostra a análise, os impactos e propostas de conversão antes de gravar.",
                 "Copiar");
+
+            AddButton<GerenciarParametrosCommand>(panel, "Gerenciar\nParâmetros",
+                "Veja e exporte os parâmetros de projeto, crie vários de uma vez a partir de uma planilha (com as categorias) " +
+                "e acrescente parâmetros compartilhados em várias famílias.",
+                "GerenciarParametros");
+        }
+
+        private static void CreateDadosPanel(UIControlledApplication application)
+        {
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Dados");
+
+            AddButton<PlanilhaDadosCommand>(panel, "Planilha\nde Dados",
+                "Leva parâmetros dos elementos para uma planilha do Excel (uma linha por elemento) e traz de volta só o que mudou, " +
+                "mostrando cada alteração antes de gravar.",
+                "PlanilhaDados");
+
+            AddButton<EdicaoMassaCommand>(panel, "Editar\nem Massa",
+                "Um parâmetro em muitos elementos: definir valor (juntando outros parâmetros com {Nome}), prefixo, sufixo, " +
+                "localizar e substituir ou limpar, com prévia.",
+                "EdicaoMassa");
+
+            AddButton<FiltroCorCommand>(panel, "Filtrar\ne Colorir",
+                "Encontre elementos por regras sobre parâmetros (E/OU) e selecione, isole na vista ou colora por valor, com legenda.",
+                "FiltroCor");
         }
 
         private static void CreateIfcPanel(UIControlledApplication application)
@@ -126,6 +151,10 @@ namespace MetroSP
             AddButton<ContarElementosCommand>(panel, "Contar\nElementos",
                 "Conta os elementos selecionados (ou todos da vista ativa) por categoria.",
                 "Contar");
+
+            AddButton<RenomearFamiliasCommand>(panel, "Renomear\nFamílias",
+                "Renomeia famílias e tipos por regra (prefixo, sufixo, substituir, modelo com {Nome}), com prévia e conferência de nomes repetidos.",
+                "RenomearFamilias");
         }
 
         private static PushButton AddButton<TCommand>(RibbonPanel panel, string text, string tooltip, string icon)
