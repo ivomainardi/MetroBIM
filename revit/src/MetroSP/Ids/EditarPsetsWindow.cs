@@ -277,7 +277,7 @@ namespace MetroSP.Ids
                 var f = new FiltroColuna { Titulo = (string)col.Header, Valor = valores[i] };
                 f.Botao = new Button
                 {
-                    Content = "▾", Width = 18, Height = 18, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0),
+                    Content = "▾", Width = 18, Height = 18, MinWidth = 0, Padding = new Thickness(0), Margin = new Thickness(6, 0, 0, 0),
                     Background = Brushes.White, BorderBrush = Theme.Solid(Theme.CinzaClaro), Focusable = false,
                     ToolTip = $"Filtrar {f.Titulo}", VerticalAlignment = VerticalAlignment.Center,
                 };

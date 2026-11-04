@@ -13,7 +13,8 @@ using System.Windows.Media;
 namespace MetroSP.Ui
 {
     /// <summary>
-    /// DataGrid com uma linha de filtros (uma caixa por coluna) e ordenação por várias colunas
+    /// DataGrid com filtro no título de cada coluna (caixa "Filtrar..." e botão ▾ com a lista de valores)
+    /// e ordenação por várias colunas
     /// (clique no cabeçalho; Shift+clique acrescenta colunas à ordenação).
     /// Os filtros usam a ListCollectionView, então a ordenação é mantida ao filtrar.
     /// Colunas ordenadas mostram seta e posição na ordenação (ex.: "Nome ▲1", "Tipo ▼2").
@@ -22,7 +23,6 @@ namespace MetroSP.Ui
     public class FilterableGrid : DockPanel
     {
         private readonly ListCollectionView _view;
-        private readonly StackPanel _filterRow;
         private readonly List<FiltroColuna> _filters = new List<FiltroColuna>();
 
         /// <summary>Filtro de uma coluna: texto digitado e/ou lista de valores marcados (como no Excel).</summary>
@@ -31,6 +31,7 @@ namespace MetroSP.Ui
             public PropertyInfo Prop;
             public TextBox Box;
             public Button Botao;
+            public TextBlock Ordem;
             public string Titulo;
             /// <summary>Valores aceitos; null = todos.</summary>
             public HashSet<string> Valores;
@@ -54,10 +55,6 @@ namespace MetroSP.Ui
             _itemType = itemType;
             _view = new ListCollectionView(items) { Filter = Pass };
 
-            _filterRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(1, 0, 0, 2) };
-            DockPanel.SetDock(_filterRow, Dock.Top);
-            Children.Add(_filterRow);
-
             Grid = new DataGrid
             {
                 AutoGenerateColumns = false,
@@ -65,13 +62,24 @@ namespace MetroSP.Ui
                 CanUserAddRows = false,
                 CanUserSortColumns = true,
                 CanUserResizeColumns = true,
-                CanUserReorderColumns = false, // mantém os filtros alinhados às colunas
+                CanUserReorderColumns = false,
                 HeadersVisibility = DataGridHeadersVisibility.Column,
                 SelectionMode = DataGridSelectionMode.Extended,
                 ClipboardCopyMode = DataGridClipboardCopyMode.ExcludeHeader,
                 ItemsSource = _view,
             };
             Children.Add(Grid);
+
+            // O conteúdo do título ocupa toda a largura da coluna, para a caixa de filtro acompanhar a coluna.
+            // Feito no Loaded: o estilo padrão do título só existe depois do Theme.Apply da janela.
+            Grid.Loaded += (s, e) =>
+            {
+                if (Grid.ColumnHeaderStyle != null) return;
+                var estilo = new Style(typeof(DataGridColumnHeader), Grid.TryFindResource(typeof(DataGridColumnHeader)) as Style);
+                estilo.Setters.Add(new Setter(Control.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch));
+                estilo.Setters.Add(new Setter(Control.VerticalContentAlignmentProperty, VerticalAlignment.Top));
+                Grid.ColumnHeaderStyle = estilo;
+            };
 
             ((System.Collections.Specialized.INotifyCollectionChanged)_view.SortDescriptions).CollectionChanged +=
                 (s, e) => UpdateSortHeaders();
@@ -107,37 +115,19 @@ namespace MetroSP.Ui
         {
             var col = new DataGridTextColumn
             {
-                Header = HeaderContent(header, null, 0),
                 Binding = new Binding(property),
                 SortMemberPath = property,
                 Width = fill ? new DataGridLength(1, DataGridLengthUnitType.Star) : new DataGridLength(width),
-                MinWidth = 40,
+                MinWidth = 60,
             };
             col.ElementStyle = CellStyle(wrap);
             _columns[col] = (header, wrap);
-            Grid.Columns.Add(col);
 
-            var box = new TextBox { ToolTip = $"Filtrar por {header} (contém o texto)" };
-            box.TextChanged += (s, e) => Refresh();
-            var botao = new Button
-            {
-                Content = "▾",
-                Width = 18,
-                Padding = new Thickness(0),
-                Margin = new Thickness(1, 0, 0, 0),
-                ToolTip = $"Escolher valores de {header}",
-                Background = Brushes.White,
-                BorderBrush = Theme.Solid(Theme.CinzaClaro),
-                Focusable = false,
-            };
-            var celula = new DockPanel();
-            DockPanel.SetDock(botao, Dock.Right);
-            celula.Children.Add(botao);
-            celula.Children.Add(box);
-            celula.SetBinding(WidthProperty, new Binding(nameof(DataGridColumn.ActualWidth)) { Source = col });
-            _filterRow.Children.Add(celula);
-            var filtro = new FiltroColuna { Prop = _itemType.GetProperty(property), Box = box, Botao = botao, Titulo = header };
-            botao.Click += (s, e) => AbrirValores(filtro);
+            var filtro = new FiltroColuna { Prop = _itemType.GetProperty(property), Titulo = header };
+            col.Header = Cabecalho(filtro);
+            filtro.Botao.Click += (s, e) => AbrirValores(filtro);
+            filtro.Box.TextChanged += (s, e) => { MarcarBotao(filtro); Refresh(); };
+            Grid.Columns.Add(col);
             _filters.Add(filtro);
             return col;
         }
@@ -145,32 +135,97 @@ namespace MetroSP.Ui
         /// <summary>Disparado depois de cada mudança de filtro.</summary>
         public event Action Filtered;
 
-        /// <summary>Atualiza os cabeçalhos com seta (▲ crescente, ▼ decrescente) e a posição na ordenação.</summary>
+        /// <summary>
+        /// Título da coluna: nome, seta de ordenação e ▾ (lista de valores) na primeira linha;
+        /// caixa "Filtrar..." na segunda, sempre com a largura da coluna.
+        /// </summary>
+        private static FrameworkElement Cabecalho(FiltroColuna fc)
+        {
+            fc.Ordem = new TextBlock
+            {
+                Foreground = Theme.Solid(Theme.Laranja),
+                FontWeight = FontWeights.Bold,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            fc.Botao = new Button
+            {
+                Content = "▾",
+                Width = 20,
+                Height = 18,
+                MinWidth = 0, // o estilo padrão de botão tem largura mínima de 90
+                Padding = new Thickness(0),
+                Margin = new Thickness(4, 0, 0, 0),
+                FontWeight = FontWeights.Normal,
+                Background = Brushes.White,
+                BorderBrush = Theme.Solid(Theme.CinzaClaro),
+                VerticalAlignment = VerticalAlignment.Center,
+                Focusable = false,
+                ToolTip = $"Escolher valores de {fc.Titulo}",
+            };
+            var titulo = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(fc.Botao, Dock.Right);
+            titulo.Children.Add(fc.Botao);
+            DockPanel.SetDock(fc.Ordem, Dock.Right);
+            titulo.Children.Add(fc.Ordem);
+            titulo.Children.Add(new TextBlock
+            {
+                Text = fc.Titulo,
+                VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                ToolTip = fc.Titulo,
+            });
+
+            fc.Box = new TextBox
+            {
+                FontWeight = FontWeights.Normal,
+                Padding = new Thickness(3, 1, 3, 1),
+                ToolTip = $"Filtrar {fc.Titulo}: mostra só as linhas que contêm o texto.\nEsc limpa.",
+            };
+            fc.Box.KeyDown += (s, e) => { if (e.Key == Key.Escape && fc.Box.Text.Length > 0) { fc.Box.Clear(); e.Handled = true; } };
+            // Texto de ajuda dentro da caixa vazia (some ao digitar).
+            var dica = new TextBlock
+            {
+                Text = "Filtrar...",
+                FontWeight = FontWeights.Normal,
+                FontStyle = FontStyles.Italic,
+                Foreground = Theme.Solid(Theme.Cinza),
+                Margin = new Thickness(6, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                IsHitTestVisible = false,
+            };
+            dica.SetBinding(VisibilityProperty, new Binding(nameof(TextBox.Text))
+            {
+                Source = fc.Box,
+                Converter = new VazioParaVisivel(),
+            });
+            var caixa = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            caixa.Children.Add(fc.Box);
+            caixa.Children.Add(dica);
+
+            var painel = new DockPanel();
+            DockPanel.SetDock(titulo, Dock.Top);
+            painel.Children.Add(titulo);
+            painel.Children.Add(caixa);
+            return painel;
+        }
+
+        private class VazioParaVisivel : IValueConverter
+        {
+            public object Convert(object value, Type t, object p, System.Globalization.CultureInfo c) =>
+                string.IsNullOrEmpty(value as string) ? Visibility.Visible : Visibility.Collapsed;
+            public object ConvertBack(object value, Type t, object p, System.Globalization.CultureInfo c) => throw new NotSupportedException();
+        }
+
+        /// <summary>Mostra a seta (▲ crescente, ▼ decrescente) e a posição na ordenação ao lado do título.</summary>
         private void UpdateSortHeaders()
         {
             var ordem = _view.SortDescriptions.ToList();
-            foreach (var kv in _columns)
+            foreach (FiltroColuna fc in _filters)
             {
-                DataGridColumn col = kv.Key;
-                int i = ordem.FindIndex(d => d.PropertyName == col.SortMemberPath);
-                col.Header = HeaderContent(kv.Value.Text, i >= 0 ? ordem[i].Direction : (System.ComponentModel.ListSortDirection?)null, i + 1);
+                int i = ordem.FindIndex(d => d.PropertyName == fc.Prop?.Name);
+                fc.Ordem.Text = i < 0 ? "" :
+                    (ordem[i].Direction == System.ComponentModel.ListSortDirection.Ascending ? " ▲" : " ▼") + (i + 1);
             }
-        }
-
-        private static object HeaderContent(string text, System.ComponentModel.ListSortDirection? direction, int position)
-        {
-            var panel = new StackPanel { Orientation = Orientation.Horizontal };
-            panel.Children.Add(new TextBlock { Text = text });
-            if (direction != null)
-            {
-                panel.Children.Add(new TextBlock
-                {
-                    Text = (direction == System.ComponentModel.ListSortDirection.Ascending ? " ▲" : " ▼") + position,
-                    Foreground = Theme.Solid(Theme.Laranja),
-                    FontWeight = FontWeights.Bold,
-                });
-            }
-            return panel;
         }
 
         private Style CellStyle(bool wrap)
@@ -247,11 +302,15 @@ namespace MetroSP.Ui
             Refresh();
         }
 
+        /// <summary>Filtro em uso fica em laranja: ▾ quando há valores escolhidos, a caixa quando há texto.</summary>
         private static void MarcarBotao(FiltroColuna fc)
         {
             bool ativo = fc.Valores != null;
-            fc.Botao.Background = ativo ? Theme.Solid(Theme.LaranjaClaro) : Brushes.White;
+            fc.Botao.Background = ativo ? Theme.Solid(Theme.Laranja) : Brushes.White;
+            fc.Botao.Foreground = ativo ? Brushes.White : Theme.Solid(Theme.Preto);
+            fc.Botao.BorderBrush = Theme.Solid(ativo ? Theme.Laranja : Theme.CinzaClaro);
             fc.Botao.FontWeight = ativo ? FontWeights.Bold : FontWeights.Normal;
+            fc.Box.Background = fc.Box.Text.Trim().Length > 0 ? Theme.Solid(Theme.LaranjaSelecao) : Brushes.White;
         }
 
         /// <summary>Lista de valores distintos da coluna com caixas de marcar, como o filtro do Excel.</summary>
@@ -313,6 +372,7 @@ namespace MetroSP.Ui
             limpar.Click += (s, e) =>
             {
                 fc.Valores = null;
+                fc.Box.Text = "";
                 MarcarBotao(fc);
                 popup.IsOpen = false;
                 Refresh();
