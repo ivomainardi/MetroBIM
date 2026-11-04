@@ -66,7 +66,38 @@ namespace MetroSP.Ids
 
             if (ExportarParaIfcNao(doc, e)) return "Exportar para IFC = Não";
             if (e.get_BoundingBox(null) == null) return "Sem geometria 3D";
+            // Famílias (inclusive as no local) e formas diretas podem ter só linhas, planos ou vazios: aparecem como
+            // contorno no Revit, mas o exportador não leva nada. Paredes, pisos e outros elementos de sistema têm sólido.
+            if ((e is FamilyInstance || e is DirectShape) && !TemSolido(e)) return "Sem geometria 3D";
             return null;
+        }
+
+        /// <summary>O elemento tem algum sólido com volume ou malha (no nível de detalhe Alto).</summary>
+        public static bool TemSolido(Element e)
+        {
+            try
+            {
+                GeometryElement g = e.get_Geometry(new Options { DetailLevel = ViewDetailLevel.Fine, ComputeReferences = false });
+                return g != null && TemSolido(g, 0);
+            }
+            catch { return true; } // na dúvida, conta o elemento
+        }
+
+        private static bool TemSolido(GeometryElement g, int nivel)
+        {
+            foreach (GeometryObject o in g)
+            {
+                switch (o)
+                {
+                    case Solid s when s.Volume > 1e-9: return true;
+                    case Mesh m when m.NumTriangles > 0: return true;
+                    case GeometryInstance gi when nivel < 6:
+                        GeometryElement dentro = gi.GetInstanceGeometry();
+                        if (dentro != null && TemSolido(dentro, nivel + 1)) return true;
+                        break;
+                }
+            }
+            return false;
         }
 
         public static bool VaiParaIfc(Document doc, Element e, ElementId fase) => MotivoFora(doc, e, fase) == null;

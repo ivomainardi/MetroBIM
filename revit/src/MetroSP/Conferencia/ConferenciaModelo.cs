@@ -19,6 +19,9 @@ namespace MetroSP.Conferencia
         AplicarClassificacao,
         VerificarClassificacao,
         DetalhesIds,
+        EditarEmMassa,
+        CategoriasIfc,
+        EditarPropertySets,
     }
 
     /// <summary>Uma linha de pendência (ou de informação) de uma etapa.</summary>
@@ -32,6 +35,8 @@ namespace MetroSP.Conferencia
         public string OQueFazer { get; set; }
         public List<ElementId> Elementos { get; set; } = new List<ElementId>();
         public Correcao Correcao { get; set; }
+        /// <summary>Parâmetro do Revit a preencher (etapa 4), para abrir o Editar em Massa já nele.</summary>
+        public string Parametro { get; set; }
 
         public int QtdElementos => Elementos.Count;
         public string Situacao =>
@@ -81,6 +86,8 @@ namespace MetroSP.Conferencia
         public bool NoTipo { get; set; }
         /// <summary>Restrição de valor do IDS (null = qualquer valor preenchido).</summary>
         public string ValorExigido { get; set; }
+        /// <summary>Valores fixos aceitos pelo IDS (valor único ou enumeração), para escolher ao corrigir.</summary>
+        public List<string> Opcoes { get; } = new List<string>();
         public int Total { get; set; }
         public int Ok { get; set; }
         /// <summary>Não dá para conferir aqui (ex.: Pset padrão calculado pelo exportador).</summary>

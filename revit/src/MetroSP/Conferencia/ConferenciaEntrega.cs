@@ -142,8 +142,8 @@ namespace MetroSP.Conferencia
                 Correcao = Correcao.EditarPacote,
             };
 
-            void Linha(Sinal s, string assunto, string problema, string fazer = null) =>
-                etapa.Pendencias.Add(new Pendencia { Sinal = s, Assunto = assunto, Problema = problema, OQueFazer = fazer, Correcao = Correcao.EditarPacote });
+            void Linha(Sinal s, string assunto, string problema, string fazer = null, Correcao correcao = Correcao.EditarPacote) =>
+                etapa.Pendencias.Add(new Pendencia { Sinal = s, Assunto = assunto, Problema = problema, OQueFazer = fazer, Correcao = correcao });
 
             string Nome(string c) => Path.GetFileName(c);
 
@@ -178,7 +178,7 @@ namespace MetroSP.Conferencia
                         _temPsets ? $"{Nome(_pacote.PropertySets)}: {psets} property sets, {_mapping.Properties.Count} propriedades"
                                   : $"{Nome(_pacote.PropertySets)} não tem nenhuma propriedade.");
                     foreach (string aviso in _mapping.Warnings)
-                        Linha(Sinal.Amarelo, "Property sets (.txt)", aviso, "Corrija a linha no .txt.");
+                        Linha(Sinal.Amarelo, "Property sets (.txt)", aviso, "Corrija a linha no .txt (Editar property sets).", Correcao.EditarPropertySets);
                     foreach (var tipo in _mapping.Properties
                                  .Where(p => ExportMapping.FileTypeToIfc(p.FileType) == null)
                                  .GroupBy(p => p.FileType, StringComparer.OrdinalIgnoreCase))
@@ -186,7 +186,8 @@ namespace MetroSP.Conferencia
                         string exemplos = string.Join(", ", tipo.Take(4).Select(p => $"{p.PropertySet}.{p.Property}")) + (tipo.Count() > 4 ? "…" : "");
                         Linha(Sinal.Amarelo, "Property sets (.txt)",
                             $"Tipo \"{tipo.Key}\" desconhecido pelo exportador; a propriedade sai como texto ({exemplos}).",
-                            "Use um tipo válido: Text, Label, Boolean, Integer, Real, Length, Area, Volume, Ratio...");
+                            "Use um tipo válido: Text, Label, Boolean, Integer, Real, Length, Area, Volume, Ratio... (Editar property sets).",
+                            Correcao.EditarPropertySets);
                     }
                 }
                 catch (Exception ex) { Linha(Sinal.Vermelho, "Property sets (.txt)", $"{Nome(_pacote.PropertySets)} não pôde ser lido: {ex.Message}"); }
@@ -300,6 +301,7 @@ namespace MetroSP.Conferencia
             {
                 Numero = 3, Titulo = "Classe IFC dos elementos",
                 Descricao = "Cada elemento sai com uma classe IFC própria (não como proxy) e recebe os campos do Metrô.",
+                Correcao = Correcao.CategoriasIfc,
             };
 
             foreach (var g in elementos.Where(x => x.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase))
@@ -388,6 +390,7 @@ namespace MetroSP.Conferencia
                     if (!r.Matriz.TryGetValue((categoria, x.Campo), out CelulaMatriz c))
                     {
                         c = new CelulaMatriz { Categoria = categoria, Campo = x.Campo, Parametro = x.Parametro, NoTipo = x.NoTipo == true, ValorExigido = x.Valor?.ToString() };
+                        if (x.Valor != null) c.Opcoes.AddRange(x.Valor.FixedValues.Where(v => !string.IsNullOrEmpty(v)));
                         r.Matriz[(categoria, x.Campo)] = c;
                     }
 
@@ -457,6 +460,8 @@ namespace MetroSP.Conferencia
                         ? $"Vincule o parâmetro \"{c.Parametro}\" à categoria (Parâmetros de projeto)."
                         : $"Preencha \"{c.Parametro}\"" + (c.NoTipo ? " nos tipos." : ".") + (fora > 0 ? $" Valores aceitos: {c.ValorExigido}." : ""),
                     Elementos = c.Pendentes.Select(p => p.Id).ToList(),
+                    Parametro = c.Parametro,
+                    Correcao = sem > 0 && sem == c.Pendentes.Count ? Correcao.ParametrosDeProjeto : Correcao.EditarEmMassa,
                 });
             }
 
@@ -503,7 +508,7 @@ namespace MetroSP.Conferencia
                     Sinal = Sinal.Vermelho, Assunto = x.Parametro,
                     Problema = $"No Revit o parâmetro é {MappingAnalyzer.RevitTypeName(prm)}, mas o .txt exporta como \"{x.TipoArquivo}\" ({x.Campo}).",
                     OQueFazer = "Ajuste o tipo no .txt de property sets ou use um parâmetro do tipo certo.",
-                    Correcao = Correcao.ListarCompartilhados,
+                    Correcao = Correcao.EditarPropertySets,
                 });
             }
 
@@ -563,7 +568,7 @@ namespace MetroSP.Conferencia
                                     Sinal = Sinal.Vermelho, Assunto = campo,
                                     Problema = $"O padrão Metrô exige {campo}, mas nenhuma linha do .txt de property sets gera esse campo para {entidade}.",
                                     OQueFazer = "Inclua a propriedade no .txt de property sets (com o parâmetro do Revit de onde ela sai).",
-                                    Correcao = Correcao.DetalhesIds,
+                                    Correcao = Correcao.EditarPropertySets,
                                 };
                             continue;
                         }
@@ -575,7 +580,7 @@ namespace MetroSP.Conferencia
                                 Sinal = Sinal.Vermelho, Assunto = campo,
                                 Problema = $"O padrão Metrô pede {p.DataType}, mas o .txt exporta {map.IfcType} (tipo \"{map.FileType}\").",
                                 OQueFazer = "Ajuste o tipo da propriedade no .txt de property sets.",
-                                Correcao = Correcao.DetalhesIds,
+                                Correcao = Correcao.EditarPropertySets,
                             };
                         }
                         lista.Add(new Exigencia { Campo = campo, Parametro = map.RevitParameter, NoTipo = map.OnType, TipoArquivo = map.FileType, Valor = p.Value });

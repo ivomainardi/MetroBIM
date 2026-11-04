@@ -21,6 +21,18 @@ Todas as janelas do MetroSP agora podem ser redimensionadas pela borda ou pela a
 nunca passam da altura da tela. As de formulário (Localização, Exportar IFC, Verificar Padrões, Pacote, Sobre e outras)
 ganham barra de rolagem quando ficam menores que o conteúdo.
 
+## Conferir Entrega: corrigir na própria tela
+
+- **Dados preenchidos:** ao abrir uma célula da matriz, a barra **Preencher "parâmetro" com** grava o valor nas linhas
+  escolhidas (ou em todas as vazias e fora do exigido), na instância ou no tipo, e confere de novo. Quando os padrões
+  têm a lista de valores aceitos, ela aparece para escolher. Ctrl+Z no Revit desfaz.
+- **Editar em Massa...** ao lado (e na aba Lista) abre a ferramenta com os elementos selecionados e o parâmetro já
+  escolhido, para juntar outros parâmetros, prefixos ou localizar e substituir.
+- Cada pendência aponta a ferramenta que resolve: **Categorias IFC...** na classe IFC dos elementos, **Editar property
+  sets...** (abre o .txt dos padrões) nos campos sem mapeamento e nos tipos errados, além das que já existiam.
+- **Matriz mais legível:** os títulos das colunas ficam na horizontal, com a propriedade inteira (quebrando entre as
+  palavras) e o property set embaixo.
+
 ## Filtros das tabelas no título das colunas
 
 Em todas as tabelas com filtro (Gerenciar Parâmetros, Lista de compartilhados, Verificar Classificação, Copiar Valores,
@@ -38,7 +50,7 @@ Resultados do IDS e outras), o filtro passou para dentro do título de cada colu
 - **Sem "fantasmas" na contagem:** a verificação só conta os elementos que vão de fato para o IFC. Ficam de fora
   elementos de **opção de projeto secundária**, **demolidos** ou criados numa **fase posterior** à da exportação
   (última fase do projeto, ou a do setup na Conferir Entrega), elementos **sem geometria 3D** (sistemas de vigas,
-  famílias vazias) e os com **Exportar para IFC = Não**. Antes eles entravam nas contagens e, com duplo clique,
+  famílias vazias ou só com linhas, como vigas no local feitas só de contorno) e os com **Exportar para IFC = Não**. Antes eles entravam nas contagens e, com duplo clique,
   selecionavam algo que no Revit aparecia só como contorno ou meio-tom.
 - Os elementos deixados de fora aparecem no fim da lista, nas linhas **(fora do IFC)**, com o motivo, e num selo
   no topo; duplo clique seleciona para conferir.
