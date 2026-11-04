@@ -22,7 +22,7 @@ namespace MetroSP.Ids
             Width = 600;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            ResizeMode = ResizeMode.CanResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             MinWidth = 480;
 
             var panel = new StackPanel();

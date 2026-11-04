@@ -26,7 +26,7 @@ namespace MetroSP.Conferencia
             Title = "MetroSP - Pacote do Metrô";
             Width = 720;
             SizeToContent = SizeToContent.Height;
-            ResizeMode = ResizeMode.NoResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
             var painel = new StackPanel();

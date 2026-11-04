@@ -12,6 +12,12 @@ A aba MetroSP passou de 7 painéis para 4, na ordem do trabalho:
 
 O Sobre continua no logo, no começo da aba.
 
+## Todas as janelas redimensionáveis
+
+Todas as janelas do MetroSP agora podem ser redimensionadas pela borda ou pela alça no canto, têm um tamanho mínimo e
+nunca passam da altura da tela. As de formulário (Localização, Exportar IFC, Verificar Padrões, Pacote, Sobre e outras)
+ganham barra de rolagem quando ficam menores que o conteúdo.
+
 ## Filtros das tabelas no título das colunas
 
 Em todas as tabelas com filtro (Gerenciar Parâmetros, Lista de compartilhados, Verificar Classificação, Copiar Valores,

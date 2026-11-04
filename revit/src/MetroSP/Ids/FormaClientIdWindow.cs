@@ -17,7 +17,7 @@ namespace MetroSP.Ids
             Title = "MetroSP - Client ID do Forma online";
             Width = 560;
             SizeToContent = SizeToContent.Height;
-            ResizeMode = ResizeMode.NoResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
             var corpo = new StackPanel();

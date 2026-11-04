@@ -84,7 +84,7 @@ namespace MetroSP.Ids
             Width = 660;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            ResizeMode = ResizeMode.CanResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             MinWidth = 540;
 
             var corpo = new StackPanel();

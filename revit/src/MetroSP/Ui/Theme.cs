@@ -74,8 +74,40 @@ namespace MetroSP.Ui
                 raiz.Children.Add(barra);
             }
 
-            raiz.Children.Add(new Border { Padding = new Thickness(14, 12, 14, 12), Child = corpo });
+            var conteudo = new Border { Padding = new Thickness(14, 12, 14, 12), Child = corpo };
+            raiz.Children.Add(conteudo);
             w.Content = raiz;
+            Redimensionavel(w, raiz, conteudo);
+        }
+
+        /// <summary>
+        /// Toda janela MetroSP pode ser redimensionada, tem tamanho mínimo e nunca passa da área útil da tela.
+        /// Janelas de formulário (que se ajustam ao conteúdo) ganham rolagem quando ficam menores que ele;
+        /// as de tabela já rolam dentro da própria tabela.
+        /// </summary>
+        private static void Redimensionavel(Window w, DockPanel raiz, Border conteudo)
+        {
+            w.SourceInitialized += (s, e) =>
+            {
+                w.ResizeMode = ResizeMode.CanResizeWithGrip;
+                double alturaUtil = SystemParameters.WorkArea.Height - 20;
+                if (double.IsInfinity(w.MaxHeight) || w.MaxHeight > alturaUtil) w.MaxHeight = alturaUtil;
+                if (w.SizeToContent != SizeToContent.Manual && raiz.Children.Contains(conteudo))
+                {
+                    raiz.Children.Remove(conteudo);
+                    raiz.Children.Add(new ScrollViewer
+                    {
+                        Content = conteudo,
+                        VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                        HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                    });
+                }
+            };
+            w.Loaded += (s, e) =>
+            {
+                if (w.MinWidth <= 0) w.MinWidth = Math.Min(w.ActualWidth, 420);
+                if (w.MinHeight <= 0) w.MinHeight = Math.Min(w.ActualHeight, 260);
+            };
         }
 
         /// <summary>Etiqueta arredondada para resumos (ex.: "3 fora do .txt").</summary>

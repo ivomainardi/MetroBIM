@@ -103,8 +103,9 @@ namespace MetroSP.Ui
                     Title = "MetroSP - " + titulo,
                     Content = raiz,
                     Width = 480,
+                    MinWidth = 360,
                     SizeToContent = SizeToContent.Height,
-                    ResizeMode = ResizeMode.NoResize,
+                    ResizeMode = ResizeMode.CanResizeWithGrip,
                     // No alto da tela e sempre à frente, mas sem cobrir o centro, onde o Revit abre os avisos
                     // dele (um aviso escondido atrás desta janela pareceria um travamento).
                     WindowStartupLocation = WindowStartupLocation.Manual,

@@ -61,7 +61,7 @@ namespace MetroSP.Ui
             Title = "MetroSP - Sobre";
             Width = 520;
             SizeToContent = SizeToContent.Height;
-            ResizeMode = ResizeMode.NoResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
             var corpo = new StackPanel();

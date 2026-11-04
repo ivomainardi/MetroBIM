@@ -724,7 +724,7 @@ namespace MetroSP.Ids
         private string PedirTexto(string titulo, string pergunta, string valor)
         {
             var caixa = new TextBox { Text = valor, Margin = new Thickness(0, 6, 0, 0) };
-            var janela = new Window { Title = "MetroSP - " + titulo, Owner = this, Width = 380, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            var janela = new Window { Title = "MetroSP - " + titulo, Owner = this, Width = 380, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.CanResizeWithGrip, WindowStartupLocation = WindowStartupLocation.CenterOwner };
             var corpo = new StackPanel();
             corpo.Children.Add(new TextBlock { Text = pergunta, TextWrapping = TextWrapping.Wrap });
             corpo.Children.Add(caixa);
