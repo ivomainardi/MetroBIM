@@ -11,13 +11,15 @@ namespace MetroSP.Ui
     public static class ExtensionWindow
     {
         /// <param name="blocking">true quando aberta porque a exportação não pôde começar.</param>
-        public static void Show(string command, bool blocking)
+        public static void Show(Settings cfg, string command, bool blocking)
         {
             var installed = AutodeskIfcExtension.FindInstalled();
             var loaded = AutodeskIfcExtension.CommandDefined(command);
             var ok = installed.Count > 0 || loaded;
+            var oficial = string.IsNullOrWhiteSpace(cfg.ExtensaoAutodeskUrl) ? AutodeskIfcExtension.DownloadsUrl : cfg.ExtensaoAutodeskUrl;
+            var github = cfg.VersoesMetroSpUrl;
 
-            var w = NewWindow("Exportador IFC da Autodesk", 500);
+            var w = NewWindow("Exportador IFC", 500);
             var body = new StackPanel();
             if (blocking && !ok)
                 body.Children.Add(new TextBlock
@@ -27,7 +29,8 @@ namespace MetroSP.Ui
                     Margin = new Thickness(0, 0, 0, 8)
                 });
 
-            body.Children.Add(Theme.Secao("IFC 4.3 Extension for Civil 3D"));
+            // Caminho oficial: a extensão da Autodesk.
+            body.Children.Add(Theme.Secao("IFC 4.3 Extension for Civil 3D · oficial"));
             body.Children.Add(Theme.Selo(ok ? "Instalada" : "Não instalada", ok ? Theme.Estado.Ok : Theme.Estado.Aviso));
             foreach (var i in installed)
             {
@@ -41,15 +44,51 @@ namespace MetroSP.Ui
                 {
                     Text = "Baixe na conta Autodesk (Produtos e serviços › Atualizações) a extensão da mesma versão do Civil 3D, instale e reinicie o Civil 3D.",
                     TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 8, 0, 0)
+                    Margin = new Thickness(0, 4, 0, 0)
                 });
+            body.Children.Add(LinkTo(oficial));
 
-            var open = new Button { Content = ok ? "Ver atualizações" : "Baixar na conta Autodesk", Style = Theme.PrimaryButton, IsDefault = true };
-            open.Click += (s, e) => Process.Start(new ProcessStartInfo(AutodeskIfcExtension.DownloadsUrl) { UseShellExecute = true });
+            // Caminho GitHub: as versões do plugin MetroSP.
+            if (!string.IsNullOrWhiteSpace(github))
+            {
+                var v = typeof(ExtensionWindow).Assembly.GetName().Version;
+                var sec = Theme.Secao("Plugin MetroSP · GitHub");
+                sec.Margin = new Thickness(0, 14, 0, 4);
+                body.Children.Add(sec);
+                body.Children.Add(Theme.Selo("Versão " + v.Major + "." + v.Minor + "." + v.Build, Theme.Estado.Neutro));
+                body.Children.Add(LinkTo(github));
+            }
+
+            var open = new Button { Content = ok ? "Atualizações Autodesk" : "Baixar na conta Autodesk", Style = Theme.PrimaryButton, IsDefault = true };
+            open.Click += (s, e) => Open(oficial);
+            var buttons = new List<Button> { open };
+            if (!string.IsNullOrWhiteSpace(github))
+            {
+                var gh = new Button { Content = "Versões no GitHub" };
+                gh.Click += (s, e) => Open(github);
+                buttons.Add(gh);
+            }
             var close = new Button { Content = "Fechar", IsCancel = true };
             close.Click += (s, e) => w.Close();
-            Theme.Apply(w, "Exportador IFC da Autodesk", AutodeskIfcExtension.DownloadsUrl.Replace("https://", ""), body, Theme.Buttons(open, close));
+            buttons.Add(close);
+            Theme.Apply(w, "Exportador IFC", "Caminho oficial e caminho GitHub", body, Theme.Buttons(buttons.ToArray()));
             AcApp.ShowModalWindow(AcApp.MainWindow.Handle, w, false);
+        }
+
+        static Button LinkTo(string url)
+        {
+            var l = Theme.Link(url.Replace("https://", ""));
+            l.HorizontalAlignment = HorizontalAlignment.Left;
+            l.Margin = new Thickness(0, 4, 0, 0);
+            l.ToolTip = url;
+            l.Click += (s, e) => Open(url);
+            return l;
+        }
+
+        static void Open(string url)
+        {
+            try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+            catch { Clipboard.SetText(url); MessageBox.Show("Não foi possível abrir o navegador. O endereço foi copiado:\n" + url, "MetroSP"); }
         }
 
         internal static Window NewWindow(string title, double width) => new Window

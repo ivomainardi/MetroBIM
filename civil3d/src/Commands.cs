@@ -96,7 +96,7 @@ namespace MetroSP
         [CommandMethod("MSP_IFCEXTENSAO")]
         public void AutodeskExtension()
         {
-            try { Ui.ExtensionWindow.Show(Settings.Load().ExportCommand, blocking: false); }
+            try { var cfg = Settings.Load(); Ui.ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false);; }
             catch (System.Exception ex) { Fail(AcApp.DocumentManager.MdiActiveDocument.Editor, ex); }
         }
 
@@ -213,7 +213,7 @@ namespace MetroSP
                     if (!AutodeskIfcExtension.CommandDefined(command) && AutodeskIfcExtension.FindInstalled().Count == 0)
                     {
                         ed.WriteMessage($"\nMetroSP: {command} não existe neste Civil 3D. Instale a IFC 4.3 Extension da Autodesk.");
-                        Ui.ExtensionWindow.Show(command, blocking: true);
+                        Ui.ExtensionWindow.Show(cfg, command, blocking: true);
                         return;
                     }
                 }

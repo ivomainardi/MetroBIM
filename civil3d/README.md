@@ -11,7 +11,8 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
 O `IFCINFRAEXPORT` não vem com o Civil 3D: é a **IFC 4.3 Extension for Civil 3D**, baixada na conta Autodesk
 (Produtos e serviços › Atualizações, na versão do Civil 3D instalada) e mostrada em Suplementos › IFC Infrastructure.
 Sem ela o Exportar IFC para antes de começar e abre a janela **Exportador** (`MSP_IFCEXTENSAO`), que mostra a versão
-instalada e leva à página de atualizações da conta Autodesk.
+instalada e tem dois caminhos: o oficial (atualizações da conta Autodesk) e o GitHub (versões do plugin MetroSP).
+Os dois endereços ficam em `ExtensaoAutodeskUrl` e `VersoesMetroSpUrl` no `MetroSP.settings.json`.
 
 ## Fluxo do Exportar IFC
 
