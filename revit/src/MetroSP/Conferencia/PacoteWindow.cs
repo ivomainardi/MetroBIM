@@ -9,7 +9,7 @@ namespace MetroSP.Conferencia
 {
     /// <summary>
     /// Escolhe os arquivos do pacote do Metrô. O projetista normalmente só abre um pacote (.metrosp) preparado pelo
-    /// coordenador BIM; quem prepara escolhe os arquivos e clica em "Salvar pacote como...".
+    /// coordenador BIM; quem prepara escolhe os arquivos e clica em "Salvar padrões como...".
     /// </summary>
     public class PacoteWindow : Window
     {
@@ -23,7 +23,7 @@ namespace MetroSP.Conferencia
 
         public PacoteWindow(PacoteMetro atual, string pastaInicial)
         {
-            Title = "MetroSP - Pacote do Metrô";
+            Title = "MetroSP - Padrões do Metrô";
             Width = 720;
             SizeToContent = SizeToContent.Height;
             ResizeMode = ResizeMode.CanResizeWithGrip;
@@ -32,14 +32,14 @@ namespace MetroSP.Conferencia
             var painel = new StackPanel();
 
             var topo = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
-            var abrir = new Button { Content = "Abrir pacote...", ToolTip = "Abre um pacote .metrosp preparado pelo coordenador BIM (computador, rede ou Forma)." };
+            var abrir = new Button { Content = "Abrir padrões...", ToolTip = "Abre um arquivo de padrões .metrosp preparado pelo coordenador BIM (computador, rede ou Forma)." };
             DockPanel.SetDock(abrir, Dock.Right);
             topo.Children.Add(abrir);
             _origem = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 10, 0) };
             topo.Children.Add(_origem);
             painel.Children.Add(topo);
 
-            _nome = Campo(painel, "Nome do pacote (ex.: L20 · Classe B3 Arquitetura)");
+            _nome = Campo(painel, "Nome dos padrões (ex.: L20 · Classe B3 Arquitetura)");
             _psets = Arquivo(painel, "Property sets do Metrô (.txt) — obrigatório", "Texto (*.txt)|*.txt");
             _setup = Arquivo(painel, "Setup de exportação IFC (.json) — obrigatório", "Setup IFC (*.json)|*.json");
             _ids = Arquivo(painel, "IDS (.ids) — opcional; com ele, só os campos obrigatórios do IDS são exigidos", "IDS (*.ids;*.xml)|*.ids;*.xml");
@@ -55,7 +55,7 @@ namespace MetroSP.Conferencia
 
             abrir.Click += (s, e) =>
             {
-                var d = new Microsoft.Win32.OpenFileDialog { Filter = $"Pacote MetroSP (*{PacoteMetro.Extensao})|*{PacoteMetro.Extensao}|Todos os arquivos (*.*)|*.*" };
+                var d = new Microsoft.Win32.OpenFileDialog { Filter = $"Padrões MetroSP (*{PacoteMetro.Extensao})|*{PacoteMetro.Extensao}|Todos os arquivos (*.*)|*.*" };
                 string inicio = _arquivo != null ? Path.GetDirectoryName(_arquivo) : pastaInicial;
                 if (!string.IsNullOrEmpty(inicio) && Directory.Exists(inicio)) d.InitialDirectory = inicio;
                 if (d.ShowDialog(this) != true) return;
@@ -67,16 +67,16 @@ namespace MetroSP.Conferencia
                     _assinaturaArquivo = p.Assinatura();
                     AtualizarOrigem();
                 }
-                catch (Exception ex) { MessageBox.Show(this, "Não deu para ler o pacote:\n" + ex.Message, "MetroSP"); }
+                catch (Exception ex) { MessageBox.Show(this, "Não deu para ler os padrões:\n" + ex.Message, "MetroSP"); }
             };
 
-            var salvarComo = new Button { Content = "Salvar pacote como...", ToolTip = "Grava um .metrosp com estes arquivos (caminhos relativos à pasta dele) para a equipe usar." };
+            var salvarComo = new Button { Content = "Salvar padrões como...", ToolTip = "Grava um .metrosp com estes arquivos (caminhos relativos à pasta dele) para a equipe usar." };
             salvarComo.Click += (s, e) =>
             {
                 var d = new Microsoft.Win32.SaveFileDialog
                 {
-                    Filter = $"Pacote MetroSP (*{PacoteMetro.Extensao})|*{PacoteMetro.Extensao}",
-                    FileName = (string.IsNullOrWhiteSpace(_nome.Text) ? "pacote" : Limpar(_nome.Text)) + PacoteMetro.Extensao,
+                    Filter = $"Padrões MetroSP (*{PacoteMetro.Extensao})|*{PacoteMetro.Extensao}",
+                    FileName = (string.IsNullOrWhiteSpace(_nome.Text) ? "padroes" : Limpar(_nome.Text)) + PacoteMetro.Extensao,
                 };
                 string inicio = _arquivo != null ? Path.GetDirectoryName(_arquivo) : Path.GetDirectoryName(_psets.Text.Trim());
                 if (!string.IsNullOrEmpty(inicio) && Directory.Exists(inicio)) d.InitialDirectory = inicio;
@@ -89,7 +89,7 @@ namespace MetroSP.Conferencia
                     _assinaturaArquivo = p.Assinatura();
                     AtualizarOrigem();
                 }
-                catch (Exception ex) { MessageBox.Show(this, "Não deu para salvar o pacote:\n" + ex.Message, "MetroSP"); }
+                catch (Exception ex) { MessageBox.Show(this, "Não deu para salvar os padrões:\n" + ex.Message, "MetroSP"); }
             };
 
             var usar = new Button { Content = "Usar e conferir", IsDefault = true, Style = Theme.PrimaryButton };
@@ -110,14 +110,14 @@ namespace MetroSP.Conferencia
             rodape.Children.Add(direita);
             rodape.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { salvarComo } });
 
-            Theme.Apply(this, "Pacote do Metrô", "Os arquivos que o Metrô pede para a entrega", painel, rodape);
+            Theme.Apply(this, "Padrões do Metrô", "Os arquivos que o Metrô pede para a entrega", painel, rodape);
         }
 
         private void AtualizarOrigem()
         {
             _origem.Text = _arquivo != null
-                ? "Pacote: " + _arquivo
-                : "Arquivos escolhidos neste computador. Para a equipe usar os mesmos, salve um pacote numa pasta compartilhada.";
+                ? "Padrões: " + _arquivo
+                : "Arquivos escolhidos neste computador. Para a equipe usar os mesmos, salve os padrões numa pasta compartilhada.";
         }
 
         private void Preencher(PacoteMetro p)

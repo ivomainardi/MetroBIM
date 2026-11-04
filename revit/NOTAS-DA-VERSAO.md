@@ -12,6 +12,9 @@ A aba MetroSP passou de 7 painéis para 4, na ordem do trabalho:
 
 O Sobre continua no logo, no começo da aba.
 
+No Conferir Entrega, o botão **Pacote...** passou a se chamar **Padrões...** (e a janela, **Padrões do Metrô**): é onde se
+escolhem os arquivos que o Metrô pede (IDS, setup, property sets, planilha, MetroShared).
+
 ## Todas as janelas redimensionáveis
 
 Todas as janelas do MetroSP agora podem ser redimensionadas pela borda ou pela alça no canto, têm um tamanho mínimo e

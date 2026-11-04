@@ -89,7 +89,7 @@ namespace MetroSP.Conferencia
             };
             var barraDock = new DockPanel();
             var botoesBarra = new StackPanel { Orientation = Orientation.Horizontal };
-            var trocar = new Button { Content = "Pacote...", ToolTip = "Abrir ou editar o pacote do Metrô (IDS, setup, psets, planilha, MetroShared)." };
+            var trocar = new Button { Content = "Padrões...", ToolTip = "Abrir ou editar os padrões do Metrô (IDS, setup, psets, planilha, MetroShared)." };
             _escopo = new System.Windows.Controls.ComboBox { Width = 150, Margin = new Thickness(8, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center };
             _escopo.Items.Add("Modelo inteiro");
             _escopo.Items.Add("Só a vista ativa");
@@ -148,7 +148,7 @@ namespace MetroSP.Conferencia
             var csv = new Button { Content = "Exportar pendências (.csv)..." };
             var limpar = new Button { Content = "Limpar pintura", ToolTip = "Devolve a aparência original dos elementos pintados pela conferência." };
             var fechar = new Button { Content = "Fechar" };
-            _exportarIfc = new Button { Content = "Exportar IFC...", Style = Theme.PrimaryButton, ToolTip = "Abre o Exportar IFC com o setup e o .txt do pacote." };
+            _exportarIfc = new Button { Content = "Exportar IFC...", Style = Theme.PrimaryButton, ToolTip = "Abre o Exportar IFC com o setup e o .txt dos padrões." };
             var rodape = new DockPanel();
             StackPanel direita = Theme.Buttons(fechar, _exportarIfc);
             DockPanel.SetDock(direita, Dock.Right);
@@ -193,7 +193,7 @@ namespace MetroSP.Conferencia
         {
             _res = res;
             _celula = null;
-            _pacoteNome.Text = "Pacote: " + _pacote.NomeExibido;
+            _pacoteNome.Text = "Padrões: " + _pacote.NomeExibido;
             _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos que vão para o IFC ({res.Escopo}) · conferido às {res.Quando:HH:mm}";
             _pacoteInfo.ToolTip = _pacote.Arquivo;
 
@@ -234,7 +234,7 @@ namespace MetroSP.Conferencia
             var exportar = Cartao(new EtapaConferencia
             {
                 Numero = 6, Titulo = "Exportar IFC",
-                Resumo = pronto ? "Pode exportar com o setup e o .txt do pacote." : "Exporta mesmo com pendências, mas avisa antes.",
+                Resumo = pronto ? "Pode exportar com o setup e o .txt dos padrões." : "Exporta mesmo com pendências, mas avisa antes.",
                 Sinal = pronto ? Sinal.Verde : Sinal.Cinza,
             }, clicavel: false);
             exportar.Cursor = Cursors.Hand;
@@ -624,11 +624,11 @@ namespace MetroSP.Conferencia
             string texto, dica;
             switch (c)
             {
-                case Correcao.EditarPacote: texto = "Editar o pacote..."; dica = "Escolher os arquivos do Metrô."; break;
+                case Correcao.EditarPacote: texto = "Editar os padrões..."; dica = "Escolher os arquivos do Metrô."; break;
                 case Correcao.ParametrosDeProjeto: texto = "Parâmetros de projeto..."; dica = "Abre a janela Parâmetros de projeto do Revit para vincular o parâmetro às categorias. Depois clique em Conferir de novo."; break;
                 case Correcao.ListarCompartilhados: texto = "Listar Compartilhados..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
-                case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha do pacote."; break;
-                case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha do pacote: ela propõe as correções."; break;
+                case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha dos padrões."; break;
+                case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha dos padrões: ela propõe as correções."; break;
                 case Correcao.DetalhesIds: texto = "Detalhes do IDS..."; dica = "Abre o resultado completo do Verificar Mapeamento IDS."; break;
                 default: return null;
             }
@@ -739,7 +739,7 @@ namespace MetroSP.Conferencia
                         ElementId vista = VistaDoEscopo(app, _pacote, out _);
                         using (Progresso.Abrir("Verificar mapeamento IDS"))
                             d = ConferenciaEntrega.DetalhesIds(_doc, _pacote, vista);
-                        if (d.ids == null) { TaskDialog.Show("MetroSP", "O pacote não tem IDS."); break; }
+                        if (d.ids == null) { TaskDialog.Show("MetroSP", "Os padrões não têm IDS."); break; }
                         var janela = new ResultadosIdsWindow(d.ids, d.resultados);
                         new WindowInteropHelper(janela).Owner = app.MainWindowHandle;
                         janela.Show();

@@ -147,7 +147,7 @@ namespace MetroSP.Conferencia
         public static PacoteMetro LerArquivo(string arquivo)
         {
             Dictionary<string, string> d = LerIni(arquivo);
-            if (d.Count == 0) throw new InvalidDataException("O arquivo não é um pacote do MetroSP.");
+            if (d.Count == 0) throw new InvalidDataException("O arquivo não é de padrões do MetroSP.");
             PacoteMetro p = DeIni(d, Path.GetDirectoryName(arquivo));
             p.Arquivo = arquivo;
             return p;
@@ -158,7 +158,7 @@ namespace MetroSP.Conferencia
         {
             var linhas = new List<string>
             {
-                "# Pacote de entrega do Metrô para o MetroSP (Conferir Entrega).",
+                "# Padrões de entrega do Metrô para o MetroSP (Conferir Entrega).",
                 "# Caminhos relativos à pasta deste arquivo. Edite pelo próprio MetroSP ou num editor de texto.",
             };
             linhas.AddRange(ParaIni(Path.GetDirectoryName(arquivo)));

@@ -69,7 +69,7 @@ namespace MetroSP.Conferencia
                 Escopo = _vista == null ? "modelo inteiro" : "vista " + (_doc.GetElement(_vista) as View)?.Name,
             };
 
-            Ui.Progresso.Atual?.Etapa("Lendo os arquivos do pacote");
+            Ui.Progresso.Atual?.Etapa("Lendo os arquivos dos padrões");
             EtapaConferencia arquivos = ConferirArquivos();
             _analisador = new MappingAnalyzer(_doc, _mapping, checkValues: true);
 
@@ -91,7 +91,7 @@ namespace MetroSP.Conferencia
             if (!_temPsets && _ids == null)
             {
                 parametros.Sinal = Sinal.Cinza;
-                parametros.Resumo = "Sem .txt de property sets nem IDS no pacote: nada para conferir.";
+                parametros.Resumo = "Sem .txt de property sets nem IDS nos padrões: nada para conferir.";
                 dados.Sinal = Sinal.Cinza;
                 dados.Resumo = parametros.Resumo;
             }
@@ -138,7 +138,7 @@ namespace MetroSP.Conferencia
             var etapa = new EtapaConferencia
             {
                 Numero = 1, Titulo = "Arquivos do Metrô",
-                Descricao = "Os arquivos do pacote foram achados neste computador e estão no formato certo.",
+                Descricao = "Os arquivos dos padrões foram achados neste computador e estão no formato certo.",
                 Correcao = Correcao.EditarPacote,
             };
 
@@ -149,9 +149,9 @@ namespace MetroSP.Conferencia
 
             // IDS (opcional)
             if (string.IsNullOrWhiteSpace(_pacote.Ids))
-                Linha(Sinal.Cinza, "IDS", "Sem IDS no pacote: os campos exigidos vêm do .txt de property sets.");
+                Linha(Sinal.Cinza, "IDS", "Sem IDS nos padrões: os campos exigidos vêm do .txt de property sets.");
             else if (!File.Exists(_pacote.Ids))
-                Linha(Sinal.Vermelho, "IDS", $"Arquivo não encontrado: {_pacote.Ids}", "Confira o caminho no pacote (ou se o Desktop Connector sincronizou a pasta).");
+                Linha(Sinal.Vermelho, "IDS", $"Arquivo não encontrado: {_pacote.Ids}", "Confira o caminho nos padrões (ou se o Desktop Connector sincronizou a pasta).");
             else
             {
                 try
@@ -164,9 +164,9 @@ namespace MetroSP.Conferencia
 
             // Property sets (obrigatório)
             if (string.IsNullOrWhiteSpace(_pacote.PropertySets))
-                Linha(Sinal.Vermelho, "Property sets (.txt)", "O pacote não indica o .txt de property sets do Metrô.", "Edite o pacote e escolha o .txt.");
+                Linha(Sinal.Vermelho, "Property sets (.txt)", "Os padrões não indicam o .txt de property sets do Metrô.", "Edite os padrões e escolha o .txt.");
             else if (!File.Exists(_pacote.PropertySets))
-                Linha(Sinal.Vermelho, "Property sets (.txt)", $"Arquivo não encontrado: {_pacote.PropertySets}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Property sets (.txt)", $"Arquivo não encontrado: {_pacote.PropertySets}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -194,9 +194,9 @@ namespace MetroSP.Conferencia
 
             // Setup de exportação (obrigatório para exportar)
             if (string.IsNullOrWhiteSpace(_pacote.Setup))
-                Linha(Sinal.Vermelho, "Setup de exportação (.json)", "O pacote não indica o setup de exportação IFC.", "Edite o pacote e escolha o .json.");
+                Linha(Sinal.Vermelho, "Setup de exportação (.json)", "Os padrões não indicam o setup de exportação IFC.", "Edite os padrões e escolha o .json.");
             else if (!File.Exists(_pacote.Setup))
-                Linha(Sinal.Vermelho, "Setup de exportação (.json)", $"Arquivo não encontrado: {_pacote.Setup}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Setup de exportação (.json)", $"Arquivo não encontrado: {_pacote.Setup}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -218,7 +218,7 @@ namespace MetroSP.Conferencia
             if (string.IsNullOrWhiteSpace(_pacote.ClassesIfc))
                 Linha(Sinal.Cinza, "Tabela de classes IFC (.txt)", "Sem tabela de classes: usa as classes padrão do exportador e o \"Exportar para IFC como\" dos elementos.");
             else if (!File.Exists(_pacote.ClassesIfc))
-                Linha(Sinal.Vermelho, "Tabela de classes IFC (.txt)", $"Arquivo não encontrado: {_pacote.ClassesIfc}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Tabela de classes IFC (.txt)", $"Arquivo não encontrado: {_pacote.ClassesIfc}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -232,9 +232,9 @@ namespace MetroSP.Conferencia
             // Planilha de classificação
             if (string.IsNullOrWhiteSpace(_pacote.Planilha))
                 Linha(Sinal.Amarelo, "Planilha de classificação", "Sem planilha: a classificação só é conferida quanto a estar preenchida e no formato Código:Descrição.",
-                    "Edite o pacote e escolha a planilha (.xlsx ou .csv).");
+                    "Edite os padrões e escolha a planilha (.xlsx ou .csv).");
             else if (!File.Exists(_pacote.Planilha))
-                Linha(Sinal.Vermelho, "Planilha de classificação", $"Arquivo não encontrado: {_pacote.Planilha}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Planilha de classificação", $"Arquivo não encontrado: {_pacote.Planilha}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -251,9 +251,9 @@ namespace MetroSP.Conferencia
 
             // MetroShared (base de parâmetros compartilhados)
             if (string.IsNullOrWhiteSpace(_pacote.MetroShared))
-                Linha(Sinal.Amarelo, "MetroShared (.txt)", "Sem a base MetroShared: os GUIDs dos parâmetros não são conferidos.", "Edite o pacote e escolha o .txt do MetroShared.");
+                Linha(Sinal.Amarelo, "MetroShared (.txt)", "Sem a base MetroShared: os GUIDs dos parâmetros não são conferidos.", "Edite os padrões e escolha o .txt do MetroShared.");
             else if (!File.Exists(_pacote.MetroShared))
-                Linha(Sinal.Vermelho, "MetroShared (.txt)", $"Arquivo não encontrado: {_pacote.MetroShared}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "MetroShared (.txt)", $"Arquivo não encontrado: {_pacote.MetroShared}", "Confira o caminho nos padrões.");
             else
             {
                 SharedParamTxt txt = SharedParamTxt.Ler(_pacote.MetroShared);
