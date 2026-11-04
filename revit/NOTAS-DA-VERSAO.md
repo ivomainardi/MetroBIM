@@ -1,4 +1,171 @@
-# MetroSP 0.2.6
+# MetroSP 0.2.8
+
+Revit 2025, 2026 e 2027. Junta a 0.2.7 (não publicada separadamente), a Conferir Entrega Metrô, a troca
+instância ↔ tipo e as ferramentas de dados.
+
+## Novo: Conferir Entrega Metrô
+
+Botão **Conferir Entrega**, no painel novo **Entrega**. Uma janela só mostra, com semáforo, se o modelo tem tudo o que
+o Metrô pede antes de exportar o IFC:
+
+1. **Arquivos do Metrô**: IDS, setup de exportação, property sets, classes IFC, planilha de classificação e MetroShared
+   achados e válidos (avisa, por exemplo, tipo `Lenght` no .txt, que sairia como texto);
+2. **Parâmetros e mapeamento**: o parâmetro de cada campo existe nas categorias, com tipo compatível e o GUID do MetroShared;
+3. **Classe IFC dos elementos**: proxies e elementos que não recebem nenhum campo do Metrô;
+4. **Dados preenchidos**: matriz categoria × campo com a % preenchida; clicando numa célula aparecem os tipos e elementos;
+5. **Classificação**: preenchida, no formato e na planilha.
+
+Os arquivos ficam num **pacote** (`.metrosp`) que o coordenador BIM salva uma vez numa pasta compartilhada ou no Forma;
+o projetista só abre o pacote. Na primeira vez, a janela aproveita os arquivos já escolhidos nas outras ferramentas.
+
+Para corrigir: **Selecionar no Revit**, **Pintar na vista** (com **Limpar pintura** para desfazer) e botões que abrem
+Parâmetros de projeto, Listar Compartilhados, Aplicar Classificação (com os elementos já selecionados), Verificar
+Classificação e os detalhes do IDS. A janela fica aberta enquanto se trabalha no modelo; **Conferir de novo** atualiza.
+**Exportar IFC...** abre a exportação com os arquivos do pacote e avisa se ainda há pendência.
+
+## Novo painel Dados e ferramentas de parâmetros
+
+- **Planilha de Dados:** escolha o escopo (seleção, vista ativa ou modelo), as categorias e os parâmetros, e
+  exporte um .xlsx com uma linha por elemento e uma coluna por parâmetro (parâmetros de tipo aparecem com
+  [tipo]; identificação e somente leitura em cinza). Edite no Excel e importe: a janela mostra só as células
+  que mudaram, com o valor atual e o novo, e aponta o que não converte, o que é somente leitura e linhas do mesmo
+  tipo pedindo valores diferentes. Nada é gravado antes de "Gravar alterações" (uma operação, Ctrl+Z desfaz).
+- **Editar em Massa:** um parâmetro em muitos elementos: definir valor, acrescentar prefixo ou sufixo,
+  localizar e substituir (com expressão regular) ou limpar. O texto aceita outros parâmetros entre chaves,
+  por exemplo `{Nível}-{Marca}`, além de {Categoria}, {Família}, {Tipo} e {Id}. Prévia antes de gravar.
+- **Filtrar e Colorir:** regras sobre parâmetros (vazio, igual, diferente, contém, começa com, termina com,
+  maior, menor) combinadas com E ou OU. O resultado pode ser selecionado, isolado na vista (temporário) ou
+  colorido por valor de um parâmetro, com legenda clicável; "Limpar cores" tira as cores dos filtrados.
+- **Gerenciar Parâmetros** (painel Parâmetros): lista e exporta os parâmetros de projeto do modelo; cria vários
+  de uma vez a partir de uma planilha (nome, tipo de dado, instância ou tipo, categorias, grupo, descrição, GUID),
+  acrescentando categorias aos que já existem; e acrescenta parâmetros do arquivo de compartilhados em várias
+  famílias de uma vez (abre, altera e recarrega cada família).
+- **Renomear Famílias** (painel Modelagem): famílias e tipos por regra (prefixo, sufixo, substituir, maiúsculas,
+  minúsculas ou modelo com {Nome}, {Família}, {Categoria} e parâmetros do tipo), com prévia, conferência de nomes
+  repetidos e de caracteres que o Revit não aceita.
+
+## Exportar IFC: classes prontas no instalador
+
+- O instalador traz os .txt de property sets (e, quando houver, o setup .json e o mapeamento) de cada classe.
+  Na janela, basta escolher a **Classe** e exportar.
+- Continua dando para trocar qualquer arquivo pelo **Procurar...** (a classe passa para "Outros arquivos").
+- Novo **Editar property sets...**: mostra o .txt em tabela, com as propriedades cujo parâmetro não existe no
+  modelo destacadas, sugere os parâmetros do modelo, e permite acrescentar e remover propriedades. A edição de
+  uma classe instalada fica salva só para o usuário, com **Restaurar padrão** para voltar ao original.
+  Os selos do topo do editor filtram a tabela: o de property sets abre a escolha dos psets, o de parâmetros não
+  encontrados e o de tipos não aceitos mostram só essas linhas (novo clique desliga), e o de propriedades limpa
+  os filtros.
+- **Classes do MetroSP no instalador:** B2, B3, B5, B7, I1, J2, K9, M1, N3 e S5 (property sets MNEPI-L20).
+- **Conferência pelo padrão do exportador da Autodesk:** todo .txt incluído (classe, Procurar ou Forma) e toda
+  edição manual são conferidos pelas mesmas regras do leitor do exportador IFC da Autodesk: tipo de dado
+  reconhecido (senão sai como Text), cabeçalho com I/T e entidades, colunas a mais, linhas fora de um property set,
+  nomes Pset_ reservados. Ao exportar com problemas, a janela oferece abrir o editor; ao salvar no editor, os tipos
+  com grafia conhecida ("Lenght", "Number", "Wattage", "Percent"...) são corrigidos na hora.
+- Os .txt das classes B2, B3, M1, N3 e S5 foram corrigidos nesse padrão (revisão registrada no cabeçalho de cada um).
+- **Classe pelo nome do modelo:** a janela já abre com a classe indicada pelos dois últimos caracteres do nome do
+  modelo (ex.: `...B3.rvt` → B3), regra que fica no `Nomenclatura.txt` e pode ser mudada.
+- **Forma online:** dá para entrar com a conta Autodesk e escolher uma pasta do Forma direto pela internet, sem o
+  Desktop Connector. Os arquivos dela são baixados e, a cada exportação, só o que mudou no Forma é atualizado.
+  O **Client ID** do app do MetroSP na Autodesk é informado no próprio plugin (botão "Client ID..." na janela
+  Exportar IFC), sem editar arquivo.
+
+## Correção: Revit 2027 só exportava o primeiro bloco de cada property set
+
+No 2027 os property sets do .txt são carregados no modelo, onde cada um é guardado pelo nome. Nos .txt com um
+bloco "Metro" (ou MetroLoc, MetroQto...) por entidade, só um bloco sobrevivia, e as outras entidades saíam sem
+esses psets (no J2, só as paredes recebiam Metro/MetroLoc/MetroQto). Agora os blocos de mesmo nome são juntados
+antes de carregar, com as entidades unidas. O .txt original não muda. No 2025 e no 2026 nada muda.
+
+No modelo, cada propriedade aponta para um só parâmetro. Quando o .txt tira a mesma propriedade de parâmetros
+diferentes conforme a entidade (MetroLoc.Nivel = Reference Level na viga e Level na laje), ou quando ela só existe
+em parte dos blocos, a exportação cria um parâmetro auxiliar temporário (MetroSP_<Pset>_<Propriedade>), preenche
+em cada elemento com o parâmetro certo para a entidade dele e o remove no fim. Assim lajes, sapatas, paredes e
+lances de escada voltam a receber o nível, o desvio, o material e as quantidades do bloco deles, e nenhuma entidade
+recebe propriedade de bloco de outra.
+J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava IfcDiscreteAccessory).
+
+## Categorias IFC: categoria do Revit → classe IFC, em IFC4 e IFC 4.3
+
+- Novo botão **Categorias IFC** na aba MetroSP: uma tabela para IFC4 (4.0.2.1, o que o Revit grava) e outra
+  para IFC 4.3, com a lista de classes de cada esquema (o 4.3 traz IfcBuiltElement, IfcRail, IfcCourse,
+  IfcEarthworksFill, IfcGeotechnicalStratum...). Por padrão aparecem só as categorias usadas no modelo, com a
+  contagem; as linhas diferentes entre os dois esquemas ficam destacadas.
+- Sem tabela salva, começa pelo mapeamento que o modelo usa hoje. Salvar grava a sua cópia em
+  %AppData%\MetroSP\IFC\Categorias (IFC4.txt e IFC4x3.txt); também dá para importar, exportar e copiar de um
+  esquema para o outro.
+- Na exportação, a tabela do esquema do setup é gravada no modelo como modelo de mapeamento do Revit
+  ("MetroSP IFC4" ou "MetroSP IFC4x3") e fica ativa. Sem "gravar GUID", o modelo volta como estava; com ele, o
+  modelo de mapeamento MetroSP fica salvo e ativo no modelo.
+
+## Arquivos IFC: gestão dos setups, property sets e mapeamentos
+
+- Novo botão **Arquivos IFC** na aba MetroSP (e o link **Gerenciar arquivos...** na janela Exportar IFC).
+  Uma aba para cada tipo de arquivo, com as classes à esquerda e de onde vem cada arquivo: seu, do Forma online
+  ou instalado. Os seus valem no lugar dos outros.
+- **Vários de uma vez**: arraste (ou escolha) quantos .json e .txt quiser. O MetroSP reconhece o tipo pelo
+  conteúdo e a classe pelo nome do arquivo, mostra uma lista para conferir e trocar, e avisa o que substitui.
+- **Setup**: as opções principais aparecem abertas e editáveis (versão IFC, fase, space boundaries, divisão por
+  nível, só visíveis, quantidades, GUID e psets padrão, do Revit e de material). Salvar um setup instalado ou do
+  Forma grava uma cópia sua. Coordenadas e EPSG continuam definidos pelo MetroSP na exportação.
+- **Property sets**: cada classe é conferida no modelo aberto: parâmetros não encontrados e propriedades sem
+  valor em parte dos elementos, por property set. "Editar..." (ou clique duplo num property set) abre o editor.
+- Voltar ao padrão, apagar, mudar a classe e salvar uma cópia. Toda versão substituída ou apagada fica guardada em
+  %AppData%\MetroSP\IFC\Anteriores.
+
+## Editor de property sets: verificar e corrigir no mesmo lugar
+
+- Árvore à esquerda com cada property set e as entidades IFC dele; escolher um item filtra a grade, e o número
+  laranja mostra quantas linhas têm problema.
+- Nova coluna **No modelo**: em quantos elementos da entidade o parâmetro tem valor (ex.: "212 de 240").
+  Linhas sem valor em parte dos elementos também ficam destacadas, com um selo próprio que filtra.
+- Ao escolher uma linha com problema, um painel explica o motivo e sugere parâmetros de nome parecido que existem
+  no modelo, com a contagem; um clique troca.
+
+## Exportar IFC: EPSG em branco
+
+- Nova opção "Exportar com o EPSG em branco" na seção Localização, ligada por padrão. Com ela ligada, o IFC sai sem EPSG (sem IfcMapConversion/IfcProjectedCRS) e a janela não cobra mais o dado GIS do Location.
+- Desligada, o IFC mantém o EPSG do setup ou o que o exportador do Revit gerar.
+
+## Interface mais limpa
+
+- **Exportar IFC** reorganizada: classe numa linha (com o motivo da escolha e o Forma online como link ao lado),
+  setup, property sets e mapeamento numa lista com o nome do arquivo, um selo verde ou laranja e o botão de ação
+  (o caminho completo aparece ao passar o mouse; em "Outros arquivos" os caminhos ficam editáveis), localização
+  só conferindo com o botão Localização IFC..., pasta e nome do .ifc num campo só e os avisos somados no rodapé.
+- O mesmo padrão nas outras janelas: títulos de seção e rótulos em maiúsculas pequenas, arquivos como lista com
+  selos no Verificar mapeamento IDS (com resumo no rodapé) e textos de ajuda movidos para as dicas.
+
+## Sobre
+
+- Clicar na logo Ação BIM · Metrô SP, no fim da aba MetroSP, abre a janela **Sobre** (o botão Sobre do painel
+  Geral abre a mesma): versão, data da compilação, Revit em uso, ferramentas por painel e pasta de instalação,
+  com **Copiar informações** para mandar ao suporte.
+
+## Listar Compartilhados: trocar instância ↔ tipo
+
+Novo botão **Instância ↔ Tipo...** no rodapé. Troca os parâmetros selecionados de instância para tipo ou de tipo
+para instância, mantendo as categorias e o grupo, numa transação só (Ctrl+Z desfaz).
+
+- **No projeto**, os valores já preenchidos vão junto: *instância → tipo* grava em cada tipo o valor das suas
+  instâncias; *tipo → instância* grava em cada instância o valor do seu tipo.
+- Antes de trocar, a janela mostra o que acontece com cada parâmetro e **avisa onde há perda de valores**: tipos
+  cujas instâncias têm valores diferentes (escolha entre ficar com o valor mais comum ou deixar o tipo vazio),
+  elementos sem tipo (ambientes, áreas...) e tipos sem nenhuma instância no modelo.
+- Elementos de famílias que já trazem o parâmetro definido dentro da família não mudam: vale o que a família define
+  (para trocar nesses, troque na família e recarregue). Parâmetros que existem só em famílias ou etiquetas
+  carregadas não são trocados daqui.
+- **Na família**, usa a mesma troca do editor de famílias; os valores de cada tipo da família são mantidos.
+  Ao passar de instância para tipo, os projetos onde a família for recarregada perdem os valores por instância.
+- **Fórmulas** (só existem na família) ficam como estão. Como um parâmetro de tipo não pode usar parâmetros de
+  instância na fórmula, a janela não troca, e diz por quê: para tipo, um parâmetro cuja fórmula usa parâmetros de
+  instância; para instância, um parâmetro que aparece na fórmula de parâmetros de tipo. Selecionando os parâmetros
+  ligados por fórmula juntos, eles são trocados na ordem que o Revit aceita. No projeto não há fórmulas; tabelas e
+  filtros que usam o parâmetro continuam funcionando, porque o parâmetro é o mesmo.
+- No fim, um resumo diz quantos valores foram regravados, perdidos ou não gravados (somente leitura, grupos,
+  elementos de outro usuário).
+
+
+# MetroSP 0.2.6 (anterior)
 
 Revit 2025, 2026 e 2027.
 

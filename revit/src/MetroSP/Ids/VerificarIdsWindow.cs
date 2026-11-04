@@ -12,6 +12,9 @@ namespace MetroSP.Ids
         private readonly TextBox _psets;
         private readonly TextBox _categorias;
         private readonly CheckBox _valores;
+        private readonly TextBlock _resumo = new TextBlock { FontSize = 11.5 };
+        private readonly System.Collections.Generic.List<(string Nome, TextBox Caminho, bool Obrigatorio)> _arquivos =
+            new System.Collections.Generic.List<(string, TextBox, bool)>();
 
         public VerificarIdsWindow(IdsSettings settings)
         {
@@ -23,15 +26,19 @@ namespace MetroSP.Ids
             MinWidth = 480;
 
             var panel = new StackPanel();
-            _ids = AddFileRow(panel, "Arquivo IDS (.ids)", settings.IdsFile, "IDS (*.ids;*.xml)|*.ids;*.xml");
-            _psets = AddFileRow(panel, "Property sets definidos pelo usuário (.txt) - opcional", settings.PropertySetsFile, "Texto (*.txt)|*.txt");
-            _categorias = AddFileRow(panel, "Tabela de classes IFC (.txt) - opcional, senão usa o padrão do exportador", settings.CategoryMappingFile, "Texto (*.txt)|*.txt");
+            var secao = Theme.Secao("Arquivos");
+            secao.Margin = new Thickness(0, 0, 0, 5);
+            panel.Children.Add(secao);
+            panel.Children.Add(Theme.Grupo(out StackPanel lista));
+            _ids = AddFileRow(lista, "IDS", settings.IdsFile, "IDS (*.ids;*.xml)|*.ids;*.xml", true, "Arquivo IDS com as exigências de informação.");
+            _psets = AddFileRow(lista, "Property sets", settings.PropertySetsFile, "Texto (*.txt)|*.txt", false, "Opcional: .txt de property sets definidos pelo usuário.");
+            _categorias = AddFileRow(lista, "Classes IFC", settings.CategoryMappingFile, "Texto (*.txt)|*.txt", false, "Opcional: tabela de classes IFC. Sem ela, vale o padrão do exportador.");
 
+            panel.Children.Add(Theme.Secao("Opções"));
             _valores = new CheckBox
             {
                 Content = "Verificar também valores vazios e fora do exigido",
                 IsChecked = settings.CheckValues,
-                Margin = new Thickness(0, 10, 0, 4),
             };
             panel.Children.Add(_valores);
 
@@ -60,19 +67,44 @@ namespace MetroSP.Ids
             };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
 
-            Theme.Apply(this, "Verificar mapeamento IDS", "Confere parâmetros e mapeamento de exportação IFC antes de exportar", panel, Theme.Buttons(cancelar, ok));
+            Theme.Apply(this, "Verificar mapeamento IDS", "Confere parâmetros e mapeamento de exportação IFC antes de exportar", panel, Theme.Rodape(_resumo, cancelar, ok));
+            AtualizarResumo();
         }
 
-        private TextBox AddFileRow(Panel panel, string label, string value, string filter)
+        private void AtualizarResumo()
         {
-            panel.Children.Add(Theme.Label(label));
-            var linha = new DockPanel();
-            var procurar = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
-            DockPanel.SetDock(procurar, Dock.Right);
-            linha.Children.Add(procurar);
-            var box = new TextBox { Text = value ?? string.Empty, VerticalContentAlignment = VerticalAlignment.Center };
-            linha.Children.Add(box);
-            panel.Children.Add(linha);
+            var avisos = new System.Collections.Generic.List<string>();
+            foreach (var (nome, caminho, obrigatorio) in _arquivos)
+            {
+                string t = caminho.Text.Trim();
+                if (t.Length == 0 ? obrigatorio : !File.Exists(t)) avisos.Add(nome + (t.Length == 0 ? " não indicado" : " não encontrado"));
+            }
+            Theme.MudarResumo(_resumo, avisos, "Pronto para verificar");
+        }
+
+        /// <summary>Item da lista: nome do arquivo, selo de situação e Procurar; o caminho completo fica na dica.</summary>
+        private TextBox AddFileRow(StackPanel lista, string nome, string value, string filter, bool obrigatorio, string dica)
+        {
+            var arquivo = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new System.Windows.Media.FontFamily("Consolas") };
+            Border selo = Theme.Selo();
+            var procurar = new Button { Content = "Procurar..." };
+            var box = new TextBox();
+            void Mostrar()
+            {
+                string t = box.Text.Trim();
+                arquivo.Text = t.Length == 0 ? (obrigatorio ? "falta indicar" : "nenhum (opcional)") : Path.GetFileName(t);
+                arquivo.Foreground = Theme.Solid(t.Length == 0 ? Theme.Cinza : Theme.Preto);
+                arquivo.ToolTip = t.Length == 0 ? dica : t;
+                if (t.Length == 0) Theme.MudarSelo(selo, obrigatorio ? "obrigatório" : "", obrigatorio ? Theme.Estado.Aviso : Theme.Estado.Neutro);
+                else if (File.Exists(t)) Theme.MudarSelo(selo, "ok", Theme.Estado.Ok);
+                else Theme.MudarSelo(selo, "não encontrado", Theme.Estado.Aviso, t);
+                AtualizarResumo();
+            }
+            box.TextChanged += (s, e) => Mostrar();
+            box.Text = value ?? string.Empty;
+            _arquivos.Add((nome, box, obrigatorio));
+            lista.Children.Add(Theme.Item(nome, arquivo, selo, procurar, null, lista.Children.Count == 0));
+            Mostrar();
 
             procurar.Click += (s, e) =>
             {

@@ -1,0 +1,194 @@
+#
+# User Defined PropertySet Definition File
+#
+# Desenvolvido por: Alexandre Jeronymo Rodrigues - alexandrejeronymo@gmail.com
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name 1>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	<Property Name 2>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	...
+#
+# Data types supported: Area, Boolean, ClassificationReference, ColorTemperature, Count, Currency, 
+#	ElectricalCurrent, ElectricalEfficacy, ElectricalVoltage, Force, Frequency, Identifier, 
+#	Illuminance, Integer, Label, Length, Logical, LuminousFlux, LuminousIntensity, 
+#	NormalisedRatio, PlaneAngle, PositiveLength, PositivePlaneAngle, PositiveRatio, Power, 
+#	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
+#	VolumetricFlowRate, 
+#
+#
+# Revision	Data			Description
+# 00		07/01/2026	Emissão inicial
+# 01 		21/01/2026 	Ajuste Interno Nova Engevix - Diameter => NominalDiameter; Temperatura => Temperatura maxima; Tubos  =>  Material	Label
+# 02		09/03/2026	Inclusão do parâmetro de texto Tipo de sistema para associar a famílias aninhadas
+# 03		21/05/2026	Atualização de dados de acordo com PSET do consorcio, disponibilizado em 13/05/2026
+# 04		31/07/2026	Ajuste categoria de SanitaryTerminal - chuveiro
+# 05	30/10/2026	Correção de formato conforme o exportador IFC da Autodesk (MetroSP): Inclinacao Ratio; TemperaturaAtivacao ThermodynamicTemperature
+#
+## Torneiras, Registros e valvulas
+#
+#
+PropertySet:	Metro	I	IfcValve
+	Acabamento	Label	Acabamento
+	ClassePressao	Real	Classe de pressao (mca)
+	Sistema	Text	System Type
+	Vazao	VolumetricFlowRate	Vazao
+	VolumeAcionamento	Volume	Volume por acionamento
+	MaterialPrincipal	Label	Material Principal
+#
+PropertySet:	MetroQto	I	IfcValve
+	DiametroNominal	Length	NominalDiameter
+#
+#
+PropertySet:	MetroClassificacao	I	IfcValve
+	CodigoMetro	Label	ClassificationCode
+#
+#
+## Tubos
+#
+PropertySet:	Metro	I	IfcPipeSegment
+	ClassePressao	Real	Classe de pressao (mca)
+	DiametroNominal	Length	Diameter
+	Inclinacao	Ratio	Slope
+	MaterialPrincipal	Label	Material
+	TemperaturaMaxima	Real	Temperatura maxima
+	TipoDeEscoamento	Text	Tipo de escoamento
+	Sistema	Text	System Type
+#
+PropertySet:	MetroQto	I	IfcPipeSegment
+	Comprimento	PositiveLength	Length
+#
+#
+PropertySet:	MetroClassificacao	I	IfcPipeSegment
+	CodigoMetro	Label	ClassificationCode
+#
+#
+## Conexões
+#
+PropertySet:	Metro	I	IfcPipeFitting
+	ClassePressao	Real	Classe de pressao (mca)
+	MaterialPrincipal	Label	Material Principal
+	TemperaturaMaxima	Real	Temperatura maxima
+	TipoDeEscoamento	Text	Tipo de escoamento
+	Sistema	Text	System Type
+	Sistema	Text	Tipo de sistema
+#
+#
+PropertySet:	MetroClassificacao	I	IfcPipeFitting
+	CodigoMetro	Label	ClassificationCode
+#
+PropertySet:	MetroQto	I	IfcPipeFitting
+	DiametroDeConexoes	Text	Size
+#
+#
+## Poços de visita e caixas
+#
+PropertySet:	Metro	I	IfcDistributionChamberElement
+	MaterialPrincipal	Label	Material Principal
+	Sistema	Text	System Type
+#
+PropertySet:	MetroQto	I	IfcDistributionChamberElement
+	Comprimento	Length	Comprimento
+	Largura	Length	Largura
+	Altura	Length	Altura
+#
+#
+PropertySet:	MetroClassificacao	I	IfcDistributionChamberElement
+	CodigoMetro	Label	ClassificationCode
+#
+#
+## Spriklers, Extintor, Hidrante e Mangotinho
+#
+PropertySet:	Metro	I	IfcFireSuppressionTerminal
+	Acabamento	Label	Acabamento
+	AreaCobertura	Area	CoverageArea
+	Sistema	Text	System Type
+	FatorK	Real	K-Factor
+	MaterialPrincipal	Label	Material Principal
+	DiametroNominal	Length	NominalDiameter
+	PosicaoInstalacao	Text	PosicaoInstalacao
+	TemperaturaAtivacao	ThermodynamicTemperature	Temperatura de Ativação
+	TemperaturaAtivacao	ThermodynamicTemperature	Temperature Rating
+	TipoDeResposta	Text	Response
+	CargaIncendio	Mass	Carga
+	ClasseIncendio	Text	Classe de incendio
+	ClassePressao	Real	Classe de pressao (mca)
+	TipoMangueira	Text	Tipo de mangueira
+	Vazao	VolumetricFlowRate	Vazao
+	Comprimento	Length	Comprimento
+#
+#
+PropertySet:	MetroClassificacao	I	IfcFireSuppressionTerminal
+	CodigoMetro	Label	ClassificationCode
+#
+PropertySet:	MetroQto	I	IfcFireSuppressionTerminal
+	DiametroNominal	Length	NominalDiameter
+	Comprimento	PositiveLength	Length
+#
+#
+#
+## Caixa de descarga embutida, Chuveiro
+#
+PropertySet:	Metro	I	IfcSanitaryTerminal
+	Acabamento	Label	Acabamento
+	VolumeAcionamento	Volume	Volume por acionamento
+	Sistema	Text	System Type
+	MaterialPrincipal	Label	Material Principal
+#
+#
+PropertySet:	MetroQto	I	IfcSanitaryTerminal
+	Comprimento	Length	Comprimento
+	Largura	Length	Largura
+	Altura	Length	Altura
+#
+#
+PropertySet:	MetroClassificacao	I	IfcSanitaryTerminal
+	CodigoMetro	Label	ClassificationCode
+#
+#
+## Hidrômetros
+#
+#
+PropertySet:	Metro	I	IfcFlowMeter
+	ClassePressao	Real	Classe de pressao (mca)
+	Sistema	Text	System Type
+	Vazao	VolumetricFlowRate	Vazao
+#
+PropertySet:	MetroQto	I	IfcFlowMeter
+	DiametroNominal	Length	NominalDiameter
+#
+#
+PropertySet:	MetroClassificacao	I	IfcFlowMeter
+	CodigoMetro	Label	ClassificationCode
+#
+## Ralos, Sifões e Acessórios
+#
+#
+PropertySet:	Metro	I	IfcWasteTerminal
+	MaterialPrincipal	Label	Material Principal
+	Sistema	Text	System Type
+	Acabamento	Label	Acabamento
+#
+PropertySet:	MetroQto	I	IfcWasteTerminal
+	DiametroNominal	Length	NominalDiameter
+	Comprimento	Length	Comprimento
+	Largura	Length	Largura
+	Altura	Length	Altura
+	Volume	Volume	Volume
+#
+#
+PropertySet:	MetroClassificacao	I	IfcWasteTerminal
+	CodigoMetro	Label	ClassificationCode
+#
+## Caixas d'água, Boilers e Tanques
+#
+#
+PropertySet:	Metro	I	IfcTank
+	MaterialPrincipal	Label	Material Principal
+	Sistema	Text	System Type
+#
+PropertySet:	MetroQto	I	IfcTank
+	Volume	Volume	Volume
+#
+PropertySet:	MetroClassificacao	I	IfcTank
+	CodigoMetro	Label	ClassificationCode
+#

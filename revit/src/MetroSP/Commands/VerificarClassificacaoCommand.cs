@@ -12,7 +12,12 @@ namespace MetroSP.Commands
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
         {
-            UIApplication uiapp = commandData.Application;
+            return Abrir(commandData.Application);
+        }
+
+        /// <summary>Abre a janela (modal). Chamar dentro do contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Abrir(UIApplication uiapp)
+        {
             UIDocument uidoc = uiapp.ActiveUIDocument;
             if (uidoc == null || uidoc.Document.IsFamilyDocument)
             {

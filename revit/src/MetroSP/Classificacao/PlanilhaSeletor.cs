@@ -23,7 +23,7 @@ namespace MetroSP.Classificacao
             _config = config;
             Margin = new Thickness(0, 0, 0, 10);
 
-            var rotulo = new TextBlock { Text = "Planilha de classificação", FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
+            var rotulo = Theme.Rotulo("Planilha de classificação");
             DockPanel.SetDock(rotulo, Dock.Left);
             Children.Add(rotulo);
 

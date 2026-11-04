@@ -12,16 +12,25 @@ namespace MetroSP.Ui
     /// </summary>
     internal static class MarcaRibbon
     {
+        /// <summary>O clique na logo abre a janela Sobre (não usa a API do Revit, então pode rodar fora de um comando).</summary>
+        private class AbrirSobre : System.Windows.Input.ICommand
+        {
+            public event EventHandler CanExecuteChanged { add { } remove { } }
+            public bool CanExecute(object parameter) => true;
+            public void Execute(object parameter)
+            {
+                try { SobreWindow.Mostrar(); } catch { }
+            }
+        }
+
         private const string Id = "MetroSP_Marca";
         private static AW.RibbonButton _logo;
 
-        /// <summary>Logo escura no tema claro e clara no tema escuro do Revit.</summary>
-        private static System.Windows.Media.ImageSource Imagem()
-        {
-            bool escuro = false;
-            try { escuro = Autodesk.Revit.UI.UIThemeManager.CurrentTheme == Autodesk.Revit.UI.UITheme.Dark; } catch { }
-            return App.LoadIcon(escuro ? "marca_ribbon_escuro.png" : "marca_ribbon.png");
-        }
+        /// <summary>
+        /// Selo azul (Metrô) com as logos claras, que aparece igual nos temas claro e escuro do Revit.
+        /// A imagem tem 32 px de altura e margem interna, para caber inteira no botão grande.
+        /// </summary>
+        private static System.Windows.Media.ImageSource Imagem() => App.LoadIcon("marca_ribbon_botao.png");
 
         /// <summary>Chamado quando o usuário troca o tema do Revit.</summary>
         public static void AtualizarTema()
@@ -36,12 +45,13 @@ namespace MetroSP.Ui
             catch { }
         }
 
-        /// <summary>O botão grande corta a imagem em 32 px; com a largura da imagem a logo aparece inteira.</summary>
+        /// <summary>O botão grande corta a imagem em 32 px; com a largura e a altura da imagem o selo aparece inteiro.</summary>
         private static void Dimensionar(AW.RibbonButton b, System.Windows.Media.ImageSource img)
         {
             if (img == null) return;
-            b.Width = img.Width + 8;
-            b.MinWidth = img.Width + 8;
+            b.Width = img.Width + 6;
+            b.MinWidth = img.Width + 6;
+            b.MinHeight = img.Height + 6;
         }
 
         public static void Adicionar(string nomeAba)
@@ -60,8 +70,9 @@ namespace MetroSP.Ui
                     ShowImage = true,
                     ShowText = false,
                     Orientation = Orientation.Vertical,
-                    ToolTip = "MetroSP · desenvolvido pela Ação BIM para o Metrô de São Paulo",
+                    ToolTip = "MetroSP · desenvolvido pela Ação BIM para o Metrô de São Paulo. Clique para ver a versão e as informações do add-in.",
                     IsCheckable = false,
+                    CommandHandler = new AbrirSobre(),
                 };
                 Dimensionar(logo, logo.LargeImage);
                 _logo = logo;

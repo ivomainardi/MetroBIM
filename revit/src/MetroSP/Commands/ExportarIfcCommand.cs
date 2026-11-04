@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Windows.Interop;
@@ -15,9 +16,12 @@ namespace MetroSP.Commands
     [Transaction(TransactionMode.Manual)]
     public class ExportarIfcCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Exportar(commandData.Application);
+
+        /// <summary>Abre a janela e exporta. Chamar dentro do contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Exportar(UIApplication uiapp)
         {
-            UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null || doc.IsFamilyDocument)
             {
@@ -26,19 +30,37 @@ namespace MetroSP.Commands
             }
 
             IfcExportSettings settings = IfcExportSettings.Load();
-            var janela = new ExportarIfcWindow(doc, settings);
+
+            // Pasta do Forma online: baixa o que mudou lá desde a última vez (sem rede, vale a última cópia).
+            string resultadoForma = null;
+            if (FormaOnline.Conectado && FormaOnline.PastaEscolhida() != null)
+                using (var p = Ui.Progresso.Abrir("Forma online"))
+                {
+                    p.Etapa("Conferindo atualizações das configurações de IFC no Forma");
+                    resultadoForma = FormaOnline.Sincronizar().ToString();
+                }
+
+            var janela = new ExportarIfcWindow(doc, settings, resultadoForma);
             new WindowInteropHelper(janela).Owner = uiapp.MainWindowHandle;
             bool ok = janela.ShowDialog() == true;
             settings.Save();
-            if (!ok) return Result.Cancelled;
+            // Cancelado ou Falhou faz o Revit desfazer tudo do comando, inclusive o Location gravado pela janela.
+            Result Fim(Result r) => janela.AlteracoesLocalizacao.Count > 0 ? Result.Succeeded : r;
+            if (!ok) return Fim(Result.Cancelled);
 
             IfcExportSetup setup = janela.Setup;
             string arquivo = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
+
+            // A localização é gravada na etapa 1 (Localização IFC); aqui o IFC sai com o que está no Revit.
+            LocalizacaoIfc local = janela.Localizacao;
+            LocalizacaoIfc.Escolha escolha = local.Atual();
+            List<string> alteracoes = janela.AlteracoesLocalizacao;
+
             bool exportou;
-            string avisoPsets = null;
+            string avisoPsets = null, avisoCategorias = null;
             try
             {
-                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista);
+                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco);
 
                 // O exportador precisa de uma transação aberta; ela é desfeita no fim,
                 // a não ser que o setup grave o GUID IFC nos elementos (como faz a janela do Revit).
@@ -53,6 +75,9 @@ namespace MetroSP.Commands
                     if (!string.IsNullOrEmpty(janela.PropertySetsEscolhido))
                         avisoPsets = PsetsNoModelo.Carregar(doc, janela.PropertySetsEscolhido);
 
+                    // Tabela de categorias → classe IFC do esquema do setup (janela Categorias IFC), se houver.
+                    avisoCategorias = CategoriasIfc.AplicarNaExportacao(doc, setup.Versao.ToString());
+
                     using (var progresso = Ui.Progresso.Abrir("Exportar IFC"))
                     {
                         progresso.Etapa($"Exportando {janela.NomeArquivo}.ifc com o setup {setup.Nome}");
@@ -60,29 +85,66 @@ namespace MetroSP.Commands
                         exportou = doc.Export(janela.PastaSaida, janela.NomeArquivo + ".ifc", opcoes);
                     }
 
-                    if (exportou && setup.GravaGuid) t.Commit();
+                    if (exportou && setup.GravaGuid)
+                    {
+                        // Os parâmetros auxiliares dos psets (2027+) não ficam no modelo.
+                        if (!string.IsNullOrEmpty(janela.PropertySetsEscolhido)) PsetsNoModelo.Finalizar(doc, janela.PropertySetsEscolhido);
+                        t.Commit();
+                    }
                     else t.RollBack();
                 }
             }
             catch (Exception ex)
             {
                 TaskDialog.Show("MetroSP", "Erro ao exportar o IFC:\n" + ex.Message);
-                return Result.Failed;
+                return Fim(Result.Failed);
             }
 
             if (!exportou || !File.Exists(arquivo))
             {
                 TaskDialog.Show("MetroSP", "O Revit não conseguiu exportar o IFC. Confira o setup e tente pela janela de exportação do Revit para ver a mensagem do exportador.");
-                return Result.Failed;
+                return Fim(Result.Failed);
             }
+
+            // Sem EPSG: se o exportador criou IfcMapConversion/IfcProjectedCRS (sistema GIS no Location), saem do arquivo.
+            string georref = null;
+            if (janela.EpsgEmBranco)
+            {
+                try { georref = LocalizacaoIfc.RemoverGeorreferencia(arquivo); }
+                catch (Exception ex) { georref = "Não foi possível tirar o EPSG do IFC: " + ex.Message; }
+            }
+            // O IfcSite sai sempre com a lat/long do Project Base Point, mesmo que o Revit não tenha aceitado no Location.
+            string latLong;
+            try { latLong = local.CorrigirLatLongIfc(arquivo); }
+            catch (Exception ex) { latLong = "Não foi possível corrigir a latitude/longitude do IfcSite: " + ex.Message; }
+            if (local.Erro == null)
+            {
+                escolha.Latitude = local.Latitude;
+                escolha.Longitude = local.Longitude;
+            }
+            LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha, janela.EpsgEmBranco);
+            if (latLong != null) conferencia.Linhas.Insert(0, latLong);
+            if (georref != null) conferencia.Linhas.Insert(0, georref);
+            string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
+                uiapp.Application.VersionName, Ui.SobreWindow.Versao);
+            string avisosSetup =
+                (setup.SitePlacementDiferente == null ? "" : $"\nO setup usa a base {setup.SitePlacementDiferente}; o IFC saiu com Shared Coordinates.") +
+                (setup.EpsgDoSetup == null || !janela.EpsgEmBranco ? "" : $"\nO setup tem o EPSG {setup.EpsgDoSetup}; o IFC saiu sem EPSG.");
 
             var fim = new TaskDialog("MetroSP")
             {
-                MainInstruction = "IFC exportado",
-                MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao})\n" +
+                MainInstruction = conferencia.TemProblema ? "IFC exportado, com pendências na conferência" : "IFC exportado",
+                MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · {(janela.EpsgEmBranco ? "EPSG em branco" : "EPSG do setup/exportador")}\n" +
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
+                    (avisoCategorias == null ? "" : "\n" + avisoCategorias) +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
-                        (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")),
+                        (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
+                    "\n\nLocalização: " + (local.LocationCorreto ? "Location confere com o Project Base Point." :
+                        local.Erro == null ? "o Location do Revit não confere com o Project Base Point; o IfcSite saiu com a latitude/longitude do Project Base Point." :
+                        "ATENÇÃO, o Location não pôde ser conferido pelo Project Base Point.") +
+                    (alteracoes.Count == 0 ? "" : "\nGravado no Revit nesta exportação:\n- " + string.Join("\n- ", alteracoes)) +
+                    "\n" + conferencia + avisosSetup,
+                ExpandedContent = local.Resumo(escolha) + (log == null ? "" : "\n\nRegistro: " + log),
                 CommonButtons = TaskDialogCommonButtons.Close,
             };
             fim.AddCommandLink(TaskDialogCommandLinkId.CommandLink1, "Abrir a pasta");

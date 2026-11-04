@@ -65,9 +65,10 @@ namespace MetroSP.Ids
             _checkValues = checkValues;
         }
 
-        public List<CheckResult> Run(IdsDocument ids)
+        /// <summary>elementos: os que entram na verificação (null = todos os elementos de modelo).</summary>
+        public List<CheckResult> Run(IdsDocument ids, List<Element> elementos = null)
         {
-            _elements = new FilteredElementCollector(_doc)
+            _elements = elementos ?? new FilteredElementCollector(_doc)
                 .WhereElementIsNotElementType()
                 .WhereElementIsViewIndependent()
                 .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
@@ -389,7 +390,7 @@ namespace MetroSP.Ids
         }
 
         /// <summary>Classes padrão do exportador para as categorias mais comuns (usadas se não houver tabela de classes).</summary>
-        private static string DefaultIfcClass(Category c)
+        internal static string DefaultIfcClass(Category c)
         {
             switch (c.BuiltInCategory)
             {
@@ -432,7 +433,7 @@ namespace MetroSP.Ids
             return false;
         }
 
-        private static bool ValueMatches(IdsValue v, string actual)
+        internal static bool ValueMatches(IdsValue v, string actual)
         {
             if (v.Simple != null) return v.Simple == actual;
             if (v.Enumeration.Count > 0) return v.Enumeration.Contains(actual);
@@ -464,7 +465,7 @@ namespace MetroSP.Ids
             }
         }
 
-        private static string ValueAsString(Parameter p)
+        internal static string ValueAsString(Parameter p)
         {
             if (!p.HasValue) return null;
             switch (p.StorageType)
@@ -479,7 +480,7 @@ namespace MetroSP.Ids
             }
         }
 
-        private static string RevitTypeName(Parameter p)
+        internal static string RevitTypeName(Parameter p)
         {
             ForgeTypeId t = p.Definition.GetDataType();
             if (t == SpecTypeId.String.Text) return "Texto";
@@ -492,7 +493,7 @@ namespace MetroSP.Ids
             try { return LabelUtils.GetLabelForSpec(t); } catch { return p.StorageType.ToString(); }
         }
 
-        private static bool TypesCompatible(string fileType, Parameter p)
+        internal static bool TypesCompatible(string fileType, Parameter p)
         {
             ForgeTypeId t = p.Definition.GetDataType();
             switch ((fileType ?? "").ToLowerInvariant())

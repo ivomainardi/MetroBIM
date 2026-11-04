@@ -68,7 +68,7 @@ namespace MetroSP.Classificacao
             var verificar = new Button { Content = "Verificar", Style = Theme.PrimaryButton };
             verificar.Click += (s, e) => Verificar();
             var barra = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-            barra.Children.Add(new TextBlock { Text = "Escopo", FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) });
+            barra.Children.Add(Theme.Rotulo("Escopo"));
             barra.Children.Add(_escopo);
             barra.Children.Add(_categorias);
             barra.Children.Add(verificar);

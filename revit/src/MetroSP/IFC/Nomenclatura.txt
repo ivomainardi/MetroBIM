@@ -1,0 +1,6 @@
+# Regras para escolher a classe pelo nome do modelo (uma por linha): <padrão> [tab] <Classe>
+# O padrão usa * e ? sobre o nome sem .rvt; começando com re: é uma expressão regular, e o grupo
+# (?<classe>...) dá a classe. Vale a primeira regra cuja classe existir.
+#
+# Padrão de nomenclatura MetroSP: os dois últimos caracteres do nome indicam a classe (ex.: ...B3.rvt -> B3).
+re:(?<classe>[A-Za-z0-9]{2})$

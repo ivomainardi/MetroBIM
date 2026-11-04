@@ -29,6 +29,10 @@ namespace MetroSP.Parametros
         private readonly Action<List<SharedParameterInfo>> _analisarUso;
         /// <summary>Deleta os itens numa transação; retorna os que falharam.</summary>
         private readonly Func<List<SharedParameterInfo>, List<string>> _deletar;
+        /// <summary>Lê os valores e diz o que a troca instância/tipo faria (não altera o modelo).</summary>
+        private readonly Func<List<SharedParameterInfo>, List<TrocarVinculo.Plano>> _analisarTroca;
+        /// <summary>Troca o vínculo e regrava os valores; o bool diz se os tipos em conflito ficam com o valor mais comum.</summary>
+        private readonly Func<List<TrocarVinculo.Plano>, bool, List<TrocarVinculo.Resultado>> _trocar;
         /// <summary>Resultado de Verificar uso por parâmetro, mantido quando o modelo é relido.</summary>
         private readonly Dictionary<string, (string Uso, bool PodeDeletar)> _usos = new Dictionary<string, (string, bool)>();
         private readonly string _documento;
@@ -67,7 +71,9 @@ namespace MetroSP.Parametros
             Func<List<SharedParameterInfo>> recarregar,
             Func<List<SharedParameterInfo>, string, List<string>> exportarTxt,
             Action<List<SharedParameterInfo>> analisarUso,
-            Func<List<SharedParameterInfo>, List<string>> deletar)
+            Func<List<SharedParameterInfo>, List<string>> deletar,
+            Func<List<SharedParameterInfo>, List<TrocarVinculo.Plano>> analisarTroca,
+            Func<List<TrocarVinculo.Plano>, bool, List<TrocarVinculo.Resultado>> trocar)
         {
             _itens = itens;
             _documento = documento;
@@ -78,6 +84,8 @@ namespace MetroSP.Parametros
             _exportarTxt = exportarTxt;
             _analisarUso = analisarUso;
             _deletar = deletar;
+            _analisarTroca = analisarTroca;
+            _trocar = trocar;
             _refs = ReferenceLibrary.Abrir();
             _soProjeto = !ehFamilia;
 
@@ -172,6 +180,16 @@ namespace MetroSP.Parametros
             };
             verificarUso.Click += (s, e) => VerificarUso();
             deletarBtn.Click += (s, e) => DeletarSemUso();
+            var trocarBtn = new Button
+            {
+                Content = "Instância ↔ Tipo...",
+                ToolTip = "Troca os selecionados de instância para tipo ou de tipo para instância, mantendo categorias e grupo.\n" +
+                          (_ehFamilia
+                              ? "Os valores de cada tipo da família são mantidos."
+                              : "Os valores preenchidos são levados junto (instâncias → tipo, tipo → instâncias); antes de trocar,\n" +
+                                "a janela avisa onde algum valor seria perdido. Ctrl+Z no Revit desfaz."),
+            };
+            trocarBtn.Click += (s, e) => TrocarInstanciaTipo();
             var copiar = new Button { Content = "Copiar GUID" };
             var exportar = new Button { Content = "Exportar ▾" };
             var renomearBtn = new Button { Content = "Renomear...", Style = Theme.PrimaryButton };
@@ -183,7 +201,7 @@ namespace MetroSP.Parametros
 
             _rodapeInfo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
             var rodape = new DockPanel();
-            StackPanel botoes = Theme.Buttons(verificarUso, deletarBtn, copiar, exportar, renomearBtn, fechar);
+            StackPanel botoes = Theme.Buttons(verificarUso, deletarBtn, trocarBtn, copiar, exportar, renomearBtn, fechar);
             DockPanel.SetDock(botoes, Dock.Right);
             rodape.Children.Add(botoes);
             rodape.Children.Add(_rodapeInfo);
@@ -260,18 +278,11 @@ namespace MetroSP.Parametros
         private UIElement PainelLateral(Button adicionarTxt, Button adicionarPasta)
         {
             var painel = new DockPanel();
-            var titulo = new TextBlock { Text = "Arquivos de referência", FontWeight = FontWeights.SemiBold, FontSize = 13, Margin = new Thickness(0, 0, 0, 2) };
+            TextBlock titulo = Theme.Secao("Arquivos de referência");
+            titulo.Margin = new Thickness(0, 0, 0, 6);
+            titulo.ToolTip = "Não precisam estar carregados no Revit. Clique num arquivo para comparar.";
             DockPanel.SetDock(titulo, Dock.Top);
             painel.Children.Add(titulo);
-            var sub = new TextBlock
-            {
-                Text = "Não precisam estar carregados no Revit. Clique num arquivo para comparar.",
-                Foreground = Theme.Solid(Theme.Cinza),
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 8),
-            };
-            DockPanel.SetDock(sub, Dock.Top);
-            painel.Children.Add(sub);
 
             var grade = new UniformGrid2x2(adicionarTxt, adicionarPasta, _definirBase, _remover);
             DockPanel.SetDock(grade, Dock.Bottom);
@@ -742,6 +753,132 @@ namespace MetroSP.Parametros
             int ok = deletaveis.Count - falhas.Count;
             MessageBox.Show(this, $"{ok} parâmetro(s) deletado(s)." +
                 (falhas.Count > 0 ? "\n\nNão deletados:\n" + Lista(falhas, f => f) : ""), Title);
+        }
+
+        private void TrocarInstanciaTipo()
+        {
+            List<SharedParameterInfo> alvo = Selecionados();
+            if (alvo.Count == 0) { MessageBox.Show(this, "Selecione um ou mais parâmetros na lista.", Title); return; }
+
+            List<TrocarVinculo.Plano> planos;
+            Cursor = Cursors.Wait;
+            try
+            {
+                using (Ui.Progresso.Abrir("Lendo os valores dos parâmetros"))
+                    planos = _analisarTroca(alvo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Não foi possível ler os valores:\n" + ex.Message, Title);
+                return;
+            }
+            finally { Cursor = null; }
+
+            List<TrocarVinculo.Plano> trocaveis = planos.Where(p => p.Impedimento == null).ToList();
+            if (trocaveis.Count == 0)
+            {
+                MessageBox.Show(this, "Nenhum dos selecionados pode ser trocado daqui:\n\n" + Lista(planos, p => p.Resumo(_ehFamilia)), Title);
+                return;
+            }
+
+            var texto = new StringBuilder();
+            texto.AppendLine($"Trocar {trocaveis.Count} parâmetro(s), mantendo categorias e grupo?");
+            texto.AppendLine();
+            texto.AppendLine(Lista(planos, p => p.Resumo(_ehFamilia)));
+            texto.AppendLine();
+            if (_ehFamilia)
+            {
+                texto.AppendLine("Os valores de cada tipo da família são mantidos.");
+                if (trocaveis.Any(p => p.ParaTipo))
+                    texto.AppendLine("Atenção: nos projetos onde a família for recarregada, os valores preenchidos por instância " +
+                                     "desses parâmetros serão substituídos pelo valor do tipo.");
+                texto.AppendLine("As fórmulas ficam como estão. Um parâmetro de tipo não pode usar parâmetros de instância na fórmula: " +
+                                 "por isso os que quebrariam essa regra não são trocados (veja acima). Selecionados juntos, " +
+                                 "os parâmetros ligados por fórmula são trocados na ordem certa.");
+            }
+            else
+            {
+                if (trocaveis.Any(p => p.ParaTipo))
+                    texto.AppendLine("Instância → Tipo: cada tipo recebe o valor das suas instâncias.");
+                if (trocaveis.Any(p => !p.ParaTipo))
+                    texto.AppendLine("Tipo → Instância: cada instância recebe o valor do seu tipo.");
+                texto.AppendLine("Elementos de famílias que já trazem o parâmetro dentro da família não mudam.");
+            }
+
+            List<string> conflitos = trocaveis.SelectMany(p => p.Conflitos).ToList();
+            bool perde = trocaveis.Any(p => p.PerdeValores);
+            bool maisComum = true;
+            if (conflitos.Count > 0)
+            {
+                int perdemMaisComum = trocaveis.Sum(p => p.PerdemComMaisComum);
+                texto.AppendLine();
+                texto.AppendLine("ATENÇÃO: há tipos cujas instâncias têm valores diferentes. Um tipo só guarda um valor:");
+                texto.AppendLine(Lista(conflitos, c => c));
+                texto.AppendLine();
+                texto.AppendLine($"Sim = cada tipo fica com o valor mais comum entre as instâncias ({perdemMaisComum} instância(s) perdem o valor que tinham).");
+                texto.AppendLine("Não = esses tipos ficam vazios (todas as instâncias deles perdem o valor).");
+                texto.AppendLine("Cancelar = não troca nada.");
+                texto.AppendLine();
+                texto.Append("Dá para desfazer com Ctrl+Z no Revit depois de fechar esta janela.");
+                MessageBoxResult escolha = MessageBox.Show(this, texto.ToString(), Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+                if (escolha == MessageBoxResult.Cancel || escolha == MessageBoxResult.None) return;
+                maisComum = escolha == MessageBoxResult.Yes;
+            }
+            else
+            {
+                if (perde)
+                {
+                    texto.AppendLine();
+                    texto.AppendLine("ATENÇÃO: alguns valores serão perdidos (veja acima: elementos sem tipo ou tipos sem instância no modelo).");
+                }
+                texto.AppendLine();
+                texto.Append("Dá para desfazer com Ctrl+Z no Revit depois de fechar esta janela.");
+                if (MessageBox.Show(this, texto.ToString(), Title, MessageBoxButton.YesNo,
+                        perde ? MessageBoxImage.Warning : MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            }
+
+            List<TrocarVinculo.Resultado> resultados;
+            Cursor = Cursors.Wait;
+            try
+            {
+                using (Ui.Progresso.Abrir("Trocando instância/tipo"))
+                    resultados = _trocar(trocaveis, maisComum);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Não foi possível trocar:\n" + ex.Message, Title);
+                return;
+            }
+            finally { Cursor = null; }
+
+            // A troca muda o que está preenchido: a verificação de uso anterior deixa de valer.
+            foreach (SharedParameterInfo i in alvo) _usos.Remove(i.Chave);
+            RecarregarModelo();
+
+            var fim = new StringBuilder();
+            List<TrocarVinculo.Resultado> ok = resultados.Where(r => r.Trocado).ToList();
+            List<TrocarVinculo.Resultado> falhas = resultados.Where(r => !r.Trocado).ToList();
+            fim.AppendLine($"{ok.Count} parâmetro(s) trocado(s).");
+            if (!_ehFamilia && ok.Count > 0)
+            {
+                fim.AppendLine();
+                fim.AppendLine(Lista(ok, r =>
+                {
+                    string s = $"{r.Nome}: {r.ValoresGravados} valor(es) regravado(s)";
+                    if (r.ValoresPerdidos > 0) s += $", {r.ValoresPerdidos} perdido(s)";
+                    if (r.ValoresNaoGravados > 0) s += $", {r.ValoresNaoGravados} não gravado(s) (somente leitura, grupo ou outro usuário)";
+                    if (r.DefinidosNaFamilia > 0) s += $", {r.DefinidosNaFamilia} elemento(s) seguem o que a família define";
+                    return s;
+                }));
+            }
+            if (falhas.Count > 0)
+            {
+                fim.AppendLine();
+                fim.AppendLine("Não trocados:");
+                fim.AppendLine(Lista(falhas, r => $"{r.Nome} ({r.Erro})"));
+            }
+            MessageBox.Show(this, fim.ToString().TrimEnd(), Title, MessageBoxButton.OK,
+                falhas.Count > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
         }
 
         private static string Lista<T>(List<T> itens, Func<T, string> texto) =>

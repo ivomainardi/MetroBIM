@@ -1,0 +1,59 @@
+#
+# User Defined PropertySet Definition File
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name 1>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	<Property Name 2>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#	...
+#
+# Data types supported: Area, Boolean, ClassificationReference, ColorTemperature, Count, Currency, 
+#	ElectricalCurrent, ElectricalEfficacy, ElectricalVoltage, Force, Frequency, Identifier, 
+#	Illuminance, Integer, Label, Length, Logical, LuminousFlux, LuminousIntensity, 
+#	NormalisedRatio, PlaneAngle, PositiveLength, PositivePlaneAngle, PositiveRatio, Power, 
+#	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
+#	VolumetricFlowRate
+#
+#
+# Entities: IfcBeam, IfcColumn, IfcWall, IfcStair, IfcFooting,IfcTendon
+#
+#
+# Revision	Data	Description
+# 00	02/10/2026	Emissão inicial
+#
+#
+#
+#===========================================================================================================================================
+#===========================================================================================================================================
+# Estacas
+#
+PropertySet:	Metro	I	IfcPile
+	Cobrimento	Length	ConcreteCover
+	Material	Label	Structural Material
+	ModuloElasticidade	Real	YoungModulus
+	Nome	Label	Mark
+	Resistencia	Pressure	Resistencia
+	SecaoTipo	Label	Section Shape
+	TaxaAco	Real	ReinforcementVolumeRatio
+#
+PropertySet:	MetroLoc	I	IfcPile
+	Nivel_Topo	Label	Top Level
+	Nivel_Topo desvio	Length	Top Offset
+	Nivel_Base	Label	Base Level
+	Nivel_Base desvio	Length	Base Offset
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcPile
+	Altura	PositiveLength	Length
+	AreaDaSecao	Area	Section Area
+	AlturaDaSecao	PositiveLength	Height
+	Volume	Volume	Volume
+	LarguraDaSecao	PositiveLength	Width
+	DiametroDaSecao	PositiveLength	Diameter
+	AreaDeForma	Area	FormSurfaceArea
+#-------------------------------------------------------------------------------------------------------------------------------------------
+# Geral
+#
+PropertySet:	MetroClassificacao	I	IfcPile
+	CodigoMetro	Label	ClassificationCode
+#-------------------------------------------------------------------------------------------------------------------------------------------

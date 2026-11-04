@@ -15,9 +15,12 @@ namespace MetroSP.Commands
     [Transaction(TransactionMode.Manual)]
     public class ListarCompartilhadosCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Abrir(commandData.Application);
+
+        /// <summary>Abre a janela (modal). Chamar dentro do contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Abrir(UIApplication uiapp)
         {
-            UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null)
             {
@@ -54,7 +57,9 @@ namespace MetroSP.Commands
                 () => SharedParameterCollector.Collect(doc),
                 (lista, caminho) => SharedParameterExporter.ExportarTxt(uiapp.Application, lista, caminho),
                 lista => UsoParametros.Analisar(doc, lista),
-                lista => UsoParametros.Deletar(doc, lista));
+                lista => UsoParametros.Deletar(doc, lista),
+                lista => TrocarVinculo.Analisar(doc, lista),
+                (planos, maisComum) => TrocarVinculo.Aplicar(doc, planos, maisComum));
             new WindowInteropHelper(janela).Owner = uiapp.MainWindowHandle;
             janela.ShowDialog();
             return Result.Succeeded;

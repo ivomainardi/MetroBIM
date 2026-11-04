@@ -56,10 +56,15 @@ namespace MetroSP.Ids
         ///   PropertySet:  &lt;Nome&gt;  &lt;I|T&gt;  &lt;IfcEntidade1,IfcEntidade2&gt;
         ///       &lt;Propriedade&gt;  &lt;Tipo&gt;  [&lt;Parâmetro Revit&gt;]
         /// Linhas começando com # são comentários. Sem o parâmetro, o nome da propriedade é usado.
+        ///
+        /// Os avisos seguem o leitor do exportador da Autodesk (revit-ifc, PropertyMap.LoadUserDefinedPset):
+        /// colunas separadas por tab; cabeçalho com 4 colunas (senão é ignorado e as propriedades seguintes caem no
+        /// property set anterior); propriedade com pelo menos nome e tipo; tipo desconhecido vira Text.
         /// </summary>
         public void LoadUserDefinedPropertySets(string path)
         {
             PropertyMapping header = null;
+            string arquivo = Path.GetFileName(path);
             int n = 0;
             foreach (string raw in ReadLines(path))
             {
@@ -76,11 +81,15 @@ namespace MetroSP.Ids
                     var parts = cols.ToList();
                     string first = parts[0].Substring("PropertySet:".Length).Trim();
                     parts.RemoveAt(0);
-                    if (first.Length > 0) parts.Insert(0, first);
+                    if (first.Length > 0)
+                    {
+                        parts.Insert(0, first);
+                        Warnings.Add($"{arquivo} linha {n}: depois de \"PropertySet:\" deve vir um tab; com espaço o exportador ignora o property set.");
+                    }
 
                     if (parts.Count < 2)
                     {
-                        Warnings.Add($"{Path.GetFileName(path)} linha {n}: PropertySet incompleto.");
+                        Warnings.Add($"{arquivo} linha {n}: PropertySet incompleto (faltam I/T e entidades); o exportador o ignora.");
                         header = null;
                         continue;
                     }
@@ -89,14 +98,31 @@ namespace MetroSP.Ids
                         PropertySet = parts[0],
                         OnType = parts[1].Equals("T", StringComparison.OrdinalIgnoreCase),
                     };
+                    if (!parts[1].Equals("I", StringComparison.OrdinalIgnoreCase) && !parts[1].Equals("T", StringComparison.OrdinalIgnoreCase))
+                        Warnings.Add($"{arquivo} linha {n}: {parts[0]} deve ter I (instância) ou T (tipo), não \"{parts[1]}\".");
+                    if (parts.Count < 3)
+                        Warnings.Add($"{arquivo} linha {n}: {parts[0]} sem entidades IFC; o exportador ignora o cabeçalho e as propriedades seguintes vão para o property set anterior.");
+                    if (parts[0].StartsWith("Pset_", StringComparison.OrdinalIgnoreCase))
+                        Warnings.Add($"{arquivo} linha {n}: nomes com \"Pset_\" são reservados aos property sets padrão do IFC; o exportador renomeia os outros.");
                     if (parts.Count > 2)
-                        header.Entities.AddRange(parts[2].Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(e => e.Trim()));
+                    {
+                        // O exportador separa as entidades por vírgula, ponto e vírgula ou espaço.
+                        header.Entities.AddRange(parts[2].Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(e => e.Trim()));
+                        foreach (string e in header.Entities.Where(e => !e.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase)))
+                            Warnings.Add($"{arquivo} linha {n}: entidade \"{e}\" não parece uma entidade IFC (deve começar com Ifc).");
+                    }
                     continue;
                 }
 
                 if (header == null)
                 {
-                    Warnings.Add($"{Path.GetFileName(path)} linha {n}: propriedade fora de um PropertySet.");
+                    Warnings.Add($"{arquivo} linha {n}: propriedade fora de um PropertySet.");
+                    continue;
+                }
+
+                if (cols.Length < 2)
+                {
+                    Warnings.Add($"{arquivo} linha {n}: {cols[0]} sem tipo de dado; o exportador ignora a linha.");
                     continue;
                 }
 
@@ -105,12 +131,17 @@ namespace MetroSP.Ids
                     PropertySet = header.PropertySet,
                     OnType = header.OnType,
                     Property = cols[0],
-                    FileType = cols.Length > 1 ? cols[1] : "Text",
+                    FileType = cols[1],
                     RevitParameter = cols.Length > 2 ? cols[2] : cols[0],
-                    Source = Path.GetFileName(path),
+                    Source = arquivo,
                 };
                 p.Entities.AddRange(header.Entities);
                 Properties.Add(p);
+                if (!TipoAceito(p.FileType))
+                    Warnings.Add($"{arquivo} linha {n}: tipo \"{p.FileType}\" de {p.Property} não existe no exportador e sai como Text" +
+                                 (TipoCorreto(p.FileType) is string certo ? $" (use \"{certo}\")." : "."));
+                if (cols.Length > 3)
+                    Warnings.Add($"{arquivo} linha {n}: colunas a mais em {p.Property}; o exportador usa só propriedade, tipo e parâmetro (\"{cols[2]}\").");
             }
         }
 
@@ -141,6 +172,87 @@ namespace MetroSP.Ids
             CategoryMapping m = Categories.FirstOrDefault(c =>
                 string.Equals(c.Category, category, StringComparison.OrdinalIgnoreCase) && string.IsNullOrEmpty(c.SubCategory));
             return m?.IfcClass;
+        }
+
+        /// <summary>
+        /// Tipos de dado do exportador IFC da Autodesk (enum PropertyType do revit-ifc). A leitura ignora maiúsculas e
+        /// aceita o prefixo "Ifc" (IfcLabel = Label); um tipo fora da lista é exportado como Text.
+        /// </summary>
+        public static readonly string[] TiposAceitos =
+        {
+            "Text", "Label", "Identifier", "Boolean", "Logical", "Integer", "Real", "Numeric", "Count",
+            "Length", "PositiveLength", "NonNegativeLength", "Area", "Volume", "PlaneAngle", "PositivePlaneAngle",
+            "Ratio", "PositiveRatio", "NormalisedRatio", "Mass", "MassDensity", "MassFlowRate", "MassPerLength", "MassPerUnitArea",
+            "AreaDensity", "UnitWeight", "Force", "LinearForce", "PlanarForce", "Pressure", "Power", "Energy", "Torque",
+            "ElectricCurrent", "ElectricVoltage", "ElectricResistance", "ElectricConductance", "ElectricCapacitance", "ElectricCharge",
+            "ElectricalEfficacy", "ElectricalResistivity", "ElectricalPowerDensity", "Inductance", "Frequency", "RotationalFrequency",
+            "Illuminance", "LuminousFlux", "LuminousIntensity", "Luminance", "Efficacy", "ColorTemperature",
+            "ThermodynamicTemperature", "TemperatureRateOfChange", "ThermalTransmittance", "ThermalConductivity", "ThermalResistance",
+            "ThermalExpansionCoefficient", "ThermalMass", "SpecificHeatCapacity", "HeatFluxDensity", "HeatingValue", "HeatCapacityPerArea",
+            "VolumetricFlowRate", "LinearVelocity", "Acceleration", "AngularVelocity", "DynamicViscosity", "ModulusOfElasticity",
+            "MomentOfInertia", "SectionModulus", "WarpingConstant", "LinearMoment", "LinearStiffness", "IonConcentration", "PH",
+            "IsothermalMoistureCapacity", "VaporPermeability", "MoistureDiffusivity", "MolecularWeight", "SoundPower", "SoundPowerLevel",
+            "SoundPressure", "RadioActivity", "Currency", "Monetary", "CostPerArea", "Time", "Duration", "Date", "DateTime", "LocalTime",
+            "IntegerCountRate", "ComplexNumber", "URIReference", "ClassificationReference", "FrictionLoss", "PowerPerLength",
+            "ApparentPowerDensity", "CostRateEnergy", "CostRatePower", "ThermalGradientCoefficientForMoistureCapacity",
+            "AirFlowDensity", "AirFlowDividedByCoolingLoad", "AirFlowDividedByVolume", "AreaDividedByCoolingLoad", "AreaDividedByHeatingLoad",
+            "CoolingLoadDividedByArea", "CoolingLoadDividedByVolume", "FlowPerPower", "HvacFriction", "HeatingLoadDividedByArea",
+            "HeatingLoadDividedByVolume", "PowerPerFlow", "PipingFriction", "AreaSpringCoefficient", "LineSpringCoefficient",
+            "ReinforcementAreaPerUnitLength", "RotationalLineSpringCoefficient", "RotationalPointSpringCoefficient",
+            "IfcMaterial", "IfcMaterialDefinition", "IfcPerson", "IfcOrganization", "IfcTimeSeries", "IfcExternalReference",
+            "IfcDocumentReference", "IfcClassificationReference", "IfcCalendarDate", "IfcDateAndTime", "IfcLocalTime", "IfcCostValue", "IfcRelaxation",
+        };
+
+        // Tipos mais usados primeiro, para a lista do editor.
+        public static readonly string[] TiposComuns =
+        {
+            "Text", "Label", "Identifier", "Boolean", "Integer", "Real", "Count", "Length", "PositiveLength", "Area", "Volume",
+            "PlaneAngle", "Ratio", "PositiveRatio", "Mass", "Pressure", "Power", "ElectricCurrent", "ElectricVoltage", "LuminousFlux",
+            "Illuminance", "ColorTemperature", "ThermodynamicTemperature", "VolumetricFlowRate", "ClassificationReference",
+        };
+
+        /// <summary>O tipo como o exportador lê: sem "Property&lt;Valor&gt;." na frente, o primeiro de "A/B" e sem "Ifc".</summary>
+        private static string TipoBase(string tipo)
+        {
+            string t = (tipo ?? "").Trim();
+            int ponto = t.IndexOf('.');
+            if (ponto >= 0) t = t.Substring(ponto + 1);
+            int barra = t.IndexOf('/');
+            if (barra >= 0) t = t.Substring(0, barra);
+            return t.Trim();
+        }
+
+        /// <summary>true se o exportador reconhece o tipo (sem virar Text por engano).</summary>
+        public static bool TipoAceito(string tipo)
+        {
+            string t = TipoBase(tipo);
+            if (t.Length == 0) return false;
+            if (TiposAceitos.Contains(t, StringComparer.OrdinalIgnoreCase)) return true;
+            return t.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase) && TiposAceitos.Contains(t.Substring(3), StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Tipo certo para erros comuns ("Lenght", "Number", "Wattage"...). null se não houver sugestão.</summary>
+        public static string TipoCorreto(string tipo)
+        {
+            string t = TipoBase(tipo);
+            if (t.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase)) t = t.Substring(3);
+            switch (t.ToLowerInvariant())
+            {
+                case "lenght": case "lengh": case "lentgh": return "Length";
+                case "number": case "double": case "decimal": return "Real";
+                case "int": return "Integer";
+                case "bool": case "yesno": return "Boolean";
+                case "string": return "Text";
+                case "wattage": case "watts": return "Power";
+                case "temperature": return "ThermodynamicTemperature";
+                case "electricalvoltage": case "voltage": return "ElectricVoltage";
+                case "electricalcurrent": case "current": return "ElectricCurrent";
+                case "percent": case "percentage": case "slope": return "Ratio";
+                case "material": return "Text";
+                case "weight": return "Mass";
+                case "angle": return "PlaneAngle";
+                default: return null;
+            }
         }
 
         public static string FileTypeToIfc(string fileType)

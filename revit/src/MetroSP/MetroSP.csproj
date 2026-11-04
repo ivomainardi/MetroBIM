@@ -11,7 +11,7 @@
 
   <PropertyGroup>
     <AssemblyName>MetroSP</AssemblyName>
-    <Version>0.2.6</Version>
+    <Version>0.2.8</Version>
     <RootNamespace>MetroSP</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
@@ -44,9 +44,19 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Data da compilação, mostrada na janela Sobre. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DataCompilacao</_Parameter1>
+      <_Parameter2>$([System.DateTime]::Now.ToString("yyyy-MM-dd HH:mm"))</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Ícones 32x32 e 16x16 embutidos na DLL. -->
     <EmbeddedResource Include="Resources\**\*.png" />
     <None Include="MetroSP.addin" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Configurações de IFC por classe (setup, property sets, mapeamento), instaladas ao lado da DLL. -->
+    <None Include="IFC\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Em Debug, copia DLL + .addin para a pasta de add-ins do usuário. -->

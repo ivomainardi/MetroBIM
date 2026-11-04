@@ -13,9 +13,12 @@ namespace MetroSP.Commands
         private static AplicarClassificacaoWindow _janela;
         private static bool _assinado;
 
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Abrir(commandData.Application);
+
+        /// <summary>Abre (ou traz para frente) a janela não modal. Chamar dentro do contexto da API.</summary>
+        public static Result Abrir(UIApplication uiapp)
         {
-            UIApplication uiapp = commandData.Application;
             UIDocument uidoc = uiapp.ActiveUIDocument;
             if (uidoc == null || uidoc.Document.IsFamilyDocument)
             {
