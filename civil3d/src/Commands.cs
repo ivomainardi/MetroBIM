@@ -375,8 +375,8 @@ namespace MetroSP
         static void Fail(Editor ed, System.Exception ex)
         {
             if (ex is OperationCanceledException) { ed.WriteMessage("\nMetroSP: " + ex.Message); return; }
-            ed.WriteMessage("\nMetroSP: ERRO - " + ex.Message);
-            Debug.WriteLine(ex);
+            var log = Log.Erro("comando", ex);
+            ed.WriteMessage("\nMetroSP: ERRO - " + ex.Message + (log != null ? $" (detalhes em {log})" : ""));
         }
     }
 }

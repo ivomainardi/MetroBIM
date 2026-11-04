@@ -92,7 +92,33 @@ namespace MetroSP.Alinhamento
                         withoutProfile++;
                         ed.WriteMessage($"\nMetroSP: {al.Name} não tem perfil de projeto; vai só com a geometria em planta.");
                     }
-                    var model = CivilAlignmentReader.Read(al, profile, opts.Passo);
+                    // Um alinhamento ou perfil com problema não pode parar a exportação.
+                    AlignmentModel model = null;
+                    try { model = CivilAlignmentReader.Read(al, profile, opts.Passo); }
+                    catch (System.Exception ex) when (profile != null)
+                    {
+                        ed.WriteMessage($"\nMetroSP: aviso - {al.Name}: não deu para ler o perfil {profile.Name} ({ex.Message}); vai só com a geometria em planta.");
+                        Log.Erro($"perfil {profile.Name} do alinhamento {al.Name}", ex);
+                        profile = null;
+                    }
+                    catch (System.Exception ex)
+                    {
+                        ed.WriteMessage($"\nMetroSP: aviso - {al.Name}: não deu para ler o alinhamento ({ex.Message}); fica como a Autodesk exportar.");
+                        Log.Erro($"alinhamento {al.Name}", ex);
+                        continue;
+                    }
+                    if (model == null)
+                    {
+                        try { model = CivilAlignmentReader.Read(al, null, opts.Passo); }
+                        catch (System.Exception ex)
+                        {
+                            ed.WriteMessage($"\nMetroSP: aviso - {al.Name}: não deu para ler o alinhamento ({ex.Message}); fica como a Autodesk exportar.");
+                            Log.Erro($"alinhamento {al.Name}", ex);
+                            continue;
+                        }
+                    }
+                    if (model.Lacunas > 0)
+                        ed.WriteMessage($"\nMetroSP: aviso - {al.Name}: o perfil {profile?.Name} tem trecho sem cota ({model.Lacunas} estaca(s) puladas no eixo 3D).");
                     points += model.Axis3D.Count;
                     models.Add(model);
                 }
@@ -117,11 +143,21 @@ namespace MetroSP.Alinhamento
             foreach (var al in alignments)
             {
                 var key = al.Handle.ToString();
-                var candidates = al.GetProfileIds().Cast<ObjectId>()
-                    .Select(id => (Profile)tr.GetObject(id, OpenMode.ForRead))
-                    .Where(p => p.ProfileType == ProfileType.FG || p.ProfileType == ProfileType.File)
-                    .OrderBy(p => p.Name)
-                    .ToList();
+                var candidates = new List<Profile>();
+                foreach (ObjectId id in al.GetProfileIds())
+                {
+                    try
+                    {
+                        var p = (Profile)tr.GetObject(id, OpenMode.ForRead);
+                        if (p.ProfileType == ProfileType.FG || p.ProfileType == ProfileType.File) candidates.Add(p);
+                    }
+                    catch (System.Exception ex)
+                    {
+                        doc.Editor.WriteMessage($"\nMetroSP: aviso - {al.Name}: um perfil não pôde ser lido ({ex.Message}); ignorado.");
+                        Log.Erro($"perfil do alinhamento {al.Name}", ex);
+                    }
+                }
+                candidates = candidates.OrderBy(p => p.Name).ToList();
 
                 if (candidates.Count <= 1) { result[key] = candidates.FirstOrDefault(); continue; }
 

@@ -268,9 +268,13 @@ namespace MetroSP.Alinhamento
             {
                 if (s - last < 1e-4) continue;
                 last = s;
+                // Perfil com trecho faltando: o Civil 3D não dá cota ali; a estaca fica de fora do eixo 3D.
+                double z;
+                try { z = p.ElevationAt(s); }
+                catch (ArgumentException) { m.Lacunas++; continue; }
                 double x = 0, y = 0;
                 al.PointLocation(s, 0, ref x, ref y);
-                m.Axis3D.Add(new[] { x, y, p.ElevationAt(s) });
+                m.Axis3D.Add(new[] { x, y, z });
             }
         }
 
