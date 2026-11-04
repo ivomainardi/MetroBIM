@@ -20,6 +20,7 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
 5. Dispara `IFCINFRAEXPORT` (ou `IFCINFRAEXPORTSELECTED`).
 6. Quando o comando da Autodesk termina, roda `MSP_IFCPOSPROC` sobre o IFC recém-gerado:
    - guarda o original como `[arquivo].autodesk.ifc`;
+   - acrescenta completo (horizontal, vertical, eixo 3D) o alinhamento que a Autodesk não gravar, agregado ao `IfcProject` e referenciado no `IfcSite`;
    - troca o eixo de cada `IfcAlignment` (casado pelo nome; se o exportador mudar o nome, por semelhança; se houver um só de cada lado, direto) pela polilinha 3D e acrescenta o `IfcAlignmentVertical`
      se faltar, convertendo para o sistema local do alinhamento e compensando deslocamento de origem;
    - preenche `IfcProject` e `IfcSite` (nome, descrição, latitude/longitude, cota de referência, matrícula),
@@ -32,13 +33,10 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
 |---|---|---|
 | IFC 4.3 | Exportar IFC | `MSP_IFCEXPORT` |
 | IFC 4.3 | Exportar seleção | `MSP_IFCEXPORTSEL` |
-| IFC 4.3 | Só sincronizar | `MSP_IFCSYNC` |
-| IFC 4.3 | Alinhamento 3D (IFC separado) | `MSP_IFCALINHAMENTO` |
 | IFC 4.3 | Configurar IFC | `MSP_IFCCONFIG` |
-| Forma | Entrar / Sair | `MSP_FORMALOGIN` / `MSP_FORMALOGOUT` |
-| Forma | Pasta de config | `MSP_IFCPASTA` |
-| Forma | Conta e Forma | `MSP_CONFIG` |
-| Ajuda | Sobre | `MSP_SOBRE` |
+| Forma | Sincronizar · Entrar · Sair · Conta | `MSP_IFCSYNC` · `MSP_FORMALOGIN` · `MSP_FORMALOGOUT` · `MSP_CONFIG` |
+| Ferramentas | Só alinhamentos (IFC separado) · Pasta · Sobre | `MSP_IFCALINHAMENTO` · `MSP_IFCPASTA` · `MSP_SOBRE` |
+| Ação BIM · Metrô SP | selo (abre o Sobre) | `MSP_SOBRE` |
 | (linha de comando) | Pós-processar IFC | `MSP_IFCPOSPROC` |
 
 ## Identidade visual
@@ -68,16 +66,16 @@ Os três primeiros seguem o formato da Autodesk, então servem também fora do p
 
 ## Janela Configurar IFC (`MSP_IFCCONFIG`)
 
-- **Pacote**: lista os arquivos ativos; importa JSON/CSV (o tipo é reconhecido pelo nome ou conteúdo);
-  exporta o pacote para uma pasta; importa os modelos gerados por `IFCInfraSaveConfig`/`IFCInfraSaveMappingConfig`;
-  baixa do Forma; restaura o padrão MetroSP.
-- **Mapeamento de classes**: tabela por seção (layer, bloco, baseline...) com expressão, classe IFC
-  (`IfcRail.RAIL`, `IfcTrackElement.SLEEPER`...) e exportar sim/não; a ordem importa (avaliado de baixo para cima).
-- **Property sets**: tabela do CSV de mapeamento (Pset, propriedade, ativo, origem, grupo, nome no Civil) e editor dos modelos JSON.
-- **Projeto, terreno e edificações**: `IfcProject`, `IfcSite`, lista de `IfcBuilding`, EPSG e propriedades do projeto
-  (linha, contrato, OS, emitente...).
-- **Alinhamento**: aplicar no IFC, passo dos pontos e perfis preferidos (expressões regulares).
-- **Configuração Autodesk**: árvore editável do `IfcInfraConfiguration.json`.
+No topo: **Importar…**, **Exportar…**, **Baixar do Forma** (quando configurado) e **Restaurar padrão**.
+As explicações de cada campo ficam na dica (passe o mouse).
+
+| Aba | Conteúdo |
+|---|---|
+| Projeto | `IfcProject`, `IfcSite` (latitude, longitude, elevação, matrícula, EPSG), `IfcBuilding` e o Pset `MetroSP_Projeto` |
+| Classes IFC | regras por layer, bloco ou baseline → classe IFC (`IfcRail.RAIL`...), exportar sim/não, ordem |
+| Propriedades | de onde vem cada propriedade (CSV) e os property sets (JSON) |
+| Alinhamento | cotas do perfil no IFC, passo do eixo 3D, perfil preferido |
+| Avançado | arquivos do pacote, `IfcInfraConfiguration.json` e importação dos modelos da Autodesk |
 
 Todo arquivo é validado antes de gravar e a versão anterior fica como `.bak`.
 

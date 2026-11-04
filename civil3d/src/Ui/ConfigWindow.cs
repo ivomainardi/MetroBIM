@@ -60,8 +60,8 @@ namespace MetroSP.Ui
         {
             _dwgDir = dwgDir;
             Title = "MetroSP - Configuração IFC";
-            Width = 980;
-            Height = 680;
+            Width = 900;
+            Height = 640;
             MinWidth = 760;
             MinHeight = 500;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
@@ -69,8 +69,19 @@ namespace MetroSP.Ui
             var saveClose = Btn("Salvar e fechar", (s, e) => SaveAll(close: true));
             saveClose.Style = Theme.PrimaryButton;
             saveClose.IsDefault = true;
-            Theme.Apply(this, "Configuração IFC", "Mapeamento de classes, property sets, projeto, terreno, edificações e alinhamento",
-                _tabs, Theme.Rodape(_status,
+            var body = new DockPanel();
+            var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 6) };
+            DockPanel.SetDock(toolbar, Dock.Top);
+            toolbar.Children.Add(Tool("Importar…", "Importa JSON ou CSV de configuração para o pacote.", (s, e) => ImportFiles()));
+            toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do pacote numa pasta.", (s, e) => ExportPackage()));
+            if (Settings.Load().UsesForma)
+                toolbar.Children.Add(Tool("Baixar do Forma", "Troca o pacote pela versão mais recente do Forma.", async (s, e) => await DownloadFromForma()));
+            toolbar.Children.Add(Tool("Restaurar padrão", "Volta ao padrão MetroSP.", (s, e) => RestoreDefaults()));
+            body.Children.Add(toolbar);
+            body.Children.Add(_tabs);
+
+            Theme.Apply(this, "Configuração IFC", Settings.Load().UsesForma ? "Pacote sincronizado com o Forma" : "Pacote local",
+                body, Theme.Rodape(_status,
                     Btn("Salvar", (s, e) => SaveAll(close: false)),
                     saveClose,
                     Btn("Fechar", (s, e) => Close())));
@@ -140,64 +151,38 @@ namespace MetroSP.Ui
 
         void BuildTabs()
         {
-            _tabs.Items.Add(new TabItem { Header = "Pacote", Content = PackageTab() });
-            _tabs.Items.Add(new TabItem { Header = "Mapeamento de classes", Content = MappingTab() });
-            _tabs.Items.Add(new TabItem { Header = "Property sets", Content = PropertiesTab() });
-            _tabs.Items.Add(new TabItem { Header = "Projeto, terreno e edificações", Content = SpatialTab() });
+            _tabs.Items.Add(new TabItem { Header = "Projeto", Content = SpatialTab() });
+            _tabs.Items.Add(new TabItem { Header = "Classes IFC", Content = MappingTab() });
+            _tabs.Items.Add(new TabItem { Header = "Propriedades", Content = PropertiesTab() });
             _tabs.Items.Add(new TabItem { Header = "Alinhamento", Content = AlignmentTab() });
-            _tabs.Items.Add(new TabItem { Header = "Configuração Autodesk", Content = AutodeskTab() });
+            _tabs.Items.Add(new TabItem { Header = "Avançado", Content = AdvancedTab() });
         }
 
         // ================================================================== aba Pacote
 
-        UIElement PackageTab()
+        UIElement PackageFiles()
         {
-            var panel = new DockPanel { Margin = new Thickness(10) };
-            var cfg = Settings.Load();
-            var info = new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 8),
-                Text = "Pacote ativo: " + ConfigPackage.ActiveDir + "\n" +
-                       "Fonte antes de exportar: " + (cfg.UsesForma ? "Autodesk Forma (baixa a versão mais recente a cada exportação)" : "este pacote local") + "\n" +
-                       "Os arquivos da Autodesk são copiados para a pasta do desenho no formato que o IFC Extension lê; " +
-                       "MetroSP.ifc.json é usado no pós-processamento (alinhamento 3D, projeto, terreno, edificações)."
-            };
-            DockPanel.SetDock(info, Dock.Top);
-            panel.Children.Add(info);
-
-            var actions = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-            DockPanel.SetDock(actions, Dock.Bottom);
-            actions.Children.Add(Btn("Importar JSON/CSV...", (s, e) => ImportFiles()));
-            actions.Children.Add(Btn("Exportar pacote...", (s, e) => ExportPackage()));
-            actions.Children.Add(Btn("Importar modelos da Autodesk", (s, e) => ImportAutodeskSamples()));
-            actions.Children.Add(Btn("Baixar do Forma", async (s, e) => await DownloadFromForma()));
-            actions.Children.Add(Btn("Restaurar padrão MetroSP", (s, e) => RestoreDefaults()));
-            actions.Children.Add(Btn("Abrir pasta", (s, e) => Process.Start(new ProcessStartInfo("explorer.exe", "\"" + ConfigPackage.ActiveDir + "\"") { UseShellExecute = true })));
-            panel.Children.Add(actions);
-
-            var list = new ListView();
+            var list = new ListView { MaxHeight = 150 };
             var grid = new GridView();
-            grid.Columns.Add(new GridViewColumn { Header = "Tipo", Width = 230, DisplayMemberBinding = new Binding("Tipo") });
+            grid.Columns.Add(new GridViewColumn { Header = "Conteúdo", Width = 230, DisplayMemberBinding = new Binding("Tipo") });
             grid.Columns.Add(new GridViewColumn { Header = "Arquivo", Width = 300, DisplayMemberBinding = new Binding("Arquivo") });
-            grid.Columns.Add(new GridViewColumn { Header = "Alterado em", Width = 160, DisplayMemberBinding = new Binding("Data") });
+            grid.Columns.Add(new GridViewColumn { Header = "Alterado em", Width = 130, DisplayMemberBinding = new Binding("Data") });
             list.View = grid;
             list.ItemsSource = ConfigPackage.List()
                 .Select(f => new { Tipo = KindLabel(f.Kind), Arquivo = Path.GetFileName(f.Path), Data = f.Modified.ToString("dd/MM/yyyy HH:mm") })
                 .ToList();
-            panel.Children.Add(list);
-            return panel;
+            return list;
         }
 
         static string KindLabel(ConfigKind k)
         {
             switch (k)
             {
-                case ConfigKind.AutodeskConfig: return "Configuração da exportação (Autodesk)";
-                case ConfigKind.ObjectMapping: return "Mapeamento de classes IFC";
-                case ConfigKind.PropertyTemplates: return "Templates de property sets";
-                case ConfigKind.PropertyMappingCsv: return "Mapeamento de propriedades";
-                case ConfigKind.MetroSP: return "Opções MetroSP";
+                case ConfigKind.AutodeskConfig: return "Opções da exportação";
+                case ConfigKind.ObjectMapping: return "Classes IFC";
+                case ConfigKind.PropertyTemplates: return "Property sets";
+                case ConfigKind.PropertyMappingCsv: return "Propriedades";
+                case ConfigKind.MetroSP: return "Projeto e alinhamento";
                 default: return k.ToString();
             }
         }
@@ -296,21 +281,26 @@ namespace MetroSP.Ui
 
         // ================================================================== aba Mapeamento
 
+        static readonly Dictionary<string, string> SectionLabels = new Dictionary<string, string>
+        {
+            ["MapCADLayerName"] = "Por layer",
+            ["MapBlockName"] = "Por bloco",
+            ["MapBaselineName"] = "Por baseline (corredor)"
+        };
+
         UIElement MappingTab()
         {
-            var panel = new DockPanel { Margin = new Thickness(10) };
+            var panel = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
 
-            var top = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(top, Dock.Top);
-            top.Children.Add(Label("Critério:"));
-            _mappingSection = new ComboBox { Width = 220, IsEditable = true, Margin = new Thickness(4, 0, 12, 0) };
-            foreach (var s in KnownSections.Union(_mapping.Where(kv => kv.Value is JsonArray).Select(kv => kv.Key))) _mappingSection.Items.Add(s);
-            _mappingSection.SelectionChanged += (s, e) => SwitchSection(_mappingSection.SelectedItem as string);
-            _mappingSection.LostFocus += (s, e) => SwitchSection(_mappingSection.Text);
+            _mappingSection = new ComboBox { Width = 190, Margin = new Thickness(0, 0, 16, 0) };
+            foreach (var key in KnownSections.Union(_mapping.Where(kv => kv.Value is JsonArray).Select(kv => kv.Key)))
+                _mappingSection.Items.Add(new ComboBoxItem { Content = SectionLabels.TryGetValue(key, out var l) ? l : key, Tag = key, ToolTip = key });
+            _mappingSection.SelectionChanged += (s, e) => SwitchSection((_mappingSection.SelectedItem as ComboBoxItem)?.Tag as string);
             top.Children.Add(_mappingSection);
 
-            var classes = new ComboBox { Width = 260, IsEditable = true, Margin = new Thickness(4, 0, 4, 0), ItemsSource = CommonIfcClasses };
-            top.Children.Add(Label("Classe IFC:"));
+            var classes = new ComboBox { Width = 250, IsEditable = true, ItemsSource = CommonIfcClasses, ToolTip = "Classe.TIPO do IFC 4.3" };
             top.Children.Add(classes);
 
             var grid = new DataGrid
@@ -320,29 +310,22 @@ namespace MetroSP.Ui
                 ItemsSource = _mappingRows,
                 HeadersVisibility = DataGridHeadersVisibility.Column
             };
-            grid.Columns.Add(new DataGridTextColumn { Header = "Nome (expressão regular)", Binding = new Binding("Name"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Exportar como (Classe.TIPO)", Binding = new Binding("IfcExportAs"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Name"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Classe IFC", Binding = new Binding("IfcExportAs"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding("Export"), Width = 70 });
+            grid.ToolTip = "Nome aceita expressão regular (ex.: ^U-3D-). Vale a primeira regra que casar, de baixo para cima.";
 
-            top.Children.Add(Btn("Aplicar à linha", (s, e) =>
+            var apply = Btn("Aplicar", (s, e) =>
             {
                 if (grid.SelectedItem is MappingRow r) { r.IfcExportAs = classes.Text; grid.Items.Refresh(); }
-            }));
-            top.Children.Add(Btn("Subir", (s, e) => Move(grid, -1)));
-            top.Children.Add(Btn("Descer", (s, e) => Move(grid, +1)));
-            top.Children.Add(Btn("Remover", (s, e) => { if (grid.SelectedItem is MappingRow r) _mappingRows.Remove(r); }));
+            });
+            apply.Margin = new Thickness(6, 0, 16, 0);
+            apply.ToolTip = "Põe a classe escolhida na linha selecionada.";
+            top.Children.Add(apply);
+            top.Children.Add(SymbolButton("↑", "Subir", (s, e) => Move(grid, -1)));
+            top.Children.Add(SymbolButton("↓", "Descer", (s, e) => Move(grid, +1)));
+            top.Children.Add(SymbolButton("✕", "Remover", (s, e) => { if (grid.SelectedItem is MappingRow r) _mappingRows.Remove(r); }));
             panel.Children.Add(top);
-
-            var note = new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = Theme.Solid(Theme.Cinza),
-                Margin = new Thickness(0, 6, 0, 0),
-                Text = "A Autodesk avalia as regras de baixo para cima e usa a primeira que casar. Exportar desmarcado tira o objeto do IFC. " +
-                       "Propriedade estendida \"IFC::IfcExportAs\" no objeto tem prioridade sobre estas regras."
-            };
-            DockPanel.SetDock(note, Dock.Bottom);
-            panel.Children.Add(note);
             panel.Children.Add(grid);
 
             _currentSection = null;
@@ -358,7 +341,6 @@ namespace MetroSP.Ui
             _mappingRows.Clear();
             if (_mapping[_currentSection] is JsonArray arr)
                 foreach (var item in arr.OfType<JsonObject>()) _mappingRows.Add(MappingRow.From(item));
-            if (!_mappingSection.Items.Contains(_currentSection)) _mappingSection.Items.Add(_currentSection);
         }
 
         void CommitMappingSection()
@@ -384,29 +366,17 @@ namespace MetroSP.Ui
 
         UIElement PropertiesTab()
         {
-            var tabs = new TabControl { Margin = new Thickness(10) };
+            var tabs = new TabControl { Margin = new Thickness(0, 8, 0, 0) };
 
-            var panel = new DockPanel { Margin = new Thickness(6) };
-            var note = new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = Theme.Solid(Theme.Cinza),
-                Margin = new Thickness(0, 0, 0, 6),
-                Text = "Mapeamento de propriedades (IFCInfraExportPropertyMapping.csv): qual propriedade do Civil 3D vai para qual " +
-                       "property set e propriedade IFC. Source: Properties, PartData, General ou PropertySet. " +
-                       "Para gerar a lista completa da Autodesk, use IFC Infrastructure > Save Property Templates e importe na aba Pacote."
-            };
-            DockPanel.SetDock(note, Dock.Top);
-            panel.Children.Add(note);
-            var grid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _propertyRows };
-            grid.Columns.Add(new DataGridTextColumn { Header = "Property set IFC", Binding = new Binding("PropertySet"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Propriedade IFC", Binding = new Binding("Property"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            var grid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _propertyRows, Margin = new Thickness(0, 8, 0, 0) };
+            grid.Columns.Add(new DataGridTextColumn { Header = "Property set", Binding = new Binding("PropertySet"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding("Property"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Ativa", Binding = new Binding("Active"), Width = 50 });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Source", Binding = new Binding("Source"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Group", Binding = new Binding("Group"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Origem", Binding = new Binding("Source"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(new DataGridTextColumn { Header = "Grupo", Binding = new Binding("Group"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             grid.Columns.Add(new DataGridTextColumn { Header = "Nome no Civil 3D", Binding = new Binding("CivilName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            panel.Children.Add(grid);
-            tabs.Items.Add(new TabItem { Header = "Mapeamento (CSV)", Content = panel });
+            grid.ToolTip = "Origem: Properties, PartData, General ou PropertySet.";
+            tabs.Items.Add(new TabItem { Header = "De onde vem cada uma", Content = grid });
 
             var tpl = File.Exists(ConfigPackage.PathOf(ConfigKind.PropertyTemplates))
                 ? File.ReadAllText(ConfigPackage.PathOf(ConfigKind.PropertyTemplates))
@@ -418,21 +388,11 @@ namespace MetroSP.Ui
                 AcceptsTab = true,
                 FontFamily = new FontFamily("Consolas"),
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
-                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
+                Margin = new Thickness(0, 8, 0, 0),
+                ToolTip = "IFCInfraExportPropertyMapping.json. O JSON é validado ao salvar."
             };
-            var tplPanel = new DockPanel { Margin = new Thickness(6) };
-            var tplNote = new TextBlock
-            {
-                TextWrapping = TextWrapping.Wrap,
-                Foreground = Theme.Solid(Theme.Cinza),
-                Margin = new Thickness(0, 0, 0, 6),
-                Text = "Templates dos property sets (IFCInfraExportPropertyMapping.json): grupos, propriedades e tipos IFC. " +
-                       "Editor de texto com validação de JSON ao salvar."
-            };
-            DockPanel.SetDock(tplNote, Dock.Top);
-            tplPanel.Children.Add(tplNote);
-            tplPanel.Children.Add(_templatesText);
-            tabs.Items.Add(new TabItem { Header = "Templates (JSON)", Content = tplPanel });
+            tabs.Items.Add(new TabItem { Header = "Property sets (JSON)", Content = _templatesText });
             return tabs;
         }
 
@@ -465,42 +425,46 @@ namespace MetroSP.Ui
             e.Projeto ??= new ProjectInfo();
             e.Terreno ??= new SiteInfo();
 
-            var stack = new StackPanel { Margin = new Thickness(10) };
-            stack.Children.Add(Note("Campos vazios mantêm o que a Autodesk gravou. Aplicado ao IFC depois da exportação."));
-
-            stack.Children.Add(Section("IfcProject"));
-            stack.Children.Add(Form(
+            var left = new StackPanel { Margin = new Thickness(0, 0, 16, 0) };
+            left.Children.Add(Section("Projeto · IfcProject"));
+            left.Children.Add(Form(
                 ("Nome", Text(e.Projeto, nameof(ProjectInfo.Nome))),
                 ("Nome longo", Text(e.Projeto, nameof(ProjectInfo.NomeLongo))),
                 ("Descrição", Text(e.Projeto, nameof(ProjectInfo.Descricao))),
                 ("Fase", Text(e.Projeto, nameof(ProjectInfo.Fase)))));
 
-            stack.Children.Add(Section("IfcSite"));
-            stack.Children.Add(Form(
+            left.Children.Add(Section("Terreno · IfcSite"));
+            left.Children.Add(Form(
                 ("Nome", Text(e.Terreno, nameof(SiteInfo.Nome))),
                 ("Nome longo", Text(e.Terreno, nameof(SiteInfo.NomeLongo))),
                 ("Descrição", Text(e.Terreno, nameof(SiteInfo.Descricao))),
-                ("Latitude (graus, sul negativo)", Text(e.Terreno, nameof(SiteInfo.Latitude))),
-                ("Longitude (graus, oeste negativo)", Text(e.Terreno, nameof(SiteInfo.Longitude))),
-                ("Elevação de referência (m)", Text(e.Terreno, nameof(SiteInfo.Elevacao))),
-                ("Matrícula (LandTitleNumber)", Text(e.Terreno, nameof(SiteInfo.Matricula))),
-                ("Sistema de coordenadas (IfcMapConversion)", Text(e, nameof(SpatialConfig.SistemaCoordenadas)))));
+                ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo.")),
+                ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo.")),
+                ("Elevação (m)", Text(e.Terreno, nameof(SiteInfo.Elevacao))),
+                ("Matrícula", Text(e.Terreno, nameof(SiteInfo.Matricula), "LandTitleNumber")),
+                ("Coordenadas", Text(e, nameof(SpatialConfig.SistemaCoordenadas), "EPSG do IfcMapConversion, ex.: EPSG:31983"))));
 
-            stack.Children.Add(Section("IfcBuilding (estações, edificações) - agregados ao IfcSite"));
-            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _buildings, MinHeight = 110, Margin = new Thickness(0, 0, 0, 6) };
+            var right = new StackPanel();
+            right.Children.Add(Section("Edificações · IfcBuilding"));
+            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _buildings, MinHeight = 120, ToolTip = "Estações e edificações, dentro do IfcSite." };
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Nome"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome longo", Binding = new Binding("NomeLongo"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Descrição", Binding = new Binding("Descricao"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação ref. (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 120 });
-            stack.Children.Add(bgrid);
+            bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 90 });
+            right.Children.Add(bgrid);
 
-            stack.Children.Add(Section("Pset MetroSP_Projeto (no IfcProject)"));
-            var pgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _projectProps, MinHeight = 110 };
+            right.Children.Add(Section("Dados do projeto · MetroSP_Projeto"));
+            var pgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _projectProps, MinHeight = 120, ToolTip = "Gravados no IfcProject. Valor vazio não entra." };
             pgrid.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding("Chave"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            pgrid.Columns.Add(new DataGridTextColumn { Header = "Valor", Binding = new Binding("Valor"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            stack.Children.Add(pgrid);
+            pgrid.Columns.Add(new DataGridTextColumn { Header = "Valor", Binding = new Binding("Valor"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+            right.Children.Add(pgrid);
 
-            return new ScrollViewer { Content = stack, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+            var cols = new Grid();
+            cols.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            cols.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            cols.Children.Add(left);
+            Grid.SetColumn(right, 1);
+            cols.Children.Add(right);
+            return new ScrollViewer { Content = cols, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         }
 
         // ================================================================== aba Alinhamento
@@ -508,49 +472,63 @@ namespace MetroSP.Ui
         UIElement AlignmentTab()
         {
             var a = _metro.Alinhamento;
-            var stack = new StackPanel { Margin = new Thickness(10) };
-            stack.Children.Add(Note("O Civil 3D grava o alinhamento plano na cota 0. Com a opção abaixo, depois do IFCINFRAEXPORT o MetroSP " +
-                                    "troca o eixo de cada IfcAlignment por um eixo 3D com as cotas do perfil e acrescenta o IfcAlignmentVertical " +
-                                    "se ele não existir, no mesmo arquivo."));
-            var apply = new CheckBox { Content = "Aplicar alinhamento 3D no IFC exportado", Margin = new Thickness(0, 6, 0, 6) };
+            var stack = new StackPanel { MaxWidth = 520, HorizontalAlignment = HorizontalAlignment.Left };
+            stack.Children.Add(Section("No IFC exportado"));
+            var apply = new CheckBox
+            {
+                Content = "Alinhamento com as cotas do perfil",
+                Margin = new Thickness(0, 2, 0, 8),
+                ToolTip = "Eixo 3D, IfcAlignmentVertical e, se a Autodesk não gravar o alinhamento, o alinhamento completo."
+            };
             apply.SetBinding(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, new Binding(nameof(AlignmentOptions.AplicarNoIfc)) { Source = a });
             stack.Children.Add(apply);
-            stack.Children.Add(Form(("Passo dos pontos do eixo 3D (m)", Text(a, nameof(AlignmentOptions.Passo)))));
+            stack.Children.Add(Form(("Passo (m)", Text(a, nameof(AlignmentOptions.Passo), "Distância entre os pontos do eixo 3D."))));
 
-            stack.Children.Add(Section("Perfis preferidos (um por linha, expressão regular, em ordem)"));
+            stack.Children.Add(Section("Perfil preferido"));
             var prefs = new TextBox
             {
                 Text = string.Join(Environment.NewLine, a.PerfisPreferidos ?? new List<string>()),
                 AcceptsReturn = true,
                 Height = 110,
-                VerticalScrollBarVisibility = ScrollBarVisibility.Auto
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                ToolTip = "Um nome por linha, em ordem (aceita expressão regular). Se nenhum casar, o Civil 3D pergunta."
             };
             prefs.TextChanged += (s, e) => a.PerfisPreferidos = prefs.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(l => l.Trim()).ToList();
             stack.Children.Add(prefs);
-            stack.Children.Add(Note("Quando o alinhamento tem mais de um perfil de projeto, usa o primeiro que casar com esta lista; se nenhum casar, pergunta na linha de comando."));
             return stack;
         }
 
         // ================================================================== aba Configuração Autodesk
 
-        UIElement AutodeskTab()
+        UIElement AdvancedTab()
         {
-            var panel = new DockPanel { Margin = new Thickness(10) };
-            var note = Note("IfcInfraConfiguration.json do IFC Extension: esquema IFC, cabeçalho, objetos, quantidades, alinhamentos e demais opções. " +
-                            "As chaves seguem o arquivo da Autodesk; o editor mostra o que estiver no arquivo.");
-            DockPanel.SetDock(note, Dock.Top);
-            panel.Children.Add(note);
+            var panel = new DockPanel();
+            var head = new StackPanel();
+            DockPanel.SetDock(head, Dock.Top);
+            var filesHead = new DockPanel();
+            var open = Theme.Link("Abrir pasta");
+            open.Click += (s, e) => Process.Start(new ProcessStartInfo("explorer.exe", "\"" + ConfigPackage.ActiveDir + "\"") { UseShellExecute = true });
+            DockPanel.SetDock(open, Dock.Right);
+            filesHead.Children.Add(open);
+            filesHead.Children.Add(Section("Arquivos do pacote"));
+            head.Children.Add(filesHead);
+            head.Children.Add(PackageFiles());
+
+            var cfgHead = new DockPanel();
+            var samples = Theme.Link("Importar da Autodesk");
+            samples.ToolTip = "Usa os modelos gravados por IFCInfraSaveConfig e IFCInfraSaveMappingConfig.";
+            samples.Click += (s, e) => ImportAutodeskSamples();
+            DockPanel.SetDock(samples, Dock.Right);
+            cfgHead.Children.Add(samples);
+            cfgHead.Children.Add(Section("Opções da exportação · IfcInfraConfiguration.json"));
+            head.Children.Add(cfgHead);
+            panel.Children.Add(head);
 
             if (_autodeskConfig == null)
             {
-                var empty = new StackPanel();
-                empty.Children.Add(Note("O pacote ainda não tem IfcInfraConfiguration.json. Rode IFCInfraSaveConfig no Civil 3D para a Autodesk gerar o modelo " +
-                                        "da versão instalada e depois use \"Importar modelos da Autodesk\" na aba Pacote."));
-                empty.Children.Add(Btn("Importar modelos da Autodesk", (s, e) => ImportAutodeskSamples()));
-                panel.Children.Add(empty);
+                panel.Children.Add(Theme.Detalhe("Ainda não há este arquivo no pacote. Rode IFCInfraSaveConfig no Civil 3D e use Importar da Autodesk."));
                 return panel;
             }
-
             var tree = new TreeView();
             foreach (var item in JsonTree.Build(_autodeskConfig)) tree.Items.Add(item);
             panel.Children.Add(tree);
@@ -568,13 +546,29 @@ namespace MetroSP.Ui
 
         static TextBlock Label(string text) => new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center };
 
-        static TextBlock Note(string text) => new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 0, 6) };
+        /// <summary>Ação do pacote no topo da janela, como link.</summary>
+        static Button Tool(string text, string tip, RoutedEventHandler click)
+        {
+            var b = Theme.Link(text);
+            b.ToolTip = tip;
+            b.Margin = new Thickness(16, 0, 0, 0);
+            b.Click += click;
+            return b;
+        }
+
+        /// <summary>Botão quadrado só com símbolo (↑ ↓ ✕), com a ação na dica.</summary>
+        static Button SymbolButton(string symbol, string tip, RoutedEventHandler click)
+        {
+            var b = new Button { Content = symbol, ToolTip = tip, MinWidth = 32, Width = 32, Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 4, 0) };
+            b.Click += click;
+            return b;
+        }
 
         static TextBlock Section(string text) { var t = Theme.Secao(text); t.Margin = new Thickness(0, 10, 0, 4); return t; }
 
-        static TextBox Text(object source, string property)
+        static TextBox Text(object source, string property, string tip = null)
         {
-            var tb = new TextBox { MinWidth = 320 };
+            var tb = new TextBox { MinWidth = 180, ToolTip = tip ?? "Vazio mantém o que a Autodesk gravou." };
             tb.SetBinding(TextBox.TextProperty, new Binding(property)
             {
                 Source = source,
@@ -588,7 +582,7 @@ namespace MetroSP.Ui
         static Grid Form(params (string Label, UIElement Field)[] rows)
         {
             var g = new Grid();
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100) });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             for (int i = 0; i < rows.Length; i++)
             {

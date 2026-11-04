@@ -49,28 +49,25 @@ namespace MetroSP
 
             tab.Panels.Add(Panel("IFC 4.3",
                 Button("Exportar\nIFC", "IfcExportar", "MSP_IFCEXPORT",
-                    "Aplica a configuração IFC ativa (do Forma ou local), exporta o desenho inteiro (IFCINFRAEXPORT) e coloca o alinhamento 3D no mesmo IFC."),
+                    "Exporta o desenho em IFC 4.3, já com o alinhamento 3D."),
                 Button("Exportar\nseleção", "IfcSelecao", "MSP_IFCEXPORTSEL",
-                    "Igual ao Exportar IFC, mas só com os objetos selecionados (IFCINFRAEXPORTSELECTED)."),
-                Button("Só\nsincronizar", "IfcSincronizar", "MSP_IFCSYNC",
-                    "Atualiza os JSON de configuração IFC a partir do Forma sem exportar."),
-                Button("Alinhamento\n3D", "Alinhamento3D", "MSP_IFCALINHAMENTO",
-                    "Exporta alinhamentos para IFC 4.3 com o perfil aplicado: eixo 3D com as cotas corretas e segmentos horizontais e verticais."),
+                    "Exporta só os objetos selecionados."),
                 Button("Configurar\nIFC", "IfcConfigurar", "MSP_IFCCONFIG",
-                    "Mapeamento de classes IFC, property sets, IfcProject/IfcSite/IfcBuilding e alinhamento. Importa e exporta os JSON.")));
+                    "Classes, propriedades, projeto, terreno, edificações e alinhamento.")));
 
             tab.Panels.Add(Panel("Forma",
-                Button("Entrar", "Entrar", "MSP_FORMALOGIN",
-                    "Entra na conta Autodesk e testa o acesso à pasta de configuração IFC."),
-                Button("Sair", "Sair", "MSP_FORMALOGOUT",
-                    "Apaga a sessão salva neste computador."),
-                Button("Pasta de\nconfig", "ArquivosIfc", "MSP_IFCPASTA",
-                    "Abre a pasta onde os JSON foram gravados (pasta do desenho)."),
-                Button("Conta e\nForma", "Conta", "MSP_CONFIG",
-                    "Edita MetroSP.settings.json (Client ID, projeto e pasta do Forma).")));
+                Stack(
+                    Small("Sincronizar", "IfcSincronizar", "MSP_IFCSYNC", "Baixa a configuração IFC do Forma, sem exportar."),
+                    Small("Entrar", "Entrar", "MSP_FORMALOGIN", "Entra na conta Autodesk."),
+                    Small("Sair", "Sair", "MSP_FORMALOGOUT", "Encerra a sessão neste computador.")),
+                Stack(
+                    Small("Conta", "Conta", "MSP_CONFIG", "Client ID, projeto e pasta do Forma."))));
 
-            tab.Panels.Add(Panel("Ajuda",
-                Button("Sobre", "Sobre", "MSP_SOBRE", "Versão e configuração em uso.")));
+            tab.Panels.Add(Panel("Ferramentas",
+                Stack(
+                    Small("Só alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D."),
+                    Small("Pasta", "ArquivosIfc", "MSP_IFCPASTA", "Abre a pasta do desenho com os JSON aplicados."),
+                    Small("Sobre", "Sobre", "MSP_SOBRE", "Versão e configuração em uso."))));
 
             // Marca sempre por último, no lado direito da aba.
             tab.Panels.Add(BrandPanel());
@@ -99,6 +96,28 @@ namespace MetroSP
                 CommandHandler = new MacroHandler(),
                 ToolTip = new RibbonToolTip { Title = text.Replace("\n", " "), Content = tip, Command = command }
             };
+        }
+
+        /// <summary>Botão pequeno (16 px, texto ao lado), para empilhar três por coluna.</summary>
+        static RibbonButton Small(string text, string icon, string command, string tip)
+        {
+            var b = Button(text, icon, command, tip);
+            b.Size = RibbonItemSize.Standard;
+            b.Orientation = System.Windows.Controls.Orientation.Horizontal;
+            b.LargeImage = null;
+            return b;
+        }
+
+        /// <summary>Coluna de botões pequenos, um por linha.</summary>
+        static RibbonRowPanel Stack(params RibbonButton[] buttons)
+        {
+            var row = new RibbonRowPanel();
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                if (i > 0) row.Items.Add(new RibbonRowBreak());
+                row.Items.Add(buttons[i]);
+            }
+            return row;
         }
 
         /// <summary>Painel "Ação BIM · Metrô SP" com o selo azul; clicar abre o Sobre.</summary>
