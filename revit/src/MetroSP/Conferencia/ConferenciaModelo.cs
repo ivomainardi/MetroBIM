@@ -119,7 +119,12 @@ namespace MetroSP.Conferencia
         public DateTime Quando { get; set; } = DateTime.Now;
         public string Documento { get; set; }
         public string Escopo { get; set; }
+        /// <summary>Elementos que vão para o IFC numa classe que os padrões conferem (os que entram nas etapas 4 e 5).</summary>
         public int TotalElementos { get; set; }
+        /// <summary>Elementos que vão para o IFC numa classe sem nenhum campo dos padrões (só aparecem na etapa 3).</summary>
+        public int ForaDoPadrao { get; set; }
+        /// <summary>Classes IFC que os padrões conferem, para escolher ao corrigir a classe na etapa 3.</summary>
+        public List<string> ClassesDoPadrao { get; } = new List<string>();
         public List<EtapaConferencia> Etapas { get; } = new List<EtapaConferencia>();
 
         /// <summary>Linhas da matriz: categoria → classe IFC (para mostrar) e quantidade de elementos.</summary>

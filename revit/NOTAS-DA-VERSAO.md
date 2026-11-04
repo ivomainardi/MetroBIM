@@ -21,6 +21,13 @@ Todas as janelas do MetroSP agora podem ser redimensionadas pela borda ou pela a
 nunca passam da altura da tela. As de formulário (Localização, Exportar IFC, Verificar Padrões, Pacote, Sobre e outras)
 ganham barra de rolagem quando ficam menores que o conteúdo.
 
+## Todas as ferramentas só com elementos que vão para o IFC
+
+Classificação (Aplicar, Verificar e Consistência), Planilha de Dados, Editar em Massa, Filtrar e Colorir, Copiar Valores,
+Contar, Verificar Padrões e Conferir Entrega usam o mesmo filtro: ficam de fora opções de projeto secundárias,
+demolidos, elementos sem sólido, os com "Exportar para IFC = Não", origem interna, ponto base, ponto de levantamento
+e aberturas (que saem como vazio no elemento que cortam).
+
 ## Conferir Entrega: corrigir na própria tela
 
 - **Dados preenchidos:** ao abrir uma célula da matriz, a barra **Preencher "parâmetro" com** grava o valor nas linhas
@@ -30,6 +37,10 @@ ganham barra de rolagem quando ficam menores que o conteúdo.
   escolhido, para juntar outros parâmetros, prefixos ou localizar e substituir.
 - Cada pendência aponta a ferramenta que resolve: **Categorias IFC...** na classe IFC dos elementos, **Editar property
   sets...** (abre o .txt dos padrões) nos campos sem mapeamento e nos tipos errados, além das que já existiam.
+- **Só os elementos dos padrões:** as etapas de dados e de classificação conferem só os elementos de classes IFC que
+  fazem parte dos padrões (com algum campo exigido). Os que saem como proxy ou numa classe sem campos do Metrô aparecem
+  só na etapa 3, onde **Exportar como [classe] → Definir classe** grava o "Exportar para IFC como" dos tipos e
+  confere de novo.
 - **Matriz mais legível:** os títulos das colunas ficam na horizontal, com a propriedade inteira (quebrando entre as
   palavras) e o property set embaixo.
 

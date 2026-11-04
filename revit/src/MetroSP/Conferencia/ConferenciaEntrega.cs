@@ -74,8 +74,15 @@ namespace MetroSP.Conferencia
             _analisador = new MappingAnalyzer(_doc, _mapping, checkValues: true);
 
             Ui.Progresso.Atual?.Etapa("Separando os elementos que vão para o IFC");
-            List<(Element E, string Entidade)> elementos = ElementosExportados();
+            List<(Element E, string Entidade)> exportados = ElementosExportados();
+            // Regra de todas as ferramentas: só entram na conferência os elementos de classes que fazem parte dos padrões
+            // (com algum campo exigido). Os demais aparecem só na etapa 3, para trocar a classe se for o caso.
+            bool temPadrao = _temPsets || _ids != null;
+            List<(Element E, string Entidade)> elementos = temPadrao ? exportados.Where(x => Exigencias(x.Entidade).Count > 0).ToList() : exportados;
+            List<(Element E, string Entidade)> foraDoPadrao = temPadrao ? exportados.Where(x => Exigencias(x.Entidade).Count == 0).ToList() : new List<(Element, string)>();
             r.TotalElementos = elementos.Count;
+            r.ForaDoPadrao = foraDoPadrao.Count;
+            r.ClassesDoPadrao.AddRange(ClassesDoPadrao());
             r.Ids = _ids;
 
             EtapaConferencia parametros = new EtapaConferencia
@@ -84,7 +91,7 @@ namespace MetroSP.Conferencia
                 Descricao = "Cada campo exigido sai de um parâmetro que existe nas categorias, com tipo compatível e o GUID do MetroShared.",
                 Correcao = Correcao.ParametrosDeProjeto,
             };
-            EtapaConferencia classes = ConferirClasses(elementos);
+            EtapaConferencia classes = ConferirClasses(elementos, foraDoPadrao);
             EtapaConferencia dados = ConferirDados(elementos, r, parametros);
             EtapaConferencia classificacao = ConferirClassificacao(elementos.Select(x => x.E).ToList(), out int classOk, out int classTotal);
 
@@ -283,7 +290,7 @@ namespace MetroSP.Conferencia
         {
             var lista = new List<(Element, string)>();
             ElementId fase = FiltroIfc.Fase(_doc, _setup?.Fase ?? -1, _vista);
-            foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista))
+            foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista, soIfc: false))
             {
                 if (!FiltroIfc.VaiParaIfc(_doc, e, fase)) continue;
                 string entidade = _analisador.ResolveEntity(e);
@@ -295,40 +302,30 @@ namespace MetroSP.Conferencia
 
         // ================================================================== 3. classes IFC
 
-        private EtapaConferencia ConferirClasses(List<(Element E, string Entidade)> elementos)
+        private EtapaConferencia ConferirClasses(List<(Element E, string Entidade)> elementos, List<(Element E, string Entidade)> foraDoPadrao)
         {
             var etapa = new EtapaConferencia
             {
                 Numero = 3, Titulo = "Classe IFC dos elementos",
-                Descricao = "Cada elemento sai com uma classe IFC própria (não como proxy) e recebe os campos do Metrô.",
+                Descricao = "Só entram na conferência os elementos de classes que fazem parte dos padrões. Os que saem como proxy ou numa " +
+                            "classe sem campos do Metrô aparecem aqui: escolha a classe certa e clique em Definir classe.",
                 Correcao = Correcao.CategoriasIfc,
             };
 
-            foreach (var g in elementos.Where(x => x.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase))
-                                       .GroupBy(x => x.E.Category.Name).OrderByDescending(g => g.Count()))
+            foreach (var g in foraDoPadrao.GroupBy(x => (Cat: x.E.Category.Name, x.Entidade)).OrderByDescending(g => g.Count()))
             {
+                bool proxy = g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
                 etapa.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Categoria = g.Key, Assunto = "IfcBuildingElementProxy",
-                    Problema = $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida).",
-                    OQueFazer = "Defina a classe na tabela de classes IFC ou no parâmetro \"Exportar para IFC como\" do tipo.",
+                    Sinal = proxy ? Sinal.Amarelo : Sinal.Cinza, Categoria = g.Key.Cat, Assunto = g.Key.Entidade,
+                    Problema = proxy
+                        ? $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida): ficam fora da conferência."
+                        : $"{g.Key.Entidade} não faz parte dos padrões: {g.Count()} elemento(s) ficam fora da conferência.",
+                    OQueFazer = proxy
+                        ? "Escolha a classe abaixo e clique em Definir classe (grava o \"Exportar para IFC como\" do tipo)."
+                        : "Normal se o Metrô não pede dados desse elemento; senão, defina a classe certa abaixo.",
                     Elementos = g.Select(x => x.E.Id).ToList(),
                 });
-            }
-
-            if (_temPsets || _ids != null)
-            {
-                foreach (var g in elementos.Where(x => !EhEspaco(x.Entidade) && Exigencias(x.Entidade).Count == 0)
-                                           .GroupBy(x => (x.E.Category.Name, x.Entidade)).OrderByDescending(g => g.Count()))
-                {
-                    etapa.Pendencias.Add(new Pendencia
-                    {
-                        Sinal = Sinal.Amarelo, Categoria = g.Key.Name, Assunto = g.Key.Entidade,
-                        Problema = $"Nenhum campo do Metrô se aplica a {g.Key.Entidade}: {g.Count()} elemento(s) vão sem os dados do Metrô.",
-                        OQueFazer = "Confira se a classe IFC está certa ou se o .txt de property sets deveria incluir essa classe.",
-                        Elementos = g.Select(x => x.E.Id).ToList(),
-                    });
-                }
             }
 
             if (_ids != null)
@@ -341,19 +338,35 @@ namespace MetroSP.Conferencia
                     etapa.Pendencias.Add(new Pendencia
                     {
                         Sinal = Sinal.Cinza, Assunto = string.Join(", ", ents.Select(f => f.ToString())),
-                        Problema = $"Nenhum elemento exporta como a entidade da especificação \"{spec.Name}\" dos padrões Metrô.",
+                        Problema = $"Nenhum elemento exporta como a entidade da especificação \"{spec.Name}\" dos padrões.",
                         OQueFazer = "Normal se este modelo não tem esse tipo de elemento; senão, confira a classe IFC.",
                     });
                 }
             }
 
             etapa.CalcularSinal();
-            etapa.Contagem = etapa.Pendencias.Where(p => p.Sinal == Sinal.Amarelo || p.Sinal == Sinal.Vermelho).Sum(p => p.QtdElementos);
-            int proxies = etapa.Pendencias.Where(p => p.Assunto == "IfcBuildingElementProxy").Sum(p => p.QtdElementos);
-            etapa.Resumo = etapa.Contagem == 0
-                ? $"{elementos.Count} elementos com classe IFC e campos do Metrô."
-                : $"{proxies} proxy(s); {etapa.Contagem - proxies} elemento(s) sem nenhum campo do Metrô.";
+            int proxies = etapa.Pendencias.Where(p => p.Sinal == Sinal.Amarelo).Sum(p => p.QtdElementos);
+            etapa.Contagem = proxies;
+            int outros = foraDoPadrao.Count - proxies;
+            etapa.Resumo = foraDoPadrao.Count == 0
+                ? $"{elementos.Count} elementos em classes dos padrões."
+                : $"{elementos.Count} nos padrões; {proxies} proxy(s) e {outros} em classes fora dos padrões.";
             return etapa;
+        }
+
+        /// <summary>Classes IFC com algum campo nos padrões (.txt de property sets e IDS). O exportador aceita o nome em qualquer caixa.</summary>
+        private IEnumerable<string> ClassesDoPadrao()
+        {
+            var classes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (PropertyMapping m in _mapping.Properties)
+                foreach (string v in m.Entities)
+                    if (v.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase)) classes.Add(v.Trim());
+            if (_ids != null)
+                foreach (IdsSpecification spec in _ids.Specifications)
+                    foreach (IdsEntityFacet f in spec.ApplicableEntities)
+                        foreach (string v in f.Name?.FixedValues ?? Enumerable.Empty<string>())
+                            if (!string.IsNullOrWhiteSpace(v)) classes.Add(v.Trim());
+            return classes.OrderBy(c => c, StringComparer.OrdinalIgnoreCase);
         }
 
         private static bool EhEspaco(string entidade) =>

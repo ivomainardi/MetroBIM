@@ -196,7 +196,8 @@ namespace MetroSP.Conferencia
             _res = res;
             _celula = _celula != null && res.Matriz.TryGetValue(chave, out CelulaMatriz mesma) && mesma.TemPendencia ? mesma : null;
             _pacoteNome.Text = "Padrões: " + _pacote.NomeExibido;
-            _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos que vão para o IFC ({res.Escopo}) · conferido às {res.Quando:HH:mm}";
+            _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos nos padrões" + (res.ForaDoPadrao > 0 ? $" (+{res.ForaDoPadrao} fora, na etapa 3)" : "") +
+                               $" ({res.Escopo}) · conferido às {res.Quando:HH:mm}";
             _pacoteInfo.ToolTip = _pacote.Arquivo;
 
             _resumoPct.Text = $"{Math.Floor(res.Progresso * 100):0}%";
@@ -359,6 +360,25 @@ namespace MetroSP.Conferencia
                     ? BotaoCorrecao(c, Escolhidos, ParametroEscolhido)
                     : BotaoCorrecao(c, () => grid.SelectedItems.Count > 0 ? Escolhidos() : null);
                 if (b != null) botoes.Children.Add(b);
+            }
+            if (etapa.Numero == 3 && itens.Any(p => p.Elementos.Count > 0))
+            {
+                // Corrigir aqui: grava a classe no "Exportar para IFC como" dos tipos (ou da instância, se ela já tiver um valor).
+                var classe = new System.Windows.Controls.ComboBox { IsEditable = true, MinWidth = 220, Padding = new Thickness(4, 2, 4, 2), VerticalAlignment = VerticalAlignment.Center };
+                foreach (string c in _res.ClassesDoPadrao) classe.Items.Add(c);
+                classe.ToolTip = "Classes que fazem parte dos padrões. Também dá para digitar outra (ex.: IfcBeam).";
+                var definir = new Button
+                {
+                    Content = "Definir classe", Style = Theme.PrimaryButton, Margin = new Thickness(8, 0, 6, 0),
+                    ToolTip = "Grava a classe no \"Exportar para IFC como\" do tipo dos elementos das linhas escolhidas (ou de todas as visíveis) e confere de novo. Ctrl+Z no Revit desfaz.",
+                };
+                definir.Click += (s, e) => DefinirClasse(Escolhidos(), classe.Text);
+                var linhaClasse = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+                linhaClasse.Children.Add(new TextBlock { Text = "Exportar como", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                linhaClasse.Children.Add(classe);
+                linhaClasse.Children.Add(definir);
+                DockPanel.SetDock(linhaClasse, Dock.Bottom);
+                dock.Children.Add(linhaClasse);
             }
             if (etapa.Numero == 2 && _res.Ids != null && !itens.Any(p => p.Correcao == Correcao.DetalhesIds))
                 botoes.Children.Add(BotaoCorrecao(Correcao.DetalhesIds, () => null));
@@ -860,6 +880,57 @@ namespace MetroSP.Conferencia
                         janela.Show();
                         break;
                 }
+            });
+        }
+
+        /// <summary>
+        /// Define a classe IFC dos elementos: grava no "Exportar para IFC como" do tipo; se a instância já tem um valor
+        /// próprio (que vale antes do tipo), ou o tipo não aceita, grava na instância.
+        /// </summary>
+        private void DefinirClasse(List<ElementId> ids, string classe)
+        {
+            classe = (classe ?? "").Trim();
+            if (ids.Count == 0) return;
+            if (!classe.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(this, "Escolha ou escreva uma classe IFC (ex.: IfcBeam).", "MetroSP");
+                return;
+            }
+            if (MessageBox.Show(this, $"Exportar {ids.Count} elemento(s) como {classe}?\n\nGrava no \"Exportar para IFC como\" dos tipos (vale para todas as instâncias desses tipos). Ctrl+Z no Revit desfaz.",
+                    "MetroSP", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes) != MessageBoxResult.Yes)
+                return;
+
+            Revit(app =>
+            {
+                int tipos = 0, instancias = 0, falhas = 0;
+                var feitos = new HashSet<ElementId>();
+                using (var t = new Transaction(_doc, "MetroSP - Definir classe IFC"))
+                {
+                    t.Start();
+                    foreach (ElementId id in ids)
+                    {
+                        Element e = _doc.GetElement(id);
+                        if (e == null) continue;
+                        Parameter inst = e.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_AS);
+                        Element tipo = _doc.GetElement(e.GetTypeId());
+                        Parameter doTipo = tipo?.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_TYPE_AS);
+                        bool instanciaTemValor = inst != null && !string.IsNullOrWhiteSpace(inst.AsString());
+                        if (!instanciaTemValor && doTipo != null && !doTipo.IsReadOnly)
+                        {
+                            if (!feitos.Add(tipo.Id)) continue;
+                            if (doTipo.Set(classe)) tipos++; else falhas++;
+                        }
+                        else if (inst != null && !inst.IsReadOnly)
+                        {
+                            if (inst.Set(classe)) instancias++; else falhas++;
+                        }
+                        else falhas++;
+                    }
+                    if (tipos + instancias > 0) t.Commit(); else t.RollBack();
+                }
+                Mostrar(Executar(app, _doc, _pacote));
+                if (falhas > 0)
+                    TaskDialog.Show("MetroSP", $"Classe gravada em {tipos} tipo(s) e {instancias} instância(s).\n{falhas} elemento(s) não aceitam o \"Exportar para IFC como\" (use Categorias IFC para a categoria inteira).");
             });
         }
 

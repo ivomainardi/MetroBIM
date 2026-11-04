@@ -47,6 +47,10 @@ namespace MetroSP.Ids
                 || e is AssemblyInstance || e is RevitLinkInstance || e is ImportInstance)
                 return "Não é elemento de modelo";
             if (NaoExportadas.Contains(e.Category.BuiltInCategory)) return "Categoria que não vai para o IFC";
+            // Origem interna, ponto base e ponto de levantamento só posicionam o modelo (vão para o IfcSite, não como elemento).
+            if (e is BasePoint || e is InternalOrigin) return "Ponto de referência";
+            // Aberturas (shaft, por face, corte de abertura estrutural) saem como vazio dentro do elemento que cortam.
+            if (e is Opening) return "Abertura (sai como vazio no elemento)";
 
             if (e.DesignOption != null && !e.DesignOption.IsPrimary) return "Opção de projeto secundária";
 

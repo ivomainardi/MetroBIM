@@ -30,14 +30,15 @@ namespace MetroSP.Commands
                 ? selection.Select(doc.GetElement)
                 : new FilteredElementCollector(doc, doc.ActiveView.Id).WhereElementIsNotElementType();
 
+            ElementId fase = Ids.FiltroIfc.Fase(doc, -1, selection.Count > 0 ? null : doc.ActiveView.Id);
             var counts = source
-                .Where(e => e?.Category != null)
+                .Where(e => e?.Category != null && Ids.FiltroIfc.VaiParaIfc(doc, e, fase))
                 .GroupBy(e => e.Category.Name)
                 .OrderByDescending(g => g.Count())
                 .ToList();
 
             var sb = new StringBuilder();
-            sb.AppendLine(selection.Count > 0 ? "Elementos selecionados:" : $"Elementos na vista \"{doc.ActiveView.Name}\":");
+            sb.AppendLine((selection.Count > 0 ? "Elementos selecionados" : $"Elementos na vista \"{doc.ActiveView.Name}\"") + " que vão para o IFC:");
             sb.AppendLine();
             foreach (var group in counts)
                 sb.AppendLine($"{group.Key}: {group.Count()}");
