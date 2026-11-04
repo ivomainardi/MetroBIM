@@ -15,9 +15,12 @@ namespace MetroSP.Commands
     [Transaction(TransactionMode.Manual)]
     public class ListarCompartilhadosCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Abrir(commandData.Application);
+
+        /// <summary>Abre a janela (modal). Chamar dentro do contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Abrir(UIApplication uiapp)
         {
-            UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null)
             {

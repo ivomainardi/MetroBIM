@@ -28,6 +28,7 @@ namespace MetroSP
             }
 
             CreateGeralPanel(application);
+            CreateEntregaPanel(application);
             CreateParametrosPanel(application);
             CreateIfcPanel(application);
             CreateClassificacaoPanel(application);
@@ -49,6 +50,16 @@ namespace MetroSP
             AddButton<SobreCommand>(panel, "Sobre",
                 "Informações sobre o add-in MetroSP.",
                 "Sobre");
+        }
+
+        private static void CreateEntregaPanel(UIControlledApplication application)
+        {
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega");
+
+            AddButton<ConferirEntregaCommand>(panel, "Conferir\nEntrega",
+                "Confere numa janela só o que o Metrô pede: arquivos do pacote, parâmetros e mapeamento IFC, classe IFC, " +
+                "dados preenchidos e classificação, com semáforo por etapa. Seleciona e pinta as pendências e abre a ferramenta que corrige.",
+                "Conferir");
         }
 
         private static void CreateParametrosPanel(UIControlledApplication application)

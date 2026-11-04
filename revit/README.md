@@ -5,6 +5,7 @@ Aba **MetroSP** na Ribbon do Revit.
 | Painel | Botão | O que faz |
 |---|---|---|
 | Geral | Sobre | Mostra versão do add-in e do Revit |
+| Entrega | Conferir Entrega | Uma janela só, com semáforo por etapa, para conferir o que o Metrô pede antes de exportar: arquivos do pacote, parâmetros e mapeamento, classe IFC, dados preenchidos (matriz categoria × campo) e classificação. Seleciona e pinta as pendências na vista e abre a ferramenta que corrige |
 | Parâmetros | Renomear Compartilhado | Renomeia um parâmetro compartilhado da família mantendo o GUID |
 | Parâmetros | Listar Compartilhados | Duas abas: **Parâmetros do arquivo** (GUID, tipo, categorias e o .txt de origem achado pelo GUID nos arquivos de referência) e **Comparar com .txt** (painel de referências com .txt e pastas, base Metrô por usuário em `%AppData%\MetroSP\referencias.ini`; compatível, nome/tipo diferente, nome em uso, só no modelo/.txt). Coluna **Padrão (base)** contra o .txt do MetroShared (no padrão, nome diferente, duplicado, parecido, fora do padrão, nome repetido). **Verificar uso** (valores, tabelas, filtros; na família: tipos, fórmulas, associações, cotas) e **Deletar sem uso** com confirmação. Exporta .txt reutilizável no Revit e .csv (visíveis, selecionados ou todos) |
 | Parâmetros | Copiar Valores | Copia valores de um parâmetro para outro (seleção, vista ou modelo; filtro por categoria), convertendo entre texto, inteiro, número, medidas e sim/não. Analisa antes por elemento, com impactos e propostas; só preencher vazios ou sobrescrever; uma operação com Ctrl+Z |
@@ -81,6 +82,46 @@ Por isso, numa única operação (desfeita inteira se o nome final não for o no
 
 Opcional: renomeia a linha do GUID no seu arquivo de parâmetros compartilhados (com backup `.bak`).
 Tags e tabelas continuam funcionando porque referenciam o GUID. Os .rfa da biblioteca não são alterados.
+
+## Conferir Entrega Metrô
+
+Junta numa janela as conferências que antes ficavam espalhadas (Verificar IDS, Classificação, conferência do .txt
+no Exportar IFC, Listar Compartilhados), para o projetista ver de uma vez se o modelo está pronto para a entrega.
+
+**Pacote do Metrô.** Os arquivos da entrega ficam num pacote `.metrosp` (texto simples, caminhos relativos à pasta
+dele): IDS (opcional), setup de exportação `.json`, `.txt` de property sets, tabela de classes IFC (opcional),
+planilha de classificação e o `.txt` do MetroShared. O coordenador BIM monta o pacote uma vez (botão **Pacote... ›
+Salvar pacote como...**) numa pasta compartilhada ou no Forma; o projetista só abre o pacote. Sem pacote, a primeira
+vez aproveita os arquivos já escolhidos nas outras ferramentas. O pacote em uso fica em `%AppData%\MetroSP\conferencia.ini`
+e é repassado ao Exportar IFC, ao Verificar IDS, à Classificação e à base do Listar Compartilhados.
+
+**Etapas** (verde = ok, amarelo = aviso que não impede, vermelho = pendência, cinza = não conferido):
+
+1. **Arquivos do Metrô**: acha e lê cada arquivo; avisa tipos desconhecidos no `.txt` (que saem como texto), linhas
+   fora de um PropertySet e setup que não exporta os property sets do usuário.
+2. **Parâmetros e mapeamento**: o parâmetro de cada campo existe nos elementos de cada categoria, o tipo de dado é
+   compatível com o `.txt`, o GUID é o do MetroShared; com IDS, campos exigidos sem linha no `.txt` ou com tipo diferente.
+3. **Classe IFC dos elementos**: elementos que saem como `IfcBuildingElementProxy` e elementos de classes às quais
+   nenhum campo do Metrô se aplica.
+4. **Dados preenchidos**: matriz categoria × campo com a % de elementos com o campo preenchido (e, com IDS, dentro
+   dos valores aceitos). Clicar numa célula mostra os tipos e elementos pendentes.
+5. **Classificação**: o `ClassificationCode` preenchido, no formato `Código:Descrição` e na planilha (as mesmas regras
+   do Verificar Classificação).
+
+Campos exigidos: com IDS no pacote, os requisitos de propriedade obrigatórios do IDS para a classe IFC do elemento;
+sem IDS, todas as propriedades do `.txt` que se aplicam à classe. Psets padrão (`Pset_`, `Qto_`) sem linha no `.txt`
+e sem o parâmetro no elemento não contam como pendência (o exportador pode calcular).
+
+Elementos conferidos: os de modelo que vão para o IFC (classe IFC resolvida como no Verificar IDS), sem linhas,
+grupos, vínculos, massas e opções de projeto secundárias; no **modelo inteiro** ou **só na vista ativa**.
+
+Ações: **Selecionar no Revit** e **Pintar na vista** (sobreposição vermelha por elemento na vista ativa;
+**Limpar pintura** devolve a aparência que cada elemento tinha). Botões que abrem a ferramenta certa:
+Parâmetros de projeto do Revit, Listar Compartilhados, Aplicar Classificação (com os elementos já selecionados),
+Verificar Classificação e Detalhes do IDS. Ao fechar uma ferramenta modal, a conferência roda de novo.
+**Exportar IFC...** abre o Exportar IFC com o setup e o `.txt` do pacote e avisa antes se ainda há pendência.
+**Exportar pendências (.csv)** grava todas as linhas, com os IDs dos elementos. Nada é gravado no modelo, a não
+ser a pintura (desfeita por Limpar pintura).
 
 ## Verificar mapeamento IDS (antes de exportar)
 
