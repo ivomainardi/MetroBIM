@@ -1,3 +1,16 @@
+# Próxima versão (em preparação)
+
+## Filtros das tabelas no título das colunas
+
+Em todas as tabelas com filtro (Gerenciar Parâmetros, Lista de compartilhados, Verificar Classificação, Copiar Valores,
+Resultados do IDS e outras), o filtro passou para dentro do título de cada coluna:
+
+- caixa **Filtrar...** logo abaixo do nome da coluna, sempre com a mesma largura dela (acompanha ao redimensionar e ao rolar
+  para o lado); Esc limpa;
+- botão **▾** ao lado do nome, com a lista de valores (como no Excel); **Limpar filtro** limpa também o texto;
+- filtro em uso fica em laranja: a caixa com texto e o ▾ com valores escolhidos;
+- corrige o ▾ largo demais, que desalinhava a linha de filtros (também no Editar Property Sets).
+
 # MetroSP 0.2.8
 
 Revit 2025, 2026 e 2027. Junta a 0.2.7 (não publicada separadamente), a Conferir Entrega Metrô, a troca
