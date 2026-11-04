@@ -118,7 +118,6 @@ namespace MetroSP
                 Title = "Sobre o MetroSP",
                 Width = 520,
                 SizeToContent = System.Windows.SizeToContent.Height,
-                ResizeMode = System.Windows.ResizeMode.NoResize,
                 WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner
             };
 

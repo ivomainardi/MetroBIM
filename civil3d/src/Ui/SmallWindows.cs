@@ -96,7 +96,6 @@ namespace MetroSP.Ui
             Title = title,
             Width = width,
             SizeToContent = SizeToContent.Height,
-            ResizeMode = ResizeMode.NoResize,
             WindowStartupLocation = WindowStartupLocation.CenterOwner
         };
     }

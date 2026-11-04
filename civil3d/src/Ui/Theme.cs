@@ -74,8 +74,32 @@ namespace MetroSP.Ui
                 raiz.Children.Add(barra);
             }
 
-            raiz.Children.Add(new Border { Padding = new Thickness(14, 12, 14, 12), Child = corpo });
+            // Janela que cresce com o conteúdo: o corpo ganha rolagem, para nada sumir quando ela encolher.
+            var ajustaAoConteudo = w.SizeToContent != SizeToContent.Manual;
+            UIElement miolo = ajustaAoConteudo
+                ? new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Content = corpo }
+                : corpo;
+            raiz.Children.Add(new Border { Padding = new Thickness(14, 12, 14, 12), Child = miolo });
             w.Content = raiz;
+            Redimensionavel(w, ajustaAoConteudo);
+        }
+
+        /// <summary>
+        /// Regra da identidade: toda janela pode ser redimensionada. A que abre no tamanho do conteúdo
+        /// passa a tamanho livre depois de aberta, com um mínimo para não esconder os botões.
+        /// </summary>
+        public static void Redimensionavel(Window w, bool ajustaAoConteudo)
+        {
+            w.ResizeMode = ResizeMode.CanResizeWithGrip;
+            if (!ajustaAoConteudo) return;
+            void Aberta(object s, EventArgs e)
+            {
+                w.ContentRendered -= Aberta;
+                w.MinWidth = Math.Max(w.MinWidth, Math.Min(w.ActualWidth, 380));
+                w.MinHeight = Math.Max(w.MinHeight, Math.Min(w.ActualHeight, 240));
+                w.SizeToContent = SizeToContent.Manual;
+            }
+            w.ContentRendered += Aberta;
         }
 
         /// <summary>Etiqueta arredondada para resumos (ex.: "3 fora do .txt").</summary>
