@@ -74,22 +74,91 @@ namespace MetroSP.Alinhamento
             var models = new List<AlignmentModel>();
             using (var tr = db.TransactionManager.StartTransaction())
             {
-                foreach (var id in ids)
-                {
-                    var al = (Alignment)tr.GetObject(id, OpenMode.ForRead);
-                    var profile = ChooseProfile(ed, tr, al, opts.PerfisPreferidos, interactive);
-                    if (profile == null)
-                        ed.WriteMessage($"\nMetroSP: {al.Name} sem perfil de projeto; fica só com a geometria horizontal.");
+                var alignments = ids.Select(id => (Alignment)tr.GetObject(id, OpenMode.ForRead)).ToList();
+                var chosen = ChooseProfiles(doc, tr, alignments, opts.PerfisPreferidos, interactive);
 
+                int withoutProfile = 0, points = 0;
+                foreach (var al in alignments)
+                {
+                    chosen.TryGetValue(al.Handle.ToString(), out var profile);
+                    if (profile == null)
+                    {
+                        withoutProfile++;
+                        ed.WriteMessage($"\nMetroSP: {al.Name} não tem perfil de projeto; vai só com a geometria em planta.");
+                    }
                     var model = CivilAlignmentReader.Read(al, profile, opts.Passo);
+                    points += model.Axis3D.Count;
                     models.Add(model);
-                    ed.WriteMessage($"\nMetroSP: {al.Name}: {Math.Max(0, model.Horizontal.Count - 1)} segmento(s) horizontais, " +
-                                    $"{Math.Max(0, model.Vertical.Count - 1)} vertical(is), {model.Axis3D.Count} ponto(s) no eixo 3D" +
-                                    (profile != null ? $", perfil {profile.Name}." : "."));
                 }
                 tr.Commit();
+                ed.WriteMessage($"\nMetroSP: {models.Count} alinhamento(s) lidos" +
+                                (withoutProfile > 0 ? $", {withoutProfile} sem perfil" : "") + $" ({points} pontos no eixo 3D).");
             }
             return models;
+        }
+
+        /// <summary>
+        /// Perfil de cada alinhamento (layout ou importado). Com mais de um: a escolha guardada para este desenho,
+        /// depois a lista de preferidos; o que sobrar vai numa janela só (ou, sem interação, a sugestão).
+        /// </summary>
+        static Dictionary<string, Profile> ChooseProfiles(AcDocument doc, Transaction tr, List<Alignment> alignments,
+                                                          List<string> preferred, bool interactive)
+        {
+            var result = new Dictionary<string, Profile>();
+            var saved = ProfileMemory.Load(doc.Name);
+            var ask = new List<(Alignment Al, List<Profile> Candidates)>();
+
+            foreach (var al in alignments)
+            {
+                var key = al.Handle.ToString();
+                var candidates = al.GetProfileIds().Cast<ObjectId>()
+                    .Select(id => (Profile)tr.GetObject(id, OpenMode.ForRead))
+                    .Where(p => p.ProfileType == ProfileType.FG || p.ProfileType == ProfileType.File)
+                    .OrderBy(p => p.Name)
+                    .ToList();
+
+                if (candidates.Count <= 1) { result[key] = candidates.FirstOrDefault(); continue; }
+
+                var hit = saved.TryGetValue(key, out var savedName) ? candidates.FirstOrDefault(p => p.Name == savedName) : null;
+                foreach (var pattern in (preferred ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)))
+                {
+                    if (hit != null) break;
+                    hit = candidates.FirstOrDefault(p => Regex.IsMatch(p.Name, pattern, RegexOptions.IgnoreCase));
+                }
+                if (hit != null) { result[key] = hit; continue; }
+
+                result[key] = Suggest(al, candidates);
+                ask.Add((al, candidates));
+            }
+
+            if (ask.Count == 0 || !interactive) return result;
+
+            var rows = ask.Select(a => new Ui.ProfileWindow.Row
+            {
+                Alignment = a.Al.Name,
+                Profiles = a.Candidates.Select(p => p.Name).ToList(),
+                Chosen = result[a.Al.Handle.ToString()].Name
+            }).ToList();
+            if (!Ui.ProfileWindow.Ask(rows, out var remember))
+                throw new OperationCanceledException("Exportação cancelada.");
+
+            for (int i = 0; i < ask.Count; i++)
+            {
+                var key = ask[i].Al.Handle.ToString();
+                result[key] = ask[i].Candidates.First(p => p.Name == rows[i].Chosen);
+                if (remember) saved[key] = rows[i].Chosen;
+            }
+            if (remember) ProfileMemory.Save(doc.Name, saved);
+            return result;
+        }
+
+        /// <summary>Sugestão: o perfil com o nome do alinhamento e que não seja cópia; senão o primeiro que não seja cópia.</summary>
+        static Profile Suggest(Alignment al, List<Profile> candidates)
+        {
+            bool IsCopy(Profile p) => Regex.IsMatch(p.Name, @"\[Copy|\(\d+\)|c[oó]pia", RegexOptions.IgnoreCase);
+            return candidates.FirstOrDefault(p => !IsCopy(p) && p.Name.IndexOf(al.Name, StringComparison.OrdinalIgnoreCase) >= 0)
+                   ?? candidates.FirstOrDefault(p => !IsCopy(p))
+                   ?? candidates[0];
         }
 
         static List<ObjectId> SelectAlignments(Editor ed)
@@ -111,46 +180,6 @@ namespace MetroSP.Alinhamento
             return sr.Status == PromptStatus.OK ? sr.Value.GetObjectIds().ToList() : null;
         }
 
-        /// <summary>
-        /// Perfil de projeto (layout ou importado). Com mais de um: o primeiro que casar com a lista de
-        /// preferidos; se nenhum casar, pergunta (ou, sem interação, usa o primeiro em ordem alfabética).
-        /// </summary>
-        static Profile ChooseProfile(Editor ed, Transaction tr, Alignment al, List<string> preferred, bool interactive)
-        {
-            var candidates = al.GetProfileIds().Cast<ObjectId>()
-                .Select(id => (Profile)tr.GetObject(id, OpenMode.ForRead))
-                .Where(p => p.ProfileType == ProfileType.FG || p.ProfileType == ProfileType.File)
-                .OrderBy(p => p.Name)
-                .ToList();
-
-            if (candidates.Count <= 1) return candidates.FirstOrDefault();
-
-            foreach (var pattern in preferred ?? new List<string>())
-            {
-                if (string.IsNullOrWhiteSpace(pattern)) continue;
-                var hit = candidates.FirstOrDefault(p => Regex.IsMatch(p.Name, pattern, RegexOptions.IgnoreCase));
-                if (hit != null) return hit;
-            }
-
-            if (!interactive) return candidates[0];
-
-            ed.WriteMessage($"\nPerfis de {al.Name}:");
-            for (int i = 0; i < candidates.Count; i++)
-                ed.WriteMessage($"\n  {i + 1} - {candidates[i].Name}");
-
-            var pio = new PromptIntegerOptions($"\nPerfil para {al.Name} <1>: ")
-            {
-                LowerLimit = 1,
-                UpperLimit = candidates.Count,
-                DefaultValue = 1,
-                UseDefaultValue = true,
-                AllowNone = true
-            };
-            var r = ed.GetInteger(pio);
-            if (r.Status == PromptStatus.Cancel) throw new OperationCanceledException("Cancelado.");
-            return candidates[(r.Status == PromptStatus.OK ? r.Value : 1) - 1];
-        }
-
         static string AskOutputPath(Editor ed, string dwgPath, string name)
         {
             var dir = Path.GetDirectoryName(dwgPath);
@@ -167,5 +196,36 @@ namespace MetroSP.Alinhamento
 
         static string Sanitize(string s) =>
             string.Concat(s.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+    }
+
+    /// <summary>Perfis escolhidos por desenho (%APPDATA%\MetroSP\perfis.json): DWG → handle do alinhamento → perfil.</summary>
+    static class ProfileMemory
+    {
+        static string FilePath => Path.Combine(Settings.UserDir, "perfis.json");
+
+        static Dictionary<string, Dictionary<string, string>> All()
+        {
+            try
+            {
+                return File.Exists(FilePath)
+                    ? System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, string>>>(File.ReadAllText(FilePath))
+                      ?? new Dictionary<string, Dictionary<string, string>>()
+                    : new Dictionary<string, Dictionary<string, string>>();
+            }
+            catch { return new Dictionary<string, Dictionary<string, string>>(); }
+        }
+
+        public static Dictionary<string, string> Load(string dwg) =>
+            All().TryGetValue(Key(dwg), out var d) ? d : new Dictionary<string, string>();
+
+        public static void Save(string dwg, Dictionary<string, string> choices)
+        {
+            var all = All();
+            all[Key(dwg)] = choices;
+            Directory.CreateDirectory(Settings.UserDir);
+            File.WriteAllText(FilePath, System.Text.Json.JsonSerializer.Serialize(all, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        }
+
+        static string Key(string dwg) => (dwg ?? "").Trim().ToLowerInvariant();
     }
 }

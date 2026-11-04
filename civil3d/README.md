@@ -6,6 +6,13 @@ pós-processa o arquivo gerado para colocar no mesmo IFC o que a Autodesk não g
 o `IfcAlignment` com as cotas do perfil, o `IfcAlignmentVertical`, os dados de `IfcProject`/`IfcSite`
 e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Autodesk e corrige só o que falta.
 
+## Pré-requisito: IFC 4.3 Extension da Autodesk
+
+O `IFCINFRAEXPORT` não vem com o Civil 3D: é a **IFC 4.3 Extension for Civil 3D**, baixada na conta Autodesk
+(Produtos e serviços › Atualizações, na versão do Civil 3D instalada) e mostrada em Suplementos › IFC Infrastructure.
+Sem ela o Exportar IFC para antes de começar e abre a janela **Exportador** (`MSP_IFCEXTENSAO`), que mostra a versão
+instalada e leva à página de atualizações da conta Autodesk.
+
 ## Fluxo do Exportar IFC
 
 1. Usuário clica **Exportar IFC** (`MSP_IFCEXPORT`) ou **Exportar seleção** (`MSP_IFCEXPORTSEL`).
@@ -35,7 +42,7 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
 | IFC 4.3 | Exportar seleção | `MSP_IFCEXPORTSEL` |
 | IFC 4.3 | Configurar IFC | `MSP_IFCCONFIG` |
 | Forma | Sincronizar · Entrar · Sair · Conta | `MSP_IFCSYNC` · `MSP_FORMALOGIN` · `MSP_FORMALOGOUT` · `MSP_CONFIG` |
-| Ferramentas | Só alinhamentos (IFC separado) · Pasta · Sobre | `MSP_IFCALINHAMENTO` · `MSP_IFCPASTA` · `MSP_SOBRE` |
+| Ferramentas | Só alinhamentos (IFC separado) · Pasta · Sobre · Exportador | `MSP_IFCALINHAMENTO` · `MSP_IFCPASTA` · `MSP_SOBRE` · `MSP_IFCEXTENSAO` |
 | Ação BIM · Metrô SP | selo (abre o Sobre) | `MSP_SOBRE` |
 | (linha de comando) | Pós-processar IFC | `MSP_IFCPOSPROC` |
 
@@ -97,8 +104,9 @@ separado. Nos dois casos:
 - GUIDs estáveis: reexportar o mesmo desenho mantém os mesmos `GlobalId`, o que ajuda na federação e no
   controle de versões no Forma.
 
-Perfil: se o alinhamento tiver mais de um perfil de projeto, vale o primeiro que casar com
-`PerfisPreferidos`; se nenhum casar, o comando pergunta. No `MSP_IFCALINHAMENTO` escolha `Selecionar` ou `Todos`. O arquivo sugerido é `[desenho]-[alinhamento].ifc` na pasta do DWG.
+Perfil: se o alinhamento tiver mais de um perfil de projeto, vale a escolha guardada para o desenho, depois o
+primeiro que casar com `PerfisPreferidos`. Os que sobrarem aparecem numa janela só, já com uma sugestão
+(o perfil com o nome do alinhamento que não seja cópia); com "Lembrar para este desenho" a pergunta não volta. No `MSP_IFCALINHAMENTO` escolha `Selecionar` ou `Todos`. O arquivo sugerido é `[desenho]-[alinhamento].ifc` na pasta do DWG.
 Esse IFC pode ser federado com o exportado pelo `IFCINFRAEXPORT`.
 
 Parábolas assimétricas viram duas parábolas que se encontram no PIV, como manda o IFC.
