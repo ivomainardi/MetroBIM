@@ -99,6 +99,29 @@ J2: o MetroLoc dos aparelhos de apoio passou para IfcMechanicalFastener (estava 
   Geral abre a mesma): versão, data da compilação, Revit em uso, ferramentas por painel e pasta de instalação,
   com **Copiar informações** para mandar ao suporte.
 
+## Listar Compartilhados: trocar instância ↔ tipo
+
+Novo botão **Instância ↔ Tipo...** no rodapé. Troca os parâmetros selecionados de instância para tipo ou de tipo
+para instância, mantendo as categorias e o grupo, numa transação só (Ctrl+Z desfaz).
+
+- **No projeto**, os valores já preenchidos vão junto: *instância → tipo* grava em cada tipo o valor das suas
+  instâncias; *tipo → instância* grava em cada instância o valor do seu tipo.
+- Antes de trocar, a janela mostra o que acontece com cada parâmetro e **avisa onde há perda de valores**: tipos
+  cujas instâncias têm valores diferentes (escolha entre ficar com o valor mais comum ou deixar o tipo vazio),
+  elementos sem tipo (ambientes, áreas...) e tipos sem nenhuma instância no modelo.
+- Elementos de famílias que já trazem o parâmetro definido dentro da família não mudam: vale o que a família define
+  (para trocar nesses, troque na família e recarregue). Parâmetros que existem só em famílias ou etiquetas
+  carregadas não são trocados daqui.
+- **Na família**, usa a mesma troca do editor de famílias; os valores de cada tipo da família são mantidos.
+  Ao passar de instância para tipo, os projetos onde a família for recarregada perdem os valores por instância.
+- **Fórmulas** (só existem na família) ficam como estão. Como um parâmetro de tipo não pode usar parâmetros de
+  instância na fórmula, a janela não troca, e diz por quê: para tipo, um parâmetro cuja fórmula usa parâmetros de
+  instância; para instância, um parâmetro que aparece na fórmula de parâmetros de tipo. Selecionando os parâmetros
+  ligados por fórmula juntos, eles são trocados na ordem que o Revit aceita. No projeto não há fórmulas; tabelas e
+  filtros que usam o parâmetro continuam funcionando, porque o parâmetro é o mesmo.
+- No fim, um resumo diz quantos valores foram regravados, perdidos ou não gravados (somente leitura, grupos,
+  elementos de outro usuário).
+
 # MetroSP 0.2.6 (anterior)
 
 Revit 2025, 2026 e 2027.
