@@ -1,6 +1,27 @@
-# MetroSP 0.2.7
+# MetroSP 0.2.8
 
-Revit 2025, 2026 e 2027.
+Revit 2025, 2026 e 2027. Junta a 0.2.7 (não publicada separadamente), a Conferir Entrega Metrô, a troca
+instância ↔ tipo e as ferramentas de dados.
+
+## Novo: Conferir Entrega Metrô
+
+Botão **Conferir Entrega**, no painel novo **Entrega**. Uma janela só mostra, com semáforo, se o modelo tem tudo o que
+o Metrô pede antes de exportar o IFC:
+
+1. **Arquivos do Metrô**: IDS, setup de exportação, property sets, classes IFC, planilha de classificação e MetroShared
+   achados e válidos (avisa, por exemplo, tipo `Lenght` no .txt, que sairia como texto);
+2. **Parâmetros e mapeamento**: o parâmetro de cada campo existe nas categorias, com tipo compatível e o GUID do MetroShared;
+3. **Classe IFC dos elementos**: proxies e elementos que não recebem nenhum campo do Metrô;
+4. **Dados preenchidos**: matriz categoria × campo com a % preenchida; clicando numa célula aparecem os tipos e elementos;
+5. **Classificação**: preenchida, no formato e na planilha.
+
+Os arquivos ficam num **pacote** (`.metrosp`) que o coordenador BIM salva uma vez numa pasta compartilhada ou no Forma;
+o projetista só abre o pacote. Na primeira vez, a janela aproveita os arquivos já escolhidos nas outras ferramentas.
+
+Para corrigir: **Selecionar no Revit**, **Pintar na vista** (com **Limpar pintura** para desfazer) e botões que abrem
+Parâmetros de projeto, Listar Compartilhados, Aplicar Classificação (com os elementos já selecionados), Verificar
+Classificação e os detalhes do IDS. A janela fica aberta enquanto se trabalha no modelo; **Conferir de novo** atualiza.
+**Exportar IFC...** abre a exportação com os arquivos do pacote e avisa se ainda há pendência.
 
 ## Novo painel Dados e ferramentas de parâmetros
 
@@ -142,6 +163,7 @@ para instância, mantendo as categorias e o grupo, numa transação só (Ctrl+Z 
   filtros que usam o parâmetro continuam funcionando, porque o parâmetro é o mesmo.
 - No fim, um resumo diz quantos valores foram regravados, perdidos ou não gravados (somente leitura, grupos,
   elementos de outro usuário).
+
 
 # MetroSP 0.2.6 (anterior)
 

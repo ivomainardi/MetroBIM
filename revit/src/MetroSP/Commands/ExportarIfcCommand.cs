@@ -16,9 +16,12 @@ namespace MetroSP.Commands
     [Transaction(TransactionMode.Manual)]
     public class ExportarIfcCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Exportar(commandData.Application);
+
+        /// <summary>Abre a janela e exporta. Chamar dentro do contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Exportar(UIApplication uiapp)
         {
-            UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null || doc.IsFamilyDocument)
             {
