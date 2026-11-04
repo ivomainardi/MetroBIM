@@ -115,6 +115,14 @@ namespace MetroSP.Ifc
             return id;
         }
 
+        /// <summary>Acrescenta uma entidade escrita por extenso, ex.: "IFCCARTESIANPOINT((0.,0.))".</summary>
+        public int AddRaw(string entity)
+        {
+            var open = entity.IndexOf('(');
+            var close = entity.LastIndexOf(')');
+            return Add(entity.Substring(0, open).Trim(), SplitArgs(entity.Substring(open + 1, close - open - 1)).ToArray());
+        }
+
         /// <summary>Remove a entidade. Quem a referenciava precisa ter sido ajustado antes.</summary>
         public void Remove(int id)
         {

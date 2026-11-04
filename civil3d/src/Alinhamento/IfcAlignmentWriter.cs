@@ -19,9 +19,13 @@ namespace MetroSP.Alinhamento
     {
         readonly List<string> _data = new List<string>();
         readonly IfcExportInfo _info;
+        readonly Func<string, int> _sink;
         int _next = 1;
 
         public IfcAlignmentWriter(IfcExportInfo info) { _info = info; }
+
+        /// <summary>Grava as entidades em outro modelo (ex.: o IFC da Autodesk no pós-processamento).</summary>
+        public IfcAlignmentWriter(IfcExportInfo info, Func<string, int> sink) { _info = info; _sink = sink; }
 
         public void Write(string path, IList<AlignmentModel> alignments)
         {
@@ -54,7 +58,7 @@ namespace MetroSP.Alinhamento
             // ------------------------------------------------ alinhamentos
             var alignmentIds = new List<int>();
             foreach (var a in alignments)
-                alignmentIds.Add(WriteAlignment(a, sitePlacement, axisCtx));
+                alignmentIds.Add(WriteAlignment(a, R(sitePlacement), axisCtx, p => p, 0));
 
             Add($"IFCRELAGGREGATES({G("project-site")},$,$,$,{R(project)},({R(site)}))");
             if (alignmentIds.Count > 0)
@@ -79,16 +83,21 @@ namespace MetroSP.Alinhamento
             File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
         }
 
-        int WriteAlignment(AlignmentModel a, int sitePlacement, int axisCtx)
+        /// <summary>
+        /// Grava um alinhamento completo. <paramref name="toLocal"/> leva as coordenadas do desenho para o
+        /// sistema da colocação; <paramref name="rotation"/> é o giro em planta (rad) que ele aplica.
+        /// </summary>
+        public int WriteAlignment(AlignmentModel a, string placementRelTo, int axisCtx, Func<double[], double[]> toLocal, double rotation)
         {
             var key = "al:" + a.Handle;
-            var placement = Add($"IFCLOCALPLACEMENT({R(sitePlacement)},{R(Add("IFCAXIS2PLACEMENT3D(" + R(Add("IFCCARTESIANPOINT((0.,0.,0.))")) + ",$,$)"))})");
+            var placement = Add($"IFCLOCALPLACEMENT({placementRelTo},{R(Add("IFCAXIS2PLACEMENT3D(" + R(Add("IFCCARTESIANPOINT((0.,0.,0.))")) + ",$,$)"))})");
+            var dz = toLocal(new[] { 0.0, 0.0, 0.0 })[2];
 
             // Geometria: eixo 3D com as cotas do perfil.
             string shape = "$";
             if (a.Axis3D.Count >= 2)
             {
-                var coords = string.Join(",", a.Axis3D.Select(p => $"({F(p[0])},{F(p[1])},{F(p[2])})"));
+                var coords = string.Join(",", a.Axis3D.Select(toLocal).Select(p => $"({F(p[0])},{F(p[1])},{F(p[2])})"));
                 var pts = Add($"IFCCARTESIANPOINTLIST3D(({coords}),$)");
                 var curve = Add($"IFCINDEXEDPOLYCURVE({R(pts)},$,.F.)");
                 var rep = Add($"IFCSHAPEREPRESENTATION({R(axisCtx)},'Axis','Curve3D',({R(curve)}))");
@@ -105,8 +114,9 @@ namespace MetroSP.Alinhamento
             for (int i = 0; i < a.Horizontal.Count; i++)
             {
                 var h = a.Horizontal[i];
-                var p = Add($"IFCCARTESIANPOINT(({F(h.StartX)},{F(h.StartY)}))");
-                var dp = Add($"IFCALIGNMENTHORIZONTALSEGMENT($,$,{R(p)},{F(h.StartDirection)},{F(h.StartRadius)},{F(h.EndRadius)},{F(h.Length)},$,.{h.Type}.)");
+                var sp = toLocal(new[] { h.StartX, h.StartY, 0.0 });
+                var p = Add($"IFCCARTESIANPOINT(({F(sp[0])},{F(sp[1])}))");
+                var dp = Add($"IFCALIGNMENTHORIZONTALSEGMENT($,$,{R(p)},{F(h.StartDirection + rotation)},{F(h.StartRadius)},{F(h.EndRadius)},{F(h.Length)},$,.{h.Type}.)");
                 hSegs.Add(Add($"IFCALIGNMENTSEGMENT({G(key + ":h" + i)},$,{S($"H{i + 1} {h.Type} est. {h.StartStation:0.000}")},$,$,{R(placement)},$,{R(dp)})"));
             }
             if (hSegs.Count > 0) Add($"IFCRELNESTS({G(key + ":hn")},$,$,$,{R(horizontal)},{List(hSegs)})");
@@ -120,7 +130,7 @@ namespace MetroSP.Alinhamento
                 for (int i = 0; i < a.Vertical.Count; i++)
                 {
                     var v = a.Vertical[i];
-                    var dp = Add($"IFCALIGNMENTVERTICALSEGMENT($,$,{F(v.StartDistAlong)},{F(v.HorizontalLength)},{F(v.StartHeight)},{F(v.StartGradient)},{F(v.EndGradient)},{(v.Radius == 0 ? "$" : F(v.Radius))},.{v.Type}.)");
+                    var dp = Add($"IFCALIGNMENTVERTICALSEGMENT($,$,{F(v.StartDistAlong)},{F(v.HorizontalLength)},{F(v.StartHeight + dz)},{F(v.StartGradient)},{F(v.EndGradient)},{(v.Radius == 0 ? "$" : F(v.Radius))},.{v.Type}.)");
                     vSegs.Add(Add($"IFCALIGNMENTSEGMENT({G(key + ":v" + i)},$,{S($"V{i + 1} {v.Type}")},$,$,{R(placement)},$,{R(dp)})"));
                 }
                 Add($"IFCRELNESTS({G(key + ":vn")},$,$,$,{R(vertical)},{List(vSegs)})");
@@ -147,6 +157,7 @@ namespace MetroSP.Alinhamento
 
         int Add(string entity)
         {
+            if (_sink != null) return _sink(entity);
             var id = _next++;
             _data.Add("#" + id + "=" + entity + ";");
             return id;

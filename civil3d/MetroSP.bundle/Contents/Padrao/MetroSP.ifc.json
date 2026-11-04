@@ -2,7 +2,7 @@
   "Estrutura": {
     "Projeto": { "Nome": null, "NomeLongo": null, "Descricao": null, "Fase": null },
     "Terreno": { "Nome": null, "NomeLongo": null, "Descricao": null, "Latitude": null, "Longitude": null, "Elevacao": null, "Matricula": null },
-    "Edificacoes": [],
+    "Instalacoes": [ { "Tipo": "IfcRailway", "Nome": null, "NomeLongo": null, "Descricao": null } ],
     "SistemaCoordenadas": "EPSG:31983"
   },
   "Alinhamento": {

@@ -26,10 +26,11 @@ namespace MetroSP.Ifc
         }
 
         public static void ProcessFile(string ifcPath, IList<AlignmentModel> alignments, SpatialConfig spatial,
-                                       IDictionary<string, string> projectProperties, Action<string> log)
+                                       IDictionary<string, string> projectProperties, Action<string> log,
+                                       string sourceFile = null)
         {
             var model = StepModel.Load(ifcPath);
-            var pp = new IfcPostProcessor(model, log);
+            var pp = new IfcPostProcessor(model, log) { SourceFile = sourceFile };
             if (alignments != null && alignments.Count > 0) pp.ApplyAlignments(alignments);
             if (spatial != null) pp.ApplySpatial(spatial);
             if (projectProperties != null && projectProperties.Count > 0) pp.ApplyProjectProperties(projectProperties);
@@ -52,10 +53,13 @@ namespace MetroSP.Ifc
             int done = 0;
 
             var ifcAlignments = _m.OfType("IFCALIGNMENT").ToList();
+            var used = new HashSet<AlignmentModel>();
+            double[] knownShift = null;
             foreach (var al in ifcAlignments)
             {
                 var name = StepModel.Text(al.Args[2]);
                 var a = Match(name, byName, ifcAlignments.Count);
+                if (a != null) used.Add(a);
                 if (a == null)
                 {
                     _log($"IfcAlignment \"{name}\" sem alinhamento correspondente no desenho; mantido como veio.");
@@ -69,6 +73,7 @@ namespace MetroSP.Ifc
 
                 var toLocal = PlacementMatrix(StepModel.Ref(al.Args[5])).Inverse();
                 var shift = DetectShift(al.Id, a, toLocal);
+                if (knownShift == null && a.Horizontal.Count > 0) knownShift = shift;
 
                 double[] Local(double[] p) => toLocal.Apply(p[0], p[1], p[2], shift);
 
@@ -77,7 +82,54 @@ namespace MetroSP.Ifc
                 done++;
                 _log($"{a.Name}: eixo 3D aplicado ({a.Axis3D.Count} pontos, perfil {a.ProfileName}).");
             }
+
+            var missing = alignments.Where(a => !used.Contains(a) && a.Horizontal.Count > 0).ToList();
+            if (missing.Count > 0) done += AddMissing(missing, axisCtx, knownShift);
             return done;
+        }
+
+        /// <summary>Nome do DWG, gravado no Pset MetroSP_Alinhamento dos alinhamentos acrescentados.</summary>
+        public string SourceFile { get; set; }
+
+        /// <summary>
+        /// Alinhamentos do desenho que o exportador da Autodesk não gravou: entram completos (horizontal,
+        /// vertical, eixo 3D), agregados ao IfcProject e referenciados no IfcSite, como no IFC 4.3.
+        /// </summary>
+        int AddMissing(List<AlignmentModel> missing, int axisCtx, double[] knownShift)
+        {
+            var project = _m.OfType("IFCPROJECT").FirstOrDefault();
+            var site = _m.OfType("IFCSITE").FirstOrDefault();
+            if (project == null)
+            {
+                _log("aviso: IFC sem IfcProject; alinhamentos que faltam não foram acrescentados.");
+                return 0;
+            }
+
+            // Mesmo sistema dos outros elementos: relativo ao IfcSite, com o deslocamento já visto no arquivo.
+            var sitePlacement = site != null ? StepModel.Ref(site.Args[5]) : 0;
+            var toLocal = (sitePlacement != 0 ? PlacementMatrix(sitePlacement) : Matrix.Identity).Inverse();
+            var shift = knownShift ?? new double[3];
+            double[] Local(double[] p) => toLocal.Apply(p[0], p[1], p.Length > 2 ? p[2] : 0, shift);
+            var o = Local(new[] { 0.0, 0.0, 0.0 });
+            var x = Local(new[] { 1.0, 0.0, 0.0 });
+            var rotation = Math.Atan2(x[1] - o[1], x[0] - o[0]);
+            if (knownShift == null && sitePlacement != 0)
+                _log("aviso: nenhum alinhamento da Autodesk para conferir o deslocamento de coordenadas; usando a colocação do IfcSite.");
+
+            var seed = StepModel.Text(project.Args[0]) ?? "";
+            var writer = new IfcAlignmentWriter(new IfcExportInfo { SourceFile = SourceFile ?? "", Seed = "posproc|" + seed }, _m.AddRaw);
+            var ids = new List<int>();
+            foreach (var a in missing)
+            {
+                ids.Add(writer.WriteAlignment(a, sitePlacement != 0 ? "#" + sitePlacement : "$", axisCtx, Local, rotation));
+                _log($"{a.Name}: não veio no IFC da Autodesk; acrescentado completo ({a.Horizontal.Count} segmento(s) horizontais, " +
+                     $"{a.Vertical.Count} vertical(is), {a.Axis3D.Count} pontos no eixo 3D).");
+            }
+
+            _m.Add("IFCRELAGGREGATES", Guid(seed, "metrosp-project-alignments"), "$", "$", "$", "#" + project.Id, StepModel.RefListText(ids));
+            if (site != null)
+                _m.Add("IFCRELREFERENCEDINSPATIALSTRUCTURE", Guid(seed, "metrosp-site-alignments"), "$", "$", "$", StepModel.RefListText(ids), "#" + site.Id);
+            return ids.Count;
         }
 
         /// <summary>
@@ -224,25 +276,31 @@ namespace MetroSP.Ifc
                 SetText(site, 12, s.Matricula);
             }
 
-            if (cfg.Edificacoes != null && cfg.Edificacoes.Count > 0)
+            var facilities = cfg.AllFacilities().Where(f => !string.IsNullOrWhiteSpace(f.Nome)).ToList();
+            if (facilities.Count > 0)
             {
                 var siteGid = StepModel.Text(site.Args[0]) ?? "site";
-                var existing = _m.OfType("IFCBUILDING").Select(b => StepModel.Text(b.Args[2])).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var existing = FacilityTypes.SelectMany(t => _m.OfType(t)).Select(b => StepModel.Text(b.Args[2]))
+                    .Where(n => n != null).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var created = new List<int>();
-                foreach (var b in cfg.Edificacoes.Where(b => !string.IsNullOrWhiteSpace(b.Nome) && !existing.Contains(b.Nome)))
+                foreach (var f in facilities.Where(f => !existing.Contains(f.Nome)))
                 {
+                    var type = (f.Tipo ?? FacilityInfo.DefaultType).Trim().ToUpperInvariant();
+                    if (!FacilityTypes.Contains(type)) type = "IFCRAILWAY";
                     var origin = _m.Add("IFCCARTESIANPOINT", "(0.,0.,0.)");
                     var axis = _m.Add("IFCAXIS2PLACEMENT3D", "#" + origin, "$", "$");
                     var placement = _m.Add("IFCLOCALPLACEMENT", site.Args[5], "#" + axis);
-                    created.Add(_m.Add("IFCBUILDING", Guid(siteGid, "bld:" + b.Nome), "$", IfcAlignmentWriter.S(b.Nome),
-                        Opt(b.Descricao), "$", "#" + placement, "$", Opt(b.NomeLongo), ".ELEMENT.",
-                        b.ElevacaoReferencia.HasValue ? IfcAlignmentWriter.F(b.ElevacaoReferencia.Value) : "$", "$", "$"));
+                    var args = new List<string> { Guid(siteGid, "fac:" + type + ":" + f.Nome), "$", IfcAlignmentWriter.S(f.Nome),
+                        Opt(f.Descricao), "$", "#" + placement, "$", Opt(f.NomeLongo), ".ELEMENT." };
+                    if (type == "IFCBUILDING")
+                        args.AddRange(new[] { f.ElevacaoReferencia.HasValue ? IfcAlignmentWriter.F(f.ElevacaoReferencia.Value) : "$", "$", "$" });
+                    else
+                        args.Add(".NOTDEFINED.");   // PredefinedType de IfcRailway, IfcRoad e IfcBridge
+                    created.Add(_m.Add(type, args.ToArray()));
+                    _log($"{f.Nome}: {(FacilityTypes.Contains((f.Tipo ?? "").ToUpperInvariant()) ? f.Tipo : FacilityInfo.DefaultType)} acrescentado ao IfcSite.");
                 }
                 if (created.Count > 0)
-                {
-                    _m.Add("IFCRELAGGREGATES", Guid(siteGid, "bld:" + string.Join("|", created)), "$", "'Edificações MetroSP'", "$", "#" + site.Id, StepModel.RefListText(created));
-                    _log($"{created.Count} IfcBuilding acrescentado(s) ao IfcSite.");
-                }
+                    _m.Add("IFCRELAGGREGATES", Guid(siteGid, "fac:" + string.Join("|", created)), "$", "'Instalações MetroSP'", "$", "#" + site.Id, StepModel.RefListText(created));
             }
 
             if (!string.IsNullOrWhiteSpace(cfg.SistemaCoordenadas) && !_m.OfType("IFCMAPCONVERSION").Any())
@@ -335,6 +393,8 @@ namespace MetroSP.Ifc
         }
 
         // ================================================================== utilitários
+
+        static readonly string[] FacilityTypes = { "IFCRAILWAY", "IFCBUILDING", "IFCBRIDGE", "IFCROAD" };
 
         static string Norm(string s) => (s ?? "").Trim().ToUpperInvariant();
 
