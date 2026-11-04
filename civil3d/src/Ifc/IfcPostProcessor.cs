@@ -400,8 +400,17 @@ namespace MetroSP.Ifc
                 SetText(site, 2, s.Nome);
                 SetText(site, 3, s.Descricao);
                 SetText(site, 7, s.NomeLongo);
-                if (s.Latitude.HasValue) _m.SetArg(site.Id, 9, CompoundAngle(s.Latitude.Value));
-                if (s.Longitude.HasValue) _m.SetArg(site.Id, 10, CompoundAngle(s.Longitude.Value));
+                // Valor fora do intervalo (ex.: "-23,63" salvo como -2363 em versões antigas) fica de fora: vale o da Autodesk.
+                if (s.Latitude.HasValue)
+                {
+                    if (Math.Abs(s.Latitude.Value) <= 90) _m.SetArg(site.Id, 9, CompoundAngle(s.Latitude.Value));
+                    else _log($"aviso: latitude {s.Latitude.Value} fora de -90 a 90; mantida a da Autodesk. Corrija em Configurar IFC > Projeto.");
+                }
+                if (s.Longitude.HasValue)
+                {
+                    if (Math.Abs(s.Longitude.Value) <= 180) _m.SetArg(site.Id, 10, CompoundAngle(s.Longitude.Value));
+                    else _log($"aviso: longitude {s.Longitude.Value} fora de -180 a 180; mantida a da Autodesk. Corrija em Configurar IFC > Projeto.");
+                }
                 if (s.Elevacao.HasValue) _m.SetArg(site.Id, 11, IfcAlignmentWriter.F(s.Elevacao.Value));
                 SetText(site, 12, s.Matricula);
             }

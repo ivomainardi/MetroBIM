@@ -582,13 +582,17 @@ namespace MetroSP.Ui
         static TextBox Text(object source, string property, string tip = null)
         {
             var tb = new TextBox { MinWidth = 180, ToolTip = tip ?? "Vazio mantém o que a Autodesk gravou." };
-            tb.SetBinding(TextBox.TextProperty, new Binding(property)
+            var binding = new Binding(property)
             {
                 Source = source,
                 TargetNullValue = "",
                 UpdateSourceTrigger = UpdateSourceTrigger.LostFocus,
                 ConverterCulture = CultureInfo.InvariantCulture
-            });
+            };
+            // Número aceita vírgula ou ponto: "-23,63" com a cultura invariante virava -2363 (vírgula de milhar).
+            var type = source?.GetType().GetProperty(property)?.PropertyType;
+            if (type == typeof(double?) || type == typeof(double)) binding.Converter = new NumeroConverter();
+            tb.SetBinding(TextBox.TextProperty, binding);
             return tb;
         }
 
@@ -785,6 +789,22 @@ namespace MetroSP.Ui
             }
             item.Header = row;
             return item;
+        }
+    }
+
+    /// <summary>Número com vírgula ou ponto decimal; vazio = sem valor; texto inválido fica marcado no campo.</summary>
+    class NumeroConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+            value is double d ? d.ToString("0.#########", CultureInfo.InvariantCulture) : "";
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var s = (value as string ?? "").Trim();
+            if (s.Length == 0) return null;
+            if (s.Count(c => c == ',') + s.Count(c => c == '.') > 1) return DependencyProperty.UnsetValue;
+            return double.TryParse(s.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var n)
+                ? n : DependencyProperty.UnsetValue;
         }
     }
 }
