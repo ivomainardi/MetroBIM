@@ -32,6 +32,7 @@ namespace MetroSP.Ifc
             var model = StepModel.Load(ifcPath);
             var pp = new IfcPostProcessor(model, log) { SourceFile = sourceFile };
             if (alignments != null && alignments.Count > 0) pp.ApplyAlignments(alignments);
+            if (spatial == null || spatial.CoordenadasPtl) pp.ApplyPtl(spatial?.Terreno);
             if (spatial != null) pp.ApplySpatial(spatial);
             if (projectProperties != null && projectProperties.Count > 0) pp.ApplyProjectProperties(projectProperties);
 
@@ -442,7 +443,7 @@ namespace MetroSP.Ifc
                     _m.Add("IFCRELAGGREGATES", Guid(siteGid, "fac:" + string.Join("|", created)), "$", "'Instalações MetroSP'", "$", "#" + site.Id, StepModel.RefListText(created));
             }
 
-            if (!string.IsNullOrWhiteSpace(cfg.SistemaCoordenadas) && !_m.OfType("IFCMAPCONVERSION").Any())
+            if (!cfg.CoordenadasPtl && !string.IsNullOrWhiteSpace(cfg.SistemaCoordenadas) && !_m.OfType("IFCMAPCONVERSION").Any())
             {
                 var ctx = _m.OfType("IFCGEOMETRICREPRESENTATIONCONTEXT").FirstOrDefault(c => StepModel.Text(c.Args[1]) == "Model");
                 if (ctx != null)
@@ -452,6 +453,68 @@ namespace MetroSP.Ifc
                     _log("IfcMapConversion acrescentado (" + cfg.SistemaCoordenadas + ").");
                 }
             }
+        }
+
+        // ================================================================== coordenadas no PTL
+
+        /// <summary>
+        /// Critério do plugin do Revit (Shared Coordinates, EPSG em branco): a Autodesk grava a geometria perto da
+        /// origem e o deslocamento no IfcMapConversion; aqui o deslocamento passa para a colocação raiz, então as
+        /// coordenadas absolutas do IFC voltam a ser as do desenho (PTL do Metrô). Saem IfcMapConversion,
+        /// IfcProjectedCRS e o Pset "Coordinate Reference System". Latitude e longitude do IfcSite vêm do PTL,
+        /// a não ser que a configuração traga as suas.
+        /// </summary>
+        public void ApplyPtl(SiteInfo terreno)
+        {
+            var maps = _m.OfType("IFCMAPCONVERSION").ToList();
+            if (maps.Count > 0)
+            {
+                var a = maps[0].Args;
+                double Num(string s, double padrao) => s == "$" ? padrao : StepModel.Real(s);
+                double e = Num(a[2], 0), n = Num(a[3], 0), h = Num(a[4], 0);
+                double xa = a.Count > 5 ? Num(a[5], 1) : 1, xo = a.Count > 6 ? Num(a[6], 0) : 0, scale = a.Count > 7 ? Num(a[7], 1) : 1;
+                if (maps.Skip(1).Any(m => m.Args[2] != a[2] || m.Args[3] != a[3] || m.Args[4] != a[4]))
+                    _log("aviso: o IFC tem mais de um IfcMapConversion com valores diferentes; usado o do contexto 3D.");
+                if (Math.Abs(scale - 1) > 1e-9)
+                    _log($"aviso: IfcMapConversion com escala {scale}; a escala não foi aplicada.");
+
+                // mapa = translação (E, N, H) + rotação no plano (XAxisAbscissa, XAxisOrdinate)
+                var map = Matrix.FromAxes(new[] { e, n, h }, new[] { 0.0, 0, 1 }, new[] { xa, xo, 0 });
+                foreach (var root in _m.OfType("IFCLOCALPLACEMENT").Where(p => p.Args[0] == "$").ToList())
+                {
+                    var m = map.Multiply(Axis2Placement(StepModel.Ref(root.Args[1])));
+                    var origin = _m.Add("IFCCARTESIANPOINT", "(" + IfcAlignmentWriter.F(m.T[0]) + "," + IfcAlignmentWriter.F(m.T[1]) + "," + IfcAlignmentWriter.F(m.T[2]) + ")");
+                    var z = _m.Add("IFCDIRECTION", "(" + IfcAlignmentWriter.F(m.R[2]) + "," + IfcAlignmentWriter.F(m.R[5]) + "," + IfcAlignmentWriter.F(m.R[8]) + ")");
+                    var x = _m.Add("IFCDIRECTION", "(" + IfcAlignmentWriter.F(m.R[0]) + "," + IfcAlignmentWriter.F(m.R[3]) + "," + IfcAlignmentWriter.F(m.R[6]) + ")");
+                    var axis = _m.Add("IFCAXIS2PLACEMENT3D", "#" + origin, "#" + z, "#" + x);
+                    _m.SetArg(root.Id, 1, "#" + axis);
+                }
+
+                var crsIds = maps.Select(m => StepModel.Ref(m.Args[1])).Distinct().ToList();
+                foreach (var m in maps) _m.Remove(m.Id);
+                foreach (var c in crsIds) if (c != 0 && _m.TypeOf(c) == "IFCPROJECTEDCRS") _m.Remove(c);
+                foreach (var ps in _m.OfType("IFCPROPERTYSET").Where(ps => StepModel.Text(ps.Args[2]) == "Coordinate Reference System").ToList())
+                {
+                    foreach (var r in _m.OfType("IFCRELDEFINESBYPROPERTIES").Where(r => StepModel.Ref(r.Args[5]) == ps.Id).ToList()) _m.Remove(r.Id);
+                    _m.Remove(ps.Id);
+                }
+                _log($"coordenadas no PTL do Metrô: deslocamento ({e:0.###}; {n:0.###}; {h:0.###}) do IfcMapConversion levado à colocação; IFC sem EPSG.");
+            }
+
+            // Latitude e longitude do IfcSite pelo PTL, como no Revit (a configuração, se tiver, vale depois).
+            var site = _m.OfType("IFCSITE").FirstOrDefault();
+            if (site == null || (terreno?.Latitude != null && terreno?.Longitude != null)) return;
+            var o = PlacementMatrix(StepModel.Ref(site.Args[5])).T;
+            var dist = Math.Sqrt(Math.Pow(o[0] - PtlMetroSP.X0, 2) + Math.Pow(o[1] - PtlMetroSP.Y0, 2));
+            if (dist > PtlMetroSP.RaioRecomendado)
+            {
+                _log($"aviso: a origem do IfcSite ({o[0]:0.###}; {o[1]:0.###}) está a {dist / 1000:0.#} km da origem do PTL; latitude e longitude mantidas.");
+                return;
+            }
+            var (lat, lon) = PtlMetroSP.ParaGeodesica(o[0], o[1]);
+            _m.SetArg(site.Id, 9, CompoundAngle(lat));
+            _m.SetArg(site.Id, 10, CompoundAngle(lon));
+            _log($"latitude e longitude do IfcSite pelo PTL: {lat:0.0000000}; {lon:0.0000000}.");
         }
 
         /// <summary>Pset "MetroSP_Projeto" no IfcProject (substitui o anterior, se houver).</summary>

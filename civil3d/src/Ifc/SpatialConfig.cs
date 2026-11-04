@@ -35,7 +35,13 @@ namespace MetroSP.Ifc
             return all;
         }
 
-        /// <summary>Sistema de coordenadas para o IfcMapConversion, quando a Autodesk não gravar um.</summary>
+        /// <summary>
+        /// Mesmo critério do plugin do Revit: o IFC sai com as coordenadas no PTL do Metrô (as do desenho) e sem EPSG,
+        /// sem IfcProjectedCRS e sem IfcMapConversion. A latitude e a longitude do IfcSite saem do PTL.
+        /// </summary>
+        public bool CoordenadasPtl { get; set; } = true;
+
+        /// <summary>Só sem CoordenadasPtl: sistema de coordenadas para o IfcMapConversion, quando a Autodesk não gravar um.</summary>
         public string SistemaCoordenadas { get; set; } = "EPSG:31983";
     }
 

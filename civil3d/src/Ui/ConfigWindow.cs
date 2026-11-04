@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using MetroSP.Config;
@@ -453,7 +454,7 @@ namespace MetroSP.Ui
                 ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo.")),
                 ("Elevação (m)", Text(e.Terreno, nameof(SiteInfo.Elevacao))),
                 ("Matrícula", Text(e.Terreno, nameof(SiteInfo.Matricula), "LandTitleNumber")),
-                ("Coordenadas", Text(e, nameof(SpatialConfig.SistemaCoordenadas), "EPSG do IfcMapConversion, ex.: EPSG:31983"))));
+                ("Coordenadas", Ptl(e))));
 
             var right = new StackPanel();
             right.Children.Add(Section("Instalações · IfcRailway, IfcBuilding"));
@@ -594,6 +595,26 @@ namespace MetroSP.Ui
             if (type == typeof(double?) || type == typeof(double)) binding.Converter = new NumeroConverter();
             tb.SetBinding(TextBox.TextProperty, binding);
             return tb;
+        }
+
+        /// <summary>PTL do Metrô (padrão, igual ao Revit) ou um EPSG digitado.</summary>
+        static UIElement Ptl(SpatialConfig e)
+        {
+            var panel = new StackPanel();
+            var check = new CheckBox
+            {
+                Content = "PTL do Metrô, sem EPSG",
+                ToolTip = "Ligado (padrão): o IFC sai nas coordenadas do desenho (PTL do Metrô), sem EPSG, IfcProjectedCRS e " +
+                          "IfcMapConversion, como no plugin do Revit. Assim o modelo encontra as estruturas do Revit.\n" +
+                          "Desligado: vale o EPSG ao lado no IfcMapConversion.",
+                Margin = new Thickness(0, 3, 0, 3)
+            };
+            check.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(SpatialConfig.CoordenadasPtl)) { Source = e });
+            var epsg = Text(e, nameof(SpatialConfig.SistemaCoordenadas), "Só com o PTL desligado: EPSG do IfcMapConversion, ex.: EPSG:31983");
+            epsg.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(SpatialConfig.CoordenadasPtl)) { Source = e, Converter = new InverterConverter() });
+            panel.Children.Add(check);
+            panel.Children.Add(epsg);
+            return panel;
         }
 
         /// <summary>Campo obrigatório: atualiza a cada tecla e fica com a borda laranja enquanto vazio.</summary>
@@ -806,5 +827,11 @@ namespace MetroSP.Ui
             return double.TryParse(s.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var n)
                 ? n : DependencyProperty.UnsetValue;
         }
+    }
+
+    class InverterConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
     }
 }

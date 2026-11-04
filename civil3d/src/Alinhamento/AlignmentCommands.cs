@@ -45,7 +45,7 @@ namespace MetroSP.Alinhamento
                     ProjectName = Path.GetFileNameWithoutExtension(doc.Name),
                     SourceFile = Path.GetFileName(doc.Name),
                     Author = Environment.UserName,
-                    ProjectedCrs = metro.Estrutura?.SistemaCoordenadas,
+                    ProjectedCrs = metro.Estrutura?.CoordenadasPtl == false ? metro.Estrutura.SistemaCoordenadas : null,   // PTL: sem EPSG, como no Revit
                     Seed = db.FingerprintGuid
                 };
                 new IfcAlignmentWriter(info).Write(path, models);
