@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -42,12 +42,10 @@ namespace MetroSP.Ui
 
         private static readonly (string Painel, string Ferramentas)[] Ferramentas =
         {
-            ("Entrega", "Conferir Entrega Metrô (semáforo do que o Metrô pede, pacote .metrosp)"),
-            ("Parâmetros", "Renomear Compartilhado, Listar Compartilhados (com troca instância ↔ tipo), Copiar Valores, Gerenciar Parâmetros (criar pela planilha, exportar, adicionar em famílias)"),
-            ("Dados", "Planilha de Dados (Excel ida e volta), Editar em Massa, Filtrar e Colorir"),
-            ("IFC / IDS", "Verificar Mapeamento IDS, Localização IFC (Location pelo Project Base Point), Arquivos IFC (setups, property sets e mapeamentos por classe), Categorias IFC (IFC4 e IFC 4.3), Exportar IFC (classes, editor de property sets, Forma online)"),
+            ("Entrega Metrô", "Conferir Entrega (semáforo do que o Metrô pede, pacote .metrosp) e os 4 passos da entrega IFC: 1 Localização, 2 Configurar (Arquivos IFC e Categorias IFC), 3 Verificar Padrões (IDS), 4 Exportar IFC"),
             ("Classificação", "Aplicar Classificação, Verificar Classificação, Consistência Código×Descrição"),
-            ("Modelagem", "Contar Elementos, Renomear Famílias e tipos"),
+            ("Dados do modelo", "Planilha de Dados (Excel ida e volta), Editar em Massa, Filtrar e Colorir, Copiar Valores, Contar Elementos"),
+            ("Parâmetros e famílias", "Menu Parâmetros (Gerenciar, Listar Compartilhados com troca instância ↔ tipo, Renomear Compartilhado) e Renomear Famílias e tipos"),
         };
 
         /// <summary>Abre a janela sobre o Revit (pela logo da Ribbon ou pelo botão Sobre).</summary>

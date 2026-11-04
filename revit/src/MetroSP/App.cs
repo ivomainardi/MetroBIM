@@ -33,13 +33,12 @@ namespace MetroSP
                 // A aba já existe (outro add-in MetroSP carregado). Seguimos usando ela.
             }
 
-            CreateGeralPanel(application);
+            // Painéis na ordem do trabalho: entregar, classificar, cuidar dos dados e, por último, manutenção.
+            // O Sobre abre pela logo, à direita da aba.
             CreateEntregaPanel(application);
-            CreateParametrosPanel(application);
-            CreateDadosPanel(application);
-            CreateIfcPanel(application);
             CreateClassificacaoPanel(application);
-            CreateModelagemPanel(application);
+            CreateDadosPanel(application);
+            CreateParametrosPanel(application);
 
             // As logos entram depois que a Ribbon do Revit está pronta (fica à direita, depois dos painéis).
             application.ControlledApplication.ApplicationInitialized += (s, e) => Ui.MarcaRibbon.Adicionar(TabName);
@@ -50,50 +49,66 @@ namespace MetroSP
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;
 
-        private static void CreateGeralPanel(UIControlledApplication application)
-        {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Geral");
-
-            AddButton<SobreCommand>(panel, "Sobre",
-                "Informações sobre o add-in MetroSP: versão, data da compilação e ferramentas.",
-                "Sobre");
-        }
-
         private static void CreateEntregaPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega Metrô");
 
             AddButton<ConferirEntregaCommand>(panel, "Conferir\nEntrega",
-                "Confere numa janela só o que o Metrô pede: arquivos do pacote, parâmetros e mapeamento IFC, classe IFC, " +
-                "dados preenchidos e classificação, com semáforo por etapa. Seleciona e pinta as pendências e abre a ferramenta que corrige.",
+                "Por onde começar: mostra num semáforo o que o Metrô pede e o que falta no modelo (arquivos, parâmetros, classe IFC, " +
+                "dados e classificação), seleciona e pinta as pendências e abre a ferramenta que corrige.",
                 "Conferir");
+
+            panel.AddSeparator();
+
+            AddButton<LocalizacaoIfcCommand>(panel, "Localização",
+                "Passo 1 da entrega IFC. Calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô) e grava em " +
+                "Manage › Location, com o nome do IfcSite e os dados do IfcBuilding.",
+                "Etapa1");
+
+            PulldownButton configurar = AddPulldown(panel, "Configurar", "Configurar",
+                "Passo 2 da entrega IFC. Os arquivos da classe (setup, property sets e mapeamentos) e em que classe IFC cada categoria do Revit sai.",
+                "Etapa2");
+            AddToPulldown<ArquivosIfcCommand>(configurar, "Arquivos IFC",
+                "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
+                "principais do setup e confira os property sets no modelo aberto.",
+                "ArquivosIfc");
+            AddToPulldown<CategoriasIfcCommand>(configurar, "Categorias IFC",
+                "Em que classe IFC cada categoria do Revit é exportada: uma tabela para IFC4 e outra para IFC 4.3. " +
+                "Na exportação, vale a tabela do IFC schema do setup.",
+                "CategoriasIfc");
+
+            AddButton<VerificarIdsCommand>(panel, "Verificar\nPadrões",
+                "Passo 3 da entrega IFC. Confere, antes de exportar, se os parâmetros e o mapeamento IFC atendem aos padrões de " +
+                "informação do Metrô (arquivo .ids).",
+                "Etapa3");
+
+            AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
+                "Passo 4 da entrega IFC. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
+                "computador ou no Autodesk Forma.",
+                "Etapa4");
         }
 
-        private static void CreateParametrosPanel(UIControlledApplication application)
+        private static void CreateClassificacaoPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Parâmetros");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Classificação");
 
-            AddButton<RenomearParametroCommand>(panel, "Renomear\nCompartilhado",
-                "Renomeia um parâmetro compartilhado (projeto ou família) mantendo o mesmo GUID.",
-                "Renomear");
+            AddButton<AplicarClassificacaoCommand>(panel, "Aplicar",
+                "Escolha um item da planilha de classificação e aplique nos elementos selecionados (ClassificationCode = Código:Descrição). " +
+                "A janela fica aberta enquanto você seleciona no Revit.",
+                "ClassAplicar");
 
-            AddButton<ListarCompartilhadosCommand>(panel, "Listar\nCompartilhados",
-                "Lista todos os parâmetros compartilhados do arquivo aberto, com GUID, tipo, categorias e comparação com o arquivo .txt.",
-                "Listar");
-
-            AddButton<CopiarValoresCommand>(panel, "Copiar\nValores",
-                "Copia valores de um parâmetro para outro, inclusive entre tipos de dado diferentes. Mostra a análise, os impactos e propostas de conversão antes de gravar.",
-                "Copiar");
-
-            AddButton<GerenciarParametrosCommand>(panel, "Gerenciar\nParâmetros",
-                "Veja e exporte os parâmetros de projeto, crie vários de uma vez a partir de uma planilha (com as categorias) " +
-                "e acrescente parâmetros compartilhados em várias famílias.",
-                "GerenciarParametros");
+            panel.AddStackedItems(
+                Dados<VerificarClassificacaoCommand>("Verificar",
+                    "Confere se a classificação preenchida está na planilha, com a descrição e a categoria certas, e propõe correções.",
+                    "ClassVerificar"),
+                Dados<ConsistenciaClassificacaoCommand>("Consistência",
+                    "Encontra códigos usados com descrições diferentes no modelo e unifica pela descrição escolhida.",
+                    "ClassConsistencia"));
         }
 
         private static void CreateDadosPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Dados");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Dados do modelo");
 
             AddButton<PlanilhaDadosCommand>(panel, "Planilha\nde Dados",
                 "Leva parâmetros dos elementos para uma planilha do Excel (uma linha por elemento) e traz de volta só o que mudou, " +
@@ -108,77 +123,69 @@ namespace MetroSP
             AddButton<FiltroCorCommand>(panel, "Filtrar\ne Colorir",
                 "Encontre elementos por regras sobre parâmetros (E/OU) e selecione, isole na vista ou colora por valor, com legenda.",
                 "FiltroCor");
+
+            panel.AddStackedItems(
+                Dados<CopiarValoresCommand>("Copiar valores",
+                    "Copia valores de um parâmetro para outro, inclusive entre tipos de dado diferentes, com análise antes de gravar.",
+                    "Copiar"),
+                Dados<ContarElementosCommand>("Contar",
+                    "Conta os elementos selecionados (ou todos da vista ativa) por categoria.",
+                    "Contar"));
         }
 
-        private static void CreateIfcPanel(UIControlledApplication application)
+        private static void CreateParametrosPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "IFC / IDS");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Parâmetros e famílias");
 
-            AddButton<VerificarIdsCommand>(panel, "Verificar\nMapeamento IDS",
-                "Verifica, antes de exportar, se os parâmetros e o mapeamento de exportação IFC atendem a um arquivo IDS.",
-                "Ids");
-
-            AddButton<LocalizacaoIfcCommand>(panel, "Localização\nIFC",
-                "Etapa 1 da exportação: calcula a latitude/longitude pelo Project Base Point (PTL do Metrô) e grava em Manage › Location, " +
-                "com o nome do IfcSite e os dados do IfcBuilding.",
-                "Localizacao");
-
-            AddButton<ArquivosIfcCommand>(panel, "Arquivos\nIFC",
-                "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
-                "principais do setup e confira os property sets no modelo aberto.",
-                "ArquivosIfc");
-
-            AddButton<CategoriasIfcCommand>(panel, "Categorias\nIFC",
-                "Em que classe IFC cada categoria do Revit é exportada: uma tabela para IFC4 e outra para IFC 4.3. " +
-                "Na exportação, vale a tabela do IFC schema do setup.",
-                "CategoriasIfc");
-
-            AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
-                "Exporta o IFC com o setup (.json) e o mapeamento de property sets (.txt) guardados numa pasta do computador ou no Autodesk Forma.",
-                "IfcExportar");
-        }
-
-        private static void CreateClassificacaoPanel(UIControlledApplication application)
-        {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Classificação");
-
-            AddButton<AplicarClassificacaoCommand>(panel, "Aplicar\nClassificação",
-                "Escolha um item da planilha de classificação e aplique nos elementos selecionados (ClassificationCode = Código:Descrição). A janela fica aberta enquanto você seleciona no Revit.",
-                "ClassAplicar");
-
-            AddButton<VerificarClassificacaoCommand>(panel, "Verificar\nClassificação",
-                "Confere se a classificação preenchida está na planilha, com a descrição e a categoria certas, e propõe correções.",
-                "ClassVerificar");
-
-            AddButton<ConsistenciaClassificacaoCommand>(panel, "Consistência\nCódigo×Descrição",
-                "Encontra códigos usados com descrições diferentes no modelo e unifica pela descrição escolhida.",
-                "ClassConsistencia");
-        }
-
-        private static void CreateModelagemPanel(UIControlledApplication application)
-        {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Modelagem");
-
-            AddButton<ContarElementosCommand>(panel, "Contar\nElementos",
-                "Conta os elementos selecionados (ou todos da vista ativa) por categoria.",
-                "Contar");
+            PulldownButton parametros = AddPulldown(panel, "Parametros", "Parâmetros",
+                "Parâmetros de projeto e compartilhados: ver, exportar, criar pela planilha, pôr em famílias, listar e renomear.",
+                "GerenciarParametros");
+            AddToPulldown<GerenciarParametrosCommand>(parametros, "Gerenciar parâmetros",
+                "Veja e exporte os parâmetros de projeto, crie vários de uma vez a partir de uma planilha (com as categorias) " +
+                "e acrescente parâmetros compartilhados em várias famílias.",
+                "GerenciarParametros");
+            AddToPulldown<ListarCompartilhadosCommand>(parametros, "Listar compartilhados",
+                "Todos os parâmetros compartilhados do arquivo aberto, com GUID, tipo, categorias e comparação com o .txt. " +
+                "Também troca um parâmetro entre instância e tipo.",
+                "Listar");
+            AddToPulldown<RenomearParametroCommand>(parametros, "Renomear compartilhado",
+                "Renomeia um parâmetro compartilhado (projeto ou família) mantendo o mesmo GUID.",
+                "Renomear");
 
             AddButton<RenomearFamiliasCommand>(panel, "Renomear\nFamílias",
                 "Renomeia famílias e tipos por regra (prefixo, sufixo, substituir, modelo com {Nome}), com prévia e conferência de nomes repetidos.",
                 "RenomearFamilias");
         }
 
-        private static PushButton AddButton<TCommand>(RibbonPanel panel, string text, string tooltip, string icon)
-            where TCommand : IExternalCommand
+        private static PushButtonData Dados<TCommand>(string text, string tooltip, string icon) where TCommand : IExternalCommand
         {
             Type type = typeof(TCommand);
-            var data = new PushButtonData(type.FullName, text, AssemblyPath, type.FullName)
+            return new PushButtonData(type.FullName, text, AssemblyPath, type.FullName)
             {
                 ToolTip = tooltip,
                 LargeImage = LoadIcon($"{icon}32.png"),
                 Image = LoadIcon($"{icon}16.png"),
             };
-            return (PushButton)panel.AddItem(data);
+        }
+
+        private static PulldownButton AddPulldown(RibbonPanel panel, string name, string text, string tooltip, string icon)
+        {
+            var data = new PulldownButtonData("MetroSP." + name, text)
+            {
+                ToolTip = tooltip,
+                LargeImage = LoadIcon($"{icon}32.png"),
+                Image = LoadIcon($"{icon}16.png"),
+            };
+            return (PulldownButton)panel.AddItem(data);
+        }
+
+        private static void AddToPulldown<TCommand>(PulldownButton menu, string text, string tooltip, string icon) where TCommand : IExternalCommand =>
+            menu.AddPushButton(Dados<TCommand>(text, tooltip, icon));
+
+        private static PushButton AddButton<TCommand>(RibbonPanel panel, string text, string tooltip, string icon)
+            where TCommand : IExternalCommand
+        {
+            return (PushButton)panel.AddItem(Dados<TCommand>(text, tooltip, icon));
         }
 
         /// <summary>Carrega um PNG embutido em Resources/. Retorna null se não existir.</summary>

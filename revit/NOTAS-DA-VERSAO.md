@@ -1,5 +1,17 @@
 # Próxima versão (em preparação)
 
+## Faixa MetroSP reorganizada
+
+A aba MetroSP passou de 7 painéis para 4, na ordem do trabalho:
+
+- **Entrega Metrô**: Conferir Entrega e, ao lado, os passos numerados da entrega IFC: **1** Localização,
+  **2** Configurar (menu com Arquivos IFC e Categorias IFC), **3** Verificar Padrões (IDS), **4** Exportar IFC;
+- **Classificação**: Aplicar, com Verificar e Consistência empilhados;
+- **Dados do modelo**: Planilha de Dados, Editar em Massa, Filtrar e Colorir, com Copiar Valores e Contar empilhados;
+- **Parâmetros e famílias**: menu Parâmetros (Gerenciar, Listar Compartilhados, Renomear Compartilhado) e Renomear Famílias.
+
+O Sobre continua no logo, no começo da aba.
+
 ## Filtros das tabelas no título das colunas
 
 Em todas as tabelas com filtro (Gerenciar Parâmetros, Lista de compartilhados, Verificar Classificação, Copiar Valores,
