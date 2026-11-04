@@ -21,7 +21,7 @@ namespace MetroSP.Commands
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null || doc.IsFamilyDocument)
             {
-                TaskDialog.Show("MetroSP", "Abra um projeto (.rvt) para verificar o mapeamento IDS.");
+                TaskDialog.Show("MetroSP", "Abra um projeto (.rvt) para verificar os padrões Metrô.");
                 return Result.Cancelled;
             }
 

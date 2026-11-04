@@ -42,7 +42,7 @@ namespace MetroSP.Conferencia
             _nome = Campo(painel, "Nome dos padrões (ex.: L20 · Classe B3 Arquitetura)");
             _psets = Arquivo(painel, "Property sets do Metrô (.txt) — obrigatório", "Texto (*.txt)|*.txt");
             _setup = Arquivo(painel, "Setup de exportação IFC (.json) — obrigatório", "Setup IFC (*.json)|*.json");
-            _ids = Arquivo(painel, "IDS (.ids) — opcional; com ele, só os campos obrigatórios do IDS são exigidos", "IDS (*.ids;*.xml)|*.ids;*.xml");
+            _ids = Arquivo(painel, "Padrões Metrô (.ids) — opcional; com ele, só os campos obrigatórios dos padrões são exigidos", "Padrões Metrô (*.ids;*.xml)|*.ids;*.xml");
             _classes = Arquivo(painel, "Tabela de classes IFC (.txt) — opcional", "Texto (*.txt)|*.txt");
             _planilha = Arquivo(painel, "Planilha de classificação (.xlsx ou .csv)", "Planilha (*.xlsx;*.csv)|*.xlsx;*.csv");
             _metroShared = Arquivo(painel, "MetroShared — parâmetros compartilhados (.txt)", "Texto (*.txt)|*.txt");

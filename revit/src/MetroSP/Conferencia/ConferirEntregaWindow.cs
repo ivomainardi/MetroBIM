@@ -629,7 +629,7 @@ namespace MetroSP.Conferencia
                 case Correcao.ListarCompartilhados: texto = "Listar Compartilhados..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
                 case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha dos padrões."; break;
                 case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha dos padrões: ela propõe as correções."; break;
-                case Correcao.DetalhesIds: texto = "Detalhes do IDS..."; dica = "Abre o resultado completo do Verificar Mapeamento IDS."; break;
+                case Correcao.DetalhesIds: texto = "Detalhes dos padrões (IDS)..."; dica = "Abre o resultado completo do Verificar Padrões Metrô."; break;
                 default: return null;
             }
             var b = new Button { Content = texto, ToolTip = dica, Margin = new Thickness(0, 0, 6, 0) };
@@ -737,7 +737,7 @@ namespace MetroSP.Conferencia
                     case Correcao.DetalhesIds:
                         (IdsDocument ids, List<CheckResult> resultados) d;
                         ElementId vista = VistaDoEscopo(app, _pacote, out _);
-                        using (Progresso.Abrir("Verificar mapeamento IDS"))
+                        using (Progresso.Abrir("Verificar Padrões Metrô"))
                             d = ConferenciaEntrega.DetalhesIds(_doc, _pacote, vista);
                         if (d.ids == null) { TaskDialog.Show("MetroSP", "Os padrões não têm IDS."); break; }
                         var janela = new ResultadosIdsWindow(d.ids, d.resultados);

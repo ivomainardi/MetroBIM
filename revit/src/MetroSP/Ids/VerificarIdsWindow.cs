@@ -18,7 +18,7 @@ namespace MetroSP.Ids
 
         public VerificarIdsWindow(IdsSettings settings)
         {
-            Title = "MetroSP - Verificar mapeamento IDS";
+            Title = "MetroSP - Verificar Padrões Metrô";
             Width = 600;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
@@ -30,7 +30,7 @@ namespace MetroSP.Ids
             secao.Margin = new Thickness(0, 0, 0, 5);
             panel.Children.Add(secao);
             panel.Children.Add(Theme.Grupo(out StackPanel lista));
-            _ids = AddFileRow(lista, "IDS", settings.IdsFile, "IDS (*.ids;*.xml)|*.ids;*.xml", true, "Arquivo IDS com as exigências de informação.");
+            _ids = AddFileRow(lista, "Padrões (.ids)", settings.IdsFile, "Padrões Metrô (*.ids;*.xml)|*.ids;*.xml", true, "Arquivo .ids (formato IDS da buildingSMART) com as exigências de informação do Metrô.");
             _psets = AddFileRow(lista, "Property sets", settings.PropertySetsFile, "Texto (*.txt)|*.txt", false, "Opcional: .txt de property sets definidos pelo usuário.");
             _categorias = AddFileRow(lista, "Classes IFC", settings.CategoryMappingFile, "Texto (*.txt)|*.txt", false, "Opcional: tabela de classes IFC. Sem ela, vale o padrão do exportador.");
 
@@ -47,7 +47,7 @@ namespace MetroSP.Ids
             {
                 if (!File.Exists(_ids.Text.Trim()))
                 {
-                    MessageBox.Show(this, "Indique um arquivo IDS válido.", Title);
+                    MessageBox.Show(this, "Indique um arquivo de padrões (.ids) válido.", Title);
                     return;
                 }
                 foreach (TextBox opcional in new[] { _psets, _categorias })
@@ -67,7 +67,7 @@ namespace MetroSP.Ids
             };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
 
-            Theme.Apply(this, "Verificar mapeamento IDS", "Confere parâmetros e mapeamento de exportação IFC antes de exportar", panel, Theme.Rodape(_resumo, cancelar, ok));
+            Theme.Apply(this, "Verificar Padrões Metrô", "Confere parâmetros e mapeamento de exportação IFC antes de exportar", panel, Theme.Rodape(_resumo, cancelar, ok));
             AtualizarResumo();
         }
 

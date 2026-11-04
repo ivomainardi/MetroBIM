@@ -68,7 +68,7 @@ namespace MetroSP.Ui
             corpo.Children.Add(new TextBlock
             {
                 Text = "Ferramentas para Revit que apoiam a modelagem e a entrega BIM no padrão do Metrô de São Paulo: " +
-                       "parâmetros compartilhados, verificação IDS, exportação IFC por classe e classificação.",
+                       "parâmetros compartilhados, verificação dos padrões Metrô, exportação IFC por classe e classificação.",
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 10),
             });

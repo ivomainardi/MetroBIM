@@ -12,8 +12,8 @@ Aba **MetroSP** na Ribbon do Revit.
 | Classificação | Aplicar Classificação | Lê a planilha de classificação (.xlsx ou .csv: Código, Descrição e opcionais Código pai, Categorias, Edição), mostra a árvore com busca e grava `ClassificationCode = Código:Descrição` nos elementos selecionados. Janela aberta enquanto se seleciona no Revit; seleciona por categoria (vista ou modelo, opcionalmente só os sem classificação); cria/vincula o parâmetro nas categorias que não o têm; avisa quando o parâmetro é de tipo |
 | Classificação | Verificar Classificação | Confere o preenchido com a planilha: sem classificação, formato inválido, código fora da lista, descrição diferente, categoria não prevista. Propõe correções (escrita da lista, código parecido), aplica as aceitas, exporta .csv. Filtro por categoria, etiquetas clicáveis, coluna com o motivo de bloqueio, criar o parâmetro nas categorias sem ele, Reanalisar |
 | Classificação | Consistência Código×Descrição | Agrupa por código e mostra os que têm mais de uma descrição; escolhe-se a correta (a da planilha vem marcada) e unifica. Lista também descrições usadas com códigos diferentes |
-| IFC / IDS | Verificar Mapeamento IDS | Antes de exportar, verifica se parâmetros e mapeamento IFC atendem a um IDS |
-| IFC / IDS | Exportar IFC | Exporta o IFC escolhendo uma classe instalada com o MetroSP ou indicando o setup .json e o .txt de property sets (computador, rede ou Autodesk Forma pelo Desktop Connector). Edita o .txt em tabela e mostra os parâmetros que não existem no modelo |
+| IFC | Verificar Padrões Metrô | Antes de exportar, verifica se parâmetros e mapeamento IFC atendem aos padrões do Metrô (arquivo .ids). Só conta os elementos que vão para o IFC |
+| IFC | Exportar IFC | Exporta o IFC escolhendo uma classe instalada com o MetroSP ou indicando o setup .json e o .txt de property sets (computador, rede ou Autodesk Forma pelo Desktop Connector). Edita o .txt em tabela e mostra os parâmetros que não existem no modelo |
 | Modelagem | Contar Elementos | Exemplo: conta elementos por categoria |
 
 ## Estrutura
@@ -83,7 +83,7 @@ Tags e tabelas continuam funcionando porque referenciam o GUID. Os .rfa da bibli
 
 ## Conferir Entrega Metrô
 
-Junta numa janela as conferências que antes ficavam espalhadas (Verificar IDS, Classificação, conferência do .txt
+Junta numa janela as conferências que antes ficavam espalhadas (Verificar Padrões Metrô, Classificação, conferência do .txt
 no Exportar IFC, Listar Compartilhados), para o projetista ver de uma vez se o modelo está pronto para a entrega.
 
 **Pacote do Metrô.** Os arquivos da entrega ficam num pacote `.metrosp` (texto simples, caminhos relativos à pasta
@@ -91,7 +91,7 @@ dele): IDS (opcional), setup de exportação `.json`, `.txt` de property sets, t
 planilha de classificação e o `.txt` do MetroShared. O coordenador BIM monta o pacote uma vez (botão **Pacote... ›
 Salvar pacote como...**) numa pasta compartilhada ou no Forma; o projetista só abre o pacote. Sem pacote, a primeira
 vez aproveita os arquivos já escolhidos nas outras ferramentas. O pacote em uso fica em `%AppData%\MetroSP\conferencia.ini`
-e é repassado ao Exportar IFC, ao Verificar IDS, à Classificação e à base do Listar Compartilhados.
+e é repassado ao Exportar IFC, ao Verificar Padrões Metrô, à Classificação e à base do Listar Compartilhados.
 
 **Etapas** (verde = ok, amarelo = aviso que não impede, vermelho = pendência, cinza = não conferido):
 
@@ -110,7 +110,7 @@ Campos exigidos: com IDS no pacote, os requisitos de propriedade obrigatórios d
 sem IDS, todas as propriedades do `.txt` que se aplicam à classe. Psets padrão (`Pset_`, `Qto_`) sem linha no `.txt`
 e sem o parâmetro no elemento não contam como pendência (o exportador pode calcular).
 
-Elementos conferidos: os de modelo que vão para o IFC (classe IFC resolvida como no Verificar IDS), sem linhas,
+Elementos conferidos: os de modelo que vão para o IFC (classe IFC resolvida como no Verificar Padrões Metrô), sem linhas,
 grupos, vínculos, massas e opções de projeto secundárias; no **modelo inteiro** ou **só na vista ativa**.
 
 Ações: **Selecionar no Revit** e **Pintar na vista** (sobreposição vermelha por elemento na vista ativa;
@@ -203,7 +203,7 @@ o caminho gravado no `.json` (que é da máquina de quem salvou), um arquivo com
 ou, se o setup estiver numa pasta `Setups\`, o `.txt` com o mesmo nome em `PropertySets\` e `Mapeamentos\`
 ao lado dela. Dá para trocar qualquer um. As três escolhas ficam lembradas para a próxima exportação.
 
-Antes de exportar, o `.txt` é lido com o mesmo leitor do Verificar IDS e a janela avisa quais parâmetros
+Antes de exportar, o `.txt` é lido com o mesmo leitor do Verificar Padrões Metrô e a janela avisa quais parâmetros
 do mapeamento não existem no modelo. Escolhe-se a vista 3D (ou o modelo inteiro), a pasta e o nome do arquivo.
 As escolhas ficam em `%AppData%\MetroSP\ifc_export.ini`.
 
