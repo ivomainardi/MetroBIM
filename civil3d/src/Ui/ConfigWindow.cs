@@ -26,7 +26,7 @@ namespace MetroSP.Ui
     {
         readonly string _dwgDir;
         readonly TabControl _tabs = new TabControl();
-        readonly TextBlock _status = new TextBlock { Margin = new Thickness(8, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
+        readonly TextBlock _status = Theme.Detalhe();
 
         // estado editável
         JsonObject _mapping;
@@ -66,19 +66,20 @@ namespace MetroSP.Ui
             MinHeight = 500;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-            var root = new DockPanel();
-            var bottom = new DockPanel { Margin = new Thickness(8) };
-            DockPanel.SetDock(bottom, Dock.Bottom);
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal };
-            DockPanel.SetDock(buttons, Dock.Right);
-            buttons.Children.Add(Btn("Salvar", (s, e) => SaveAll(close: false)));
-            buttons.Children.Add(Btn("Salvar e fechar", (s, e) => SaveAll(close: true)));
-            buttons.Children.Add(Btn("Fechar", (s, e) => Close()));
-            bottom.Children.Add(buttons);
-            bottom.Children.Add(_status);
-            root.Children.Add(bottom);
-            root.Children.Add(_tabs);
-            Content = root;
+            var saveClose = Btn("Salvar e fechar", (s, e) => SaveAll(close: true));
+            saveClose.Style = Theme.PrimaryButton;
+            saveClose.IsDefault = true;
+            Theme.Apply(this, "Configuração IFC", "Mapeamento de classes, property sets, projeto, terreno, edificações e alinhamento",
+                _tabs, Theme.Rodape(_status,
+                    Btn("Salvar", (s, e) => SaveAll(close: false)),
+                    saveClose,
+                    Btn("Fechar", (s, e) => Close())));
+
+            // Seleção das tabelas em laranja, como no MetroSP do Revit (vale para todas as abas).
+            Resources[SystemColors.HighlightBrushKey] = Theme.Solid(Theme.Laranja);
+            Resources[SystemColors.HighlightTextBrushKey] = Theme.Solid(Theme.Preto);
+            Resources[SystemColors.InactiveSelectionHighlightBrushKey] = Theme.Solid(Theme.LaranjaClaro);
+            Resources[SystemColors.InactiveSelectionHighlightTextBrushKey] = Theme.Solid(Theme.Preto);
 
             ConfigPackage.EnsureActive();
             LoadAll();
@@ -335,7 +336,7 @@ namespace MetroSP.Ui
             var note = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = Brushes.DimGray,
+                Foreground = Theme.Solid(Theme.Cinza),
                 Margin = new Thickness(0, 6, 0, 0),
                 Text = "A Autodesk avalia as regras de baixo para cima e usa a primeira que casar. Exportar desmarcado tira o objeto do IFC. " +
                        "Propriedade estendida \"IFC::IfcExportAs\" no objeto tem prioridade sobre estas regras."
@@ -389,7 +390,7 @@ namespace MetroSP.Ui
             var note = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = Brushes.DimGray,
+                Foreground = Theme.Solid(Theme.Cinza),
                 Margin = new Thickness(0, 0, 0, 6),
                 Text = "Mapeamento de propriedades (IFCInfraExportPropertyMapping.csv): qual propriedade do Civil 3D vai para qual " +
                        "property set e propriedade IFC. Source: Properties, PartData, General ou PropertySet. " +
@@ -423,7 +424,7 @@ namespace MetroSP.Ui
             var tplNote = new TextBlock
             {
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = Brushes.DimGray,
+                Foreground = Theme.Solid(Theme.Cinza),
                 Margin = new Thickness(0, 0, 0, 6),
                 Text = "Templates dos property sets (IFCInfraExportPropertyMapping.json): grupos, propriedades e tipos IFC. " +
                        "Editor de texto com validação de JSON ao salvar."
@@ -560,16 +561,16 @@ namespace MetroSP.Ui
 
         static Button Btn(string text, RoutedEventHandler click)
         {
-            var b = new Button { Content = text, Margin = new Thickness(0, 0, 6, 4), Padding = new Thickness(10, 3, 10, 3) };
+            var b = new Button { Content = text, Margin = new Thickness(0, 0, 6, 4) };
             b.Click += click;
             return b;
         }
 
         static TextBlock Label(string text) => new TextBlock { Text = text, VerticalAlignment = VerticalAlignment.Center };
 
-        static TextBlock Note(string text) => new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.DimGray, Margin = new Thickness(0, 0, 0, 6) };
+        static TextBlock Note(string text) => new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 0, 6) };
 
-        static TextBlock Section(string text) => new TextBlock { Text = text, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 10, 0, 4) };
+        static TextBlock Section(string text) { var t = Theme.Secao(text); t.Margin = new Thickness(0, 10, 0, 4); return t; }
 
         static TextBox Text(object source, string property)
         {

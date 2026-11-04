@@ -20,7 +20,7 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
 5. Dispara `IFCINFRAEXPORT` (ou `IFCINFRAEXPORTSELECTED`).
 6. Quando o comando da Autodesk termina, roda `MSP_IFCPOSPROC` sobre o IFC recém-gerado:
    - guarda o original como `[arquivo].autodesk.ifc`;
-   - troca o eixo de cada `IfcAlignment` (casado pelo nome) pela polilinha 3D e acrescenta o `IfcAlignmentVertical`
+   - troca o eixo de cada `IfcAlignment` (casado pelo nome; se o exportador mudar o nome, por semelhança; se houver um só de cada lado, direto) pela polilinha 3D e acrescenta o `IfcAlignmentVertical`
      se faltar, convertendo para o sistema local do alinhamento e compensando deslocamento de origem;
    - preenche `IfcProject` e `IfcSite` (nome, descrição, latitude/longitude, cota de referência, matrícula),
      cria os `IfcBuilding` configurados sob o `IfcSite`, cria `IfcMapConversion` se faltar e grava o Pset `MetroSP_Projeto`.
@@ -40,6 +40,16 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
 | Forma | Conta e Forma | `MSP_CONFIG` |
 | Ajuda | Sobre | `MSP_SOBRE` |
 | (linha de comando) | Pós-processar IFC | `MSP_IFCPOSPROC` |
+
+## Identidade visual
+
+Segue o kit Ação BIM · MetroSP do add-in do Revit: preto `#1A1A1A`, laranja `#FF9900` como cor de ação,
+cinza e branco; selo azul Metrô no painel **Ação BIM · Metrô SP**, sempre o último da aba (clicar abre o Sobre).
+
+- Ícones em `src/Resources` (`Nome32.png` / `Nome16.png`, embutidos na DLL). `IfcExportar`, `ArquivosIfc` e `Sobre`
+  vêm do kit sem alteração; os demais foram desenhados na mesma família (cubo IFC, traço preto, selo laranja).
+- Janelas montadas com `Ui/Theme.cs` (o mesmo do MetroSP do Revit): cabeçalho com as logos e faixa laranja,
+  rodapé cinza com o botão principal em laranja, tabelas com seleção laranja.
 
 ## Pacote de configuração IFC
 
@@ -144,5 +154,5 @@ O build gera as duas DLLs e copia cada uma para `MetroSP.bundle\Contents\R25` e 
   geometria regenerada a partir da semântica bate com o eixo 3D em 0,0 mm). Falta conferir com um IFC real do Civil 3D.
 - A janela de configurações compila, mas ainda não foi aberta num Windows.
 - Os nomes dos comandos do IFC Extension podem mudar por versão; ficam configuráveis em `ExportCommand` e `ExportSelectedCommand`.
-- Os ícones são gerados em código (quadrados com sigla). Troque por PNG 16/32 px com a identidade visual.
+
 - Compilado sem erros nem avisos para .NET 8 e .NET 10, mas ainda não testado dentro do Civil 3D.

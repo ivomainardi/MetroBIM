@@ -1,11 +1,10 @@
 using System;
-using System.Globalization;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
 using Autodesk.AutoCAD.Runtime;
 using Autodesk.Windows;
+using MetroSP.Ui;
 using AcApp = Autodesk.AutoCAD.ApplicationServices.Application;
 
 [assembly: ExtensionApplication(typeof(MetroSP.RibbonApp))]
@@ -17,10 +16,7 @@ namespace MetroSP
     {
         const string TabId = "METROSP_TAB";
 
-        // Azul institucional aproximado; troque pelo do manual de marca.
-        static readonly Color Azul = Color.FromRgb(0x00, 0x2D, 0x72);
-        static readonly Color Cinza = Color.FromRgb(0x5A, 0x63, 0x70);
-        static readonly Color Laranja = Color.FromRgb(0xD9, 0x6B, 0x00);
+        const string MarcaId = "METROSP_MARCA";
 
         public void Initialize()
         {
@@ -52,29 +48,32 @@ namespace MetroSP
             ribbon.Tabs.Add(tab);
 
             tab.Panels.Add(Panel("IFC 4.3",
-                Button("Exportar\nIFC", "IFC", Azul, "MSP_IFCEXPORT",
+                Button("Exportar\nIFC", "IfcExportar", "MSP_IFCEXPORT",
                     "Aplica a configuração IFC ativa (do Forma ou local), exporta o desenho inteiro (IFCINFRAEXPORT) e coloca o alinhamento 3D no mesmo IFC."),
-                Button("Exportar\nseleção", "SEL", Azul, "MSP_IFCEXPORTSEL",
-                    "Baixa do Forma a configuração IFC e exporta só os objetos selecionados (IFCINFRAEXPORTSELECTED)."),
-                Button("Só\nsincronizar", "SYN", Azul, "MSP_IFCSYNC",
+                Button("Exportar\nseleção", "IfcSelecao", "MSP_IFCEXPORTSEL",
+                    "Igual ao Exportar IFC, mas só com os objetos selecionados (IFCINFRAEXPORTSELECTED)."),
+                Button("Só\nsincronizar", "IfcSincronizar", "MSP_IFCSYNC",
                     "Atualiza os JSON de configuração IFC a partir do Forma sem exportar."),
-                Button("Alinhamento\n3D", "AL3", Azul, "MSP_IFCALINHAMENTO",
+                Button("Alinhamento\n3D", "Alinhamento3D", "MSP_IFCALINHAMENTO",
                     "Exporta alinhamentos para IFC 4.3 com o perfil aplicado: eixo 3D com as cotas corretas e segmentos horizontais e verticais."),
-                Button("Configurar\nIFC", "CFG", Laranja, "MSP_IFCCONFIG",
+                Button("Configurar\nIFC", "IfcConfigurar", "MSP_IFCCONFIG",
                     "Mapeamento de classes IFC, property sets, IfcProject/IfcSite/IfcBuilding e alinhamento. Importa e exporta os JSON.")));
 
             tab.Panels.Add(Panel("Forma",
-                Button("Entrar", "IN", Cinza, "MSP_FORMALOGIN",
+                Button("Entrar", "Entrar", "MSP_FORMALOGIN",
                     "Entra na conta Autodesk e testa o acesso à pasta de configuração IFC."),
-                Button("Sair", "OUT", Cinza, "MSP_FORMALOGOUT",
+                Button("Sair", "Sair", "MSP_FORMALOGOUT",
                     "Apaga a sessão salva neste computador."),
-                Button("Pasta de\nconfig", "DIR", Cinza, "MSP_IFCPASTA",
+                Button("Pasta de\nconfig", "ArquivosIfc", "MSP_IFCPASTA",
                     "Abre a pasta onde os JSON foram gravados (pasta do desenho)."),
-                Button("Conta e\nForma", "SET", Cinza, "MSP_CONFIG",
+                Button("Conta e\nForma", "Conta", "MSP_CONFIG",
                     "Edita MetroSP.settings.json (Client ID, projeto e pasta do Forma).")));
 
             tab.Panels.Add(Panel("Ajuda",
-                Button("Sobre", "?", Cinza, "MSP_SOBRE", "Versão e configuração em uso.")));
+                Button("Sobre", "Sobre", "MSP_SOBRE", "Versão e configuração em uso.")));
+
+            // Marca sempre por último, no lado direito da aba.
+            tab.Panels.Add(BrandPanel());
         }
 
         static RibbonPanel Panel(string title, params RibbonItem[] items)
@@ -84,7 +83,8 @@ namespace MetroSP
             return new RibbonPanel { Source = src };
         }
 
-        static RibbonButton Button(string text, string iconText, Color color, string command, string tip)
+        /// <summary>Botão grande no padrão MetroSP: ícone em Resources/{icon}32.png e {icon}16.png.</summary>
+        static RibbonButton Button(string text, string icon, string command, string tip)
         {
             return new RibbonButton
             {
@@ -93,31 +93,40 @@ namespace MetroSP
                 ShowImage = true,
                 Size = RibbonItemSize.Large,
                 Orientation = System.Windows.Controls.Orientation.Vertical,
-                LargeImage = Icon(iconText, color, 32),
-                Image = Icon(iconText, color, 16),
+                LargeImage = Icones.Carregar(icon + "32.png"),
+                Image = Icones.Carregar(icon + "16.png"),
                 CommandParameter = "\x03\x03_" + command + " ",
                 CommandHandler = new MacroHandler(),
                 ToolTip = new RibbonToolTip { Title = text.Replace("\n", " "), Content = tip, Command = command }
             };
         }
 
-        // Ícones gerados em tempo de execução, para o esqueleto não depender de PNGs.
-        // Para ícones definitivos, troque por BitmapImage carregando PNG 16x16 e 32x32.
-        static ImageSource Icon(string text, Color color, int size)
+        /// <summary>Painel "Ação BIM · Metrô SP" com o selo azul; clicar abre o Sobre.</summary>
+        static RibbonPanel BrandPanel()
         {
-            var dv = new DrawingVisual();
-            using (var dc = dv.RenderOpen())
+            ImageSource img = Icones.Carregar("marca_ribbon_botao.png");
+            var logo = new RibbonButton
             {
-                dc.DrawRoundedRectangle(new SolidColorBrush(color), null, new Rect(0, 0, size, size), size * 0.15, size * 0.15);
-                var ft = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-                    new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.Bold, FontStretches.Normal),
-                    size * (text.Length > 2 ? 0.34 : 0.45), Brushes.White, 1.0);
-                dc.DrawText(ft, new Point((size - ft.Width) / 2, (size - ft.Height) / 2));
+                Id = MarcaId + "_Logos",
+                LargeImage = img,
+                Size = RibbonItemSize.Large,
+                ShowImage = true,
+                ShowText = false,
+                Orientation = System.Windows.Controls.Orientation.Vertical,
+                ToolTip = "Desenvolvido pela Ação BIM para o Metrô de São Paulo. Clique para ver a versão e as informações do add-in.",
+                CommandParameter = "\x03\x03_MSP_SOBRE ",
+                CommandHandler = new MacroHandler()
+            };
+            if (img != null)
+            {
+                // O botão grande corta a imagem; com a largura e a altura dela o selo aparece inteiro.
+                logo.Width = img.Width + 6;
+                logo.MinWidth = img.Width + 6;
+                logo.MinHeight = img.Height + 6;
             }
-            var bmp = new RenderTargetBitmap(size, size, 96, 96, PixelFormats.Pbgra32);
-            bmp.Render(dv);
-            bmp.Freeze();
-            return bmp;
+            var src = new RibbonPanelSource { Id = MarcaId, Title = "Ação BIM · Metrô SP" };
+            src.Items.Add(logo);
+            return new RibbonPanel { Source = src };
         }
 
         class MacroHandler : ICommand

@@ -104,13 +104,42 @@ namespace MetroSP
         public void About()
         {
             var cfg = Settings.Load();
-            AcApp.ShowAlertDialog(
-                "MetroSP para Civil 3D\n\n" +
-                "Exportação IFC 4.3 com configuração centralizada no Autodesk Forma.\n\n" +
-                "Configuração: " + (cfg.LoadedFrom ?? "(não encontrada)") + "\n" +
-                "Pacote IFC ativo: " + ConfigPackage.ActiveDir + "\n" +
-                "Projeto Forma: " + cfg.ProjectId + "\n" +
-                "Pasta Forma: " + cfg.FolderUrn);
+            var version = typeof(Commands).Assembly.GetName().Version;
+            var w = new System.Windows.Window
+            {
+                Title = "Sobre o MetroSP",
+                Width = 520,
+                SizeToContent = System.Windows.SizeToContent.Height,
+                ResizeMode = System.Windows.ResizeMode.NoResize,
+                WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner
+            };
+
+            var body = new System.Windows.Controls.StackPanel();
+            body.Children.Add(new System.Windows.Controls.TextBlock
+            {
+                Text = "Exportação IFC 4.3 do Civil 3D com o motor da Autodesk e pós-processamento MetroSP: " +
+                       "alinhamento 3D com as cotas do perfil, IfcSite, IfcBuilding e configuração padronizada.",
+                TextWrapping = System.Windows.TextWrapping.Wrap
+            });
+            body.Children.Add(Ui.Theme.Secao("Versão"));
+            var chips = new System.Windows.Controls.WrapPanel();
+            chips.Children.Add(Ui.Theme.Chip($"Versão {version.Major}.{version.Minor}.{version.Build}", escuro: true));
+            chips.Children.Add(Ui.Theme.Chip("Civil 3D 2025 · 2026 · 2027", destaque: true));
+            chips.Children.Add(Ui.Theme.Chip(cfg.UsesForma ? "Configuração do Forma" : "Configuração local"));
+            body.Children.Add(chips);
+            body.Children.Add(Ui.Theme.Secao("Arquivos"));
+            body.Children.Add(Ui.Theme.Detalhe("Configuração: " + (cfg.LoadedFrom ?? "(não encontrada)")));
+            body.Children.Add(Ui.Theme.Detalhe("Pacote IFC ativo: " + ConfigPackage.ActiveDir));
+            if (cfg.UsesForma)
+            {
+                body.Children.Add(Ui.Theme.Detalhe("Projeto Forma: " + cfg.ProjectId));
+                body.Children.Add(Ui.Theme.Detalhe("Pasta Forma: " + cfg.FolderUrn));
+            }
+
+            var close = new System.Windows.Controls.Button { Content = "Fechar", Style = Ui.Theme.PrimaryButton, IsDefault = true, IsCancel = true };
+            close.Click += (s, e) => w.Close();
+            Ui.Theme.Apply(w, "MetroSP para Civil 3D", "Ação BIM · Metrô SP", body, Ui.Theme.Buttons(close));
+            AcApp.ShowModalWindow(AcApp.MainWindow.Handle, w, false);
         }
 
         /// <summary>
