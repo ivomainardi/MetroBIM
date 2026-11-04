@@ -1,5 +1,5 @@
 # Publica uma release quando a <Version> do MetroSP.csproj muda na main.
-# Só roda quando o csproj (ou este arquivo) muda, para gastar poucos minutos do Actions.
+# Só roda quando o csproj, o instalador ou este arquivo mudam, para gastar poucos minutos do Actions.
 # Se a tag v<versão> já existe, não faz nada. Também pode ser rodado à mão em Actions.
 name: Release
 
@@ -9,6 +9,7 @@ on:
     paths:
       - src/MetroSP/MetroSP.csproj
       - .github/workflows/release.yml
+      - installer/**
   workflow_dispatch:
 
 permissions:
@@ -49,7 +50,6 @@ jobs:
           if (-not (Select-String -Path NOTAS-DA-VERSAO.md -Pattern ([regex]::Escape($v)) -Quiet)) {
             throw "NOTAS-DA-VERSAO.md não menciona a versão $v"
           }
-          (Get-Content installer/MetroSP.iss) -replace '#define AppVersion ".*"', "#define AppVersion `"$v`"" | Set-Content installer/MetroSP.iss
           ./build.ps1
           Rename-Item MetroSP-instalador.zip "MetroSP-$v-instalador.zip"
 
