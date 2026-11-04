@@ -276,25 +276,31 @@ namespace MetroSP.Ifc
                 SetText(site, 12, s.Matricula);
             }
 
-            if (cfg.Edificacoes != null && cfg.Edificacoes.Count > 0)
+            var facilities = cfg.AllFacilities().Where(f => !string.IsNullOrWhiteSpace(f.Nome)).ToList();
+            if (facilities.Count > 0)
             {
                 var siteGid = StepModel.Text(site.Args[0]) ?? "site";
-                var existing = _m.OfType("IFCBUILDING").Select(b => StepModel.Text(b.Args[2])).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var existing = FacilityTypes.SelectMany(t => _m.OfType(t)).Select(b => StepModel.Text(b.Args[2]))
+                    .Where(n => n != null).ToHashSet(StringComparer.OrdinalIgnoreCase);
                 var created = new List<int>();
-                foreach (var b in cfg.Edificacoes.Where(b => !string.IsNullOrWhiteSpace(b.Nome) && !existing.Contains(b.Nome)))
+                foreach (var f in facilities.Where(f => !existing.Contains(f.Nome)))
                 {
+                    var type = (f.Tipo ?? FacilityInfo.DefaultType).Trim().ToUpperInvariant();
+                    if (!FacilityTypes.Contains(type)) type = "IFCRAILWAY";
                     var origin = _m.Add("IFCCARTESIANPOINT", "(0.,0.,0.)");
                     var axis = _m.Add("IFCAXIS2PLACEMENT3D", "#" + origin, "$", "$");
                     var placement = _m.Add("IFCLOCALPLACEMENT", site.Args[5], "#" + axis);
-                    created.Add(_m.Add("IFCBUILDING", Guid(siteGid, "bld:" + b.Nome), "$", IfcAlignmentWriter.S(b.Nome),
-                        Opt(b.Descricao), "$", "#" + placement, "$", Opt(b.NomeLongo), ".ELEMENT.",
-                        b.ElevacaoReferencia.HasValue ? IfcAlignmentWriter.F(b.ElevacaoReferencia.Value) : "$", "$", "$"));
+                    var args = new List<string> { Guid(siteGid, "fac:" + type + ":" + f.Nome), "$", IfcAlignmentWriter.S(f.Nome),
+                        Opt(f.Descricao), "$", "#" + placement, "$", Opt(f.NomeLongo), ".ELEMENT." };
+                    if (type == "IFCBUILDING")
+                        args.AddRange(new[] { f.ElevacaoReferencia.HasValue ? IfcAlignmentWriter.F(f.ElevacaoReferencia.Value) : "$", "$", "$" });
+                    else
+                        args.Add(".NOTDEFINED.");   // PredefinedType de IfcRailway, IfcRoad e IfcBridge
+                    created.Add(_m.Add(type, args.ToArray()));
+                    _log($"{f.Nome}: {(FacilityTypes.Contains((f.Tipo ?? "").ToUpperInvariant()) ? f.Tipo : FacilityInfo.DefaultType)} acrescentado ao IfcSite.");
                 }
                 if (created.Count > 0)
-                {
-                    _m.Add("IFCRELAGGREGATES", Guid(siteGid, "bld:" + string.Join("|", created)), "$", "'Edificações MetroSP'", "$", "#" + site.Id, StepModel.RefListText(created));
-                    _log($"{created.Count} IfcBuilding acrescentado(s) ao IfcSite.");
-                }
+                    _m.Add("IFCRELAGGREGATES", Guid(siteGid, "fac:" + string.Join("|", created)), "$", "'Instalações MetroSP'", "$", "#" + site.Id, StepModel.RefListText(created));
             }
 
             if (!string.IsNullOrWhiteSpace(cfg.SistemaCoordenadas) && !_m.OfType("IFCMAPCONVERSION").Any())
@@ -387,6 +393,8 @@ namespace MetroSP.Ifc
         }
 
         // ================================================================== utilitários
+
+        static readonly string[] FacilityTypes = { "IFCRAILWAY", "IFCBUILDING", "IFCBRIDGE", "IFCROAD" };
 
         static string Norm(string s) => (s ?? "").Trim().ToUpperInvariant();
 

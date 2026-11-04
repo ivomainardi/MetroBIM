@@ -24,7 +24,7 @@ e os `IfcBuilding`. Assim o plugin recebe as atualizações do exportador da Aut
    - troca o eixo de cada `IfcAlignment` (casado pelo nome; se o exportador mudar o nome, por semelhança; se houver um só de cada lado, direto) pela polilinha 3D e acrescenta o `IfcAlignmentVertical`
      se faltar, convertendo para o sistema local do alinhamento e compensando deslocamento de origem;
    - preenche `IfcProject` e `IfcSite` (nome, descrição, latitude/longitude, cota de referência, matrícula),
-     cria os `IfcBuilding` configurados sob o `IfcSite`, cria `IfcMapConversion` se faltar e grava o Pset `MetroSP_Projeto`.
+     cria as instalações configuradas sob o `IfcSite` (a linha como `IfcRailway`, estações como `IfcBuilding`; também `IfcBridge` e `IfcRoad`), cria `IfcMapConversion` se faltar e grava o Pset `MetroSP_Projeto`.
    `MSP_IFCPOSPROC` também pode ser rodado à mão, escolhendo um IFC já exportado.
 
 ## Aba MetroSP
@@ -62,7 +62,8 @@ O pacote ativo fica em `%APPDATA%\MetroSP\Config` e vem pré-carregado com o pad
 | `MetroSP.ifc.json` | MetroSP | projeto, terreno, edificações, sistema de coordenadas, alinhamento e Pset do projeto |
 
 Os três primeiros seguem o formato da Autodesk, então servem também fora do plugin.
-`MetroSP.ifc.json` usa os nomes de entidades e atributos do IFC 4.3 da buildingSMART.
+`MetroSP.ifc.json` usa os nomes de entidades e atributos do IFC 4.3 da buildingSMART. Em ferrovia, a estrutura é
+`IfcProject → IfcSite → IfcRailway` (a linha) e `IfcBuilding` (cada estação); o formato antigo `Edificacoes` ainda é lido, como `IfcBuilding`.
 
 ## Janela Configurar IFC (`MSP_IFCCONFIG`)
 
@@ -71,7 +72,7 @@ As explicações de cada campo ficam na dica (passe o mouse).
 
 | Aba | Conteúdo |
 |---|---|
-| Projeto | `IfcProject`, `IfcSite` (latitude, longitude, elevação, matrícula, EPSG), `IfcBuilding` e o Pset `MetroSP_Projeto` |
+| Projeto | `IfcProject` e `IfcSite` (nome obrigatório nos dois; latitude, longitude, elevação, matrícula, EPSG), instalações (`IfcRailway`, `IfcBuilding`, `IfcBridge`, `IfcRoad`) e o Pset `MetroSP_Projeto` |
 | Classes IFC | regras por layer, bloco ou baseline → classe IFC (`IfcRail.RAIL`...), exportar sim/não, ordem |
 | Propriedades | de onde vem cada propriedade (CSV) e os property sets (JSON) |
 | Alinhamento | cotas do perfil no IFC, passo do eixo 3D, perfil preferido |

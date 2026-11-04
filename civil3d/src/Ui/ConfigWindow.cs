@@ -41,7 +41,7 @@ namespace MetroSP.Ui
         JsonNode _autodeskConfig;
         TextBox _templatesText;
         MetroSpIfcConfig _metro;
-        readonly ObservableCollection<BuildingInfo> _buildings = new ObservableCollection<BuildingInfo>();
+        readonly ObservableCollection<FacilityInfo> _facilities = new ObservableCollection<FacilityInfo>();
         readonly ObservableCollection<KeyValueRow> _projectProps = new ObservableCollection<KeyValueRow>();
 
         public static readonly string[] KnownSections = { "MapCADLayerName", "MapBlockName", "MapBaselineName" };
@@ -105,8 +105,8 @@ namespace MetroSP.Ui
             _autodeskConfig = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig);
             _metro = ConfigPackage.LoadMetroSp();
 
-            _buildings.Clear();
-            foreach (var b in _metro.Estrutura.Edificacoes) _buildings.Add(b);
+            _facilities.Clear();
+            foreach (var f in _metro.Estrutura.AllFacilities()) _facilities.Add(f);
             _projectProps.Clear();
             foreach (var kv in _metro.PropriedadesProjeto) _projectProps.Add(new KeyValueRow { Chave = kv.Key, Valor = kv.Value });
 
@@ -115,6 +115,16 @@ namespace MetroSP.Ui
 
         void SaveAll(bool close)
         {
+            var missing = new List<string>();
+            if (string.IsNullOrWhiteSpace(_metro.Estrutura.Projeto?.Nome)) missing.Add("Nome do projeto");
+            if (string.IsNullOrWhiteSpace(_metro.Estrutura.Terreno?.Nome)) missing.Add("Nome do terreno");
+            if (missing.Count > 0)
+            {
+                _tabs.SelectedIndex = 0;
+                Theme.MudarResumo(_status, missing.Select(m => m + " é obrigatório").ToList(), "");
+                return;
+            }
+
             try
             {
                 CommitMappingSection();
@@ -125,7 +135,8 @@ namespace MetroSP.Ui
                 if (_propertyRows.Count > 0 || File.Exists(ConfigPackage.PathOf(ConfigKind.PropertyMappingCsv)))
                     SaveCsv();
 
-                _metro.Estrutura.Edificacoes = _buildings.Where(b => !string.IsNullOrWhiteSpace(b.Nome)).ToList();
+                _metro.Estrutura.Instalacoes = _facilities.Where(f => !string.IsNullOrWhiteSpace(f.Nome)).ToList();
+                _metro.Estrutura.Edificacoes = null;
                 _metro.PropriedadesProjeto = _projectProps.Where(r => !string.IsNullOrWhiteSpace(r.Chave))
                     .GroupBy(r => r.Chave.Trim()).ToDictionary(g => g.Key, g => g.Last().Valor ?? "");
                 ConfigPackage.SaveMetroSp(_metro);
@@ -428,14 +439,14 @@ namespace MetroSP.Ui
             var left = new StackPanel { Margin = new Thickness(0, 0, 16, 0) };
             left.Children.Add(Section("Projeto · IfcProject"));
             left.Children.Add(Form(
-                ("Nome", Text(e.Projeto, nameof(ProjectInfo.Nome))),
+                ("Nome *", Required(e.Projeto, nameof(ProjectInfo.Nome))),
                 ("Nome longo", Text(e.Projeto, nameof(ProjectInfo.NomeLongo))),
                 ("Descrição", Text(e.Projeto, nameof(ProjectInfo.Descricao))),
                 ("Fase", Text(e.Projeto, nameof(ProjectInfo.Fase)))));
 
             left.Children.Add(Section("Terreno · IfcSite"));
             left.Children.Add(Form(
-                ("Nome", Text(e.Terreno, nameof(SiteInfo.Nome))),
+                ("Nome *", Required(e.Terreno, nameof(SiteInfo.Nome))),
                 ("Nome longo", Text(e.Terreno, nameof(SiteInfo.NomeLongo))),
                 ("Descrição", Text(e.Terreno, nameof(SiteInfo.Descricao))),
                 ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo.")),
@@ -445,8 +456,10 @@ namespace MetroSP.Ui
                 ("Coordenadas", Text(e, nameof(SpatialConfig.SistemaCoordenadas), "EPSG do IfcMapConversion, ex.: EPSG:31983"))));
 
             var right = new StackPanel();
-            right.Children.Add(Section("Edificações · IfcBuilding"));
-            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _buildings, MinHeight = 120, ToolTip = "Estações e edificações, dentro do IfcSite." };
+            right.Children.Add(Section("Instalações · IfcRailway, IfcBuilding"));
+            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _facilities, MinHeight = 120,
+                ToolTip = "Dentro do IfcSite. A linha como IfcRailway; cada estação como IfcBuilding." };
+            bgrid.Columns.Add(new DataGridComboBoxColumn { Header = "Tipo", ItemsSource = FacilityInfo.Types, SelectedItemBinding = new Binding("Tipo"), Width = 110 });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Nome"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome longo", Binding = new Binding("NomeLongo"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 90 });
@@ -579,6 +592,18 @@ namespace MetroSP.Ui
             return tb;
         }
 
+        /// <summary>Campo obrigatório: atualiza a cada tecla e fica com a borda laranja enquanto vazio.</summary>
+        static TextBox Required(object source, string property)
+        {
+            var tb = Text(source, property, "Obrigatório.");
+            BindingOperations.ClearBinding(tb, TextBox.TextProperty);
+            tb.SetBinding(TextBox.TextProperty, new Binding(property) { Source = source, TargetNullValue = "", UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+            void Mark() => tb.BorderBrush = string.IsNullOrWhiteSpace(tb.Text) ? Theme.Solid(Theme.Laranja) : Theme.Solid(Color.FromRgb(0xBB, 0xBB, 0xBB));
+            tb.TextChanged += (s, e) => Mark();
+            tb.Loaded += (s, e) => Mark();
+            return tb;
+        }
+
         static Grid Form(params (string Label, UIElement Field)[] rows)
         {
             var g = new Grid();
@@ -587,7 +612,10 @@ namespace MetroSP.Ui
             for (int i = 0; i < rows.Length; i++)
             {
                 g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                var l = Label(rows[i].Label);
+                var text = rows[i].Label;
+                var l = Label(text.EndsWith(" *") ? text.Substring(0, text.Length - 2) : text);
+                if (text.EndsWith(" *"))
+                    l.Inlines.Add(new System.Windows.Documents.Run(" *") { Foreground = Theme.Solid(Theme.Laranja), FontWeight = FontWeights.SemiBold });
                 l.Margin = new Thickness(0, 2, 8, 2);
                 Grid.SetRow(l, i);
                 g.Children.Add(l);
