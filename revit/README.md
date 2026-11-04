@@ -45,14 +45,12 @@ Revit 2027 usa .NET 10; 2025 e 2026 usam .NET 8 (o csproj escolhe sozinho).
 
 ## Publicar uma versão
 
-O GitHub é usado só para guardar o código e as releases: nada compila nem roda lá (sem Actions).
-
 1. Suba a `<Version>` no `src/MetroSP/MetroSP.csproj` e descreva a versão no `NOTAS-DA-VERSAO.md`.
-2. Faça o merge na `main` e, no PC, `git checkout main` e `git pull`.
-3. Rode `.\publicar.ps1`. Ele compila para 2025, 2026 e 2027, gera o instalador e cria a
-   release `v<versão>` no GitHub com o `.zip` (e o `.exe`, se o Inno Setup 6 estiver instalado).
+2. Faça o merge na `main`. O GitHub Actions (`.github/workflows/release.yml`) compila para 2025, 2026 e 2027,
+   gera o instalador e cria a release `v<versão>` com o `.exe` e o `.zip`. Ele só roda quando o csproj muda.
 
-Precisa do [GitHub CLI](https://cli.github.com/) logado (`gh auth login`, uma vez só).
+Sem o Actions, dá para publicar pelo PC com `.\publicar.ps1` (precisa do [GitHub CLI](https://cli.github.com/)
+logado e de um clone da `main`).
 
 ## Renomear parâmetro compartilhado (mantendo GUID)
 
