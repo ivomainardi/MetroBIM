@@ -175,7 +175,11 @@ namespace MetroSP.Parametros
                 if (doc.IsFamilyDocument)
                 {
                     if (i.ParametroFamilia == null) p.Impedimento = "não encontrado na família";
-                    else p.ParaTipo = i.ParametroFamilia.IsInstance;
+                    else
+                    {
+                        p.ParaTipo = i.ParametroFamilia.IsInstance;
+                        p.Impedimento = ConferirFormulas(doc, i.ParametroFamilia, p.ParaTipo, itens);
+                    }
                 }
                 else if (!i.Vinculado || i.Definicao == null)
                 {
@@ -194,6 +198,47 @@ namespace MetroSP.Parametros
                 planos.Add(p);
             }
             return planos;
+        }
+
+        /// <summary>
+        /// Regra do Revit: a fórmula de um parâmetro de tipo não pode usar parâmetros de instância.
+        /// Instância → tipo: a fórmula do próprio parâmetro não pode usar parâmetros de instância (que não estejam indo junto para tipo).
+        /// Tipo → instância: nenhum parâmetro de tipo pode ter este na fórmula (a não ser que também esteja indo para instância).
+        /// As fórmulas não mudam com a troca. Retorna o motivo para não trocar, ou null.
+        /// </summary>
+        private static string ConferirFormulas(Document doc, FamilyParameter fp, bool paraTipo, List<SharedParameterInfo> selecionados)
+        {
+            List<FamilyParameter> todos = doc.FamilyManager.GetParameters().Where(o => o.Id != fp.Id).ToList();
+            var juntos = new HashSet<ElementId>(selecionados.Where(s => s.ParametroFamilia != null).Select(s => s.ParametroFamilia.Id));
+            if (paraTipo)
+            {
+                if (string.IsNullOrEmpty(fp.Formula)) return null;
+                List<string> instancia = todos
+                    .Where(o => o.IsInstance && !juntos.Contains(o.Id) && UsaNome(fp.Formula, o.Definition.Name))
+                    .Select(o => o.Definition.Name).ToList();
+                return instancia.Count == 0 ? null
+                    : $"a fórmula usa parâmetro(s) de instância: {string.Join(", ", instancia)}. Passe-os para tipo antes, ou selecione-os junto";
+            }
+            List<string> dependentes = todos
+                .Where(o => !o.IsInstance && !juntos.Contains(o.Id) && !string.IsNullOrEmpty(o.Formula) && UsaNome(o.Formula, fp.Definition.Name))
+                .Select(o => o.Definition.Name).ToList();
+            return dependentes.Count == 0 ? null
+                : $"está na fórmula de parâmetro(s) de tipo: {string.Join(", ", dependentes)}. Passe-os para instância antes, ou selecione-os junto";
+        }
+
+        /// <summary>true se o nome aparece na fórmula como parâmetro (não como pedaço de outro nome).</summary>
+        private static bool UsaNome(string formula, string nome)
+        {
+            if (string.IsNullOrEmpty(formula) || string.IsNullOrEmpty(nome)) return false;
+            bool Parte(char c) => char.IsLetterOrDigit(c) || c == '_';
+            for (int k = formula.IndexOf(nome, StringComparison.Ordinal); k >= 0; k = formula.IndexOf(nome, k + 1, StringComparison.Ordinal))
+            {
+                int fim = k + nome.Length;
+                bool antesOk = k == 0 || !Parte(formula[k - 1]) || !Parte(nome[0]);
+                bool depoisOk = fim >= formula.Length || !Parte(formula[fim]) || !Parte(nome[nome.Length - 1]);
+                if (antesOk && depoisOk) return true;
+            }
+            return false;
         }
 
         private static Parameter Par(Element e, SharedParameterInfo i)
@@ -279,25 +324,38 @@ namespace MetroSP.Parametros
                 opcoes.SetFailuresPreprocessor(new SoAvisos());
                 t.SetFailureHandlingOptions(opcoes);
                 t.Start();
-                foreach (Plano p in planos.Where(x => x.Impedimento == null))
+                // Na família a ordem importa por causa das fórmulas (um parâmetro de tipo não pode usar um de instância):
+                // os que o Revit recusar são tentados de novo depois que os outros já trocaram, até não haver avanço.
+                var pendentes = planos.Where(x => x.Impedimento == null).Select(x => (Plano: x, R: new Resultado { Nome = x.Item.Nome })).ToList();
+                resultados.AddRange(pendentes.Select(x => x.R));
+                bool avancou = true;
+                while (avancou && pendentes.Count > 0)
                 {
-                    var r = new Resultado { Nome = p.Item.Nome };
-                    resultados.Add(r);
-                    using (var sub = new SubTransaction(doc))
+                    avancou = false;
+                    foreach (var (p, r) in pendentes.ToList())
                     {
-                        sub.Start();
-                        try
+                        using (var sub = new SubTransaction(doc))
                         {
-                            if (doc.IsFamilyDocument) TrocarNaFamilia(doc, p, r);
-                            else TrocarNoProjeto(doc, p, r, maisComum);
+                            sub.Start();
+                            r.Erro = null;
+                            try
+                            {
+                                if (doc.IsFamilyDocument) TrocarNaFamilia(doc, p, r);
+                                else TrocarNoProjeto(doc, p, r, maisComum);
+                            }
+                            catch (Exception ex)
+                            {
+                                r.Trocado = false;
+                                r.Erro = ex.Message;
+                            }
+                            if (r.Trocado) sub.Commit();
+                            else sub.RollBack();
                         }
-                        catch (Exception ex)
+                        if (r.Trocado || !doc.IsFamilyDocument)
                         {
-                            r.Trocado = false;
-                            r.Erro = ex.Message;
+                            pendentes.Remove((p, r));
+                            if (r.Trocado) avancou = true;
                         }
-                        if (r.Trocado) sub.Commit();
-                        else sub.RollBack();
                     }
                 }
                 if (resultados.Any(r => r.Trocado)) t.Commit();

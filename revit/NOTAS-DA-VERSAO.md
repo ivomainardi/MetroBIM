@@ -114,6 +114,11 @@ para instância, mantendo as categorias e o grupo, numa transação só (Ctrl+Z 
   carregadas não são trocados daqui.
 - **Na família**, usa a mesma troca do editor de famílias; os valores de cada tipo da família são mantidos.
   Ao passar de instância para tipo, os projetos onde a família for recarregada perdem os valores por instância.
+- **Fórmulas** (só existem na família) ficam como estão. Como um parâmetro de tipo não pode usar parâmetros de
+  instância na fórmula, a janela não troca, e diz por quê: para tipo, um parâmetro cuja fórmula usa parâmetros de
+  instância; para instância, um parâmetro que aparece na fórmula de parâmetros de tipo. Selecionando os parâmetros
+  ligados por fórmula juntos, eles são trocados na ordem que o Revit aceita. No projeto não há fórmulas; tabelas e
+  filtros que usam o parâmetro continuam funcionando, porque o parâmetro é o mesmo.
 - No fim, um resumo diz quantos valores foram regravados, perdidos ou não gravados (somente leitura, grupos,
   elementos de outro usuário).
 

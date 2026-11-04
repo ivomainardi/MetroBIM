@@ -792,7 +792,9 @@ namespace MetroSP.Parametros
                 if (trocaveis.Any(p => p.ParaTipo))
                     texto.AppendLine("Atenção: nos projetos onde a família for recarregada, os valores preenchidos por instância " +
                                      "desses parâmetros serão substituídos pelo valor do tipo.");
-                texto.AppendLine("Se o parâmetro estiver numa fórmula ou associação que não aceite a troca, o Revit recusa e ele fica como está.");
+                texto.AppendLine("As fórmulas ficam como estão. Um parâmetro de tipo não pode usar parâmetros de instância na fórmula: " +
+                                 "por isso os que quebrariam essa regra não são trocados (veja acima). Selecionados juntos, " +
+                                 "os parâmetros ligados por fórmula são trocados na ordem certa.");
             }
             else
             {
