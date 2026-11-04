@@ -45,7 +45,7 @@ namespace MetroSP.Ui
             ("Entrega", "Conferir Entrega Metrô (semáforo do que o Metrô pede, pacote .metrosp)"),
             ("Parâmetros", "Renomear Compartilhado, Listar Compartilhados (com troca instância ↔ tipo), Copiar Valores, Gerenciar Parâmetros (criar pela planilha, exportar, adicionar em famílias)"),
             ("Dados", "Planilha de Dados (Excel ida e volta), Editar em Massa, Filtrar e Colorir"),
-            ("IFC / IDS", "Verificar Mapeamento IDS, Localização IFC (Location pelo Project Base Point), Arquivos IFC (setups, property sets e mapeamentos por classe), Categorias IFC (IFC4 e IFC 4.3), Exportar IFC (classes, editor de property sets, Forma online)"),
+            ("IFC", "Verificar Padrões Metrô, Localização IFC (Location pelo Project Base Point), Arquivos IFC (setups, property sets e mapeamentos por classe), Categorias IFC (IFC4 e IFC 4.3), Exportar IFC (classes, editor de property sets, Forma online)"),
             ("Classificação", "Aplicar Classificação, Verificar Classificação, Consistência Código×Descrição"),
             ("Modelagem", "Contar Elementos, Renomear Famílias e tipos"),
         };
@@ -70,7 +70,7 @@ namespace MetroSP.Ui
             corpo.Children.Add(new TextBlock
             {
                 Text = "Ferramentas para Revit que apoiam a modelagem e a entrega BIM no padrão do Metrô de São Paulo: " +
-                       "parâmetros compartilhados, verificação IDS, exportação IFC por classe e classificação.",
+                       "parâmetros compartilhados, verificação dos padrões Metrô, exportação IFC por classe e classificação.",
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 10),
             });

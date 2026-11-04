@@ -17,6 +17,7 @@ namespace MetroSP.Ids
         ValorInvalido,
         SemElementos,
         NaoVerificado,
+        ForaDoIfc,
     }
 
     public class CheckResult
@@ -65,18 +66,43 @@ namespace MetroSP.Ids
             _checkValues = checkValues;
         }
 
-        /// <summary>elementos: os que entram na verificação (null = todos os elementos de modelo).</summary>
-        public List<CheckResult> Run(IdsDocument ids, List<Element> elementos = null)
+        /// <summary>Elementos de modelo deixados de fora porque não vão para o IFC, por motivo.</summary>
+        public Dictionary<string, List<ElementId>> Fora { get; } = new Dictionary<string, List<ElementId>>();
+
+        /// <summary>
+        /// elementos: os que entram na verificação (null = os elementos do modelo que vão para o IFC).
+        /// fase: fase da exportação (null = última fase do projeto).
+        /// </summary>
+        public List<CheckResult> Run(IdsDocument ids, List<Element> elementos = null, ElementId fase = null)
         {
-            _elements = elementos ?? new FilteredElementCollector(_doc)
-                .WhereElementIsNotElementType()
-                .WhereElementIsViewIndependent()
-                .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model)
-                .ToList();
+            if (elementos == null)
+            {
+                fase = fase ?? FiltroIfc.Fase(_doc);
+                _elements = new List<Element>();
+                foreach (Element e in new FilteredElementCollector(_doc).WhereElementIsNotElementType().WhereElementIsViewIndependent())
+                {
+                    if (e.Category == null || e.Category.CategoryType != CategoryType.Model) continue;
+                    string motivo = FiltroIfc.MotivoFora(_doc, e, fase);
+                    if (motivo == null) { _elements.Add(e); continue; }
+                    if (motivo == "Não é elemento de modelo") continue;
+                    if (!Fora.TryGetValue(motivo, out List<ElementId> l)) Fora[motivo] = l = new List<ElementId>();
+                    l.Add(e.Id);
+                }
+            }
+            else _elements = elementos;
 
             var results = new List<CheckResult>();
             foreach (IdsSpecification spec in ids.Specifications)
                 results.AddRange(CheckSpecification(spec));
+            foreach (var k in Fora.OrderByDescending(k => k.Value.Count))
+                results.Add(new CheckResult
+                {
+                    Especificacao = "(fora do IFC)",
+                    Requisito = k.Key,
+                    Status = CheckStatus.ForaDoIfc,
+                    Detalhe = "Não vão para o IFC e por isso não entram na verificação. Duplo clique seleciona.",
+                    Elementos = k.Value,
+                });
             return results;
         }
 
@@ -200,13 +226,13 @@ namespace MetroSP.Ids
                 if (p.Cardinality == IdsCardinality.Prohibited)
                 {
                     r.Status = CheckStatus.Aviso;
-                    r.Detalhe = $"O IDS proíbe esta propriedade, mas ela está mapeada para \"{paramName}\".";
+                    r.Detalhe = $"O padrão Metrô proíbe esta propriedade, mas ela está mapeada para \"{paramName}\".";
                     return r;
                 }
                 if (p.DataType != null && map.IfcType != null && !string.Equals(p.DataType, map.IfcType, StringComparison.OrdinalIgnoreCase))
                 {
                     r.Status = CheckStatus.TipoIncompativel;
-                    r.Detalhe = $"O IDS pede {p.DataType}, mas o mapeamento exporta {map.IfcType} (tipo \"{map.FileType}\").";
+                    r.Detalhe = $"O padrão Metrô pede {p.DataType}, mas o mapeamento exporta {map.IfcType} (tipo \"{map.FileType}\").";
                     return r;
                 }
             }
@@ -306,7 +332,7 @@ namespace MetroSP.Ids
                 {
                     r.Status = temPadrao ? CheckStatus.Aviso : CheckStatus.ParametroAusente;
                     r.Detalhe = $"Crie o parâmetro \"{paramName}\" para controlar o atributo {name}" +
-                                (a.Value != null ? $" (o IDS exige: {a.Value})." : ".");
+                                (a.Value != null ? $" (o padrão Metrô exige: {a.Value})." : ".");
                     r.Elementos = elems.Select(e => e.Id).ToList();
                 }
                 return r;

@@ -89,7 +89,7 @@ namespace MetroSP.Conferencia
             };
             var barraDock = new DockPanel();
             var botoesBarra = new StackPanel { Orientation = Orientation.Horizontal };
-            var trocar = new Button { Content = "Pacote...", ToolTip = "Abrir ou editar o pacote do Metrô (IDS, setup, psets, planilha, MetroShared)." };
+            var trocar = new Button { Content = "Pacote...", ToolTip = "Abrir ou editar o pacote do Metrô (padrões .ids, setup, psets, planilha, MetroShared)." };
             _escopo = new System.Windows.Controls.ComboBox { Width = 150, Margin = new Thickness(8, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center };
             _escopo.Items.Add("Modelo inteiro");
             _escopo.Items.Add("Só a vista ativa");
@@ -629,7 +629,7 @@ namespace MetroSP.Conferencia
                 case Correcao.ListarCompartilhados: texto = "Listar Compartilhados..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
                 case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha do pacote."; break;
                 case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha do pacote: ela propõe as correções."; break;
-                case Correcao.DetalhesIds: texto = "Detalhes do IDS..."; dica = "Abre o resultado completo do Verificar Mapeamento IDS."; break;
+                case Correcao.DetalhesIds: texto = "Detalhes dos padrões..."; dica = "Abre o resultado completo do Verificar Padrões Metrô."; break;
                 default: return null;
             }
             var b = new Button { Content = texto, ToolTip = dica, Margin = new Thickness(0, 0, 6, 0) };
@@ -737,9 +737,9 @@ namespace MetroSP.Conferencia
                     case Correcao.DetalhesIds:
                         (IdsDocument ids, List<CheckResult> resultados) d;
                         ElementId vista = VistaDoEscopo(app, _pacote, out _);
-                        using (Progresso.Abrir("Verificar mapeamento IDS"))
+                        using (Progresso.Abrir("Verificar Padrões Metrô"))
                             d = ConferenciaEntrega.DetalhesIds(_doc, _pacote, vista);
-                        if (d.ids == null) { TaskDialog.Show("MetroSP", "O pacote não tem IDS."); break; }
+                        if (d.ids == null) { TaskDialog.Show("MetroSP", "O pacote não tem o arquivo de padrões (.ids)."); break; }
                         var janela = new ResultadosIdsWindow(d.ids, d.resultados);
                         new WindowInteropHelper(janela).Owner = app.MainWindowHandle;
                         janela.Show();

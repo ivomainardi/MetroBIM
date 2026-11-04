@@ -1,3 +1,19 @@
+# Próxima versão (depois da 0.2.8)
+
+## Verificar Padrões Metrô (antigo Verificar Mapeamento IDS)
+
+- **Nome novo:** o botão, as janelas e os textos passam a falar em **Padrões Metrô**. O painel da Ribbon agora se
+  chama só **IFC**. O arquivo continua sendo o `.ids` (formato IDS da buildingSMART).
+- **Sem "fantasmas" na contagem:** a verificação só conta os elementos que vão de fato para o IFC. Ficam de fora
+  elementos de **opção de projeto secundária**, **demolidos** ou criados numa **fase posterior** à da exportação
+  (última fase do projeto, ou a do setup na Conferir Entrega), elementos **sem geometria 3D** (sistemas de vigas,
+  famílias vazias) e os com **Exportar para IFC = Não**. Antes eles entravam nas contagens e, com duplo clique,
+  selecionavam algo que no Revit aparecia só como contorno ou meio-tom.
+- Os elementos deixados de fora aparecem no fim da lista, nas linhas **(fora do IFC)**, com o motivo, e num selo
+  no topo; duplo clique seleciona para conferir.
+- No rodapé, o duplo clique agora mostra **o que foi selecionado** (categoria, família, tipo e id).
+- A Conferir Entrega usa o mesmo filtro.
+
 # MetroSP 0.2.8
 
 Revit 2025, 2026 e 2027. Junta a 0.2.7 (não publicada separadamente), a Conferir Entrega Metrô, a troca

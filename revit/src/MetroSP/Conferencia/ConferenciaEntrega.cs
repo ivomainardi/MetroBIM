@@ -91,7 +91,7 @@ namespace MetroSP.Conferencia
             if (!_temPsets && _ids == null)
             {
                 parametros.Sinal = Sinal.Cinza;
-                parametros.Resumo = "Sem .txt de property sets nem IDS no pacote: nada para conferir.";
+                parametros.Resumo = "Sem .txt de property sets nem padrões (.ids) no pacote: nada para conferir.";
                 dados.Sinal = Sinal.Cinza;
                 dados.Resumo = parametros.Resumo;
             }
@@ -149,17 +149,17 @@ namespace MetroSP.Conferencia
 
             // IDS (opcional)
             if (string.IsNullOrWhiteSpace(_pacote.Ids))
-                Linha(Sinal.Cinza, "IDS", "Sem IDS no pacote: os campos exigidos vêm do .txt de property sets.");
+                Linha(Sinal.Cinza, "Padrões Metrô (.ids)", "Sem padrões no pacote: os campos exigidos vêm do .txt de property sets.");
             else if (!File.Exists(_pacote.Ids))
-                Linha(Sinal.Vermelho, "IDS", $"Arquivo não encontrado: {_pacote.Ids}", "Confira o caminho no pacote (ou se o Desktop Connector sincronizou a pasta).");
+                Linha(Sinal.Vermelho, "Padrões Metrô (.ids)", $"Arquivo não encontrado: {_pacote.Ids}", "Confira o caminho no pacote (ou se o Desktop Connector sincronizou a pasta).");
             else
             {
                 try
                 {
                     _ids = IdsReader.Load(_pacote.Ids);
-                    Linha(Sinal.Verde, "IDS", $"{Nome(_pacote.Ids)}: {_ids.Specifications.Count} especificações" + (string.IsNullOrEmpty(_ids.Title) ? "" : $" ({_ids.Title})"));
+                    Linha(Sinal.Verde, "Padrões Metrô (.ids)", $"{Nome(_pacote.Ids)}: {_ids.Specifications.Count} especificações" + (string.IsNullOrEmpty(_ids.Title) ? "" : $" ({_ids.Title})"));
                 }
-                catch (Exception ex) { Linha(Sinal.Vermelho, "IDS", $"{Nome(_pacote.Ids)} não pôde ser lido: {ex.Message}"); }
+                catch (Exception ex) { Linha(Sinal.Vermelho, "Padrões Metrô (.ids)", $"{Nome(_pacote.Ids)} não pôde ser lido: {ex.Message}"); }
             }
 
             // Property sets (obrigatório)
@@ -276,25 +276,15 @@ namespace MetroSP.Conferencia
 
         // ================================================================== elementos
 
-        private static readonly HashSet<BuiltInCategory> NaoExportadas = new HashSet<BuiltInCategory>
-        {
-            BuiltInCategory.OST_Cameras, BuiltInCategory.OST_Lines, BuiltInCategory.OST_SketchLines,
-            BuiltInCategory.OST_RvtLinks, BuiltInCategory.OST_IOSModelGroups, BuiltInCategory.OST_Mass,
-            BuiltInCategory.OST_PointClouds, BuiltInCategory.OST_CLines, BuiltInCategory.OST_Levels, BuiltInCategory.OST_Grids,
-            BuiltInCategory.OST_SectionBox, BuiltInCategory.OST_Viewers, BuiltInCategory.OST_ReferenceLines,
-            BuiltInCategory.OST_RoomSeparationLines, BuiltInCategory.OST_AreaSchemeLines, BuiltInCategory.OST_MEPSpaceSeparationLines,
-        };
 
         /// <summary>Elementos que vão para o IFC (modelo ou vista), com a classe IFC de cada um.</summary>
         private List<(Element E, string Entidade)> ElementosExportados()
         {
             var lista = new List<(Element, string)>();
+            ElementId fase = FiltroIfc.Fase(_doc, _setup?.Fase ?? -1, _vista);
             foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista))
             {
-                if (e.ViewSpecific || e is CurveElement || e is DatumPlane || e is SketchPlane || e is Group || e is AssemblyInstance) continue;
-                if (NaoExportadas.Contains(e.Category.BuiltInCategory)) continue;
-                if (e.DesignOption != null && !e.DesignOption.IsPrimary) continue;
-                if (e.get_BoundingBox(null) == null) continue;
+                if (!FiltroIfc.VaiParaIfc(_doc, e, fase)) continue;
                 string entidade = _analisador.ResolveEntity(e);
                 if (entidade == null) continue;
                 lista.Add((e, entidade));
@@ -349,7 +339,7 @@ namespace MetroSP.Conferencia
                     etapa.Pendencias.Add(new Pendencia
                     {
                         Sinal = Sinal.Cinza, Assunto = string.Join(", ", ents.Select(f => f.ToString())),
-                        Problema = $"Nenhum elemento exporta como a entidade da especificação \"{spec.Name}\" do IDS.",
+                        Problema = $"Nenhum elemento exporta como a entidade da especificação \"{spec.Name}\" dos padrões Metrô.",
                         OQueFazer = "Normal se este modelo não tem esse tipo de elemento; senão, confira a classe IFC.",
                     });
                 }
@@ -374,7 +364,7 @@ namespace MetroSP.Conferencia
             var etapa = new EtapaConferencia
             {
                 Numero = 4, Titulo = "Dados preenchidos",
-                Descricao = "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelo IDS." : "."),
+                Descricao = "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelos padrões." : "."),
             };
 
             // Parâmetros conferidos uma vez: tipo de dado e GUID.
@@ -571,7 +561,7 @@ namespace MetroSP.Conferencia
                                 _problemasMapeamento[campo] = new Pendencia
                                 {
                                     Sinal = Sinal.Vermelho, Assunto = campo,
-                                    Problema = $"O IDS exige {campo}, mas nenhuma linha do .txt de property sets gera esse campo para {entidade}.",
+                                    Problema = $"O padrão Metrô exige {campo}, mas nenhuma linha do .txt de property sets gera esse campo para {entidade}.",
                                     OQueFazer = "Inclua a propriedade no .txt de property sets (com o parâmetro do Revit de onde ela sai).",
                                     Correcao = Correcao.DetalhesIds,
                                 };
@@ -583,7 +573,7 @@ namespace MetroSP.Conferencia
                             _problemasMapeamento[campo + "|tipo"] = new Pendencia
                             {
                                 Sinal = Sinal.Vermelho, Assunto = campo,
-                                Problema = $"O IDS pede {p.DataType}, mas o .txt exporta {map.IfcType} (tipo \"{map.FileType}\").",
+                                Problema = $"O padrão Metrô pede {p.DataType}, mas o .txt exporta {map.IfcType} (tipo \"{map.FileType}\").",
                                 OQueFazer = "Ajuste o tipo da propriedade no .txt de property sets.",
                                 Correcao = Correcao.DetalhesIds,
                             };

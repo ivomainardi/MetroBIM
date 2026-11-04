@@ -112,10 +112,11 @@ namespace MetroSP
 
         private static void CreateIfcPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "IFC / IDS");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "IFC");
 
-            AddButton<VerificarIdsCommand>(panel, "Verificar\nMapeamento IDS",
-                "Verifica, antes de exportar, se os parâmetros e o mapeamento de exportação IFC atendem a um arquivo IDS.",
+            AddButton<VerificarIdsCommand>(panel, "Verificar\nPadrões Metrô",
+                "Confere, antes de exportar, se os parâmetros e o mapeamento IFC atendem aos padrões de informação do Metrô (arquivo .ids). " +
+                "Duplo clique numa linha do resultado seleciona os elementos.",
                 "Ids");
 
             AddButton<LocalizacaoIfcCommand>(panel, "Localização\nIFC",
