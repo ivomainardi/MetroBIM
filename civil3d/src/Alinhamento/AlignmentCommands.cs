@@ -61,6 +61,12 @@ namespace MetroSP.Alinhamento
         public static List<AlignmentModel> ReadAll(AcDocument doc, AlignmentOptions opts, bool interactive)
         {
             var ids = CivilApplication.ActiveDocument.GetAlignmentIds().Cast<ObjectId>().ToList();
+            if (ids.Count == 0)
+            {
+                // Pavimentação, interferências etc.: o IFC sai sem IfcAlignment e o resto do pós-processamento segue.
+                doc.Editor.WriteMessage("\nMetroSP: desenho sem alinhamento; o IFC vai com projeto, terreno, instalações e os objetos do desenho.");
+                return new List<AlignmentModel>();
+            }
             return Read(doc, ids, opts, interactive);
         }
 
