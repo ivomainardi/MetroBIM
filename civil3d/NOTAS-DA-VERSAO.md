@@ -1,6 +1,25 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## Próxima versão (em teste, ainda não publicada)
+## Próxima versão (em preparo)
+
+- **Verificar classificação** (painel Classificação, comando `MSP_CLASSVERIFICAR`): confere a classificação dos objetos
+  que vão para o IFC (mesmo filtro das outras ferramentas) com planilhas externas, e propõe as correções.
+  - **Padrões salvos** em `%APPDATA%\MetroSP\Civil3D\Classificacao`, com **Exportar/Importar** (.json) para a equipe.
+  - **Mais de uma classificação por objeto**, com os nomes da Autodesk: `ClassificationCode`, `ClassificationCode(2)`...
+    ("Código:Descrição", com opção de "[Nome]Código:Descrição") ou código e descrição separados como no Classification
+    Manager (`Classification.Uniformat.Number`/`.Description`, OmniClass, Uniclass). Cada classificação fica num
+    property set (padrão `Classification`) e numa propriedade de texto, escolhidos na janela.
+  - **Planilha com as colunas indicadas**: para cada classificação, planilha (.xlsx ou .csv), aba, linha dos títulos e
+    a coluna de Código, Descrição e, opcional, Tipos ou layers (aceita `*`), com prévia. As colunas são sugeridas pelos títulos.
+  - **Botão de ação em cada linha**: **Corrigir**, **Escolher...** (lista filtrada pelo tipo e layer do objeto),
+    **Anexar property set** (cria a definição, se não existir, e anexa ao objeto) e **Mostrar** (seleciona e aproxima).
+    Com várias linhas selecionadas, a ação vale para todas. Também há **Aplicar todas**, **Aplicar selecionadas** e
+    exportação em .csv.
+- Leitor de planilha e escolha de colunas comuns com o plugin do Revit (`src/Planilha`).
+- Falta testar no Civil 3D: abrir a janela no MB-20, criar um padrão com duas classificações em abas da mesma planilha,
+  anexar o property set em corredores e sólidos, escolher e corrigir; conferir Desfazer (U), Mostrar (zoom) e se o
+  property set `Classification` chega ao IFC exportado. Hoje ele vai como property set; transformar em
+  `IfcClassificationReference` no pós-processamento fica para um próximo passo.
 
 - **Confrontar planilha** (painel Dados, `MSP_CONFRONTAR`): compara os dados dos objetos com uma planilha externa (.xlsx ou .csv).
   - Você indica o campo que identifica cada linha (Handle, Nome, uma propriedade de property set...) e a coluna da planilha com esse valor; depois escolhe os dados a conferir (propriedades dos property sets, Nome, Descrição, Layer) e a coluna de cada um. "Sugerir pelos títulos" casa sozinho as colunas que têm o nome de uma propriedade.

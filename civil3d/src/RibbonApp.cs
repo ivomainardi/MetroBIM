@@ -55,10 +55,6 @@ namespace MetroSP
                 Button("Configurar\nIFC", "IfcConfigurar", "MSP_IFCCONFIG",
                     "Classes, propriedades, projeto, terreno, edificações e alinhamento.")));
 
-            tab.Panels.Add(Panel("Dados",
-                Button("Confrontar\nplanilha", "ConfrontarPlanilha", "MSP_CONFRONTAR",
-                    "Compara property sets, nome, descrição e layer dos objetos com uma planilha externa e resolve as diferenças.")));
-
             tab.Panels.Add(Panel("Forma",
                 Stack(
                     Small("Sincronizar", "IfcSincronizar", "MSP_IFCSYNC", "Baixa a configuração IFC do Forma, sem exportar."),
@@ -66,6 +62,14 @@ namespace MetroSP
                     Small("Sair", "Sair", "MSP_FORMALOGOUT", "Encerra a sessão neste computador.")),
                 Stack(
                     Small("Conta", "Conta", "MSP_CONFIG", "Client ID, projeto e pasta do Forma."))));
+
+            tab.Panels.Add(Panel("Classificação",
+                Button("Verificar\nclassificação", "ClassVerificar", "MSP_CLASSVERIFICAR",
+                    "Confere as classificações dos objetos com as planilhas do padrão. Cada linha tem a ação para corrigir.")));
+
+            tab.Panels.Add(Panel("Dados",
+                Button("Confrontar\nplanilha", "ConfrontarPlanilha", "MSP_CONFRONTAR",
+                    "Compara property sets, nome, descrição e layer dos objetos com uma planilha externa e resolve as diferenças.")));
 
             tab.Panels.Add(Panel("Ferramentas",
                 Stack(
