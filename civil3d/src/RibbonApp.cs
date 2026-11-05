@@ -71,7 +71,10 @@ namespace MetroSP
                 Button("Property\nsets", "PropertySets", "MSP_PSETS",
                     "Monta os property sets do Civil 3D (nome, propriedades, tipos e objetos), importa de planilha, leva ao IFC e anexa aos objetos."),
                 Button("Confrontar\nplanilha", "ConfrontarPlanilha", "MSP_CONFRONTAR",
-                    "Compara property sets, nome, descrição e layer dos objetos com uma planilha externa e resolve as diferenças.")));
+                    "Compara property sets, nome, descrição e layer dos objetos com uma planilha externa e resolve as diferenças."),
+                Button("Corrigir\nescrita", "CorrigirEscrita", "MSP_ESCRITA",
+                    "Procura em property sets, nome e descrição espaços sobrando ou errados (duplos, nas pontas, na pontuação, entre número " +
+                    "e unidade), acentuação e caracteres estranhos. Mostra o valor atual e a sugestão para corrigir ou ignorar.")));
 
             tab.Panels.Add(Panel("Padrões",
                 Button("Padrões e\nplanilhas", "Padroes", "MSP_PADROES",

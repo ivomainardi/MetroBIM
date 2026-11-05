@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Testes das regras do Corrigir escrita, sem Revit nem Civil 3D. Rodar: dotnet run (na pasta tools/teste-escrita) -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../src/Escrita/CorretorEscrita.cs" />
+  </ItemGroup>
+</Project>
