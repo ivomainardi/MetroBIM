@@ -336,7 +336,8 @@ namespace MetroSP.Ui
             top.Children.Add(apply);
             top.Children.Add(SymbolButton("↑", "Subir", (s, e) => Move(grid, -1)));
             top.Children.Add(SymbolButton("↓", "Descer", (s, e) => Move(grid, +1)));
-            top.Children.Add(SymbolButton("✕", "Remover", (s, e) => { if (grid.SelectedItem is MappingRow r) _mappingRows.Remove(r); }));
+            top.Children.Add(SymbolButton("+", "Nova regra", (s, e) => AddRow(grid, _mappingRows)));
+            top.Children.Add(SymbolButton("✕", "Excluir as regras selecionadas (ou tecla Delete)", (s, e) => RemoveSelected(grid, _mappingRows, "regra")));
             panel.Children.Add(top);
             panel.Children.Add(grid);
 
@@ -388,7 +389,7 @@ namespace MetroSP.Ui
             grid.Columns.Add(new DataGridTextColumn { Header = "Grupo", Binding = new Binding("Group"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             grid.Columns.Add(new DataGridTextColumn { Header = "Nome no Civil 3D", Binding = new Binding("CivilName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             grid.ToolTip = "Origem: Properties, PartData, General ou PropertySet.";
-            tabs.Items.Add(new TabItem { Header = "De onde vem cada uma", Content = grid });
+            tabs.Items.Add(new TabItem { Header = "De onde vem cada uma", Content = WithTools(grid, _propertyRows, "propriedade") });
 
             var tpl = File.Exists(ConfigPackage.PathOf(ConfigKind.PropertyTemplates))
                 ? File.ReadAllText(ConfigPackage.PathOf(ConfigKind.PropertyTemplates))
@@ -457,7 +458,8 @@ namespace MetroSP.Ui
                 ("Coordenadas", Ptl(e))));
 
             var right = new StackPanel();
-            right.Children.Add(Section("Instalações · IfcRailway, IfcBuilding"));
+            var bgridHead = new DockPanel();
+            right.Children.Add(bgridHead);
             var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _facilities, MinHeight = 120,
                 ToolTip = "Dentro do IfcSite. A linha como IfcRailway; cada estação como IfcBuilding." };
             bgrid.Columns.Add(new DataGridComboBoxColumn { Header = "Tipo", ItemsSource = FacilityInfo.Types, SelectedItemBinding = new Binding("Tipo"), Width = 110 });
@@ -465,12 +467,15 @@ namespace MetroSP.Ui
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome longo", Binding = new Binding("NomeLongo"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 90 });
             right.Children.Add(bgrid);
+            SectionWithTools(bgridHead, "Instalações · IfcRailway, IfcBuilding", bgrid, _facilities, "instalação");
 
-            right.Children.Add(Section("Dados do projeto · MetroSP_Projeto"));
+            var pgridHead = new DockPanel();
+            right.Children.Add(pgridHead);
             var pgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _projectProps, MinHeight = 120, ToolTip = "Gravados no IfcProject. Valor vazio não entra." };
             pgrid.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding("Chave"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             pgrid.Columns.Add(new DataGridTextColumn { Header = "Valor", Binding = new Binding("Valor"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             right.Children.Add(pgrid);
+            SectionWithTools(pgridHead, "Dados do projeto · MetroSP_Projeto", pgrid, _projectProps, "propriedade");
 
             var cols = new Grid();
             cols.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -576,6 +581,67 @@ namespace MetroSP.Ui
             var b = new Button { Content = symbol, ToolTip = tip, MinWidth = 32, Width = 32, Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(0, 0, 4, 0) };
             b.Click += click;
             return b;
+        }
+
+        /// <summary>Título de seção com + (incluir) e ✕ (excluir as linhas selecionadas) à direita.</summary>
+        static void SectionWithTools<T>(DockPanel head, string title, DataGrid grid, ObservableCollection<T> rows, string what) where T : new()
+        {
+            var tools = Tools(grid, rows, what);
+            tools.Margin = new Thickness(0, 10, 0, 4);
+            DockPanel.SetDock(tools, Dock.Right);
+            head.Children.Add(tools);
+            head.Children.Add(Section(title));
+        }
+
+        /// <summary>Tabela com a barra + / ✕ em cima.</summary>
+        static UIElement WithTools<T>(DataGrid grid, ObservableCollection<T> rows, string what) where T : new()
+        {
+            var panel = new DockPanel();
+            var tools = Tools(grid, rows, what);
+            tools.HorizontalAlignment = HorizontalAlignment.Right;
+            tools.Margin = new Thickness(0, 8, 0, 0);
+            DockPanel.SetDock(tools, Dock.Top);
+            panel.Children.Add(tools);
+            grid.Margin = new Thickness(0, 4, 0, 0);
+            panel.Children.Add(grid);
+            return panel;
+        }
+
+        static StackPanel Tools<T>(DataGrid grid, ObservableCollection<T> rows, string what) where T : new()
+        {
+            var p = new StackPanel { Orientation = Orientation.Horizontal };
+            p.Children.Add(SymbolButton("+", "Incluir " + what, (s, e) => AddRow(grid, rows)));
+            var del = SymbolButton("✕", "Excluir as linhas selecionadas (ou tecla Delete)", (s, e) => RemoveSelected(grid, rows, what));
+            del.Margin = new Thickness(0);
+            p.Children.Add(del);
+            return p;
+        }
+
+        /// <summary>Linha nova depois da selecionada (ou no fim), já selecionada e em edição.</summary>
+        static void AddRow<T>(DataGrid grid, ObservableCollection<T> rows) where T : new()
+        {
+            grid.CommitEdit(DataGridEditingUnit.Row, true);
+            var item = new T();
+            var i = grid.SelectedItem is T sel ? rows.IndexOf(sel) + 1 : rows.Count;
+            rows.Insert(Math.Max(0, Math.Min(i, rows.Count)), item);
+            grid.SelectedItem = item;
+            grid.ScrollIntoView(item);
+            grid.CurrentCell = new DataGridCellInfo(item, grid.Columns.FirstOrDefault(c => !c.IsReadOnly) ?? grid.Columns[0]);
+            grid.Focus();
+            grid.BeginEdit();
+        }
+
+        /// <summary>Exclui as linhas selecionadas; com mais de uma, pergunta antes.</summary>
+        static void RemoveSelected<T>(DataGrid grid, ObservableCollection<T> rows, string what)
+        {
+            grid.CancelEdit(DataGridEditingUnit.Row);
+            var sel = grid.SelectedItems.OfType<T>().ToList();
+            if (sel.Count == 0) return;
+            if (sel.Count > 1 && MessageBox.Show(Window.GetWindow(grid), $"Excluir {sel.Count} linhas?", "MetroSP",
+                    MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            var first = rows.IndexOf(sel[0]);
+            foreach (var r in sel) rows.Remove(r);
+            if (rows.Count > 0) grid.SelectedItem = rows[Math.Max(0, Math.Min(first, rows.Count - 1))];
         }
 
         static TextBlock Section(string text) { var t = Theme.Secao(text); t.Margin = new Thickness(0, 10, 0, 4); return t; }
