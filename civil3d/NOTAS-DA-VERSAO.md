@@ -2,6 +2,27 @@
 
 ## Próxima versão (em preparo)
 
+- **Property sets** (painel Dados, comando `MSP_PSETS`): monta os property sets do próprio Civil 3D (as mesmas
+  Property Set Definitions do Style Manager) e anexa aos objetos. Não existe ferramenta nativa para isso além do Style
+  Manager, que cria um property set e uma propriedade de cada vez, sem importar de planilha.
+  - **Aba Montar**: lista dos property sets do desenho, com nome, descrição, a quais tipos de objeto se aplica
+    (alinhamento, corredor, superfície, tubos, sólidos, blocos... ou todos) e as propriedades com tipo (Texto, Inteiro,
+    Real, Sim/Não) e valor padrão. Tabela com filtro por coluna e situação de cada um: Novo, Muda ou No desenho.
+  - **Importar planilha** (.xlsx ou .csv, uma linha por propriedade: Property set, Propriedade, Tipo, Valor padrão,
+    Aplica-se a, Descrição, IFC). Também lê o `IFCInfraExportPropertyMapping.csv` da Autodesk. **Exportar planilha**
+    salva a lista em .csv para editar no Excel ou levar a outro desenho.
+  - **Do mapeamento IFC**: traz os property sets que o mapeamento do exportador (Configurar IFC) espera achar no desenho.
+  - **Criar no desenho**: cria os novos e completa os que mudaram. Nada é apagado e o tipo de uma propriedade que já
+    existe não muda (os valores dos objetos se perderiam).
+  - **Levar para o IFC** (por property set): acrescenta o Pset ao mapeamento ativo do exportador da Autodesk (modelo no
+    `IFCInfraExportPropertyMapping.json`, com a entidade IFC e o tipo de cada propriedade, e a origem `PropertySet` no
+    `.csv`).
+  - **Aba Anexar aos objetos**: só objetos que vão para o IFC (mesmo filtro das outras ferramentas), da seleção ou do
+    desenho todo, com os property sets já anexados e o que falta. Anexa aos visíveis na tabela, respeitando os tipos
+    de objeto de cada property set.
+  - Falta testar no Civil 3D: abrir no MB-20 e no 4D2 (que já tem property sets), conferir se a lista bate com o Style
+    Manager, criar um property set só para corredores e outro para todos, importar uma planilha, anexar em sólidos,
+    tubos e alinhamentos, ver os valores na paleta Propriedades, Desfazer (U) e exportar o IFC para ver se o Pset chega.
 - **Verificar classificação** (painel Classificação, comando `MSP_CLASSVERIFICAR`): confere a classificação dos objetos
   que vão para o IFC (mesmo filtro das outras ferramentas) com planilhas externas, e propõe as correções.
   - **Padrões salvos** em `%APPDATA%\MetroSP\Civil3D\Classificacao`, com **Exportar/Importar** (.json) para a equipe.
