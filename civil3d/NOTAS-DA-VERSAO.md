@@ -1,6 +1,9 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## Próxima versão (em preparo)
+## 0.10.0 (em teste)
+
+- **Instalador com a identidade MetroSP** (`MetroSP-Civil3D-Setup-0.10.0.exe`), igual ao do Revit: instala o bundle só para o usuário, sem administrador, em `%APPDATA%\Autodesk\ApplicationPlugins\MetroSP.bundle`, e serve para o Civil 3D 2025, 2026 e 2027. Aparece em Aplicativos instalados para desinstalar. O `MetroSP.settings.json` (Forma/APS) só é gravado na primeira instalação, para não apagar o que já foi preenchido. O zip com o bundle e o `instalar.bat` continua saindo junto. Gerado por `build.ps1`.
+- Falta testar no Windows: instalar por cima da 0.9 (zip), abrir o Civil 3D 2025/2026/2027 e ver a aba MetroSP; desinstalar e conferir se a pasta do bundle sai.
 
 - **Property sets** (painel Dados, comando `MSP_PSETS`): monta os property sets do próprio Civil 3D (as mesmas
   Property Set Definitions do Style Manager) e anexa aos objetos. Não existe ferramenta nativa para isso além do Style
@@ -44,6 +47,15 @@
   anexar o property set em corredores e sólidos, escolher e corrigir; conferir Desfazer (U), Mostrar (zoom) e se o
   property set `Classification` chega ao IFC exportado. Hoje ele vai como property set; transformar em
   `IfcClassificationReference` no pós-processamento fica para um próximo passo.
+
+- **Confrontar planilha** (painel Dados, `MSP_CONFRONTAR`): compara os dados dos objetos com uma planilha externa (.xlsx ou .csv).
+  - Você indica o campo que identifica cada linha (Handle, Nome, uma propriedade de property set...) e a coluna da planilha com esse valor; depois escolhe os dados a conferir (propriedades dos property sets, Nome, Descrição, Layer) e a coluna de cada um. "Sugerir pelos títulos" casa sozinho as colunas que têm o nome de uma propriedade.
+  - A aba Diferenças mostra cada caso com o valor no modelo, o da planilha e o que fazer: **Diferente**, **Vazio no modelo**, **Vazio na planilha**, **Sem o campo** (property set não anexado), **Não está no modelo** (chave da planilha sem objeto) e, se marcado, **Fora da planilha**.
+  - Ações nas linhas selecionadas: **Aplicar a planilha** (numa operação só, com Ctrl+Z), **Ignorar** (fica salvo no padrão), **Voltar a conferir** e **Selecionar no modelo** (seleciona e aproxima a vista). Duplo clique também seleciona. **Relatório...** grava as linhas visíveis num .csv.
+  - **Padrões salvos** em `%APPDATA%\MetroSP\Confrontar\Civil3D`: planilha, aba, linha dos títulos, colunas, campos, opções e as diferenças ignoradas. Dá para exportar e importar o .json para passar a outra pessoa.
+  - Só entram objetos que vão para o IFC (novo `FiltroIfc`): espaço do modelo, layer ligado e descongelado, fora dos layers e blocos com `"Export": false` no mapeamento ativo, sem textos, cotas e hachuras.
+  - Mesma janela e mesmas regras do Confrontar Planilha do Revit (código comum em `src/Confronto`).
+- Falta testar no Civil 3D: abrir a janela num desenho com property sets (MB-20), escolher uma planilha, confrontar, aplicar alguns valores e desfazer com Ctrl+Z; conferir se "Selecionar no modelo" mostra a seleção com a janela aberta e se o zoom acerta; gravar Nome e Layer; salvar, reabrir e importar um padrão.
 
 ## 0.9.0
 

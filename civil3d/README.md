@@ -45,6 +45,7 @@ Os dois endereços ficam em `ExtensaoAutodeskUrl` e `VersoesMetroSpUrl` no `Metr
 | IFC 4.3 | Exportar IFC | `MSP_IFCEXPORT` |
 | IFC 4.3 | Exportar seleção | `MSP_IFCEXPORTSEL` |
 | IFC 4.3 | Configurar IFC | `MSP_IFCCONFIG` |
+| Dados | Confrontar planilha | `MSP_CONFRONTAR` |
 | Forma | Sincronizar · Entrar · Sair · Conta | `MSP_IFCSYNC` · `MSP_FORMALOGIN` · `MSP_FORMALOGOUT` · `MSP_CONFIG` |
 | Ferramentas | Só alinhamentos (IFC separado) · Pasta · Sobre · Exportador | `MSP_IFCALINHAMENTO` · `MSP_IFCPASTA` · `MSP_SOBRE` · `MSP_IFCEXTENSAO` |
 | Ação BIM · Metrô SP | selo (abre o Sobre) | `MSP_SOBRE` |
@@ -153,7 +154,11 @@ faz cada versão do Civil 3D carregar a DLL certa sozinha.
 
 ## Instalar
 
-Compile (seção abaixo) para gerar as DLLs em `MetroSP.bundle\Contents\R25` e `R26`,
+O jeito mais simples é o instalador `MetroSP-Civil3D-Setup-<versão>.exe`: feche o Civil 3D, rode o .exe e
+abra o Civil 3D de novo. Não precisa de administrador. Para gerar o instalador, rode `.\build.ps1` (compila R25 e R26,
+monta o zip e, com o Inno Setup 6 instalado, o .exe).
+
+Sem o instalador: compile (seção abaixo) para gerar as DLLs em `MetroSP.bundle\Contents\R25` e `R26`,
 rode `instalar.bat` e reinicie o Civil 3D. As DLLs não ficam versionadas no Git.
 O bundle vai para `%APPDATA%\Autodesk\ApplicationPlugins` e serve para as três versões ao mesmo tempo.
 Para instalar para todos os usuários da máquina, copie `MetroSP.bundle` para `C:\ProgramData\Autodesk\ApplicationPlugins`.
