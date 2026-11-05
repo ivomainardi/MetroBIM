@@ -41,7 +41,7 @@ namespace MetroSP.Planilha
 
             // Arquivo
             var linhaArquivo = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var procurar = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
+            var procurar = new Button { Content = "Escolher planilha...", Margin = new Thickness(6, 0, 0, 0), ToolTip = "Abre a planilha (.xlsx ou .csv) com a lista." };
             var recarregar = new Button { Content = "Recarregar", Margin = new Thickness(6, 0, 0, 0), ToolTip = "Lê a planilha de novo (depois de editá-la no Excel)." };
             procurar.Click += (s, e) => Procurar();
             recarregar.Click += (s, e) => Carregar(true);

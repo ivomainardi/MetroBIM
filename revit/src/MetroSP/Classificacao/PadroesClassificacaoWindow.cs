@@ -70,8 +70,8 @@ namespace MetroSP.Classificacao
             Acao("Novo", "Cria um padrão vazio.", Novo);
             Acao("Duplicar", "Copia o padrão aberto com outro nome.", Duplicar);
             Acao("Excluir", "Apaga o padrão aberto deste computador (as planilhas não são apagadas).", Excluir);
-            Acao("Importar...", "Abre um padrão (.json) recebido de outra pessoa e o guarda neste computador.", Importar);
-            Acao("Exportar...", "Salva o padrão aberto num .json para levar a outra máquina ou mandar para a equipe.", Exportar);
+            Acao("Importar padrão...", "Abre um padrão (.json) recebido de outra pessoa e o guarda neste computador.", Importar);
+            Acao("Exportar padrão...", "Salva o padrão aberto num .json para levar a outra máquina ou mandar para a equipe.", Exportar);
             DockPanel.SetDock(acoes, Dock.Right);
             barra.Children.Add(acoes);
             _lista = new ComboBox { MinWidth = 200 };
@@ -168,6 +168,14 @@ namespace MetroSP.Classificacao
             _mapa = new MapaColunasPainel(new MapaColunas(), SistemaClassificacao.Campos);
             _mapa.Mudou += () => { if (!_preenchendo) Alterou(); };
             _detalhe.Children.Add(_mapa);
+            // A planilha vem primeiro: é o que o usuário precisa escolher; o resto já vem preenchido.
+            _detalhe.Children.Remove(tituloPlanilha);
+            _detalhe.Children.Remove(_mapa);
+            tituloPlanilha.Margin = new Thickness(0, 0, 0, 5);
+            _detalhe.Children.Insert(0, tituloPlanilha);
+            _detalhe.Children.Insert(1, _mapa);
+            var tituloOnde = Theme.Secao("Onde fica no modelo");
+            _detalhe.Children.Insert(2, tituloOnde);
 
             var principal = new Grid();
             principal.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });

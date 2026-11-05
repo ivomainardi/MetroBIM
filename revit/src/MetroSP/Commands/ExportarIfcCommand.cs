@@ -117,6 +117,14 @@ namespace MetroSP.Commands
             string latLong;
             try { latLong = local.CorrigirLatLongIfc(arquivo); }
             catch (Exception ex) { latLong = "Não foi possível corrigir a latitude/longitude do IfcSite: " + ex.Message; }
+            // Classificação dos padrões (e Classification Manager) que o exportador deixou só em property set → IfcClassificationReference.
+            var avisosClassificacao = new List<string>();
+            try
+            {
+                var modelo = Ifc.StepModel.Load(arquivo);
+                if (Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0) modelo.Save(arquivo);
+            }
+            catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
             if (local.Erro == null)
             {
                 escolha.Latitude = local.Latitude;
@@ -124,6 +132,7 @@ namespace MetroSP.Commands
             }
             LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha, janela.EpsgEmBranco);
             if (latLong != null) conferencia.Linhas.Insert(0, latLong);
+            foreach (string a in avisosClassificacao) conferencia.Linhas.Add(char.ToUpper(a[0]) + a.Substring(1));
             if (georref != null) conferencia.Linhas.Insert(0, georref);
             string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
                 uiapp.Application.VersionName, Ui.SobreWindow.Versao);

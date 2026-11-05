@@ -1,5 +1,30 @@
 # MetroSP 0.3.0 (em teste)
 
+## Padrões e planilhas
+
+- Nova entrada **Configurar › Padrões e planilhas**: um lugar só para todos os padrões salvos (classificação,
+  confrontar planilha, setups, property sets e mapeamentos IFC) e as planilhas que eles usam.
+  - Aba **Padrões**: tipo, nome, planilhas e situação (em laranja quando a planilha não está mais no lugar);
+    **Editar...** abre o editor da ferramenta, **Excluir**, **Abrir pasta**.
+  - Aba **Planilhas**: cada planilha e quais padrões a usam; **Abrir planilha**, **Abrir pasta** e **Trocar planilha...**
+    (todos os padrões que usam a planilha passam a usar a nova).
+  - **Exportar pacote... / Importar pacote...**: leva os padrões num .zip para a equipe, com as planilhas, se quiser.
+    Ao importar, as planilhas vão para `%AppData%\MetroSP\Planilhas` e os padrões já apontam para elas.
+- Falta testar no Revit: abrir pelo ribbon, editar um padrão de classificação e um setup IFC, trocar uma planilha e
+  exportar e importar um pacote em outro computador.
+
+## Classificação no IfcClassification ao exportar o IFC
+
+- O **Exportar IFC** do MetroSP agora completa a classificação no IFC: o que o exportador do Revit deixou só como
+  propriedade (parâmetros dos padrões do Verificar classificação com outro nome, `Classification.Uniformat.Number`/
+  `.Description` do Classification Manager) vira `IfcClassification` + `IfcClassificationReference` +
+  `IfcRelAssociatesClassification`. O que o exportador já classificou (`ClassificationCode`, Código de montagem,
+  OmniClass) não é repetido. O nome da classificação e a edição vêm do padrão. No IFC 2x3 não grava. O resultado aparece
+  na janela do fim da exportação.
+- Só funciona para parâmetros que o exportador leva como propriedade (property sets do Revit ou do setup).
+- Falta testar no Revit: exportar um modelo com um padrão de duas classificações (uma em `ClassificationCode`, outra
+  em parâmetro próprio ou no Classification Manager) e abrir o IFC num visualizador para ver as duas classificações.
+
 ## Verificar classificação com padrões e várias classificações
 
 - **Padrões salvos:** o Verificar classificação passou a trabalhar com **padrões** (lista no topo da janela e botão

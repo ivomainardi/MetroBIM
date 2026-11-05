@@ -68,6 +68,10 @@ namespace MetroSP
             PulldownButton configurar = AddPulldown(panel, "Configurar", "Configurar",
                 "Passo 2 da entrega IFC. Os arquivos da classe (setup, property sets e mapeamentos) e em que classe IFC cada categoria do Revit sai.",
                 "Etapa2");
+            AddToPulldown<PadroesCommand>(configurar, "Padrões e planilhas",
+                "Todos os padrões salvos (classificação, confronto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
+                "editar, trocar a planilha de todos de uma vez e levar para a equipe num .zip.",
+                "Padroes");
             AddToPulldown<ArquivosIfcCommand>(configurar, "Arquivos IFC",
                 "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
                 "principais do setup e confira os property sets no modelo aberto.",
