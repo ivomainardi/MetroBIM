@@ -1,6 +1,9 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## Próxima versão (em preparo)
+## 0.10.0 (em teste)
+
+- **Instalador com a identidade MetroSP** (`MetroSP-Civil3D-Setup-0.10.0.exe`), igual ao do Revit: instala o bundle só para o usuário, sem administrador, em `%APPDATA%\Autodesk\ApplicationPlugins\MetroSP.bundle`, e serve para o Civil 3D 2025, 2026 e 2027. Aparece em Aplicativos instalados para desinstalar. O `MetroSP.settings.json` (Forma/APS) só é gravado na primeira instalação, para não apagar o que já foi preenchido. O zip com o bundle e o `instalar.bat` continua saindo junto. Gerado por `build.ps1`.
+- Falta testar no Windows: instalar por cima da 0.9 (zip), abrir o Civil 3D 2025/2026/2027 e ver a aba MetroSP; desinstalar e conferir se a pasta do bundle sai.
 
 - **Verificar classificação** (painel Classificação, comando `MSP_CLASSVERIFICAR`): confere a classificação dos objetos
   que vão para o IFC (mesmo filtro das outras ferramentas) com planilhas externas, e propõe as correções.

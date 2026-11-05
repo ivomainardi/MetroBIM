@@ -142,7 +142,11 @@ faz cada versão do Civil 3D carregar a DLL certa sozinha.
 
 ## Instalar
 
-Compile (seção abaixo) para gerar as DLLs em `MetroSP.bundle\Contents\R25` e `R26`,
+O jeito mais simples é o instalador `MetroSP-Civil3D-Setup-<versão>.exe`: feche o Civil 3D, rode o .exe e
+abra o Civil 3D de novo. Não precisa de administrador. Para gerar o instalador, rode `.\build.ps1` (compila R25 e R26,
+monta o zip e, com o Inno Setup 6 instalado, o .exe).
+
+Sem o instalador: compile (seção abaixo) para gerar as DLLs em `MetroSP.bundle\Contents\R25` e `R26`,
 rode `instalar.bat` e reinicie o Civil 3D. As DLLs não ficam versionadas no Git.
 O bundle vai para `%APPDATA%\Autodesk\ApplicationPlugins` e serve para as três versões ao mesmo tempo.
 Para instalar para todos os usuários da máquina, copie `MetroSP.bundle` para `C:\ProgramData\Autodesk\ApplicationPlugins`.
