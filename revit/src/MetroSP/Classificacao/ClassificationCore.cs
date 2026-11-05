@@ -133,13 +133,20 @@ namespace MetroSP.Classificacao
 
         // ------------------------------------------------------------------ elementos
 
-        public static List<Element> Elementos(Document doc, ICollection<ElementId> selecao, ElementId vista)
+        /// <param name="soIfc">Só os elementos que vão para o IFC (regra de todas as ferramentas MetroSP).</param>
+        public static List<Element> Elementos(Document doc, ICollection<ElementId> selecao, ElementId vista, bool soIfc = true)
         {
             IEnumerable<Element> elems = selecao != null
                 ? selecao.Select(doc.GetElement).Where(e => e != null && !(e is ElementType))
                 : (vista != null ? new FilteredElementCollector(doc, vista) : new FilteredElementCollector(doc)).WhereElementIsNotElementType();
-            return elems.Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model && !(e is View) &&
-                                    !(e is RevitLinkInstance) && !(e is ImportInstance)).ToList(); // vínculos: classificar no arquivo de origem
+            elems = elems.Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model && !(e is View) &&
+                                     !(e is RevitLinkInstance) && !(e is ImportInstance)); // vínculos: classificar no arquivo de origem
+            if (soIfc)
+            {
+                ElementId fase = Ids.FiltroIfc.Fase(doc, -1, vista);
+                elems = elems.Where(e => Ids.FiltroIfc.VaiParaIfc(doc, e, fase));
+            }
+            return elems.ToList();
         }
 
         /// <summary>

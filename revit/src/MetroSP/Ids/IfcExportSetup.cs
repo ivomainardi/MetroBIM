@@ -50,6 +50,9 @@ namespace MetroSP.Ids
         public bool ExportaPsetsUsuario { get; }
         public bool ExportaMapeamentoParametros { get; }
         public bool SoVisiveisNaVista { get; }
+
+        /// <summary>Id da fase escolhida no setup (-1 = padrão do exportador).</summary>
+        public long Fase => _props.TryGetValue("ActivePhaseId", out JsonElement f) && f.TryGetInt64(out long n) ? n : -1;
         public bool GravaGuid { get; }
         public ArquivoResolvido PropertySets { get; }
         public ArquivoResolvido MapeamentoParametros { get; }

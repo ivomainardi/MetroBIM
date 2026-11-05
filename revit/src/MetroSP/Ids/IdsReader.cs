@@ -18,9 +18,9 @@ namespace MetroSP.Ids
 
         public static IdsDocument Load(XDocument xml)
         {
-            XElement root = xml.Root ?? throw new InvalidDataException("Arquivo IDS vazio.");
+            XElement root = xml.Root ?? throw new InvalidDataException("Arquivo de padrões (.ids) vazio.");
             if (root.Name.LocalName != "ids")
-                throw new InvalidDataException("O arquivo não é um IDS (elemento raiz <ids> não encontrado).");
+                throw new InvalidDataException("O arquivo não é de padrões .ids (elemento raiz <ids> não encontrado).");
 
             var doc = new IdsDocument();
             XElement info = Child(root, "info");

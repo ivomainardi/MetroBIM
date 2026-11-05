@@ -24,7 +24,7 @@ namespace MetroSP.Ids
             Width = 680;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            ResizeMode = ResizeMode.CanResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             MinWidth = 540;
 
             _painel = new LocalizacaoPainel(local);

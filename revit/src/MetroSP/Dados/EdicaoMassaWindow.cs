@@ -47,7 +47,8 @@ namespace MetroSP.Dados
         private List<LinhaImportacao> _linhas;
         private FilterableGrid _tabela;
 
-        public EdicaoMassaWindow(Autodesk.Revit.UI.UIDocument uidoc)
+        /// <param name="parametro">Nome do parâmetro a deixar escolhido (ex.: vindo do Conferir Entrega).</param>
+        public EdicaoMassaWindow(Autodesk.Revit.UI.UIDocument uidoc, string parametro = null)
         {
             _uidoc = uidoc;
             _doc = uidoc.Document;
@@ -132,6 +133,8 @@ namespace MetroSP.Dados
             foreach (CheckBox c in new[] { _regex, _maiusculas, _soVazios }) c.Click += (s, e) => Invalidar();
             _parametro.SelectionChanged += (s, e) => Invalidar();
             Carregar();
+            if (!string.IsNullOrEmpty(parametro))
+                _parametro.SelectedItem = _candidatos.FirstOrDefault(r => string.Equals(r.Nome, parametro, StringComparison.CurrentCultureIgnoreCase));
             MudouOperacao();
         }
 

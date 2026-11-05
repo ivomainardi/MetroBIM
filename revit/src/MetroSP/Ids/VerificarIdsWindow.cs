@@ -18,11 +18,11 @@ namespace MetroSP.Ids
 
         public VerificarIdsWindow(IdsSettings settings)
         {
-            Title = "MetroSP - Verificar mapeamento IDS";
+            Title = "MetroSP - Verificar Padrões Metrô";
             Width = 600;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
-            ResizeMode = ResizeMode.CanResize;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             MinWidth = 480;
 
             var panel = new StackPanel();
@@ -30,7 +30,7 @@ namespace MetroSP.Ids
             secao.Margin = new Thickness(0, 0, 0, 5);
             panel.Children.Add(secao);
             panel.Children.Add(Theme.Grupo(out StackPanel lista));
-            _ids = AddFileRow(lista, "IDS", settings.IdsFile, "IDS (*.ids;*.xml)|*.ids;*.xml", true, "Arquivo IDS com as exigências de informação.");
+            _ids = AddFileRow(lista, "Padrões (.ids)", settings.IdsFile, "Padrões Metrô (*.ids;*.xml)|*.ids;*.xml", true, "Arquivo .ids (formato IDS da buildingSMART) com as exigências de informação do Metrô.");
             _psets = AddFileRow(lista, "Property sets", settings.PropertySetsFile, "Texto (*.txt)|*.txt", false, "Opcional: .txt de property sets definidos pelo usuário.");
             _categorias = AddFileRow(lista, "Classes IFC", settings.CategoryMappingFile, "Texto (*.txt)|*.txt", false, "Opcional: tabela de classes IFC. Sem ela, vale o padrão do exportador.");
 
@@ -47,7 +47,7 @@ namespace MetroSP.Ids
             {
                 if (!File.Exists(_ids.Text.Trim()))
                 {
-                    MessageBox.Show(this, "Indique um arquivo IDS válido.", Title);
+                    MessageBox.Show(this, "Indique um arquivo de padrões (.ids) válido.", Title);
                     return;
                 }
                 foreach (TextBox opcional in new[] { _psets, _categorias })
@@ -67,7 +67,7 @@ namespace MetroSP.Ids
             };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
 
-            Theme.Apply(this, "Verificar mapeamento IDS", "Confere parâmetros e mapeamento de exportação IFC antes de exportar", panel, Theme.Rodape(_resumo, cancelar, ok));
+            Theme.Apply(this, "Verificar Padrões Metrô", "Confere parâmetros e mapeamento de exportação IFC antes de exportar", panel, Theme.Rodape(_resumo, cancelar, ok));
             AtualizarResumo();
         }
 
@@ -88,6 +88,16 @@ namespace MetroSP.Ids
             var arquivo = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new System.Windows.Media.FontFamily("Consolas") };
             Border selo = Theme.Selo();
             var procurar = new Button { Content = "Procurar..." };
+            // Opcional: o ✕ tira o arquivo escolhido (o arquivo em si não é apagado).
+            var tirar = new Button
+            {
+                Content = "✕", MinWidth = 0, Width = 28, Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(6, 0, 0, 0),
+                ToolTip = $"Tirar {nome.ToLowerInvariant()} da verificação (o arquivo não é apagado).",
+                Visibility = obrigatorio ? Visibility.Collapsed : Visibility.Visible,
+            };
+            var acoes = new StackPanel { Orientation = Orientation.Horizontal };
+            acoes.Children.Add(procurar);
+            acoes.Children.Add(tirar);
             var box = new TextBox();
             void Mostrar()
             {
@@ -98,12 +108,13 @@ namespace MetroSP.Ids
                 if (t.Length == 0) Theme.MudarSelo(selo, obrigatorio ? "obrigatório" : "", obrigatorio ? Theme.Estado.Aviso : Theme.Estado.Neutro);
                 else if (File.Exists(t)) Theme.MudarSelo(selo, "ok", Theme.Estado.Ok);
                 else Theme.MudarSelo(selo, "não encontrado", Theme.Estado.Aviso, t);
+                tirar.IsEnabled = t.Length > 0;
                 AtualizarResumo();
             }
             box.TextChanged += (s, e) => Mostrar();
             box.Text = value ?? string.Empty;
             _arquivos.Add((nome, box, obrigatorio));
-            lista.Children.Add(Theme.Item(nome, arquivo, selo, procurar, null, lista.Children.Count == 0));
+            lista.Children.Add(Theme.Item(nome, arquivo, selo, acoes, null, lista.Children.Count == 0));
             Mostrar();
 
             procurar.Click += (s, e) =>
@@ -116,6 +127,7 @@ namespace MetroSP.Ids
                 }
                 if (dialogo.ShowDialog(this) == true) box.Text = dialogo.FileName;
             };
+            tirar.Click += (s, e) => box.Text = string.Empty;
             return box;
         }
     }

@@ -11,6 +11,7 @@ using System.Windows.Media;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using MetroSP.Commands;
+using MetroSP.Dados;
 using MetroSP.Ids;
 using MetroSP.Ui;
 using WColor = System.Windows.Media.Color;
@@ -89,7 +90,7 @@ namespace MetroSP.Conferencia
             };
             var barraDock = new DockPanel();
             var botoesBarra = new StackPanel { Orientation = Orientation.Horizontal };
-            var trocar = new Button { Content = "Pacote...", ToolTip = "Abrir ou editar o pacote do Metrô (IDS, setup, psets, planilha, MetroShared)." };
+            var trocar = new Button { Content = "Padrões...", ToolTip = "Abrir ou editar os padrões do Metrô (IDS, setup, psets, planilha, MetroShared)." };
             _escopo = new System.Windows.Controls.ComboBox { Width = 150, Margin = new Thickness(8, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center };
             _escopo.Items.Add("Modelo inteiro");
             _escopo.Items.Add("Só a vista ativa");
@@ -148,7 +149,7 @@ namespace MetroSP.Conferencia
             var csv = new Button { Content = "Exportar pendências (.csv)..." };
             var limpar = new Button { Content = "Limpar pintura", ToolTip = "Devolve a aparência original dos elementos pintados pela conferência." };
             var fechar = new Button { Content = "Fechar" };
-            _exportarIfc = new Button { Content = "Exportar IFC...", Style = Theme.PrimaryButton, ToolTip = "Abre o Exportar IFC com o setup e o .txt do pacote." };
+            _exportarIfc = new Button { Content = "Exportar IFC...", Style = Theme.PrimaryButton, ToolTip = "Abre o Exportar IFC com o setup e o .txt dos padrões." };
             var rodape = new DockPanel();
             StackPanel direita = Theme.Buttons(fechar, _exportarIfc);
             DockPanel.SetDock(direita, Dock.Right);
@@ -191,10 +192,12 @@ namespace MetroSP.Conferencia
         /// <summary>Mostra um resultado novo, mantendo a etapa escolhida.</summary>
         public void Mostrar(ResultadoConferencia res)
         {
+            var chave = _celula != null ? (_celula.Categoria, _celula.Campo) : default;
             _res = res;
-            _celula = null;
-            _pacoteNome.Text = "Pacote: " + _pacote.NomeExibido;
-            _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos que vão para o IFC ({res.Escopo}) · conferido às {res.Quando:HH:mm}";
+            _celula = _celula != null && res.Matriz.TryGetValue(chave, out CelulaMatriz mesma) && mesma.TemPendencia ? mesma : null;
+            _pacoteNome.Text = "Padrões: " + _pacote.NomeExibido;
+            _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos nos padrões" + (res.ForaDoPadrao > 0 ? $" (+{res.ForaDoPadrao} fora, na etapa 3)" : "") +
+                               $" ({res.Escopo}) · conferido às {res.Quando:HH:mm}";
             _pacoteInfo.ToolTip = _pacote.Arquivo;
 
             _resumoPct.Text = $"{Math.Floor(res.Progresso * 100):0}%";
@@ -234,7 +237,7 @@ namespace MetroSP.Conferencia
             var exportar = Cartao(new EtapaConferencia
             {
                 Numero = 6, Titulo = "Exportar IFC",
-                Resumo = pronto ? "Pode exportar com o setup e o .txt do pacote." : "Exporta mesmo com pendências, mas avisa antes.",
+                Resumo = pronto ? "Pode exportar com o setup e o .txt dos padrões." : "Exporta mesmo com pendências, mas avisa antes.",
                 Sinal = pronto ? Sinal.Verde : Sinal.Cinza,
             }, clicavel: false);
             exportar.Cursor = Cursors.Hand;
@@ -345,10 +348,37 @@ namespace MetroSP.Conferencia
                 botoes.Children.Add(BotaoSelecionar(Escolhidos));
                 botoes.Children.Add(BotaoPintar(Escolhidos));
             }
+            string ParametroEscolhido()
+            {
+                List<string> nomes = (grid.SelectedItems.Count > 0 ? grid.SelectedItems.Cast<Pendencia>() : tabela.VisibleItems<Pendencia>())
+                    .Select(p => p.Parametro).Where(n => !string.IsNullOrEmpty(n)).Distinct(StringComparer.CurrentCultureIgnoreCase).ToList();
+                return nomes.Count == 1 ? nomes[0] : null;
+            }
             foreach (Correcao c in itens.Select(p => p.Correcao).Append(etapa.Correcao).Where(c => c != Correcao.Nenhuma).Distinct())
             {
-                Button b = BotaoCorrecao(c, () => grid.SelectedItems.Count > 0 ? Escolhidos() : null);
+                Button b = c == Correcao.EditarEmMassa
+                    ? BotaoCorrecao(c, Escolhidos, ParametroEscolhido)
+                    : BotaoCorrecao(c, () => grid.SelectedItems.Count > 0 ? Escolhidos() : null);
                 if (b != null) botoes.Children.Add(b);
+            }
+            if (etapa.Numero == 3 && itens.Any(p => p.Elementos.Count > 0))
+            {
+                // Corrigir aqui: grava a classe no "Exportar para IFC como" dos tipos (ou da instância, se ela já tiver um valor).
+                var classe = new System.Windows.Controls.ComboBox { IsEditable = true, MinWidth = 220, Padding = new Thickness(4, 2, 4, 2), VerticalAlignment = VerticalAlignment.Center };
+                foreach (string c in _res.ClassesDoPadrao) classe.Items.Add(c);
+                classe.ToolTip = "Classes que fazem parte dos padrões. Também dá para digitar outra (ex.: IfcBeam).";
+                var definir = new Button
+                {
+                    Content = "Definir classe", Style = Theme.PrimaryButton, Margin = new Thickness(8, 0, 6, 0),
+                    ToolTip = "Grava a classe no \"Exportar para IFC como\" do tipo dos elementos das linhas escolhidas (ou de todas as visíveis) e confere de novo. Ctrl+Z no Revit desfaz.",
+                };
+                definir.Click += (s, e) => DefinirClasse(Escolhidos(), classe.Text);
+                var linhaClasse = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+                linhaClasse.Children.Add(new TextBlock { Text = "Exportar como", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
+                linhaClasse.Children.Add(classe);
+                linhaClasse.Children.Add(definir);
+                DockPanel.SetDock(linhaClasse, Dock.Bottom);
+                dock.Children.Add(linhaClasse);
             }
             if (etapa.Numero == 2 && _res.Ids != null && !itens.Any(p => p.Correcao == Correcao.DetalhesIds))
                 botoes.Children.Add(BotaoCorrecao(Correcao.DetalhesIds, () => null));
@@ -387,7 +417,7 @@ namespace MetroSP.Conferencia
             DockPanel.SetDock(opcoes, Dock.Top);
             dock.Children.Add(opcoes);
 
-            var detalhe = new ContentControl { Height = 230, Margin = new Thickness(0, 8, 0, 0) };
+            var detalhe = new ContentControl { Height = 270, Margin = new Thickness(0, 8, 0, 0) };
             DockPanel.SetDock(detalhe, Dock.Bottom);
             dock.Children.Add(detalhe);
 
@@ -403,7 +433,7 @@ namespace MetroSP.Conferencia
                 var g = new WGrid { Background = Brushes.White };
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(210) });
                 g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(56) });
-                foreach (string _ in campos) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });
+                foreach (string _ in campos) g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
                 g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
                 foreach (var _ in categorias) g.RowDefinitions.Add(new RowDefinition { Height = new GridLength(28) });
 
@@ -415,7 +445,7 @@ namespace MetroSP.Conferencia
                 {
                     string campo = campos[j];
                     int corte = campo.IndexOf('.');
-                    var h = Cabecalho(corte > 0 ? campo.Substring(corte + 1) : campo, true);
+                    var h = CabecalhoCampo(corte > 0 ? campo.Substring(corte + 1) : campo, corte > 0 ? campo.Substring(0, corte) : null);
                     h.ToolTip = campo;
                     Pos(h, 0, j + 2);
                 }
@@ -557,12 +587,52 @@ namespace MetroSP.Conferencia
             }
             if (c.Pendentes.Any(p => p.Problema == ConferenciaEntrega.ProblemaSemParametro))
                 botoes.Children.Add(BotaoCorrecao(Correcao.ParametrosDeProjeto, () => null));
+            if (c.SemMapeamento)
+                botoes.Children.Add(BotaoCorrecao(Correcao.EditarPropertySets, () => null));
             if (c.SemMapeamento && _res.Ids != null)
                 botoes.Children.Add(BotaoCorrecao(Correcao.DetalhesIds, () => null));
             DockPanel.SetDock(botoes, Dock.Right);
             topo.Children.Add(botoes);
             topo.Children.Add(titulo);
             dock.Children.Add(topo);
+
+            // Corrigir aqui: grava um valor no parâmetro dos elementos vazios ou fora do exigido.
+            if (!c.SemMapeamento && c.NaoConferido == null && linhas.Any(l => l.Problema != ConferenciaEntrega.ProblemaSemParametro))
+            {
+                List<ElementId> AParaPreencher() =>
+                    (grid.SelectedItems.Count > 0 ? grid.SelectedItems.Cast<LinhaDetalhe>() : linhas)
+                    .Where(l => l.Problema != ConferenciaEntrega.ProblemaSemParametro).SelectMany(l => l.Ids).Distinct().ToList();
+
+                var barra = new DockPanel { Margin = new Thickness(8, 6, 8, 6) };
+                var rotulo = new TextBlock
+                {
+                    Text = $"Preencher \"{c.Parametro}\"" + (c.NoTipo ? " (nos tipos)" : "") + " com",
+                    VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0),
+                };
+                DockPanel.SetDock(rotulo, Dock.Left);
+                barra.Children.Add(rotulo);
+                var valor = new System.Windows.Controls.ComboBox { IsEditable = true, MinWidth = 220, Padding = new Thickness(4, 2, 4, 2), VerticalAlignment = VerticalAlignment.Center };
+                foreach (string o in c.Opcoes) valor.Items.Add(o);
+                if (c.Opcoes.Count == 1) valor.Text = c.Opcoes[0];
+                valor.ToolTip = c.Opcoes.Count > 0 ? "Escolha um dos valores aceitos pelo IDS ou digite." : "Digite o valor. Sim/Não aceita Sim ou Não; medidas usam as unidades do projeto.";
+                DockPanel.SetDock(valor, Dock.Left);
+                barra.Children.Add(valor);
+                var preencher = new Button
+                {
+                    Content = "Preencher", Style = Theme.PrimaryButton, Margin = new Thickness(8, 0, 6, 0),
+                    ToolTip = "Grava o valor nas linhas escolhidas (ou, sem escolha, em todas as vazias e fora do exigido) e confere de novo. Ctrl+Z no Revit desfaz.",
+                };
+                preencher.Click += (s, e) => Preencher(c, AParaPreencher(), valor.Text);
+                DockPanel.SetDock(preencher, Dock.Left);
+                barra.Children.Add(preencher);
+                var massa = BotaoCorrecao(Correcao.EditarEmMassa, AParaPreencher, () => c.Parametro);
+                massa.ToolTip = "Para juntar outros parâmetros ({Nível}-{Marca}), prefixos ou localizar e substituir: abre o Editar em Massa com estes elementos e o parâmetro.";
+                DockPanel.SetDock(massa, Dock.Left);
+                barra.Children.Add(massa);
+                barra.Children.Add(new TextBlock());
+                dock.Children.Add(new Border { BorderBrush = Theme.Solid(Theme.CinzaClaro), BorderThickness = new Thickness(0, 0, 0, 1), Child = barra });
+                DockPanel.SetDock(dock.Children[dock.Children.Count - 1], Dock.Top);
+            }
 
             if (linhas.Count > 0) dock.Children.Add(grid);
             else dock.Children.Add(new TextBlock
@@ -575,16 +645,40 @@ namespace MetroSP.Conferencia
             return borda;
         }
 
+        /// <summary>
+        /// Título de coluna da matriz na horizontal: a propriedade em negrito, quebrando entre as palavras
+        /// (ModuloElasticidade → Modulo Elasticidade), e o property set em cinza embaixo.
+        /// </summary>
+        private static Border CabecalhoCampo(string propriedade, string pset)
+        {
+            var painel = new StackPanel { Margin = new Thickness(4, 4, 4, 4), VerticalAlignment = VerticalAlignment.Bottom };
+            painel.Children.Add(new TextBlock
+            {
+                Text = Quebravel(propriedade), FontWeight = FontWeights.SemiBold, FontSize = 11,
+                TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxHeight = 46, TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+            if (!string.IsNullOrEmpty(pset))
+                painel.Children.Add(new TextBlock
+                {
+                    Text = pset, FontSize = 10, Foreground = Theme.Solid(Theme.Cinza),
+                    TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis,
+                });
+            return new Border
+            {
+                Background = Theme.Solid(Theme.CinzaFundo),
+                BorderBrush = Theme.Solid(Theme.Preto),
+                BorderThickness = new Thickness(0, 0, 0, 2),
+                Child = painel,
+            };
+        }
+
+        /// <summary>Deixa quebrar a linha nas trocas de minúscula para maiúscula e depois de _ e -.</summary>
+        private static string Quebravel(string s) =>
+            System.Text.RegularExpressions.Regex.Replace(s ?? "", @"(?<=[a-zà-ú0-9])(?=[A-ZÀ-Ú])|(?<=[_\-])", "\u200B");
+
         private static Border Cabecalho(string texto, bool vertical)
         {
             var t = new TextBlock { Text = texto, FontWeight = FontWeights.SemiBold, Margin = new Thickness(6, 4, 6, 4), VerticalAlignment = VerticalAlignment.Bottom };
-            if (vertical)
-            {
-                t.LayoutTransform = new RotateTransform(-90);
-                t.HorizontalAlignment = HorizontalAlignment.Center;
-                t.MaxWidth = 190;
-                t.TextTrimming = TextTrimming.CharacterEllipsis;
-            }
             return new Border
             {
                 Background = Theme.Solid(Theme.CinzaFundo),
@@ -619,21 +713,24 @@ namespace MetroSP.Conferencia
             return b;
         }
 
-        private Button BotaoCorrecao(Correcao c, Func<List<ElementId>> selecionarAntes)
+        private Button BotaoCorrecao(Correcao c, Func<List<ElementId>> selecionarAntes, Func<string> parametro = null)
         {
             string texto, dica;
             switch (c)
             {
-                case Correcao.EditarPacote: texto = "Editar o pacote..."; dica = "Escolher os arquivos do Metrô."; break;
+                case Correcao.EditarPacote: texto = "Editar os padrões..."; dica = "Escolher os arquivos do Metrô."; break;
                 case Correcao.ParametrosDeProjeto: texto = "Parâmetros de projeto..."; dica = "Abre a janela Parâmetros de projeto do Revit para vincular o parâmetro às categorias. Depois clique em Conferir de novo."; break;
                 case Correcao.ListarCompartilhados: texto = "Listar Compartilhados..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
-                case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha do pacote."; break;
-                case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha do pacote: ela propõe as correções."; break;
-                case Correcao.DetalhesIds: texto = "Detalhes do IDS..."; dica = "Abre o resultado completo do Verificar Mapeamento IDS."; break;
+                case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha dos padrões."; break;
+                case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha dos padrões: ela propõe as correções."; break;
+                case Correcao.DetalhesIds: texto = "Detalhes dos padrões (IDS)..."; dica = "Abre o resultado completo do Verificar Padrões Metrô."; break;
+                case Correcao.EditarEmMassa: texto = "Editar em Massa..."; dica = "Seleciona os elementos (as linhas escolhidas ou, sem escolha, todas) e abre o Editar em Massa já no parâmetro. Ao fechar, confere de novo."; break;
+                case Correcao.CategoriasIfc: texto = "Categorias IFC..."; dica = "Abre a tabela categoria do Revit → classe IFC para definir a classe dos elementos. Ao fechar, confere de novo."; break;
+                case Correcao.EditarPropertySets: texto = "Editar property sets..."; dica = "Abre o .txt de property sets dos padrões no editor, para incluir ou corrigir propriedades. Ao salvar, confere de novo."; break;
                 default: return null;
             }
             var b = new Button { Content = texto, ToolTip = dica, Margin = new Thickness(0, 0, 6, 0) };
-            b.Click += (s, e) => Corrigir(c, selecionarAntes?.Invoke());
+            b.Click += (s, e) => Corrigir(c, selecionarAntes?.Invoke(), parametro?.Invoke());
             return b;
         }
 
@@ -710,9 +807,15 @@ namespace MetroSP.Conferencia
             Conferir();
         }
 
-        private void Corrigir(Correcao c, List<ElementId> selecionarAntes)
+        private void Corrigir(Correcao c, List<ElementId> selecionarAntes, string parametro = null)
         {
             if (c == Correcao.EditarPacote) { EditarPacote(); return; }
+            if (c == Correcao.EditarPropertySets && (string.IsNullOrWhiteSpace(_pacote.PropertySets) || !File.Exists(_pacote.PropertySets)))
+            {
+                MessageBox.Show(this, "Os padrões não indicam um .txt de property sets que exista neste computador. Escolha o arquivo em Padrões.", "MetroSP");
+                EditarPacote();
+                return;
+            }
             _pacote.AplicarNasOutrasFerramentas();
             Revit(app =>
             {
@@ -734,16 +837,148 @@ namespace MetroSP.Conferencia
                         VerificarClassificacaoCommand.Abrir(app);
                         Mostrar(Executar(app, _doc, _pacote));
                         break;
+                    case Correcao.EditarEmMassa:
+                    {
+                        UIDocument uidoc = app.ActiveUIDocument;
+                        if (selecionarAntes != null && selecionarAntes.Count > 0)
+                            uidoc.Selection.SetElementIds(selecionarAntes.Where(id => _doc.GetElement(id) != null).ToList());
+                        var massa = new EdicaoMassaWindow(uidoc, parametro);
+                        new WindowInteropHelper(massa).Owner = app.MainWindowHandle;
+                        massa.ShowDialog();
+                        Mostrar(Executar(app, _doc, _pacote));
+                        break;
+                    }
+                    case Correcao.CategoriasIfc:
+                    {
+                        var categorias = new CategoriasIfcWindow(_doc);
+                        new WindowInteropHelper(categorias).Owner = app.MainWindowHandle;
+                        categorias.ShowDialog();
+                        Mostrar(Executar(app, _doc, _pacote));
+                        break;
+                    }
+                    case Correcao.EditarPropertySets:
+                    {
+                        EditarPsetsWindow editor;
+                        try
+                        {
+                            var modelo = new ModeloIfc(_doc);
+                            editor = new EditarPsetsWindow(_pacote.PropertySets, modelo.Parametros, _pacote.PropertySets, podeRestaurar: false, modelo: modelo);
+                        }
+                        catch (Exception ex) { TaskDialog.Show("MetroSP", "Não deu para abrir o .txt de property sets:\n" + ex.Message); break; }
+                        new WindowInteropHelper(editor).Owner = app.MainWindowHandle;
+                        if (editor.ShowDialog() == true) Mostrar(Executar(app, _doc, _pacote));
+                        break;
+                    }
                     case Correcao.DetalhesIds:
                         (IdsDocument ids, List<CheckResult> resultados) d;
                         ElementId vista = VistaDoEscopo(app, _pacote, out _);
-                        using (Progresso.Abrir("Verificar mapeamento IDS"))
+                        using (Progresso.Abrir("Verificar Padrões Metrô"))
                             d = ConferenciaEntrega.DetalhesIds(_doc, _pacote, vista);
-                        if (d.ids == null) { TaskDialog.Show("MetroSP", "O pacote não tem IDS."); break; }
+                        if (d.ids == null) { TaskDialog.Show("MetroSP", "Os padrões não têm IDS."); break; }
                         var janela = new ResultadosIdsWindow(d.ids, d.resultados);
                         new WindowInteropHelper(janela).Owner = app.MainWindowHandle;
                         janela.Show();
                         break;
+                }
+            });
+        }
+
+        /// <summary>
+        /// Define a classe IFC dos elementos: grava no "Exportar para IFC como" do tipo; se a instância já tem um valor
+        /// próprio (que vale antes do tipo), ou o tipo não aceita, grava na instância.
+        /// </summary>
+        private void DefinirClasse(List<ElementId> ids, string classe)
+        {
+            classe = (classe ?? "").Trim();
+            if (ids.Count == 0) return;
+            if (!classe.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase))
+            {
+                MessageBox.Show(this, "Escolha ou escreva uma classe IFC (ex.: IfcBeam).", "MetroSP");
+                return;
+            }
+            if (MessageBox.Show(this, $"Exportar {ids.Count} elemento(s) como {classe}?\n\nGrava no \"Exportar para IFC como\" dos tipos (vale para todas as instâncias desses tipos). Ctrl+Z no Revit desfaz.",
+                    "MetroSP", MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes) != MessageBoxResult.Yes)
+                return;
+
+            Revit(app =>
+            {
+                int tipos = 0, instancias = 0, falhas = 0;
+                var feitos = new HashSet<ElementId>();
+                using (var t = new Transaction(_doc, "MetroSP - Definir classe IFC"))
+                {
+                    t.Start();
+                    foreach (ElementId id in ids)
+                    {
+                        Element e = _doc.GetElement(id);
+                        if (e == null) continue;
+                        Parameter inst = e.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_AS);
+                        Element tipo = _doc.GetElement(e.GetTypeId());
+                        Parameter doTipo = tipo?.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_TYPE_AS);
+                        bool instanciaTemValor = inst != null && !string.IsNullOrWhiteSpace(inst.AsString());
+                        if (!instanciaTemValor && doTipo != null && !doTipo.IsReadOnly)
+                        {
+                            if (!feitos.Add(tipo.Id)) continue;
+                            if (doTipo.Set(classe)) tipos++; else falhas++;
+                        }
+                        else if (inst != null && !inst.IsReadOnly)
+                        {
+                            if (inst.Set(classe)) instancias++; else falhas++;
+                        }
+                        else falhas++;
+                    }
+                    if (tipos + instancias > 0) t.Commit(); else t.RollBack();
+                }
+                Mostrar(Executar(app, _doc, _pacote));
+                if (falhas > 0)
+                    TaskDialog.Show("MetroSP", $"Classe gravada em {tipos} tipo(s) e {instancias} instância(s).\n{falhas} elemento(s) não aceitam o \"Exportar para IFC como\" (use Categorias IFC para a categoria inteira).");
+            });
+        }
+
+        /// <summary>Grava o mesmo valor no parâmetro da célula (na instância ou no tipo) e confere de novo.</summary>
+        private void Preencher(CelulaMatriz c, List<ElementId> ids, string texto)
+        {
+            if (ids.Count == 0) return;
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                MessageBox.Show(this, "Escreva ou escolha o valor a preencher.", "MetroSP");
+                return;
+            }
+            string onde = c.NoTipo ? $"nos tipos de {ids.Count} elemento(s) (vale para todas as instâncias desses tipos)" : $"em {ids.Count} elemento(s)";
+            if (MessageBox.Show(this, $"Gravar \"{texto.Trim()}\" em \"{c.Parametro}\" {onde}?\n\nCtrl+Z no Revit desfaz.", "MetroSP",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.Yes) != MessageBoxResult.Yes)
+                return;
+
+            Revit(app =>
+            {
+                int gravados = 0, semParametro = 0, falhas = 0;
+                string motivo = null;
+                var feitos = new HashSet<ElementId>();
+                using (var t = new Transaction(_doc, $"MetroSP - Preencher {c.Parametro}"))
+                {
+                    t.Start();
+                    foreach (ElementId id in ids)
+                    {
+                        Element e = _doc.GetElement(id);
+                        if (e == null) continue;
+                        Element tipo = _doc.GetElement(e.GetTypeId());
+                        Parameter p = c.NoTipo ? tipo?.LookupParameter(c.Parametro) ?? e.LookupParameter(c.Parametro)
+                                               : e.LookupParameter(c.Parametro) ?? tipo?.LookupParameter(c.Parametro);
+                        if (p == null) { semParametro++; continue; }
+                        if (!feitos.Add(p.Element.Id)) continue;
+                        if (!Valores.Editavel(p)) { falhas++; motivo = motivo ?? "o parâmetro é só leitura (calculado ou de referência)"; continue; }
+                        if (!Valores.Converter(_doc, p, texto, out object v, out string m)) { falhas++; motivo = motivo ?? m; continue; }
+                        if (Valores.Igual(p, v) || Valores.Gravar(p, v)) gravados++;
+                        else { falhas++; motivo = motivo ?? "o Revit não aceitou o valor"; }
+                    }
+                    if (gravados > 0) t.Commit(); else t.RollBack();
+                }
+                Mostrar(Executar(app, _doc, _pacote));
+                if (falhas > 0 || semParametro > 0)
+                {
+                    var sb = new StringBuilder($"Gravado em {gravados} " + (c.NoTipo ? "tipo(s)." : "elemento(s)."));
+                    if (falhas > 0) sb.Append($"\n{falhas} não gravado(s): {motivo}.");
+                    if (semParametro > 0) sb.Append($"\n{semParametro} elemento(s) sem o parâmetro: vincule-o à categoria em Parâmetros de projeto.");
+                    TaskDialog.Show("MetroSP", sb.ToString());
                 }
             });
         }

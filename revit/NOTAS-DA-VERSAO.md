@@ -1,5 +1,61 @@
 # Próxima versão (em preparação)
 
+## Excluir padrões
+
+- **Padrões do Metrô** (Conferir Entrega › Padrões...): botão **Excluir padrões...** apaga o arquivo .metrosp aberto
+  (pede confirmação; os arquivos que ele indica não são apagados). Cada arquivo dos padrões ganhou um **✕** ao lado do
+  Procurar, para tirá-lo dos padrões.
+- **Verificar Padrões Metrô**: os arquivos opcionais (Property sets e Classes IFC) ganharam um **✕** para tirar o arquivo
+  escolhido. Antes, depois de escolhido, não dava para voltar a "nenhum".
+- Já existiam e continuam iguais: Apagar em Arquivos IFC, Remover em Listar Compartilhados, Remover selecionadas no
+  editor de property sets e "tirar" nas regras do Filtrar e Colorir.
+- Falta testar no Revit: abrir Padrões..., salvar um .metrosp de teste, excluir e conferir que a janela volta para
+  "arquivos escolhidos neste computador"; no Verificar Padrões, tirar o .txt de property sets e verificar.
+
+## Faixa MetroSP reorganizada
+
+A aba MetroSP passou de 7 painéis para 4, na ordem do trabalho:
+
+- **Entrega Metrô**: Conferir Entrega e, ao lado, os passos numerados da entrega IFC: **1** Localização,
+  **2** Configurar (menu com Arquivos IFC e Categorias IFC), **3** Verificar Padrões (IDS), **4** Exportar IFC;
+- **Classificação**: Aplicar, com Verificar e Consistência empilhados;
+- **Dados do modelo**: Planilha de Dados, Editar em Massa, Filtrar e Colorir, com Copiar Valores e Contar empilhados;
+- **Parâmetros e famílias**: menu Parâmetros (Gerenciar, Listar Compartilhados, Renomear Compartilhado) e Renomear Famílias.
+
+O Sobre continua no logo, no começo da aba.
+
+No Conferir Entrega, o botão **Pacote...** passou a se chamar **Padrões...** (e a janela, **Padrões do Metrô**): é onde se
+escolhem os arquivos que o Metrô pede (IDS, setup, property sets, planilha, MetroShared).
+
+## Todas as janelas redimensionáveis
+
+Todas as janelas do MetroSP agora podem ser redimensionadas pela borda ou pela alça no canto, têm um tamanho mínimo e
+nunca passam da altura da tela. As de formulário (Localização, Exportar IFC, Verificar Padrões, Pacote, Sobre e outras)
+ganham barra de rolagem quando ficam menores que o conteúdo.
+
+## Todas as ferramentas só com elementos que vão para o IFC
+
+Classificação (Aplicar, Verificar e Consistência), Planilha de Dados, Editar em Massa, Filtrar e Colorir, Copiar Valores,
+Contar, Verificar Padrões e Conferir Entrega usam o mesmo filtro: ficam de fora opções de projeto secundárias,
+demolidos, elementos sem sólido, os com "Exportar para IFC = Não", origem interna, ponto base, ponto de levantamento
+e aberturas (que saem como vazio no elemento que cortam).
+
+## Conferir Entrega: corrigir na própria tela
+
+- **Dados preenchidos:** ao abrir uma célula da matriz, a barra **Preencher "parâmetro" com** grava o valor nas linhas
+  escolhidas (ou em todas as vazias e fora do exigido), na instância ou no tipo, e confere de novo. Quando os padrões
+  têm a lista de valores aceitos, ela aparece para escolher. Ctrl+Z no Revit desfaz.
+- **Editar em Massa...** ao lado (e na aba Lista) abre a ferramenta com os elementos selecionados e o parâmetro já
+  escolhido, para juntar outros parâmetros, prefixos ou localizar e substituir.
+- Cada pendência aponta a ferramenta que resolve: **Categorias IFC...** na classe IFC dos elementos, **Editar property
+  sets...** (abre o .txt dos padrões) nos campos sem mapeamento e nos tipos errados, além das que já existiam.
+- **Só os elementos dos padrões:** as etapas de dados e de classificação conferem só os elementos de classes IFC que
+  fazem parte dos padrões (com algum campo exigido). Os que saem como proxy ou numa classe sem campos do Metrô aparecem
+  só na etapa 3, onde **Exportar como [classe] → Definir classe** grava o "Exportar para IFC como" dos tipos e
+  confere de novo.
+- **Matriz mais legível:** os títulos das colunas ficam na horizontal, com a propriedade inteira (quebrando entre as
+  palavras) e o property set embaixo.
+
 ## Filtros das tabelas no título das colunas
 
 Em todas as tabelas com filtro (Gerenciar Parâmetros, Lista de compartilhados, Verificar Classificação, Copiar Valores,
@@ -10,6 +66,19 @@ Resultados do IDS e outras), o filtro passou para dentro do título de cada colu
 - botão **▾** ao lado do nome, com a lista de valores (como no Excel); **Limpar filtro** limpa também o texto;
 - filtro em uso fica em laranja: a caixa com texto e o ▾ com valores escolhidos;
 - corrige o ▾ largo demais, que desalinhava a linha de filtros (também no Editar Property Sets).
+
+## Verificar Padrões Metrô (antigo Verificar Mapeamento IDS)
+
+- **Nome novo:** o botão, as janelas e os textos passam a falar em **Padrões Metrô**. O arquivo continua sendo o `.ids` (formato IDS da buildingSMART).
+- **Sem "fantasmas" na contagem:** a verificação só conta os elementos que vão de fato para o IFC. Ficam de fora
+  elementos de **opção de projeto secundária**, **demolidos** ou criados numa **fase posterior** à da exportação
+  (última fase do projeto, ou a do setup na Conferir Entrega), elementos **sem geometria 3D** (sistemas de vigas,
+  famílias vazias ou só com linhas, como vigas no local feitas só de contorno) e os com **Exportar para IFC = Não**. Antes eles entravam nas contagens e, com duplo clique,
+  selecionavam algo que no Revit aparecia só como contorno ou meio-tom.
+- Os elementos deixados de fora aparecem no fim da lista, nas linhas **(fora do IFC)**, com o motivo, e num selo
+  no topo; duplo clique seleciona para conferir.
+- No rodapé, o duplo clique agora mostra **o que foi selecionado** (categoria, família, tipo e id).
+- A Conferir Entrega usa o mesmo filtro.
 
 # MetroSP 0.2.8
 

@@ -111,7 +111,10 @@ namespace MetroSP.Parametros
             else
                 elems = (vista != null ? new FilteredElementCollector(doc, vista) : new FilteredElementCollector(doc))
                     .WhereElementIsNotElementType();
-            return elems.Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model && !(e is View)).ToList();
+            // Regra de todas as ferramentas MetroSP: só os elementos que vão para o IFC.
+            ElementId fase = Ids.FiltroIfc.Fase(doc, -1, vista);
+            return elems.Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model && !(e is View)
+                                    && Ids.FiltroIfc.VaiParaIfc(doc, e, fase)).ToList();
         }
 
         /// <summary>Parâmetros presentes nos elementos (uma instância por tipo basta para conhecer os parâmetros).</summary>

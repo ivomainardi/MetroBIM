@@ -19,6 +19,9 @@ namespace MetroSP.Conferencia
         AplicarClassificacao,
         VerificarClassificacao,
         DetalhesIds,
+        EditarEmMassa,
+        CategoriasIfc,
+        EditarPropertySets,
     }
 
     /// <summary>Uma linha de pendência (ou de informação) de uma etapa.</summary>
@@ -32,6 +35,8 @@ namespace MetroSP.Conferencia
         public string OQueFazer { get; set; }
         public List<ElementId> Elementos { get; set; } = new List<ElementId>();
         public Correcao Correcao { get; set; }
+        /// <summary>Parâmetro do Revit a preencher (etapa 4), para abrir o Editar em Massa já nele.</summary>
+        public string Parametro { get; set; }
 
         public int QtdElementos => Elementos.Count;
         public string Situacao =>
@@ -81,6 +86,8 @@ namespace MetroSP.Conferencia
         public bool NoTipo { get; set; }
         /// <summary>Restrição de valor do IDS (null = qualquer valor preenchido).</summary>
         public string ValorExigido { get; set; }
+        /// <summary>Valores fixos aceitos pelo IDS (valor único ou enumeração), para escolher ao corrigir.</summary>
+        public List<string> Opcoes { get; } = new List<string>();
         public int Total { get; set; }
         public int Ok { get; set; }
         /// <summary>Não dá para conferir aqui (ex.: Pset padrão calculado pelo exportador).</summary>
@@ -112,7 +119,12 @@ namespace MetroSP.Conferencia
         public DateTime Quando { get; set; } = DateTime.Now;
         public string Documento { get; set; }
         public string Escopo { get; set; }
+        /// <summary>Elementos que vão para o IFC numa classe que os padrões conferem (os que entram nas etapas 4 e 5).</summary>
         public int TotalElementos { get; set; }
+        /// <summary>Elementos que vão para o IFC numa classe sem nenhum campo dos padrões (só aparecem na etapa 3).</summary>
+        public int ForaDoPadrao { get; set; }
+        /// <summary>Classes IFC que os padrões conferem, para escolher ao corrigir a classe na etapa 3.</summary>
+        public List<string> ClassesDoPadrao { get; } = new List<string>();
         public List<EtapaConferencia> Etapas { get; } = new List<EtapaConferencia>();
 
         /// <summary>Linhas da matriz: categoria → classe IFC (para mostrar) e quantidade de elementos.</summary>

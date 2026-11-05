@@ -69,13 +69,20 @@ namespace MetroSP.Conferencia
                 Escopo = _vista == null ? "modelo inteiro" : "vista " + (_doc.GetElement(_vista) as View)?.Name,
             };
 
-            Ui.Progresso.Atual?.Etapa("Lendo os arquivos do pacote");
+            Ui.Progresso.Atual?.Etapa("Lendo os arquivos dos padrões");
             EtapaConferencia arquivos = ConferirArquivos();
             _analisador = new MappingAnalyzer(_doc, _mapping, checkValues: true);
 
             Ui.Progresso.Atual?.Etapa("Separando os elementos que vão para o IFC");
-            List<(Element E, string Entidade)> elementos = ElementosExportados();
+            List<(Element E, string Entidade)> exportados = ElementosExportados();
+            // Regra de todas as ferramentas: só entram na conferência os elementos de classes que fazem parte dos padrões
+            // (com algum campo exigido). Os demais aparecem só na etapa 3, para trocar a classe se for o caso.
+            bool temPadrao = _temPsets || _ids != null;
+            List<(Element E, string Entidade)> elementos = temPadrao ? exportados.Where(x => Exigencias(x.Entidade).Count > 0).ToList() : exportados;
+            List<(Element E, string Entidade)> foraDoPadrao = temPadrao ? exportados.Where(x => Exigencias(x.Entidade).Count == 0).ToList() : new List<(Element, string)>();
             r.TotalElementos = elementos.Count;
+            r.ForaDoPadrao = foraDoPadrao.Count;
+            r.ClassesDoPadrao.AddRange(ClassesDoPadrao());
             r.Ids = _ids;
 
             EtapaConferencia parametros = new EtapaConferencia
@@ -84,14 +91,14 @@ namespace MetroSP.Conferencia
                 Descricao = "Cada campo exigido sai de um parâmetro que existe nas categorias, com tipo compatível e o GUID do MetroShared.",
                 Correcao = Correcao.ParametrosDeProjeto,
             };
-            EtapaConferencia classes = ConferirClasses(elementos);
+            EtapaConferencia classes = ConferirClasses(elementos, foraDoPadrao);
             EtapaConferencia dados = ConferirDados(elementos, r, parametros);
             EtapaConferencia classificacao = ConferirClassificacao(elementos.Select(x => x.E).ToList(), out int classOk, out int classTotal);
 
             if (!_temPsets && _ids == null)
             {
                 parametros.Sinal = Sinal.Cinza;
-                parametros.Resumo = "Sem .txt de property sets nem IDS no pacote: nada para conferir.";
+                parametros.Resumo = "Sem .txt de property sets nem IDS nos padrões: nada para conferir.";
                 dados.Sinal = Sinal.Cinza;
                 dados.Resumo = parametros.Resumo;
             }
@@ -138,35 +145,35 @@ namespace MetroSP.Conferencia
             var etapa = new EtapaConferencia
             {
                 Numero = 1, Titulo = "Arquivos do Metrô",
-                Descricao = "Os arquivos do pacote foram achados neste computador e estão no formato certo.",
+                Descricao = "Os arquivos dos padrões foram achados neste computador e estão no formato certo.",
                 Correcao = Correcao.EditarPacote,
             };
 
-            void Linha(Sinal s, string assunto, string problema, string fazer = null) =>
-                etapa.Pendencias.Add(new Pendencia { Sinal = s, Assunto = assunto, Problema = problema, OQueFazer = fazer, Correcao = Correcao.EditarPacote });
+            void Linha(Sinal s, string assunto, string problema, string fazer = null, Correcao correcao = Correcao.EditarPacote) =>
+                etapa.Pendencias.Add(new Pendencia { Sinal = s, Assunto = assunto, Problema = problema, OQueFazer = fazer, Correcao = correcao });
 
             string Nome(string c) => Path.GetFileName(c);
 
             // IDS (opcional)
             if (string.IsNullOrWhiteSpace(_pacote.Ids))
-                Linha(Sinal.Cinza, "IDS", "Sem IDS no pacote: os campos exigidos vêm do .txt de property sets.");
+                Linha(Sinal.Cinza, "IDS", "Sem IDS nos padrões: os campos exigidos vêm do .txt de property sets.");
             else if (!File.Exists(_pacote.Ids))
-                Linha(Sinal.Vermelho, "IDS", $"Arquivo não encontrado: {_pacote.Ids}", "Confira o caminho no pacote (ou se o Desktop Connector sincronizou a pasta).");
+                Linha(Sinal.Vermelho, "IDS", $"Arquivo não encontrado: {_pacote.Ids}", "Confira o caminho nos padrões (ou se o Desktop Connector sincronizou a pasta).");
             else
             {
                 try
                 {
                     _ids = IdsReader.Load(_pacote.Ids);
-                    Linha(Sinal.Verde, "IDS", $"{Nome(_pacote.Ids)}: {_ids.Specifications.Count} especificações" + (string.IsNullOrEmpty(_ids.Title) ? "" : $" ({_ids.Title})"));
+                    Linha(Sinal.Verde, "Padrões Metrô (.ids)", $"{Nome(_pacote.Ids)}: {_ids.Specifications.Count} especificações" + (string.IsNullOrEmpty(_ids.Title) ? "" : $" ({_ids.Title})"));
                 }
-                catch (Exception ex) { Linha(Sinal.Vermelho, "IDS", $"{Nome(_pacote.Ids)} não pôde ser lido: {ex.Message}"); }
+                catch (Exception ex) { Linha(Sinal.Vermelho, "Padrões Metrô (.ids)", $"{Nome(_pacote.Ids)} não pôde ser lido: {ex.Message}"); }
             }
 
             // Property sets (obrigatório)
             if (string.IsNullOrWhiteSpace(_pacote.PropertySets))
-                Linha(Sinal.Vermelho, "Property sets (.txt)", "O pacote não indica o .txt de property sets do Metrô.", "Edite o pacote e escolha o .txt.");
+                Linha(Sinal.Vermelho, "Property sets (.txt)", "Os padrões não indicam o .txt de property sets do Metrô.", "Edite os padrões e escolha o .txt.");
             else if (!File.Exists(_pacote.PropertySets))
-                Linha(Sinal.Vermelho, "Property sets (.txt)", $"Arquivo não encontrado: {_pacote.PropertySets}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Property sets (.txt)", $"Arquivo não encontrado: {_pacote.PropertySets}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -178,7 +185,7 @@ namespace MetroSP.Conferencia
                         _temPsets ? $"{Nome(_pacote.PropertySets)}: {psets} property sets, {_mapping.Properties.Count} propriedades"
                                   : $"{Nome(_pacote.PropertySets)} não tem nenhuma propriedade.");
                     foreach (string aviso in _mapping.Warnings)
-                        Linha(Sinal.Amarelo, "Property sets (.txt)", aviso, "Corrija a linha no .txt.");
+                        Linha(Sinal.Amarelo, "Property sets (.txt)", aviso, "Corrija a linha no .txt (Editar property sets).", Correcao.EditarPropertySets);
                     foreach (var tipo in _mapping.Properties
                                  .Where(p => ExportMapping.FileTypeToIfc(p.FileType) == null)
                                  .GroupBy(p => p.FileType, StringComparer.OrdinalIgnoreCase))
@@ -186,7 +193,8 @@ namespace MetroSP.Conferencia
                         string exemplos = string.Join(", ", tipo.Take(4).Select(p => $"{p.PropertySet}.{p.Property}")) + (tipo.Count() > 4 ? "…" : "");
                         Linha(Sinal.Amarelo, "Property sets (.txt)",
                             $"Tipo \"{tipo.Key}\" desconhecido pelo exportador; a propriedade sai como texto ({exemplos}).",
-                            "Use um tipo válido: Text, Label, Boolean, Integer, Real, Length, Area, Volume, Ratio...");
+                            "Use um tipo válido: Text, Label, Boolean, Integer, Real, Length, Area, Volume, Ratio... (Editar property sets).",
+                            Correcao.EditarPropertySets);
                     }
                 }
                 catch (Exception ex) { Linha(Sinal.Vermelho, "Property sets (.txt)", $"{Nome(_pacote.PropertySets)} não pôde ser lido: {ex.Message}"); }
@@ -194,9 +202,9 @@ namespace MetroSP.Conferencia
 
             // Setup de exportação (obrigatório para exportar)
             if (string.IsNullOrWhiteSpace(_pacote.Setup))
-                Linha(Sinal.Vermelho, "Setup de exportação (.json)", "O pacote não indica o setup de exportação IFC.", "Edite o pacote e escolha o .json.");
+                Linha(Sinal.Vermelho, "Setup de exportação (.json)", "Os padrões não indicam o setup de exportação IFC.", "Edite os padrões e escolha o .json.");
             else if (!File.Exists(_pacote.Setup))
-                Linha(Sinal.Vermelho, "Setup de exportação (.json)", $"Arquivo não encontrado: {_pacote.Setup}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Setup de exportação (.json)", $"Arquivo não encontrado: {_pacote.Setup}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -218,7 +226,7 @@ namespace MetroSP.Conferencia
             if (string.IsNullOrWhiteSpace(_pacote.ClassesIfc))
                 Linha(Sinal.Cinza, "Tabela de classes IFC (.txt)", "Sem tabela de classes: usa as classes padrão do exportador e o \"Exportar para IFC como\" dos elementos.");
             else if (!File.Exists(_pacote.ClassesIfc))
-                Linha(Sinal.Vermelho, "Tabela de classes IFC (.txt)", $"Arquivo não encontrado: {_pacote.ClassesIfc}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Tabela de classes IFC (.txt)", $"Arquivo não encontrado: {_pacote.ClassesIfc}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -232,9 +240,9 @@ namespace MetroSP.Conferencia
             // Planilha de classificação
             if (string.IsNullOrWhiteSpace(_pacote.Planilha))
                 Linha(Sinal.Amarelo, "Planilha de classificação", "Sem planilha: a classificação só é conferida quanto a estar preenchida e no formato Código:Descrição.",
-                    "Edite o pacote e escolha a planilha (.xlsx ou .csv).");
+                    "Edite os padrões e escolha a planilha (.xlsx ou .csv).");
             else if (!File.Exists(_pacote.Planilha))
-                Linha(Sinal.Vermelho, "Planilha de classificação", $"Arquivo não encontrado: {_pacote.Planilha}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "Planilha de classificação", $"Arquivo não encontrado: {_pacote.Planilha}", "Confira o caminho nos padrões.");
             else
             {
                 try
@@ -251,9 +259,9 @@ namespace MetroSP.Conferencia
 
             // MetroShared (base de parâmetros compartilhados)
             if (string.IsNullOrWhiteSpace(_pacote.MetroShared))
-                Linha(Sinal.Amarelo, "MetroShared (.txt)", "Sem a base MetroShared: os GUIDs dos parâmetros não são conferidos.", "Edite o pacote e escolha o .txt do MetroShared.");
+                Linha(Sinal.Amarelo, "MetroShared (.txt)", "Sem a base MetroShared: os GUIDs dos parâmetros não são conferidos.", "Edite os padrões e escolha o .txt do MetroShared.");
             else if (!File.Exists(_pacote.MetroShared))
-                Linha(Sinal.Vermelho, "MetroShared (.txt)", $"Arquivo não encontrado: {_pacote.MetroShared}", "Confira o caminho no pacote.");
+                Linha(Sinal.Vermelho, "MetroShared (.txt)", $"Arquivo não encontrado: {_pacote.MetroShared}", "Confira o caminho nos padrões.");
             else
             {
                 SharedParamTxt txt = SharedParamTxt.Ler(_pacote.MetroShared);
@@ -276,25 +284,15 @@ namespace MetroSP.Conferencia
 
         // ================================================================== elementos
 
-        private static readonly HashSet<BuiltInCategory> NaoExportadas = new HashSet<BuiltInCategory>
-        {
-            BuiltInCategory.OST_Cameras, BuiltInCategory.OST_Lines, BuiltInCategory.OST_SketchLines,
-            BuiltInCategory.OST_RvtLinks, BuiltInCategory.OST_IOSModelGroups, BuiltInCategory.OST_Mass,
-            BuiltInCategory.OST_PointClouds, BuiltInCategory.OST_CLines, BuiltInCategory.OST_Levels, BuiltInCategory.OST_Grids,
-            BuiltInCategory.OST_SectionBox, BuiltInCategory.OST_Viewers, BuiltInCategory.OST_ReferenceLines,
-            BuiltInCategory.OST_RoomSeparationLines, BuiltInCategory.OST_AreaSchemeLines, BuiltInCategory.OST_MEPSpaceSeparationLines,
-        };
 
         /// <summary>Elementos que vão para o IFC (modelo ou vista), com a classe IFC de cada um.</summary>
         private List<(Element E, string Entidade)> ElementosExportados()
         {
             var lista = new List<(Element, string)>();
-            foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista))
+            ElementId fase = FiltroIfc.Fase(_doc, _setup?.Fase ?? -1, _vista);
+            foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista, soIfc: false))
             {
-                if (e.ViewSpecific || e is CurveElement || e is DatumPlane || e is SketchPlane || e is Group || e is AssemblyInstance) continue;
-                if (NaoExportadas.Contains(e.Category.BuiltInCategory)) continue;
-                if (e.DesignOption != null && !e.DesignOption.IsPrimary) continue;
-                if (e.get_BoundingBox(null) == null) continue;
+                if (!FiltroIfc.VaiParaIfc(_doc, e, fase)) continue;
                 string entidade = _analisador.ResolveEntity(e);
                 if (entidade == null) continue;
                 lista.Add((e, entidade));
@@ -304,39 +302,30 @@ namespace MetroSP.Conferencia
 
         // ================================================================== 3. classes IFC
 
-        private EtapaConferencia ConferirClasses(List<(Element E, string Entidade)> elementos)
+        private EtapaConferencia ConferirClasses(List<(Element E, string Entidade)> elementos, List<(Element E, string Entidade)> foraDoPadrao)
         {
             var etapa = new EtapaConferencia
             {
                 Numero = 3, Titulo = "Classe IFC dos elementos",
-                Descricao = "Cada elemento sai com uma classe IFC própria (não como proxy) e recebe os campos do Metrô.",
+                Descricao = "Só entram na conferência os elementos de classes que fazem parte dos padrões. Os que saem como proxy ou numa " +
+                            "classe sem campos do Metrô aparecem aqui: escolha a classe certa e clique em Definir classe.",
+                Correcao = Correcao.CategoriasIfc,
             };
 
-            foreach (var g in elementos.Where(x => x.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase))
-                                       .GroupBy(x => x.E.Category.Name).OrderByDescending(g => g.Count()))
+            foreach (var g in foraDoPadrao.GroupBy(x => (Cat: x.E.Category.Name, x.Entidade)).OrderByDescending(g => g.Count()))
             {
+                bool proxy = g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
                 etapa.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Categoria = g.Key, Assunto = "IfcBuildingElementProxy",
-                    Problema = $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida).",
-                    OQueFazer = "Defina a classe na tabela de classes IFC ou no parâmetro \"Exportar para IFC como\" do tipo.",
+                    Sinal = proxy ? Sinal.Amarelo : Sinal.Cinza, Categoria = g.Key.Cat, Assunto = g.Key.Entidade,
+                    Problema = proxy
+                        ? $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida): ficam fora da conferência."
+                        : $"{g.Key.Entidade} não faz parte dos padrões: {g.Count()} elemento(s) ficam fora da conferência.",
+                    OQueFazer = proxy
+                        ? "Escolha a classe abaixo e clique em Definir classe (grava o \"Exportar para IFC como\" do tipo)."
+                        : "Normal se o Metrô não pede dados desse elemento; senão, defina a classe certa abaixo.",
                     Elementos = g.Select(x => x.E.Id).ToList(),
                 });
-            }
-
-            if (_temPsets || _ids != null)
-            {
-                foreach (var g in elementos.Where(x => !EhEspaco(x.Entidade) && Exigencias(x.Entidade).Count == 0)
-                                           .GroupBy(x => (x.E.Category.Name, x.Entidade)).OrderByDescending(g => g.Count()))
-                {
-                    etapa.Pendencias.Add(new Pendencia
-                    {
-                        Sinal = Sinal.Amarelo, Categoria = g.Key.Name, Assunto = g.Key.Entidade,
-                        Problema = $"Nenhum campo do Metrô se aplica a {g.Key.Entidade}: {g.Count()} elemento(s) vão sem os dados do Metrô.",
-                        OQueFazer = "Confira se a classe IFC está certa ou se o .txt de property sets deveria incluir essa classe.",
-                        Elementos = g.Select(x => x.E.Id).ToList(),
-                    });
-                }
             }
 
             if (_ids != null)
@@ -349,19 +338,35 @@ namespace MetroSP.Conferencia
                     etapa.Pendencias.Add(new Pendencia
                     {
                         Sinal = Sinal.Cinza, Assunto = string.Join(", ", ents.Select(f => f.ToString())),
-                        Problema = $"Nenhum elemento exporta como a entidade da especificação \"{spec.Name}\" do IDS.",
+                        Problema = $"Nenhum elemento exporta como a entidade da especificação \"{spec.Name}\" dos padrões.",
                         OQueFazer = "Normal se este modelo não tem esse tipo de elemento; senão, confira a classe IFC.",
                     });
                 }
             }
 
             etapa.CalcularSinal();
-            etapa.Contagem = etapa.Pendencias.Where(p => p.Sinal == Sinal.Amarelo || p.Sinal == Sinal.Vermelho).Sum(p => p.QtdElementos);
-            int proxies = etapa.Pendencias.Where(p => p.Assunto == "IfcBuildingElementProxy").Sum(p => p.QtdElementos);
-            etapa.Resumo = etapa.Contagem == 0
-                ? $"{elementos.Count} elementos com classe IFC e campos do Metrô."
-                : $"{proxies} proxy(s); {etapa.Contagem - proxies} elemento(s) sem nenhum campo do Metrô.";
+            int proxies = etapa.Pendencias.Where(p => p.Sinal == Sinal.Amarelo).Sum(p => p.QtdElementos);
+            etapa.Contagem = proxies;
+            int outros = foraDoPadrao.Count - proxies;
+            etapa.Resumo = foraDoPadrao.Count == 0
+                ? $"{elementos.Count} elementos em classes dos padrões."
+                : $"{elementos.Count} nos padrões; {proxies} proxy(s) e {outros} em classes fora dos padrões.";
             return etapa;
+        }
+
+        /// <summary>Classes IFC com algum campo nos padrões (.txt de property sets e IDS). O exportador aceita o nome em qualquer caixa.</summary>
+        private IEnumerable<string> ClassesDoPadrao()
+        {
+            var classes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (PropertyMapping m in _mapping.Properties)
+                foreach (string v in m.Entities)
+                    if (v.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase)) classes.Add(v.Trim());
+            if (_ids != null)
+                foreach (IdsSpecification spec in _ids.Specifications)
+                    foreach (IdsEntityFacet f in spec.ApplicableEntities)
+                        foreach (string v in f.Name?.FixedValues ?? Enumerable.Empty<string>())
+                            if (!string.IsNullOrWhiteSpace(v)) classes.Add(v.Trim());
+            return classes.OrderBy(c => c, StringComparer.OrdinalIgnoreCase);
         }
 
         private static bool EhEspaco(string entidade) =>
@@ -374,7 +379,7 @@ namespace MetroSP.Conferencia
             var etapa = new EtapaConferencia
             {
                 Numero = 4, Titulo = "Dados preenchidos",
-                Descricao = "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelo IDS." : "."),
+                Descricao = "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelos padrões." : "."),
             };
 
             // Parâmetros conferidos uma vez: tipo de dado e GUID.
@@ -398,6 +403,7 @@ namespace MetroSP.Conferencia
                     if (!r.Matriz.TryGetValue((categoria, x.Campo), out CelulaMatriz c))
                     {
                         c = new CelulaMatriz { Categoria = categoria, Campo = x.Campo, Parametro = x.Parametro, NoTipo = x.NoTipo == true, ValorExigido = x.Valor?.ToString() };
+                        if (x.Valor != null) c.Opcoes.AddRange(x.Valor.FixedValues.Where(v => !string.IsNullOrEmpty(v)));
                         r.Matriz[(categoria, x.Campo)] = c;
                     }
 
@@ -467,6 +473,8 @@ namespace MetroSP.Conferencia
                         ? $"Vincule o parâmetro \"{c.Parametro}\" à categoria (Parâmetros de projeto)."
                         : $"Preencha \"{c.Parametro}\"" + (c.NoTipo ? " nos tipos." : ".") + (fora > 0 ? $" Valores aceitos: {c.ValorExigido}." : ""),
                     Elementos = c.Pendentes.Select(p => p.Id).ToList(),
+                    Parametro = c.Parametro,
+                    Correcao = sem > 0 && sem == c.Pendentes.Count ? Correcao.ParametrosDeProjeto : Correcao.EditarEmMassa,
                 });
             }
 
@@ -513,7 +521,7 @@ namespace MetroSP.Conferencia
                     Sinal = Sinal.Vermelho, Assunto = x.Parametro,
                     Problema = $"No Revit o parâmetro é {MappingAnalyzer.RevitTypeName(prm)}, mas o .txt exporta como \"{x.TipoArquivo}\" ({x.Campo}).",
                     OQueFazer = "Ajuste o tipo no .txt de property sets ou use um parâmetro do tipo certo.",
-                    Correcao = Correcao.ListarCompartilhados,
+                    Correcao = Correcao.EditarPropertySets,
                 });
             }
 
@@ -571,9 +579,9 @@ namespace MetroSP.Conferencia
                                 _problemasMapeamento[campo] = new Pendencia
                                 {
                                     Sinal = Sinal.Vermelho, Assunto = campo,
-                                    Problema = $"O IDS exige {campo}, mas nenhuma linha do .txt de property sets gera esse campo para {entidade}.",
+                                    Problema = $"O padrão Metrô exige {campo}, mas nenhuma linha do .txt de property sets gera esse campo para {entidade}.",
                                     OQueFazer = "Inclua a propriedade no .txt de property sets (com o parâmetro do Revit de onde ela sai).",
-                                    Correcao = Correcao.DetalhesIds,
+                                    Correcao = Correcao.EditarPropertySets,
                                 };
                             continue;
                         }
@@ -583,9 +591,9 @@ namespace MetroSP.Conferencia
                             _problemasMapeamento[campo + "|tipo"] = new Pendencia
                             {
                                 Sinal = Sinal.Vermelho, Assunto = campo,
-                                Problema = $"O IDS pede {p.DataType}, mas o .txt exporta {map.IfcType} (tipo \"{map.FileType}\").",
+                                Problema = $"O padrão Metrô pede {p.DataType}, mas o .txt exporta {map.IfcType} (tipo \"{map.FileType}\").",
                                 OQueFazer = "Ajuste o tipo da propriedade no .txt de property sets.",
-                                Correcao = Correcao.DetalhesIds,
+                                Correcao = Correcao.EditarPropertySets,
                             };
                         }
                         lista.Add(new Exigencia { Campo = campo, Parametro = map.RevitParameter, NoTipo = map.OnType, TipoArquivo = map.FileType, Valor = p.Value });
