@@ -62,6 +62,7 @@ namespace MetroSP.Ifc
         public double? Longitude { get; set; }     // graus decimais (negativo = oeste)
         public double? Elevacao { get; set; }      // m
         public string Matricula { get; set; }      // LandTitleNumber
+        public string Endereco { get; set; }       // SiteAddress (IfcPostalAddress)
     }
 
     public class FacilityInfo
@@ -74,5 +75,6 @@ namespace MetroSP.Ifc
         public string NomeLongo { get; set; }
         public string Descricao { get; set; }
         public double? ElevacaoReferencia { get; set; }   // só IfcBuilding
+        public string Endereco { get; set; }              // só IfcBuilding (BuildingAddress)
     }
 }

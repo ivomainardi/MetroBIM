@@ -27,6 +27,11 @@ namespace MetroSP.Padroes
             },
             new TipoPadrao
             {
+                Id = "metrosp-dados-projeto", Nome = "Dados do projeto IFC", Pasta = Ifc.DadosProjetoIfc.Pasta,
+                Ferramenta = "Projeto IFC (barra Padrão no topo da janela); vale também para o Revit",
+            },
+            new TipoPadrao
+            {
                 Id = "civil3d-exportacao-ifc", Nome = "Exportação IFC", Pasta = ConfigPackage.ActiveDir,
                 Ferramenta = "Configurar IFC",
                 Editar = (dono, item) => new Ui.ConfigWindow(doc == null ? null : Commands.DrawingFolder(doc)) { Owner = dono }.ShowDialog(),
