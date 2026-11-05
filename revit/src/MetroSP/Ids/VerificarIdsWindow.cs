@@ -88,6 +88,16 @@ namespace MetroSP.Ids
             var arquivo = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, FontFamily = new System.Windows.Media.FontFamily("Consolas") };
             Border selo = Theme.Selo();
             var procurar = new Button { Content = "Procurar..." };
+            // Opcional: o ✕ tira o arquivo escolhido (o arquivo em si não é apagado).
+            var tirar = new Button
+            {
+                Content = "✕", MinWidth = 0, Width = 28, Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(6, 0, 0, 0),
+                ToolTip = $"Tirar {nome.ToLowerInvariant()} da verificação (o arquivo não é apagado).",
+                Visibility = obrigatorio ? Visibility.Collapsed : Visibility.Visible,
+            };
+            var acoes = new StackPanel { Orientation = Orientation.Horizontal };
+            acoes.Children.Add(procurar);
+            acoes.Children.Add(tirar);
             var box = new TextBox();
             void Mostrar()
             {
@@ -98,12 +108,13 @@ namespace MetroSP.Ids
                 if (t.Length == 0) Theme.MudarSelo(selo, obrigatorio ? "obrigatório" : "", obrigatorio ? Theme.Estado.Aviso : Theme.Estado.Neutro);
                 else if (File.Exists(t)) Theme.MudarSelo(selo, "ok", Theme.Estado.Ok);
                 else Theme.MudarSelo(selo, "não encontrado", Theme.Estado.Aviso, t);
+                tirar.IsEnabled = t.Length > 0;
                 AtualizarResumo();
             }
             box.TextChanged += (s, e) => Mostrar();
             box.Text = value ?? string.Empty;
             _arquivos.Add((nome, box, obrigatorio));
-            lista.Children.Add(Theme.Item(nome, arquivo, selo, procurar, null, lista.Children.Count == 0));
+            lista.Children.Add(Theme.Item(nome, arquivo, selo, acoes, null, lista.Children.Count == 0));
             Mostrar();
 
             procurar.Click += (s, e) =>
@@ -116,6 +127,7 @@ namespace MetroSP.Ids
                 }
                 if (dialogo.ShowDialog(this) == true) box.Text = dialogo.FileName;
             };
+            tirar.Click += (s, e) => box.Text = string.Empty;
             return box;
         }
     }

@@ -15,6 +15,7 @@ namespace MetroSP.Conferencia
     {
         private readonly TextBox _nome, _ids, _setup, _psets, _classes, _planilha, _metroShared, _parametro;
         private readonly TextBlock _origem;
+        private readonly Button _excluir;
         private string _arquivo;
         private string _assinaturaArquivo;
 
@@ -92,6 +93,29 @@ namespace MetroSP.Conferencia
                 catch (Exception ex) { MessageBox.Show(this, "Não deu para salvar os padrões:\n" + ex.Message, "MetroSP"); }
             };
 
+            _excluir = new Button
+            {
+                Content = "Excluir padrões...",
+                ToolTip = "Apaga o arquivo .metrosp aberto. Os arquivos que ele indica (IDS, setup, psets, planilha...) não são apagados.",
+            };
+            _excluir.IsEnabled = _arquivo != null;
+            _excluir.Click += (s, e) =>
+            {
+                if (_arquivo == null) return;
+                if (MessageBox.Show(this, $"Excluir os padrões {Path.GetFileName(_arquivo)}?\n\n{_arquivo}\n\n" +
+                        "Quem usa este arquivo deixa de achá-lo. Os arquivos que ele indica continuam onde estão, " +
+                        "e os campos desta janela ficam como estão (só neste computador).", "MetroSP",
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
+                try
+                {
+                    if (File.Exists(_arquivo)) File.Delete(_arquivo);
+                    _arquivo = null;
+                    _assinaturaArquivo = null;
+                    AtualizarOrigem();
+                }
+                catch (Exception ex) { MessageBox.Show(this, "Não deu para excluir os padrões:\n" + ex.Message, "MetroSP"); }
+            };
+
             var usar = new Button { Content = "Usar e conferir", IsDefault = true, Style = Theme.PrimaryButton };
             usar.Click += (s, e) =>
             {
@@ -108,13 +132,15 @@ namespace MetroSP.Conferencia
             StackPanel direita = Theme.Buttons(cancelar, usar);
             DockPanel.SetDock(direita, Dock.Right);
             rodape.Children.Add(direita);
-            rodape.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { salvarComo } });
+            _excluir.Margin = new Thickness(8, 0, 0, 0);
+            rodape.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { salvarComo, _excluir } });
 
             Theme.Apply(this, "Padrões do Metrô", "Os arquivos que o Metrô pede para a entrega", painel, rodape);
         }
 
         private void AtualizarOrigem()
         {
+            if (_excluir != null) _excluir.IsEnabled = _arquivo != null;
             _origem.Text = _arquivo != null
                 ? "Padrões: " + _arquivo
                 : "Arquivos escolhidos neste computador. Para a equipe usar os mesmos, salve os padrões numa pasta compartilhada.";
@@ -167,11 +193,21 @@ namespace MetroSP.Conferencia
             painel.Children.Add(Theme.Label(rotulo));
             var linha = new DockPanel();
             var procurar = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
+            // ✕ tira o arquivo dos padrões (o arquivo em si não é apagado).
+            var tirar = new Button
+            {
+                Content = "✕", MinWidth = 0, Width = 28, Padding = new Thickness(0, 3, 0, 3), Margin = new Thickness(6, 0, 0, 0),
+                ToolTip = "Tirar este arquivo dos padrões (o arquivo não é apagado).", IsEnabled = false,
+            };
+            DockPanel.SetDock(tirar, Dock.Right);
+            linha.Children.Add(tirar);
             DockPanel.SetDock(procurar, Dock.Right);
             linha.Children.Add(procurar);
             var box = new TextBox { VerticalContentAlignment = VerticalAlignment.Center };
             linha.Children.Add(box);
             painel.Children.Add(linha);
+            box.TextChanged += (s, e) => tirar.IsEnabled = box.Text.Trim().Length > 0;
+            tirar.Click += (s, e) => box.Text = string.Empty;
 
             procurar.Click += (s, e) =>
             {
