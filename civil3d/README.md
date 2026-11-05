@@ -45,6 +45,7 @@ Os dois endereços ficam em `ExtensaoAutodeskUrl` e `VersoesMetroSpUrl` no `Metr
 | IFC 4.3 | Exportar IFC | `MSP_IFCEXPORT` |
 | IFC 4.3 | Exportar seleção | `MSP_IFCEXPORTSEL` |
 | IFC 4.3 | Configurar IFC | `MSP_IFCCONFIG` |
+| Dados | Confrontar planilha | `MSP_CONFRONTAR` |
 | Forma | Sincronizar · Entrar · Sair · Conta | `MSP_IFCSYNC` · `MSP_FORMALOGIN` · `MSP_FORMALOGOUT` · `MSP_CONFIG` |
 | Ferramentas | Só alinhamentos (IFC separado) · Pasta · Sobre · Exportador | `MSP_IFCALINHAMENTO` · `MSP_IFCPASTA` · `MSP_SOBRE` · `MSP_IFCEXTENSAO` |
 | Ação BIM · Metrô SP | selo (abre o Sobre) | `MSP_SOBRE` |

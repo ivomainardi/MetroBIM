@@ -55,6 +55,10 @@ namespace MetroSP
                 Button("Configurar\nIFC", "IfcConfigurar", "MSP_IFCCONFIG",
                     "Classes, propriedades, projeto, terreno, edificações e alinhamento.")));
 
+            tab.Panels.Add(Panel("Dados",
+                Button("Confrontar\nplanilha", "ConfrontarPlanilha", "MSP_CONFRONTAR",
+                    "Compara property sets, nome, descrição e layer dos objetos com uma planilha externa e resolve as diferenças.")));
+
             tab.Panels.Add(Panel("Forma",
                 Stack(
                     Small("Sincronizar", "IfcSincronizar", "MSP_IFCSYNC", "Baixa a configuração IFC do Forma, sem exportar."),
