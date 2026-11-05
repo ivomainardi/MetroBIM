@@ -118,13 +118,26 @@ namespace MetroSP.Commands
             try { latLong = local.CorrigirLatLongIfc(arquivo); }
             catch (Exception ex) { latLong = "Não foi possível corrigir a latitude/longitude do IfcSite: " + ex.Message; }
             // Classificação dos padrões (e Classification Manager) que o exportador deixou só em property set → IfcClassificationReference.
+            // Dados do IfcProject, IfcSite e IfcBuilding (etapa 1) e Pset MetroSP_Projeto: completa o que o exportador não grava.
             var avisosClassificacao = new List<string>();
+            var linhasDados = new List<string>();
+            bool dadosComProblema = false;
             try
             {
                 var modelo = Ifc.StepModel.Load(arquivo);
-                if (Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0) modelo.Save(arquivo);
+                bool salvar = false;
+                try { salvar = Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0; }
+                catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
+                try
+                {
+                    escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);
+                    salvar |= alterouDados;
+                    linhasDados = escolha.Dados.Conferir(modelo, out dadosComProblema);
+                }
+                catch (Exception ex) { linhasDados.Add("Não foi possível gravar os dados do IfcProject/IfcSite/IfcBuilding: " + ex.Message); dadosComProblema = true; }
+                if (salvar) modelo.Save(arquivo);
             }
-            catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
+            catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar o IFC (classificação e dados do projeto): " + ex.Message); }
             if (local.Erro == null)
             {
                 escolha.Latitude = local.Latitude;
@@ -132,6 +145,8 @@ namespace MetroSP.Commands
             }
             LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha, janela.EpsgEmBranco);
             if (latLong != null) conferencia.Linhas.Insert(0, latLong);
+            conferencia.Linhas.AddRange(linhasDados);
+            if (dadosComProblema) conferencia.TemProblema = true;
             foreach (string a in avisosClassificacao) conferencia.Linhas.Add(char.ToUpper(a[0]) + a.Substring(1));
             if (georref != null) conferencia.Linhas.Insert(0, georref);
             string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,

@@ -1,3 +1,30 @@
+# Próxima versão (em desenvolvimento)
+
+## Projeto e Local: IfcProject, IfcSite e IfcBuilding
+
+- O passo 1 da entrega (antes **Localização**) virou **Projeto e Local**. A janela, redimensionável, preenche:
+  - **IfcProject**: nome (Número do projeto), nome longo (Nome do projeto), descrição (`IfcDescription`) e fase
+    (`Project Phase`);
+  - **IfcSite**: nome (`SiteName`), nome longo (`SiteLongName`), descrição (`SiteDescription`), latitude/longitude pelo
+    Project Base Point (como antes) e endereço (Manage › Location);
+  - **IfcBuilding**: nome (Nome do edifício), nome longo (`BuildingLongName`), descrição (`BuildingDescription`) e
+    endereço (Informações do projeto);
+  - **Dados do projeto · MetroSP_Projeto**: tabela propriedade/valor gravada como Pset no IfcProject (linha, lote,
+    contrato...). Fica guardada no modelo.
+- Os campos são os que o exportador IFC da Autodesk lê; os que não existem no modelo são criados como parâmetros
+  compartilhados de texto (grupo IFC) nas Informações do projeto. A dica de cada campo diz onde ele fica no Revit.
+- O **Exportar IFC** confere e completa o IFC: grava no IfcProject, no IfcSite e no IfcBuilding o que o exportador não
+  gravou (o nome longo do IfcSite, por exemplo) e o Pset MetroSP_Projeto, e mostra a conferência no fim. A janela de
+  exportação mostra o nome do IfcProject ao lado do Location.
+- Barra **Padrão** no topo da janela: **Salvar como padrão…** guarda os dados (sem latitude/longitude) em
+  `%AppData%\MetroSP\DadosProjeto`, e **Usar** preenche outro modelo com eles. É o mesmo padrão do Civil 3D (o mesmo
+  arquivo serve nos dois) e aparece em **Padrões e planilhas** como "Dados do projeto IFC".
+- Os dados do projeto podem ser gravados mesmo quando a latitude/longitude não pode ser calculada pelo Project Base Point.
+- Falta testar no Revit (2025, 2026 e 2027): abrir Projeto e Local num modelo sem esses parâmetros e gravar (os
+  parâmetros são criados?), conferir em Informações do projeto, salvar e usar um padrão, exportar o IFC e abrir no
+  visualizador para ver IfcProject (Name, LongName, Description, Phase), IfcSite, IfcBuilding e o Pset MetroSP_Projeto.
+  O 2027 não foi compilado aqui (falta o .NET 10); o 2025 e o 2026 compilaram sem erro.
+
 # MetroSP 0.3.1 (em teste)
 
 ## Padrões e planilhas
