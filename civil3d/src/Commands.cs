@@ -92,6 +92,14 @@ namespace MetroSP
             }
         }
 
+        /// <summary>Versão instalada da IFC 4.3 Extension da Autodesk e atalho para as atualizações.</summary>
+        [CommandMethod("MSP_IFCEXTENSAO")]
+        public void AutodeskExtension()
+        {
+            try { var cfg = Settings.Load(); Ui.ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false);; }
+            catch (System.Exception ex) { Fail(AcApp.DocumentManager.MdiActiveDocument.Editor, ex); }
+        }
+
         [CommandMethod("MSP_IFCPASTA")]
         public void OpenConfigFolder()
         {
@@ -130,6 +138,7 @@ namespace MetroSP
             body.Children.Add(Ui.Theme.Secao("Arquivos"));
             body.Children.Add(Ui.Theme.Detalhe("Configuração: " + (cfg.LoadedFrom ?? "(não encontrada)")));
             body.Children.Add(Ui.Theme.Detalhe("Pacote IFC ativo: " + ConfigPackage.ActiveDir));
+            body.Children.Add(Ui.Theme.Detalhe("Exportador da Autodesk: " + AutodeskIfcExtension.Describe(cfg.ExportCommand)));
             if (cfg.UsesForma)
             {
                 body.Children.Add(Ui.Theme.Detalhe("Projeto Forma: " + cfg.ProjectId));
@@ -197,6 +206,18 @@ namespace MetroSP
             try
             {
                 var cfg = Settings.Load();
+                if (selected != null)
+                {
+                    // Sem a extensão IFC 4.3 da Autodesk não há o que exportar: avisa antes de qualquer trabalho.
+                    var command = selected.Value ? cfg.ExportSelectedCommand : cfg.ExportCommand;
+                    if (!AutodeskIfcExtension.CommandDefined(command) && AutodeskIfcExtension.FindInstalled().Count == 0)
+                    {
+                        ed.WriteMessage($"\nMetroSP: {command} não existe neste Civil 3D. Instale a IFC 4.3 Extension da Autodesk.");
+                        Ui.ExtensionWindow.Show(cfg, command, blocking: true);
+                        return;
+                    }
+                }
+
                 var dwgDir = DrawingFolder(doc);
                 if (dwgDir == null && cfg.Destino != "ProgramData")
                     throw new InvalidOperationException("Salve o desenho antes: os JSON de configuração são gravados na pasta do DWG.");
@@ -354,6 +375,7 @@ namespace MetroSP
 
         static void Fail(Editor ed, System.Exception ex)
         {
+            if (ex is OperationCanceledException) { ed.WriteMessage("\nMetroSP: " + ex.Message); return; }
             ed.WriteMessage("\nMetroSP: ERRO - " + ex.Message);
             Debug.WriteLine(ex);
         }

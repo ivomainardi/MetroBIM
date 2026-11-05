@@ -67,7 +67,9 @@ namespace MetroSP
                 Stack(
                     Small("Só alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D."),
                     Small("Pasta", "ArquivosIfc", "MSP_IFCPASTA", "Abre a pasta do desenho com os JSON aplicados."),
-                    Small("Sobre", "Sobre", "MSP_SOBRE", "Versão e configuração em uso."))));
+                    Small("Sobre", "Sobre", "MSP_SOBRE", "Versão e configuração em uso.")),
+                Stack(
+                    Small("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da extensão IFC 4.3 da Autodesk e atualizações."))));
 
             // Marca sempre por último, no lado direito da aba.
             tab.Panels.Add(BrandPanel());

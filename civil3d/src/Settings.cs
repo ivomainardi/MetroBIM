@@ -48,6 +48,12 @@ namespace MetroSP
         public string ExportCommand { get; set; } = "IFCINFRAEXPORT";
         public string ExportSelectedCommand { get; set; } = "IFCINFRAEXPORTSELECTED";
 
+        /// <summary>Caminho oficial: atualizações na conta Autodesk, onde fica a IFC 4.3 Extension.</summary>
+        public string ExtensaoAutodeskUrl { get; set; } = "https://manage.autodesk.com/products/updates";
+
+        /// <summary>Caminho GitHub: versões publicadas do plugin MetroSP.</summary>
+        public string VersoesMetroSpUrl { get; set; } = "https://github.com/ivomainardi/MetroSP_Civil3D/releases";
+
         /// <summary>
         /// De onde vem o pacote de configuração IFC antes de exportar:
         ///  "Automatico" = Forma se ClientId/ProjectId/FolderUrn estiverem preenchidos, senão o pacote local;

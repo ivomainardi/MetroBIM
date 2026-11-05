@@ -78,6 +78,9 @@ namespace MetroSP.Ifc
 
         public IEnumerable<int> Ids => _order;
 
+        /// <summary>Maior id em uso; o próximo Add recebe LastId + 1.</summary>
+        public int LastId => _maxId;
+
         public StepEntity Get(int id)
         {
             if (!_byId.TryGetValue(id, out var e)) return null;
