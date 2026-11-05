@@ -1,4 +1,4 @@
-# MetroSP 0.3.0 (em teste)
+# MetroSP 0.3.1 (em teste)
 
 ## Padrões e planilhas
 
@@ -24,6 +24,8 @@
 - Só funciona para parâmetros que o exportador leva como propriedade (property sets do Revit ou do setup).
 - Falta testar no Revit: exportar um modelo com um padrão de duas classificações (uma em `ClassificationCode`, outra
   em parâmetro próprio ou no Classification Manager) e abrir o IFC num visualizador para ver as duas classificações.
+
+# MetroSP 0.3.0
 
 ## Verificar classificação com padrões e várias classificações
 
