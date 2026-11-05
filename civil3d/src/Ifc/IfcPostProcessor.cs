@@ -416,6 +416,7 @@ namespace MetroSP.Ifc
                 }
                 if (s.Elevacao.HasValue) _m.SetArg(site.Id, 11, IfcAlignmentWriter.F(s.Elevacao.Value));
                 SetText(site, 12, s.Matricula);
+                if (Address(site, 13, s.Endereco)) _log("IfcSite: endereço gravado.");
             }
 
             var facilities = cfg.AllFacilities().Where(f => !string.IsNullOrWhiteSpace(f.Nome)).ToList();
@@ -424,6 +425,16 @@ namespace MetroSP.Ifc
                 var siteGid = StepModel.Text(site.Args[0]) ?? "site";
                 var existing = FacilityTypes.SelectMany(t => _m.OfType(t)).Select(b => StepModel.Text(b.Args[2]))
                     .Where(n => n != null).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                // As que a Autodesk já gravou (mesmo nome) recebem nome longo, descrição e endereço.
+                foreach (var f in facilities.Where(f => existing.Contains(f.Nome)))
+                {
+                    var ent = FacilityTypes.SelectMany(t => _m.OfType(t))
+                        .FirstOrDefault(b => string.Equals(StepModel.Text(b.Args[2]), f.Nome, StringComparison.OrdinalIgnoreCase));
+                    if (ent == null) continue;
+                    SetText(ent, 3, f.Descricao);
+                    SetText(ent, 7, f.NomeLongo);
+                    if (ent.Type == "IFCBUILDING") Address(ent, 11, f.Endereco);
+                }
                 var created = new List<int>();
                 foreach (var f in facilities.Where(f => !existing.Contains(f.Nome)))
                 {
@@ -435,7 +446,8 @@ namespace MetroSP.Ifc
                     var args = new List<string> { Guid(siteGid, "fac:" + type + ":" + f.Nome), "$", IfcAlignmentWriter.S(f.Nome),
                         Opt(f.Descricao), "$", "#" + placement, "$", Opt(f.NomeLongo), ".ELEMENT." };
                     if (type == "IFCBUILDING")
-                        args.AddRange(new[] { f.ElevacaoReferencia.HasValue ? IfcAlignmentWriter.F(f.ElevacaoReferencia.Value) : "$", "$", "$" });
+                        args.AddRange(new[] { f.ElevacaoReferencia.HasValue ? IfcAlignmentWriter.F(f.ElevacaoReferencia.Value) : "$", "$",
+                            string.IsNullOrWhiteSpace(f.Endereco) ? "$" : "#" + PostalAddress(f.Endereco) });
                     else
                         args.Add(".NOTDEFINED.");   // PredefinedType de IfcRailway, IfcRoad e IfcBridge
                     created.Add(_m.Add(type, args.ToArray()));
@@ -712,6 +724,18 @@ namespace MetroSP.Ifc
             var pset = _m.Add("IFCPROPERTYSET", Guid(gid, "pset-projeto"), "$", "'MetroSP_Projeto'", "$", StepModel.RefListText(values));
             _m.Add("IFCRELDEFINESBYPROPERTIES", Guid(gid, "pset-projeto-rel"), "$", "$", "$", "(#" + project.Id + ")", "#" + pset);
             _log($"Pset MetroSP_Projeto com {values.Count} propriedade(s) no IfcProject.");
+        }
+
+        /// <summary>IfcPostalAddress só com a linha de endereço.</summary>
+        int PostalAddress(string text) =>
+            _m.Add("IFCPOSTALADDRESS", "$", "$", "$", "$", "(" + IfcAlignmentWriter.S(text.Trim()) + ")", "$", "$", "$", "$", "$");
+
+        /// <summary>Grava o endereço se a entidade ainda não tem (não troca o que a Autodesk gravou).</summary>
+        bool Address(StepEntity e, int index, string text)
+        {
+            if (string.IsNullOrWhiteSpace(text) || index >= e.Args.Count || e.Args[index] != "$") return false;
+            _m.SetArg(e.Id, index, "#" + PostalAddress(text));
+            return true;
         }
 
         void SetText(StepEntity e, int index, string value)

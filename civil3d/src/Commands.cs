@@ -92,6 +92,21 @@ namespace MetroSP
             }
         }
 
+        /// <summary>Janela Projeto IFC: IfcProject, IfcSite, instalações e Pset MetroSP_Projeto (a aba Projeto do Configurar IFC).</summary>
+        [CommandMethod("MSP_IFCPROJETO")]
+        public void OpenIfcProject()
+        {
+            var doc = AcApp.DocumentManager.MdiActiveDocument;
+            try
+            {
+                AcApp.ShowModalWindow(new Ui.ConfigWindow(DrawingFolder(doc), somenteProjeto: true));
+            }
+            catch (System.Exception ex)
+            {
+                doc.Editor.WriteMessage("\nMetroSP: ERRO - " + ex.Message);
+            }
+        }
+
         /// <summary>Versão instalada da IFC 4.3 Extension da Autodesk e atalho para as atualizações.</summary>
         [CommandMethod("MSP_IFCEXTENSAO")]
         public void AutodeskExtension()
