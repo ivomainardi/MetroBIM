@@ -2,10 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Text;
-using System.Xml.Linq;
+using MetroSP.Planilha;
 
 namespace MetroSP.Classificacao
 {
@@ -38,7 +37,7 @@ namespace MetroSP.Classificacao
 
     /// <summary>
     /// Lista de classificação lida de uma planilha (.xlsx ou .csv), no espírito do IfcClassification:
-    /// colunas Código, Descrição e, opcionais, Código pai, Categorias e Edição.
+    /// colunas Código, Descrição e, opcionais, Código pai e Categorias (o usuário indica a coluna de cada uma).
     /// Sem "Código pai", a hierarquia sai do próprio código (EST.02.01 é filho de EST.02).
     /// </summary>
     public class ClassificationList
@@ -51,45 +50,45 @@ namespace MetroSP.Classificacao
         public Dictionary<string, ClassItem> PorCodigo { get; } = new Dictionary<string, ClassItem>(StringComparer.OrdinalIgnoreCase);
         public List<string> Avisos { get; } = new List<string>();
 
+        /// <summary>Lê a planilha achando sozinho a linha dos títulos e as colunas (Código, Descrição, Código pai, Categorias).</summary>
         public static ClassificationList Ler(string caminho)
         {
-            List<List<string>> linhas = Path.GetExtension(caminho).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)
-                ? LerXlsx(caminho)
-                : LerCsv(caminho);
+            Tabela t = LeitorPlanilha.Ler(caminho);
+            var mapa = new MapaColunas { Arquivo = caminho, Aba = t.NomesAbas[0] };
+            var campos = SistemaClassificacao.Campos.Append(SistemaClassificacao.CampoEdicao).ToList();
+            mapa.LinhaCabecalho = MapaColunas.AcharCabecalho(t, mapa.Aba, campos);
+            mapa.Sugerir(t, campos);
+            if (mapa.Coluna(SistemaClassificacao.CampoCodigo.Chave) == null) throw new InvalidDataException("Não encontrei a coluna \"Código\" na planilha.");
+            if (mapa.Coluna(SistemaClassificacao.CampoDescricao.Chave) == null) throw new InvalidDataException("Não encontrei a coluna \"Descrição\" na planilha.");
+            return De(t, mapa, Path.GetFileNameWithoutExtension(caminho));
+        }
 
-            var lista = new ClassificationList { Arquivo = caminho, Nome = Path.GetFileNameWithoutExtension(caminho) };
-
-            // Cabeçalho: primeira linha com uma coluna de código.
-            int h = linhas.FindIndex(l => l.Any(c => EhColuna(c, "código", "codigo", "code", "identification")));
-            if (h < 0) throw new InvalidDataException("Não encontrei a coluna \"Código\" na planilha.");
-            List<string> cab = linhas[h];
-            int cCod = Coluna(cab, "código", "codigo", "code", "identification");
-            int cDesc = Coluna(cab, "descrição", "descricao", "description", "nome", "name", "título", "titulo");
-            int cPai = Coluna(cab, "código pai", "codigo pai", "pai", "parent", "referencedsource");
-            int cCat = Coluna(cab, "categorias", "categoria", "categorias revit", "categories");
-            int cEd = Coluna(cab, "edição", "edicao", "edition", "versão", "versao");
-            if (cDesc < 0) throw new InvalidDataException("Não encontrei a coluna \"Descrição\" na planilha.");
-
-            for (int i = h + 1; i < linhas.Count; i++)
+        /// <summary>Monta a lista com as colunas indicadas pelo usuário.</summary>
+        public static ClassificationList De(Tabela t, MapaColunas mapa, string nome)
+        {
+            var lista = new ClassificationList { Arquivo = mapa.Arquivo, Nome = nome };
+            foreach (LinhaPlanilha l in mapa.Linhas(t))
             {
-                List<string> l = linhas[i];
-                string cod = Celula(l, cCod);
+                string cod = l[SistemaClassificacao.CampoCodigo.Chave];
                 if (string.IsNullOrWhiteSpace(cod)) continue;
-                var item = new ClassItem { Codigo = cod.Trim(), Descricao = (Celula(l, cDesc) ?? "").Trim(), CodigoPai = Celula(l, cPai)?.Trim() };
-                string cats = Celula(l, cCat);
+                var item = new ClassItem
+                {
+                    Codigo = cod.Trim(),
+                    Descricao = (l[SistemaClassificacao.CampoDescricao.Chave] ?? "").Trim(),
+                    CodigoPai = l[SistemaClassificacao.CampoPai.Chave]?.Trim(),
+                };
+                if (lista.Edicao == null) lista.Edicao = l[SistemaClassificacao.CampoEdicao.Chave];
+                string cats = l[SistemaClassificacao.CampoCategorias.Chave];
                 if (!string.IsNullOrWhiteSpace(cats))
                     item.Categorias.AddRange(cats.Split(new[] { ';', ',', '|' }, StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()));
-                if (lista.Edicao == null && cEd >= 0) lista.Edicao = Celula(l, cEd);
-
                 if (lista.PorCodigo.ContainsKey(item.Codigo))
                 {
-                    lista.Avisos.Add($"Código repetido na planilha: {item.Codigo} (linha {i + 1}); ficou a primeira ocorrência.");
+                    lista.Avisos.Add($"Código repetido na planilha: {item.Codigo} (linha {l.Numero}); ficou a primeira ocorrência.");
                     continue;
                 }
                 lista.PorCodigo[item.Codigo] = item;
                 lista.Itens.Add(item);
             }
-
             lista.MontarArvore();
             return lista;
         }
@@ -111,125 +110,6 @@ namespace MetroSP.Classificacao
                 i.Pai = pai;
                 if (pai != null) pai.Filhos.Add(i); else Raizes.Add(i);
             }
-        }
-
-        private static bool EhColuna(string c, params string[] nomes) =>
-            c != null && nomes.Any(n => string.Equals(c.Trim(), n, StringComparison.CurrentCultureIgnoreCase));
-
-        private static int Coluna(List<string> cab, params string[] nomes)
-        {
-            // Nome exato primeiro ("Código pai" não pode ser confundido com "Código").
-            for (int i = 0; i < cab.Count; i++) if (EhColuna(cab[i], nomes)) return i;
-            return -1;
-        }
-
-        private static string Celula(List<string> l, int i) => i >= 0 && i < l.Count ? l[i] : null;
-
-        // ------------------------------------------------------------------ leitura
-
-        private static List<List<string>> LerCsv(string caminho)
-        {
-            byte[] bytes = File.ReadAllBytes(caminho);
-            string texto;
-            try { texto = new UTF8Encoding(false, true).GetString(bytes).TrimStart('﻿'); }
-            catch (DecoderFallbackException) { texto = Encoding.Latin1.GetString(bytes); }
-
-            string primeira = texto.Split('\n')[0];
-            char sep = primeira.Count(c => c == ';') >= primeira.Count(c => c == ',') ? ';' : ',';
-            if (primeira.Count(c => c == '\t') > primeira.Count(c => c == sep)) sep = '\t';
-
-            var linhas = new List<List<string>>();
-            var atual = new List<string>();
-            var campo = new StringBuilder();
-            bool aspas = false;
-            for (int i = 0; i < texto.Length; i++)
-            {
-                char ch = texto[i];
-                if (aspas)
-                {
-                    if (ch == '"' && i + 1 < texto.Length && texto[i + 1] == '"') { campo.Append('"'); i++; }
-                    else if (ch == '"') aspas = false;
-                    else campo.Append(ch);
-                }
-                else if (ch == '"') aspas = true;
-                else if (ch == sep) { atual.Add(campo.ToString()); campo.Clear(); }
-                else if (ch == '\n' || ch == '\r')
-                {
-                    if (ch == '\r' && i + 1 < texto.Length && texto[i + 1] == '\n') i++;
-                    atual.Add(campo.ToString()); campo.Clear();
-                    linhas.Add(atual); atual = new List<string>();
-                }
-                else campo.Append(ch);
-            }
-            if (campo.Length > 0 || atual.Count > 0) { atual.Add(campo.ToString()); linhas.Add(atual); }
-            return linhas;
-        }
-
-        /// <summary>Lê a primeira planilha de um .xlsx (zip com XML), sem depender do Excel.</summary>
-        private static List<List<string>> LerXlsx(string caminho)
-        {
-            XNamespace ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
-            XNamespace rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
-            XNamespace pkg = "http://schemas.openxmlformats.org/package/2006/relationships";
-
-            // Abre como somente leitura e compartilhado: a planilha pode estar aberta no Excel.
-            using (var fs = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            using (var zip = new ZipArchive(fs, ZipArchiveMode.Read))
-            {
-                XDocument Xml(string nome)
-                {
-                    ZipArchiveEntry e = zip.GetEntry(nome);
-                    if (e == null) return null;
-                    using (Stream s = e.Open()) return XDocument.Load(s);
-                }
-
-                var compartilhadas = new List<string>();
-                XDocument ss = Xml("xl/sharedStrings.xml");
-                if (ss != null)
-                    foreach (XElement si in ss.Root.Elements(ns + "si"))
-                        compartilhadas.Add(string.Concat(si.Descendants(ns + "t").Select(t => t.Value)));
-
-                // Primeira aba do workbook → arquivo da planilha.
-                XDocument wb = Xml("xl/workbook.xml");
-                string rid = wb?.Root.Element(ns + "sheets")?.Elements(ns + "sheet").FirstOrDefault()?.Attribute(rel + "id")?.Value;
-                string alvo = Xml("xl/_rels/workbook.xml.rels")?.Root.Elements(pkg + "Relationship")
-                    .FirstOrDefault(r => r.Attribute("Id")?.Value == rid)?.Attribute("Target")?.Value ?? "worksheets/sheet1.xml";
-                alvo = alvo.TrimStart('/');
-                if (!alvo.StartsWith("xl/")) alvo = "xl/" + alvo;
-                XDocument sheet = Xml(alvo) ?? throw new InvalidDataException("Planilha vazia ou formato não reconhecido.");
-
-                var linhas = new List<List<string>>();
-                foreach (XElement row in sheet.Descendants(ns + "row"))
-                {
-                    var l = new List<string>();
-                    foreach (XElement c in row.Elements(ns + "c"))
-                    {
-                        int col = IndiceColuna(c.Attribute("r")?.Value) ?? l.Count;
-                        while (l.Count < col) l.Add(null);
-                        string t = c.Attribute("t")?.Value;
-                        string v = c.Element(ns + "v")?.Value;
-                        string valor = t == "s" && int.TryParse(v, out int idx) && idx < compartilhadas.Count ? compartilhadas[idx]
-                            : t == "inlineStr" ? string.Concat(c.Descendants(ns + "t").Select(x => x.Value))
-                            : v;
-                        l.Add(valor);
-                    }
-                    linhas.Add(l);
-                }
-                return linhas;
-            }
-        }
-
-        /// <summary>"C12" → 2.</summary>
-        private static int? IndiceColuna(string referencia)
-        {
-            if (string.IsNullOrEmpty(referencia)) return null;
-            int n = 0;
-            foreach (char ch in referencia)
-            {
-                if (!char.IsLetter(ch)) break;
-                n = n * 26 + (char.ToUpperInvariant(ch) - 'A' + 1);
-            }
-            return n == 0 ? (int?)null : n - 1;
         }
     }
 }

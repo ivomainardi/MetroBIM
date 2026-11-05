@@ -17,6 +17,8 @@ namespace MetroSP.Classificacao
 
         public string Planilha { get; set; }
         public string Parametro { get; set; } = "ClassificationCode";
+        /// <summary>Último padrão usado no Verificar classificação.</summary>
+        public string Padrao { get; set; }
 
         public static ClassSettings Abrir()
         {
@@ -30,6 +32,7 @@ namespace MetroSP.Classificacao
                     if (p.Length != 2 || p[1].Length == 0) continue;
                     if (p[0] == "planilha") s.Planilha = p[1];
                     else if (p[0] == "parametro") s.Parametro = p[1];
+                    else if (p[0] == "padrao") s.Padrao = p[1];
                 }
             }
             catch { /* configuração corrompida: padrão */ }
@@ -41,7 +44,7 @@ namespace MetroSP.Classificacao
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(Caminho));
-                File.WriteAllLines(Caminho, new[] { "planilha=" + Planilha, "parametro=" + Parametro }, Encoding.UTF8);
+                File.WriteAllLines(Caminho, new[] { "planilha=" + Planilha, "parametro=" + Parametro, "padrao=" + Padrao }, Encoding.UTF8);
             }
             catch { /* não é crítico */ }
         }
@@ -75,7 +78,8 @@ namespace MetroSP.Classificacao
             return v;
         }
 
-        public static string Escrever(string codigo, string descricao) => $"{codigo}:{descricao}";
+        public static string Escrever(string codigo, string descricao, string sistema = null) =>
+            (string.IsNullOrEmpty(sistema) ? "" : $"[{sistema}]") + $"{codigo}:{descricao}";
     }
 
     /// <summary>Onde o parâmetro está num elemento (na instância ou no tipo) e o valor atual.</summary>
@@ -91,6 +95,15 @@ namespace MetroSP.Classificacao
     public class LinhaVerificacao
     {
         public string Situacao { get; set; }
+        /// <summary>Classificação do padrão (quando há mais de uma).</summary>
+        public string Sistema { get; set; }
+        public SistemaClassificacao SistemaRef { get; set; }
+        /// <summary>Parâmetro do código (onde falta, onde a fórmula trava etc.).</summary>
+        public string Parametro { get; set; }
+        /// <summary>Texto do botão de ação da linha (null = sem ação).</summary>
+        public string Acao { get; set; }
+        /// <summary>O que gravar se a proposta for aceita: um ou dois parâmetros (código e descrição separados).</summary>
+        public List<(ElementId Dono, string Parametro, string Valor)> Gravacoes { get; } = new List<(ElementId, string, string)>();
         public string Elemento { get; set; }
         public long Id { get; set; }
         public string Categoria { get; set; }
@@ -227,19 +240,31 @@ namespace MetroSP.Classificacao
 
         // ------------------------------------------------------------------ verificar
 
-        public static List<LinhaVerificacao> Verificar(Document doc, IEnumerable<Element> elementos, ClassificationList lista, string parametro)
+        /// <summary>Uma classificação no formato do exportador IFC ("Código:Descrição" num parâmetro).</summary>
+        public static List<LinhaVerificacao> Verificar(Document doc, IEnumerable<Element> elementos, ClassificationList lista, string parametro) =>
+            Verificar(doc, elementos, new SistemaClassificacao { Nome = lista?.Nome, ParametroCodigo = parametro, Lista = lista });
+
+        /// <summary>Confere uma classificação do padrão em cada elemento.</summary>
+        public static List<LinhaVerificacao> Verificar(Document doc, IEnumerable<Element> elementos, SistemaClassificacao s)
         {
             var linhas = new List<LinhaVerificacao>();
             _chaves.Clear();
             FormulaFamilia.LimparCache();
+            ClassificationList lista = s.Lista;
+            string parametro = s.ParametroCodigo;
+            string pDesc = s.Formato == FormatoClassificacao.Separados && !string.IsNullOrWhiteSpace(s.ParametroDescricao) ? s.ParametroDescricao : null;
+            string nomeGravar = s.GravarNome ? s.Nome : null;
             List<Element> todos = elementos.ToList();
-            Ui.Progresso.Atual?.Etapa($"Analisando {todos.Count} elementos", todos.Count);
+            Ui.Progresso.Atual?.Etapa($"{s.Nome}: analisando {todos.Count} elementos", todos.Count);
             foreach (Element e in todos)
             {
                 Ui.Progresso.Atual?.Avancar(e.Category?.Name);
                 AlvoClassificacao a = Alvo(doc, e, parametro);
                 var l = new LinhaVerificacao
                 {
+                    Sistema = s.Nome,
+                    SistemaRef = s,
+                    Parametro = parametro,
                     Elemento = NomeElemento(doc, e),
                     Id = e.Id.Value,
                     ElementoId = e.Id,
@@ -253,68 +278,139 @@ namespace MetroSP.Classificacao
                     l.Bloqueio = MotivoSomenteLeitura(doc, a.Dono, a.Parametro, parametro);
                     if (l.Bloqueio.StartsWith(PrefixoFormula)) l.FamiliaFormula = FormulaFamilia.Familia(doc, a.Dono)?.Id;
                 }
-                if (a.Parametro == null) { l.Situacao = SemParametro; l.Proposta = $"Vincule o parâmetro {parametro} à categoria"; continue; }
-
-                string valor = a.Valor;
-                l.Preenchido = valor;
-                if (string.IsNullOrWhiteSpace(valor)) { l.Situacao = SemClassificacao; l.Proposta = "Aplicar classificação"; continue; }
-
-                ValorClassificacao v = ValorClassificacao.Ler(valor);
-                ClassItem item = null;
-                if (!v.Valido)
-                {
-                    // Tenta reconhecer o código no começo do texto (ex.: "EST 02 03 01 - Laje").
-                    item = ProcurarPorTexto(lista, valor);
-                    l.Situacao = FormatoInvalido;
-                    l.Proposta = "Formato esperado Código:Descrição";
-                    if (item != null)
-                    {
-                        l.NaLista = ValorClassificacao.Escrever(item.Codigo, item.Descricao);
-                        l.ValorProposto = l.NaLista;
-                        l.Proposta = $"Reescrever como {l.NaLista}";
-                    }
-                    continue;
-                }
-
-                if (!lista.PorCodigo.TryGetValue(v.Codigo, out item))
-                {
-                    l.Situacao = ForaDaLista;
-                    ClassItem parecido = Parecido(lista, v.Codigo, v.Descricao);
-                    if (parecido != null)
-                    {
-                        l.NaLista = ValorClassificacao.Escrever(parecido.Codigo, parecido.Descricao);
-                        l.ValorProposto = l.NaLista;
-                        l.Proposta = $"Código parecido: {parecido.Codigo}";
-                    }
-                    else l.Proposta = "Escolha na lista (Aplicar classificação)";
-                    continue;
-                }
-
-                l.NaLista = ValorClassificacao.Escrever(item.Codigo, item.Descricao);
-                if (!item.ValeParaCategoria(e.Category?.Name))
-                {
-                    l.Situacao = CategoriaNaoPrevista;
-                    l.Proposta = "Item vale para " + string.Join(", ", item.Categorias);
-                    continue;
-                }
-                if (v.Descricao != item.Descricao || v.Codigo != item.Codigo || v.Sistema != null)
-                {
-                    l.Situacao = DescricaoDiferente;
-                    l.Proposta = "Usar a escrita da lista" + Diferenca(v.Descricao, item.Descricao);
-                    l.ValorProposto = l.NaLista;
-                    l.PropostaSegura = true;
-                    if (v.Sistema != null && v.Descricao == item.Descricao && v.Codigo == item.Codigo)
-                    {
-                        // [Nome] no começo é aceito pelo IFC: não é erro.
-                        l.Situacao = OK;
-                        l.Proposta = null;
-                        l.ValorProposto = null;
-                    }
-                    continue;
-                }
-                l.Situacao = OK;
+                if (a.Parametro == null) l.Situacao = SemParametro;
+                else if (s.Formato == FormatoClassificacao.Separados) VerificarSeparados(doc, e, a, l, lista, pDesc);
+                else VerificarCodigoDescricao(e, a, l, lista, nomeGravar);
+                if (l.Situacao == SemParametro && l.Proposta == null) l.Proposta = $"Vincule o parâmetro {parametro} à categoria";
+                if (s.Formato == FormatoClassificacao.CodigoDescricao && l.ValorProposto != null && l.DonoId != null)
+                    l.Gravacoes.Add((l.DonoId, parametro, l.ValorProposto));
+                l.Acao = Acao(l);
             }
             return linhas;
+        }
+
+        /// <summary>Botão da linha: o que fazer na situação.</summary>
+        private static string Acao(LinhaVerificacao l)
+        {
+            if (l.Situacao == OK) return null;
+            if (l.Situacao == SemParametro) return "Criar parâmetro";
+            if (l.FamiliaFormula != null) return "Remover fórmula";
+            if (!string.IsNullOrEmpty(l.Bloqueio)) return "Mostrar";
+            if (l.Gravacoes.Count > 0) return "Corrigir";
+            if (l.Situacao == SemClassificacao || l.Situacao == ForaDaLista || l.Situacao == FormatoInvalido || l.Situacao == CategoriaNaoPrevista)
+                return "Escolher...";
+            return "Mostrar";
+        }
+
+        private static void VerificarCodigoDescricao(Element e, AlvoClassificacao a, LinhaVerificacao l, ClassificationList lista, string nomeGravar)
+        {
+            string valor = a.Valor;
+            l.Preenchido = valor;
+            if (string.IsNullOrWhiteSpace(valor)) { l.Situacao = SemClassificacao; l.Proposta = "Escolha na lista"; return; }
+
+            ValorClassificacao v = ValorClassificacao.Ler(valor);
+            ClassItem item;
+            if (!v.Valido)
+            {
+                // Tenta reconhecer o código no começo do texto (ex.: "EST 02 03 01 - Laje").
+                item = ProcurarPorTexto(lista, valor);
+                l.Situacao = FormatoInvalido;
+                l.Proposta = "Formato esperado Código:Descrição";
+                if (item != null)
+                {
+                    l.NaLista = ValorClassificacao.Escrever(item.Codigo, item.Descricao);
+                    l.ValorProposto = ValorClassificacao.Escrever(item.Codigo, item.Descricao, nomeGravar);
+                    l.Proposta = $"Reescrever como {l.NaLista}";
+                }
+                return;
+            }
+
+            if (!lista.PorCodigo.TryGetValue(v.Codigo, out item))
+            {
+                l.Situacao = ForaDaLista;
+                ClassItem parecido = Parecido(lista, v.Codigo, v.Descricao);
+                if (parecido != null)
+                {
+                    l.NaLista = ValorClassificacao.Escrever(parecido.Codigo, parecido.Descricao);
+                    l.ValorProposto = ValorClassificacao.Escrever(parecido.Codigo, parecido.Descricao, nomeGravar ?? v.Sistema);
+                    l.Proposta = $"Código parecido: {parecido.Codigo}";
+                }
+                else l.Proposta = "Escolha na lista";
+                return;
+            }
+
+            l.NaLista = ValorClassificacao.Escrever(item.Codigo, item.Descricao);
+            if (!item.ValeParaCategoria(e.Category?.Name))
+            {
+                l.Situacao = CategoriaNaoPrevista;
+                l.Proposta = "Item vale para " + string.Join(", ", item.Categorias);
+                return;
+            }
+            bool descricaoOk = item.Descricao.Length == 0 || v.Descricao == item.Descricao;
+            if (!descricaoOk || v.Codigo != item.Codigo)
+            {
+                l.Situacao = DescricaoDiferente;
+                l.Proposta = "Usar a escrita da lista" + Diferenca(v.Descricao, item.Descricao);
+                l.ValorProposto = ValorClassificacao.Escrever(item.Codigo, item.Descricao.Length == 0 ? v.Descricao : item.Descricao, nomeGravar ?? v.Sistema);
+                l.PropostaSegura = true;
+                return;
+            }
+            // [Nome] no começo é aceito pelo exportador IFC: não é erro.
+            l.Situacao = OK;
+        }
+
+        /// <summary>Código e descrição em parâmetros separados (Classification Manager, Código de montagem, OmniClass).</summary>
+        private static void VerificarSeparados(Document doc, Element e, AlvoClassificacao a, LinhaVerificacao l, ClassificationList lista, string pDesc)
+        {
+            string cod = (a.Valor ?? "").Trim();
+            AlvoClassificacao ad = pDesc == null ? null : Alvo(doc, e, pDesc);
+            string desc = ad?.Parametro?.AsString() ?? "";
+            bool descEditavel = ad?.Parametro != null && !ad.Parametro.IsReadOnly;
+            l.Preenchido = pDesc == null || cod.Length == 0 ? cod : $"{cod} · {desc}";
+            if (cod.Length == 0) { l.Situacao = SemClassificacao; l.Proposta = "Escolha na lista"; return; }
+
+            void Gravar(ClassItem item, bool codigo)
+            {
+                if (codigo && a.Dono != null) l.Gravacoes.Add((a.Dono.Id, l.Parametro, item.Codigo));
+                if (descEditavel && item.Descricao.Length > 0 && desc != item.Descricao) l.Gravacoes.Add((ad.Dono.Id, pDesc, item.Descricao));
+                l.ValorProposto = pDesc == null ? item.Codigo : $"{item.Codigo} · {item.Descricao}";
+            }
+
+            if (!lista.PorCodigo.TryGetValue(cod, out ClassItem it))
+            {
+                l.Situacao = ForaDaLista;
+                ClassItem parecido = Parecido(lista, cod, desc);
+                if (parecido != null)
+                {
+                    l.NaLista = $"{parecido.Codigo} · {parecido.Descricao}";
+                    l.Proposta = $"Código parecido: {parecido.Codigo}";
+                    Gravar(parecido, true);
+                }
+                else l.Proposta = "Escolha na lista";
+                return;
+            }
+
+            l.NaLista = $"{it.Codigo} · {it.Descricao}";
+            if (!it.ValeParaCategoria(e.Category?.Name))
+            {
+                l.Situacao = CategoriaNaoPrevista;
+                l.Proposta = "Item vale para " + string.Join(", ", it.Categorias);
+                return;
+            }
+            bool codigoDiferente = cod != it.Codigo;
+            bool descDiferente = pDesc != null && it.Descricao.Length > 0 && desc != it.Descricao;
+            if (!codigoDiferente && !descDiferente) { l.Situacao = OK; return; }
+
+            l.Situacao = DescricaoDiferente;
+            l.PropostaSegura = true;
+            if (descDiferente && ad?.Parametro == null)
+                l.Proposta = $"Sem o parâmetro {pDesc}: vincule-o para gravar a descrição";
+            else if (descDiferente && !descEditavel)
+                l.Proposta = "A descrição é preenchida pelo Revit: confira a tabela de classificação carregada no Revit";
+            else
+                l.Proposta = "Usar a escrita da lista" + (descDiferente ? Diferenca(desc, it.Descricao) : "");
+            if (codigoDiferente || descEditavel) Gravar(it, codigoDiferente);
+            if (l.Gravacoes.Count == 0) l.ValorProposto = null;
         }
 
         /// <summary>Explica a diferença de escrita (maiúsculas, espaços, acentos ou texto diferente).</summary>
@@ -423,59 +519,72 @@ namespace MetroSP.Classificacao
 
         // ------------------------------------------------------------------ gravar
 
+        /// <summary>Grava o mesmo parâmetro em vários donos (instância ou tipo).</summary>
+        public static ResultadoGravacao Gravar(Document doc, string parametro, IEnumerable<(ElementId Dono, string Valor)> valores,
+            string nomeTransacao, Func<string, bool> confirmar) =>
+            Gravar(doc, valores.Select(v => (v.Dono, parametro, v.Valor)), nomeTransacao, confirmar);
+
         /// <summary>
-        /// Grava valores (um por dono: instância ou tipo) numa única transação, tratando os bloqueios:
+        /// Grava valores (um por dono e parâmetro: instância ou tipo) numa única transação, tratando os bloqueios:
         /// elementos em grupo (oferece ligar "variar por instância de grupo" no parâmetro),
         /// worksharing (pega emprestado o que estiver livre) e explica o motivo de cada falha.
         /// </summary>
         /// <param name="confirmar">Pergunta ao usuário (true = sim). Usada antes de mudar a definição do parâmetro.</param>
-        public static ResultadoGravacao Gravar(Document doc, string parametro, IEnumerable<(ElementId Dono, string Valor)> valores,
+        public static ResultadoGravacao Gravar(Document doc, IEnumerable<(ElementId Dono, string Parametro, string Valor)> valores,
             string nomeTransacao, Func<string, bool> confirmar)
         {
             var r = new ResultadoGravacao();
-            var pendentes = new List<(Element Dono, Parameter P, string Valor)>();
-            foreach (var (donoId, valor) in valores.GroupBy(v => v.Dono).Select(g => g.First()))
+            var pendentes = new List<(Element Dono, string Nome, Parameter P, string Valor)>();
+            foreach (var (donoId, nome, valor) in valores.GroupBy(v => (v.Dono, v.Parametro)).Select(g => g.First()))
             {
                 Element dono = doc.GetElement(donoId);
-                Parameter p = dono == null ? null : Param(dono, parametro);
+                Parameter p = dono == null ? null : Param(dono, nome);
                 if (dono == null) r.Falhou(donoId, "Elemento não encontrado (apagado?)");
-                else if (p == null) r.Falhou(donoId, $"Sem o parâmetro {parametro}");
-                else pendentes.Add((dono, p, valor)); // somente leitura é tratado depois dos grupos (membros de grupo aparecem como somente leitura)
+                else if (p == null) r.Falhou(donoId, $"Sem o parâmetro {nome}");
+                else pendentes.Add((dono, nome, p, valor)); // somente leitura é tratado depois dos grupos (membros de grupo aparecem como somente leitura)
             }
+            string nomes = string.Join(", ", pendentes.Select(x => x.Nome).Distinct());
 
             // Grupos: parâmetro de instância só pode ser alterado nos membros se puder variar por instância de grupo.
             var emGrupo = pendentes.Where(x => !(x.Dono is ElementType) && x.Dono.GroupId != ElementId.InvalidElementId).ToList();
-            InternalDefinition def = emGrupo.Select(x => x.P.Definition).OfType<InternalDefinition>().FirstOrDefault();
-            if (emGrupo.Count > 0 && def != null && !def.VariesAcrossGroups)
+            var travados = emGrupo.GroupBy(x => x.Nome)
+                .Select(g => (Nome: g.Key, Def: g.Select(x => x.P.Definition).OfType<InternalDefinition>().FirstOrDefault(), Itens: g.ToList()))
+                .Where(g => g.Def != null && !g.Def.VariesAcrossGroups).ToList();
+            if (travados.Count > 0)
             {
+                int n = travados.Sum(g => g.Itens.Count);
+                string lista = string.Join(", ", travados.Select(g => g.Nome));
                 bool liberar = confirmar(
-                    $"{emGrupo.Count} elementos estão dentro de grupos, e {parametro} está com os valores alinhados por tipo de grupo, " +
+                    $"{n} gravações são em elementos dentro de grupos, e {lista} está com os valores alinhados por tipo de grupo, " +
                     "por isso o Revit não deixa gravar neles.\n\n" +
-                    $"Ligar \"Os valores podem variar por instância de grupo\" em {parametro}?\n\n" +
+                    $"Ligar \"Os valores podem variar por instância de grupo\" em {lista}?\n\n" +
                     "Os grupos continuam como estão; só esse parâmetro passa a poder ser diferente em cada instância de grupo. " +
                     "Pode ser desfeito (Ctrl+Z ou em Parâmetros de projeto).");
-                if (liberar)
+                var naoLiberados = new List<(Element, string, Parameter, string)>();
+                foreach (var g in travados)
                 {
-                    try
+                    bool ok = false;
+                    if (liberar)
                     {
-                        using (var t = new Transaction(doc, "MetroSP: " + parametro + " varia por instância de grupo"))
+                        try
                         {
-                            t.Start();
-                            def.SetAllowVaryBetweenGroups(doc, true);
-                            t.Commit();
+                            using (var t = new Transaction(doc, "MetroSP: " + g.Nome + " varia por instância de grupo"))
+                            {
+                                t.Start();
+                                g.Def.SetAllowVaryBetweenGroups(doc, true);
+                                t.Commit();
+                            }
+                            ok = r.GrupoLiberado = true;
                         }
-                        r.GrupoLiberado = true;
+                        catch (Exception ex)
+                        {
+                            r.Avisos.Add($"Não foi possível liberar {g.Nome} nos grupos: " + ex.Message);
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        r.Avisos.Add("Não foi possível liberar o parâmetro nos grupos: " + ex.Message);
-                    }
+                    if (!ok) naoLiberados.AddRange(g.Itens);
                 }
-                if (!r.GrupoLiberado)
-                {
-                    foreach (var x in emGrupo) r.Falhou(x.Dono.Id, "Em grupo (valores alinhados por tipo de grupo)");
-                    pendentes = pendentes.Except(emGrupo).ToList();
-                }
+                foreach (var x in naoLiberados) r.Falhou(x.Item1.Id, "Em grupo (valores alinhados por tipo de grupo)");
+                pendentes = pendentes.Except(naoLiberados).ToList();
             }
 
             // Daqui em diante não há mais perguntas: mostra o andamento quando a gravação é grande.
@@ -484,8 +593,8 @@ namespace MetroSP.Classificacao
             // Worksharing: pega emprestado; o que estiver com outra pessoa fica de fora, com o nome do dono.
             if (doc.IsWorkshared && pendentes.Count > 0)
             {
-                Ui.Progresso.Atual?.Etapa($"Pegando {pendentes.Count} elementos emprestados (worksharing)");
-                var ids = pendentes.Select(x => x.Dono.Id).ToList();
+                var ids = pendentes.Select(x => x.Dono.Id).Distinct().ToList();
+                Ui.Progresso.Atual?.Etapa($"Pegando {ids.Count} elementos emprestados (worksharing)");
                 ICollection<ElementId> obtidos;
                 try { obtidos = WorksharingUtils.CheckoutElements(doc, ids); }
                 catch (Exception ex)
@@ -493,7 +602,7 @@ namespace MetroSP.Classificacao
                     obtidos = new HashSet<ElementId>();
                     r.Avisos.Add("Não foi possível pegar elementos emprestados: " + ex.Message);
                 }
-                var livres = new List<(Element, Parameter, string)>();
+                var livres = new List<(Element, string, Parameter, string)>();
                 foreach (var x in pendentes)
                 {
                     if (obtidos.Contains(x.Dono.Id)) { livres.Add(x); continue; }
@@ -511,24 +620,24 @@ namespace MetroSP.Classificacao
             }
 
             // Somente leitura que sobrou: explica o motivo (o parâmetro é lido de novo, pois liberar os grupos muda isso).
-            var editaveis = new List<(Element Dono, Parameter P, string Valor)>();
+            var editaveis = new List<(Element Dono, string Nome, Parameter P, string Valor)>();
             _chaves.Clear();
             Ui.Progresso.Atual?.Etapa("Conferindo o que pode ser gravado");
-            foreach (var (dono, _, valor) in pendentes)
+            foreach (var (dono, nome, _, valor) in pendentes)
             {
-                Parameter p = Param(dono, parametro);
-                if (p == null) r.Falhou(dono.Id, $"Sem o parâmetro {parametro}");
-                else if (p.IsReadOnly) r.Falhou(dono.Id, MotivoSomenteLeitura(doc, dono, p, parametro));
-                else editaveis.Add((dono, p, valor));
+                Parameter p = Param(dono, nome);
+                if (p == null) r.Falhou(dono.Id, $"Sem o parâmetro {nome}");
+                else if (p.IsReadOnly) r.Falhou(dono.Id, MotivoSomenteLeitura(doc, dono, p, nome));
+                else editaveis.Add((dono, nome, p, valor));
             }
             pendentes = editaveis;
 
             if (pendentes.Count == 0) return r;
-            Ui.Progresso.Atual?.Etapa($"Gravando {parametro} em {pendentes.Count} elementos", pendentes.Count);
+            Ui.Progresso.Atual?.Etapa($"Gravando {nomes} em {pendentes.Count} elementos", pendentes.Count);
             using (var t = new Transaction(doc, "MetroSP: " + nomeTransacao))
             {
                 t.Start();
-                foreach (var (dono, p, valor) in pendentes)
+                foreach (var (dono, _, p, valor) in pendentes)
                 {
                     Ui.Progresso.Atual?.Avancar(dono.Name);
                     string erro = null;

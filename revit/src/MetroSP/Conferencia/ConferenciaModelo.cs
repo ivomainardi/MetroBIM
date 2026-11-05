@@ -125,6 +125,8 @@ namespace MetroSP.Conferencia
         public int ForaDoPadrao { get; set; }
         /// <summary>Classes IFC que os padrões conferem, para escolher ao corrigir a classe na etapa 3.</summary>
         public List<string> ClassesDoPadrao { get; } = new List<string>();
+        /// <summary>Esquema do setup do pacote (CategoriasIfc.Ifc4 ou Ifc4x3), para listar as classes ao corrigir.</summary>
+        public string Esquema { get; set; } = CategoriasIfc.Ifc4x3;
         public List<EtapaConferencia> Etapas { get; } = new List<EtapaConferencia>();
 
         /// <summary>Linhas da matriz: categoria → classe IFC (para mostrar) e quantidade de elementos.</summary>

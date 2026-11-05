@@ -364,15 +364,18 @@ namespace MetroSP.Conferencia
             if (etapa.Numero == 3 && itens.Any(p => p.Elementos.Count > 0))
             {
                 // Corrigir aqui: grava a classe no "Exportar para IFC como" dos tipos (ou da instância, se ela já tiver um valor).
-                var classe = new System.Windows.Controls.ComboBox { IsEditable = true, MinWidth = 220, Padding = new Thickness(4, 2, 4, 2), VerticalAlignment = VerticalAlignment.Center };
-                foreach (string c in _res.ClassesDoPadrao) classe.Items.Add(c);
-                classe.ToolTip = "Classes que fazem parte dos padrões. Também dá para digitar outra (ex.: IfcBeam).";
+                // Lista: primeiro as classes dos padrões, depois todas as do esquema do setup (Classe e Classe.TIPO). Digitar só filtra.
+                var doPadrao = _res.ClassesDoPadrao.Select(c => EsquemaIfc.ClasseComTipo(_res.Esquema, c)).Where(c => c != null).Distinct().ToList();
+                var lista = doPadrao.Concat(EsquemaIfc.ClassesComTipo(_res.Esquema).Except(doPadrao)).ToList();
+                var classe = SeletorLista.Criar(lista, 300);
+                classe.ToolTip = $"Primeiro as classes dos padrões ({doPadrao.Count}), depois todas as do {EsquemaIfc.Nome(_res.Esquema)}, o IFC schema do setup. " +
+                                 "Digite parte do nome (ex.: Beam) para filtrar; só vale uma classe da lista.";
                 var definir = new Button
                 {
                     Content = "Definir classe", Style = Theme.PrimaryButton, Margin = new Thickness(8, 0, 6, 0),
                     ToolTip = "Grava a classe no \"Exportar para IFC como\" do tipo dos elementos das linhas escolhidas (ou de todas as visíveis) e confere de novo. Ctrl+Z no Revit desfaz.",
                 };
-                definir.Click += (s, e) => DefinirClasse(Escolhidos(), classe.Text);
+                definir.Click += (s, e) => DefinirClasse(Escolhidos(), classe.SelectedItem as string);
                 var linhaClasse = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
                 linhaClasse.Children.Add(new TextBlock { Text = "Exportar como", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) });
                 linhaClasse.Children.Add(classe);
@@ -891,9 +894,9 @@ namespace MetroSP.Conferencia
         {
             classe = (classe ?? "").Trim();
             if (ids.Count == 0) return;
-            if (!classe.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase))
+            if (EsquemaIfc.ClasseComTipo(_res.Esquema, classe) == null)
             {
-                MessageBox.Show(this, "Escolha ou escreva uma classe IFC (ex.: IfcBeam).", "MetroSP");
+                MessageBox.Show(this, "Escolha uma classe IFC da lista (digite parte do nome para filtrar).", "MetroSP");
                 return;
             }
             if (MessageBox.Show(this, $"Exportar {ids.Count} elemento(s) como {classe}?\n\nGrava no \"Exportar para IFC como\" dos tipos (vale para todas as instâncias desses tipos). Ctrl+Z no Revit desfaz.",

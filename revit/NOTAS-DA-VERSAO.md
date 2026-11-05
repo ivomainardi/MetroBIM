@@ -1,4 +1,43 @@
-# Próxima versão (em teste, ainda não publicada)
+# Próxima versão (em teste)
+
+## Verificar classificação com padrões e várias classificações
+
+- **Padrões salvos:** o Verificar classificação passou a trabalhar com **padrões** (lista no topo da janela e botão
+  **Editar padrões...**). Cada padrão tem uma ou mais classificações e fica em `%AppData%\MetroSP\Classificacao`;
+  **Exportar/Importar** leva o padrão (.json) para outra máquina ou para a equipe. No primeiro uso, a planilha e o
+  parâmetro que a classificação já usava viram o padrão "Padrão Metrô".
+- **Mais de uma classificação por elemento**, com os modelos da Autodesk: `ClassificationCode`, `ClassificationCode(2)`...
+  do exportador IFC ("Código:Descrição", com opção de gravar "[Nome]Código:Descrição"), parâmetros do Classification
+  Manager (`Classification.Uniformat.Number`/`.Description`, OmniClass, Uniclass), Código de montagem e OmniClass do
+  Revit, ou qualquer parâmetro de texto. Código e descrição podem estar num parâmetro só ou em dois.
+- **Planilha com as colunas indicadas:** para cada classificação, escolhe-se a planilha (.xlsx ou .csv), a aba, a linha
+  dos títulos e a coluna de Código, Descrição e, opcionais, Código pai e Categorias, com prévia das primeiras linhas.
+  A ferramenta sugere as colunas pelos títulos.
+- **Botão de ação em cada linha** da tabela: **Corrigir** (grava a escrita da lista), **Escolher...** (abre a lista,
+  filtrada pela categoria, e grava o item escolhido), **Criar parâmetro**, **Remover fórmula** e **Mostrar** (seleciona
+  o elemento e explica por que não dá para gravar). Com várias linhas selecionadas, a ação vale para todas.
+- A tabela ganhou a coluna **Classificação** quando o padrão tem mais de uma; o .csv exportado leva a classificação e o
+  parâmetro.
+- Aplicar e Consistência continuam com a planilha de antes (um parâmetro).
+- Falta testar no Revit: criar um padrão com ClassificationCode e ClassificationCode(2) em abas diferentes da mesma
+  planilha; um com Classification Manager (Uniformat) e outro com Código de montagem; verificar, usar cada botão de ação
+  (inclusive com várias linhas selecionadas, em tipo e em grupo) e conferir no IFC exportado as duas
+  IfcClassificationReference. Conferir também os nomes dos parâmetros do Classification Manager no modelo de vocês.
+## Classe IFC escolhida da lista, sem digitar
+
+Onde se escolhe uma classe IFC, a caixa agora lista **todas as classes do IFC schema** e digitar só filtra. Classe ou
+tipo fora do esquema aparece em vermelho e não deixa salvar. As listas vêm dos esquemas oficiais IFC4 (ADD2 TC1) e
+IFC4X3_ADD2 (gerador em `tools/gerar-esquema-ifc.py`), o mesmo padrão do Civil 3D.
+
+- **Categorias IFC**: a coluna Classe IFC lista as classes do IFC schema escolhido (IFC4 ou IFC 4.3) e o **Tipo
+  predefinido** lista os tipos da classe da linha. Ao trocar a classe, um tipo que ela não tem é apagado.
+- **Conferir Entrega** (etapa 3, Exportar como): primeiro as classes dos padrões, depois todas as do IFC schema do
+  setup, com Classe e Classe.TIPO.
+- **Editar property sets**: Entidades IFC deixou de ser texto livre; clicar duas vezes abre a lista de entidades do
+  IFC4 e do IFC 4.3 (inclui IfcElement e os tipos, como IfcWallType) para marcar. Vale para as linhas selecionadas.
+- Falta testar no Revit: abrir Categorias IFC e trocar classe e tipo nos dois esquemas (filtrar digitando, Enter,
+  sair da célula com texto que não é classe); no Conferir Entrega, Definir classe com IfcWall.SHEAR; no editor de
+  property sets, marcar entidades em várias linhas e salvar.
 
 ## Confrontar Planilha
 
