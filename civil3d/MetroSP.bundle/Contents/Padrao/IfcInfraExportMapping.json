@@ -1,20 +1,81 @@
 {
-  "MapCADLayerName": [
-    { "Name": "^G-3D-.*", "IfcExportAs": "IfcBuiltElement.USERDEFINED", "Export": true },
-    { "Name": "^U-3D-TRILHO.*", "IfcExportAs": "IfcRail.RAIL", "Export": true },
-    { "Name": "^U-3D-DORMENTE.*", "IfcExportAs": "IfcTrackElement.SLEEPER", "Export": true },
-    { "Name": "^(MT_PAVIMENTO.*|BIM-PAV-(CBUQ|BASE|SUBBASE).*)$", "IfcExportAs": "IfcCourse.PAVEMENT", "Export": true },
-    { "Name": "^BIM-PAV-CONCRETO.*", "IfcExportAs": "IfcPavement.RIGID", "Export": true },
-    { "Name": "^MT_(GUIA|SUPERGUIA|SARJETA).*", "IfcExportAs": "IfcKerb", "Export": true },
-    { "Name": "^T-HM-.*", "IfcExportAs": "IfcAnnotation", "Export": false },
-    { "Name": "^TOP-.*", "IfcExportAs": "IfcAnnotation", "Export": false },
-    { "Name": "^F-.*", "IfcExportAs": "IfcAnnotation", "Export": false },
-    { "Name": "^A-.*", "IfcExportAs": "IfcAnnotation", "Export": false }
-  ],
   "MapBlockName": [
-    { "Name": "^U - AMV.*", "IfcExportAs": "IfcElementAssembly.TURNOUTPANEL", "Export": true },
-    { "Name": "^U_parachoque.*", "IfcExportAs": "IfcTrackElement.VEHICLESTOP", "Export": true },
-    { "Name": "^U_dormente_.*", "IfcExportAs": "IfcTrackElement.SLEEPER", "Export": true },
-    { "Name": "^(LOGOMETR.*|A11|notas|ESCALA|PLANTA_CHAVE.*|Malha_Lote.*)$", "IfcExportAs": "IfcAnnotation", "Export": false }
-  ]
+    {"Name": "Q_BASE_SINALEIRO_ENTREVIAS_model", "IfcExportAs": "IfcFooting.PAD_FOOTING", "Export": true},
+    {"Name": "Q_SINALEIRO_ENTREVIAS_model", "IfcExportAs": "IfcSignal.VISUAL", "Export": true},
+    {"Name": "Q_SUPORTE_BANDEJAMENTO_DIREITO_model", "IfcExportAs": "IfcCableCarrierSegment.CABLEBRACKET", "Export": true},
+    {"Name": "Q_SUPORTE_BANDEJAMENTO_ESQUERDO_model", "IfcExportAs": "IfcCableCarrierSegment.CABLEBRACKET", "Export": true},
+    {"Name": "U_DORMENTE_1435_model", "IfcExportAs": "IfcTrackElement.SLEEPER", "Export": true},
+    {"Name": "U_ELASTOMERO_QUAD_model", "IfcExportAs": "IfcDiscreteAccessory.ELASTIC_CUSHION", "Export": true},
+    {"Name": "U_ELASTOMERO_RED_model", "IfcExportAs": "IfcDiscreteAccessory.ELASTIC_CUSHION", "Export": true},
+    {"Name": "U_ESCADA_MARINHEIRO_model", "IfcExportAs": "IfcStair.LADDER", "Export": true},
+    {"Name": "U_ISOAMORTECEDOR_model", "IfcExportAs": "IfcImpactProtectionDevice.DAMPINGSYSTEM", "Export": true},
+    {"Name": "U_PARA-CHOQUE_FIXO_1435_model", "IfcExportAs": "IfcTrackElement.VEHICLESTOP", "Export": true},
+    {"Name": "U_PARA-CHOQUE_MOVEL_1435_model", "IfcExportAs": "IfcImpactProtectionDevice.BUMPER", "Export": true},
+    {"Name": "U_SAPATA FRENANTE_1435_model", "IfcExportAs": "IfcTrackElement.BLOCKINGDEVICE", "Export": true},
+    {"Name": "U_PLACA_UIC60_model", "IfcExportAs": "IfcDiscreteAccessory.USERDEFINED", "Export": true},
+    {"Name": "U_MS_FIXDIRETA_model", "IfcExportAs": "IfcSign.MARKER", "Export": true},
+    {"Name": "U_MS_LASTRO_model", "IfcExportAs": "IfcSign.MARKER", "Export": true},
+    {"Name": "^U - AMV.*", "IfcExportAs": "IfcElementAssembly.TURNOUTPANEL", "Export": true},
+    {"Name": "^U_parachoque.*", "IfcExportAs": "IfcTrackElement.VEHICLESTOP", "Export": true},
+    {"Name": "^U_dormente_.*", "IfcExportAs": "IfcTrackElement.SLEEPER", "Export": true},
+    {"Name": "^(LOGOMETR.*|A11|notas|ESCALA|PLANTA_CHAVE.*|Malha_Lote.*)$", "IfcExportAs": "IfcAnnotation", "Export": false}
+  ],
+  "MapCADLayerName": [
+    {"Name": "G-3D-TUNEL", "IfcExportAs": "IfcElementAssembly", "Export": true},
+    {"Name": "G-3D-INVERT", "IfcExportAs": "IfcSlab.FLOOR", "Export": true},
+    {"Name": "J-3D-PASSARELA_EMERGENCIA", "IfcExportAs": "IfcSlab.SIDEWALK", "Export": true},
+    {"Name": "Q-3D-BANDEJAMENTO", "IfcExportAs": "IfcCableCarrierSegment.CABLETRAYSEGMENT", "Export": true},
+    {"Name": "U-3D-LAJE_REGULARIZAÇÃO", "IfcExportAs": "IfcSlab.BASESLAB", "Export": true},
+    {"Name": "U-3D-LAJE_FLUTUANTE", "IfcExportAs": "IfcSlab.TRACKSLAB", "Export": true},
+    {"Name": "U-3D-OCUPACAO_VP", "IfcExportAs": "IfcBuiltElement", "Export": true},
+    {"Name": "U-3D-TRILHO_AMV", "IfcExportAs": "IfcRail.STOCKRAIL", "Export": true},
+    {"Name": "U-3D-TRILHO", "IfcExportAs": "IfcRail.RAIL", "Export": true},
+    {"Name": "U-3D-PLATAFORMA", "IfcExportAs": "IfcSlab.FLOOR", "Export": true},
+    {"Name": "^G-3D-.*", "IfcExportAs": "IfcBuiltElement", "Export": true},
+    {"Name": "^U-3D-DORMENTE.*", "IfcExportAs": "IfcTrackElement.SLEEPER", "Export": true},
+    {"Name": "^(MT_PAVIMENTO.*|BIM-PAV-(CBUQ|BASE|SUBBASE).*)$", "IfcExportAs": "IfcCourse.PAVEMENT", "Export": true},
+    {"Name": "^BIM-PAV-CONCRETO.*", "IfcExportAs": "IfcPavement.RIGID", "Export": true},
+    {"Name": "^MT_(GUIA|SUPERGUIA|SARJETA).*", "IfcExportAs": "IfcKerb", "Export": true},
+    {"Name": "^T-HM-.*", "IfcExportAs": "IfcAnnotation", "Export": false},
+    {"Name": "^TOP-.*", "IfcExportAs": "IfcAnnotation", "Export": false},
+    {"Name": "^F-.*", "IfcExportAs": "IfcAnnotation", "Export": false},
+    {"Name": "^A-.*", "IfcExportAs": "IfcAnnotation", "Export": false}
+  ],
+  "MapAlignmentStyleName": [
+    {"Name": "U-EIXO", "IfcExportAs": "IfcAlignment", "Export": true},
+    {"Name": "U-TBM_escavacao", "IfcExportAs": "IfcAlignment", "Export": true}
+  ],
+  "MapAlignmentLabelStyleName": [],
+  "MapAssemblyStyleName": [
+    {"Name": "Standard", "IfcExportAs": "", "Export": true},
+    {"Name": "U-EIXO_VIA_PERMANENTE", "IfcExportAs": "", "Export": true}
+  ],
+  "MapCorridorStyleName": [
+    {"Name": "Standard", "IfcExportAs": "", "Export": true},
+    {"Name": "U-VAZIO", "IfcExportAs": "", "Export": true}
+  ],
+  "MapBaselineName": [],
+  "MapBaselineRegionName": [],
+  "MapBridgeStructureComponents": [],
+  "MapBridgeStructureGenericComponents": [],
+  "MapFeatureLineStyleName": [],
+  "MapLinkStyleName": [],
+  "MapPipeStyleName": [],
+  "MapPressureAppurtenanceStyleName": [],
+  "MapPressureFittingStyleName": [],
+  "MapPressurePipeStyleName": [],
+  "MapProfileStyleName": [],
+  "MapShapeStyleName": [],
+  "MapStructureStyleName": [],
+  "MapSurfaceStyleName": [],
+  "MapSubassemblyName": [],
+  "MapShapeCode": [
+    {"Name": "^LAJE_FLUTUANTE$", "IfcExportAs": "IfcSlab.TRACKSLAB", "Export": true},
+    {"Name": "^LAJE_REGULARIZACAO$", "IfcExportAs": "IfcSlab.BASESLAB", "Export": true},
+    {"Name": "^LASTRO$", "IfcExportAs": "IfcCourse.BALLASTBED", "Export": true},
+    {"Name": "^ENCHIMENTO$", "IfcExportAs": "IfcCourse.USERDEFINED", "Export": true}
+  ],
+  "MapLinkCode": [],
+  "MapPointCode": [],
+  "MapFolderName": []
 }
