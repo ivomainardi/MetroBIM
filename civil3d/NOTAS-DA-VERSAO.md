@@ -1,6 +1,23 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## Próxima versão (em teste)
+## Próxima versão (em desenvolvimento)
+
+- Botão **Projeto IFC** (painel IFC 4.3, comando `MSP_IFCPROJETO`): abre só a aba Projeto do Configurar IFC, numa
+  janela própria e redimensionável. Os campos são os mesmos do plugin do Revit:
+  - **IfcProject**: nome, nome longo, descrição e fase;
+  - **IfcSite**: nome, nome longo, descrição, latitude, longitude, elevação, matrícula, coordenadas e **endereço** (novo);
+  - **Instalações** (a linha como IfcRailway, cada estação como IfcBuilding): agora com **descrição** e **endereço** na
+    tabela. A instalação que a Autodesk já gravou com o mesmo nome também recebe nome longo, descrição e endereço
+    (antes só as novas recebiam);
+  - **Dados do projeto · MetroSP_Projeto**.
+- Barra **Padrão** no topo: **Salvar como padrão…** guarda os dados (sem latitude/longitude) em
+  `%AppData%\MetroSP\DadosProjeto`, e **Usar** preenche com eles. É o mesmo padrão do Revit: um padrão salvo no Revit
+  serve no Civil 3D (o IfcBuilding dele entra na tabela de instalações) e vice-versa. Aparece em **Padrões e planilhas**
+  como "Dados do projeto IFC".
+- O painel da aba Projeto é o mesmo arquivo nos dois plugins (`Ui/DadosProjetoPainel.cs`, `Ifc/DadosProjetoIfc.cs`).
+- Falta testar no Civil 3D (2025, 2026 e 2027): botão novo no ribbon, salvar e usar um padrão (inclusive um salvo no
+  Revit), exportar e conferir no IFC o endereço do IfcSite e das estações e a descrição de uma instalação que a
+  Autodesk já grava. O R26 (.NET 10) não foi compilado aqui; o R25 compilou sem erro.
 
 - **Corrigir escrita** (painel Dados, comando `MSP_ESCRITA`).
 - Procura nos property sets (propriedades de texto), no nome e na descrição dos objetos que vão para o IFC:

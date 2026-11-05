@@ -27,6 +27,11 @@ namespace MetroSP.Padroes
             },
             new TipoPadrao
             {
+                Id = "metrosp-dados-projeto", Nome = "Dados do projeto IFC", Pasta = Ifc.DadosProjetoIfc.Pasta,
+                Ferramenta = "Projeto IFC (barra Padrão no topo da janela); vale também para o Revit",
+            },
+            new TipoPadrao
+            {
                 Id = "escrita", Nome = "Corrigir escrita", Pasta = Escrita.PadroesEscrita.Pasta,
                 Ferramenta = "Dados › Corrigir escrita (padrão no topo da janela; vale também no Revit)",
                 Editar = (dono, item) => Escrita.CorrigirEscritaWindow.EditarArquivo(dono, item.Arquivo),

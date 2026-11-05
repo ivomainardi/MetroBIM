@@ -43,7 +43,8 @@ namespace MetroSP.Ui
         TextBox _templatesText;
         MetroSpIfcConfig _metro;
         readonly ObservableCollection<FacilityInfo> _facilities = new ObservableCollection<FacilityInfo>();
-        readonly ObservableCollection<KeyValueRow> _projectProps = new ObservableCollection<KeyValueRow>();
+        DadosProjetoPainel _dadosPainel;
+        readonly bool _somenteProjeto;
 
         public static readonly string[] KnownSections = { "MapCADLayerName", "MapBlockName", "MapBaselineName" };
 
@@ -51,10 +52,12 @@ namespace MetroSP.Ui
         string IfcVersion => (string)(_autodeskConfig?["Export"]?["IfcVersion"]) ?? "IFC4X3_ADD2";
         string[] IfcClasses => IfcCatalog.For(IfcVersion);
 
-        public ConfigWindow(string dwgDir)
+        /// <param name="somenteProjeto">Só a aba Projeto (botão Projeto IFC): IfcProject, IfcSite, instalações e MetroSP_Projeto.</param>
+        public ConfigWindow(string dwgDir, bool somenteProjeto = false)
         {
             _dwgDir = dwgDir;
-            Title = "MetroSP - Configuração IFC";
+            _somenteProjeto = somenteProjeto;
+            Title = somenteProjeto ? "MetroSP - Projeto IFC" : "MetroSP - Configuração IFC";
             Width = 900;
             Height = 640;
             MinWidth = 760;
@@ -65,8 +68,10 @@ namespace MetroSP.Ui
             saveClose.Style = Theme.PrimaryButton;
             saveClose.IsDefault = true;
             var body = new DockPanel();
+            if (somenteProjeto) Width = 980;
             var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(toolbar, Dock.Top);
+            if (somenteProjeto) toolbar.Visibility = Visibility.Collapsed;
             toolbar.Children.Add(Tool("Importar…", "Importa JSON ou CSV de configuração para o pacote.", (s, e) => ImportFiles()));
             toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do pacote numa pasta.", (s, e) => ExportPackage()));
             if (Settings.Load().UsesForma)
@@ -75,7 +80,9 @@ namespace MetroSP.Ui
             body.Children.Add(toolbar);
             body.Children.Add(_tabs);
 
-            Theme.Apply(this, "Configuração IFC", Settings.Load().UsesForma ? "Pacote sincronizado com o Forma" : "Pacote local",
+            Theme.Apply(this, somenteProjeto ? "Projeto IFC" : "Configuração IFC",
+                somenteProjeto ? "IfcProject, IfcSite, instalações (IfcRailway, IfcBuilding) e Pset MetroSP_Projeto, aplicados na exportação"
+                    : Settings.Load().UsesForma ? "Pacote sincronizado com o Forma" : "Pacote local",
                 body, Theme.Rodape(_status,
                     Btn("Salvar", (s, e) => SaveAll(close: false)),
                     saveClose,
@@ -102,14 +109,13 @@ namespace MetroSP.Ui
 
             _facilities.Clear();
             foreach (var f in _metro.Estrutura.AllFacilities()) _facilities.Add(f);
-            _projectProps.Clear();
-            foreach (var kv in _metro.PropriedadesProjeto) _projectProps.Add(new KeyValueRow { Chave = kv.Key, Valor = kv.Value });
 
             LoadCsv();
         }
 
         void SaveAll(bool close)
         {
+            SincronizarProjeto();
             var missing = new List<string>();
             if (string.IsNullOrWhiteSpace(_metro.Estrutura.Projeto?.Nome)) missing.Add("Nome do projeto");
             if (string.IsNullOrWhiteSpace(_metro.Estrutura.Terreno?.Nome)) missing.Add("Nome do terreno");
@@ -121,7 +127,7 @@ namespace MetroSP.Ui
             }
 
             CommitMappingSection();
-            var invalidas = InvalidClasses();
+            var invalidas = _somenteProjeto ? new List<string>() : InvalidClasses();
             if (invalidas.Count > 0)
             {
                 Theme.MudarResumo(_status, invalidas.Take(8).Select(m => "Classe fora do " + IfcCatalog.Label(IfcVersion) + " em " + m)
@@ -140,8 +146,6 @@ namespace MetroSP.Ui
 
                 _metro.Estrutura.Instalacoes = _facilities.Where(f => !string.IsNullOrWhiteSpace(f.Nome)).ToList();
                 _metro.Estrutura.Edificacoes = null;
-                _metro.PropriedadesProjeto = _projectProps.Where(r => !string.IsNullOrWhiteSpace(r.Chave))
-                    .GroupBy(r => r.Chave.Trim()).ToDictionary(g => g.Key, g => g.Last().Valor ?? "");
                 ConfigPackage.SaveMetroSp(_metro);
 
                 Status("Configuração salva em " + ConfigPackage.ActiveDir);
@@ -166,6 +170,7 @@ namespace MetroSP.Ui
         void BuildTabs()
         {
             _tabs.Items.Add(new TabItem { Header = "Projeto", Content = SpatialTab() });
+            if (_somenteProjeto) return;
             _tabs.Items.Add(new TabItem { Header = "Classes IFC", Content = MappingTab() });
             _tabs.Items.Add(new TabItem { Header = "Propriedades", Content = PropertiesTab() });
             _tabs.Items.Add(new TabItem { Header = "Alinhamento", Content = AlignmentTab() });
@@ -514,52 +519,85 @@ namespace MetroSP.Ui
             e.Projeto ??= new ProjectInfo();
             e.Terreno ??= new SiteInfo();
 
-            var left = new StackPanel { Margin = new Thickness(0, 0, 16, 0) };
-            left.Children.Add(Section("Projeto · IfcProject"));
-            left.Children.Add(Form(
-                ("Nome *", Required(e.Projeto, nameof(ProjectInfo.Nome))),
-                ("Nome longo", Text(e.Projeto, nameof(ProjectInfo.NomeLongo))),
-                ("Descrição", Text(e.Projeto, nameof(ProjectInfo.Descricao))),
-                ("Fase", Text(e.Projeto, nameof(ProjectInfo.Fase)))));
-
-            left.Children.Add(Section("Terreno · IfcSite"));
-            left.Children.Add(Form(
-                ("Nome *", Required(e.Terreno, nameof(SiteInfo.Nome))),
-                ("Nome longo", Text(e.Terreno, nameof(SiteInfo.NomeLongo))),
-                ("Descrição", Text(e.Terreno, nameof(SiteInfo.Descricao))),
-                ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo.")),
-                ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo.")),
+            // Lat/long, elevação, matrícula e coordenadas: só do Civil 3D, dentro da coluna IfcSite.
+            var extra = Form(
+                ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo. Vazio: calculada pelo PTL.")),
+                ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo. Vazio: calculada pelo PTL.")),
                 ("Elevação (m)", Text(e.Terreno, nameof(SiteInfo.Elevacao))),
-                ("Matrícula", Text(e.Terreno, nameof(SiteInfo.Matricula), "LandTitleNumber")),
-                ("Coordenadas", Ptl(e))));
+                ("Matrícula", Text(e.Terreno, nameof(SiteInfo.Matricula), "Matrícula do terreno (LandTitleNumber).")),
+                ("Coordenadas", Ptl(e)));
+            extra.Margin = new Thickness(0, 6, 0, 0);
 
-            var right = new StackPanel();
+            // Instalações no lugar do IfcBuilding único: a linha (IfcRailway) e cada estação (IfcBuilding).
+            var inst = new StackPanel();
             var bgridHead = new DockPanel();
-            right.Children.Add(bgridHead);
-            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _facilities, MinHeight = 120,
-                ToolTip = "Dentro do IfcSite. A linha como IfcRailway; cada estação como IfcBuilding." };
+            inst.Children.Add(bgridHead);
+            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _facilities, MinHeight = 110,
+                ToolTip = "Dentro do IfcSite. A linha como IfcRailway; cada estação como IfcBuilding. Se a Autodesk já gravou uma com o mesmo nome, ela recebe o nome longo, a descrição e o endereço." };
             bgrid.Columns.Add(new DataGridComboBoxColumn { Header = "Tipo", ItemsSource = FacilityInfo.Types, SelectedItemBinding = new Binding("Tipo"), Width = 110 });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Nome"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome longo", Binding = new Binding("NomeLongo"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            bgrid.Columns.Add(new DataGridTextColumn { Header = "Descrição", Binding = new Binding("Descricao"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            bgrid.Columns.Add(new DataGridTextColumn { Header = "Endereço", Binding = new Binding("Endereco"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 90 });
-            right.Children.Add(bgrid);
+            inst.Children.Add(bgrid);
             SectionWithTools(bgridHead, "Instalações · IfcRailway, IfcBuilding", bgrid, _facilities, "instalação");
 
-            var pgridHead = new DockPanel();
-            right.Children.Add(pgridHead);
-            var pgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _projectProps, MinHeight = 120, ToolTip = "Gravados no IfcProject. Valor vazio não entra." };
-            pgrid.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding("Chave"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            pgrid.Columns.Add(new DataGridTextColumn { Header = "Valor", Binding = new Binding("Valor"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            right.Children.Add(pgrid);
-            SectionWithTools(pgridHead, "Dados do projeto · MetroSP_Projeto", pgrid, _projectProps, "propriedade");
+            var dados = new DadosProjetoIfc
+            {
+                Projeto = new DadosEntidadeIfc { Nome = e.Projeto.Nome, NomeLongo = e.Projeto.NomeLongo, Descricao = e.Projeto.Descricao, Fase = e.Projeto.Fase },
+                Terreno = new DadosEntidadeIfc { Nome = e.Terreno.Nome, NomeLongo = e.Terreno.NomeLongo, Descricao = e.Terreno.Descricao, Endereco = e.Terreno.Endereco },
+                Propriedades = new Dictionary<string, string>(_metro.PropriedadesProjeto ?? new Dictionary<string, string>()),
+            };
+            var dicas = new Dictionary<string, string>
+            {
+                ["Projeto.Nome"] = "Obrigatório. Vazio nos demais campos mantém o que a Autodesk gravou.",
+                ["Terreno.Nome"] = "Obrigatório.",
+            };
+            _dadosPainel = new DadosProjetoPainel(dados, dicas, extra, inst)
+            {
+                EdificioParaPadrao = () =>
+                {
+                    var b = _facilities.FirstOrDefault(f => f.Tipo == "IfcBuilding" && !string.IsNullOrWhiteSpace(f.Nome));
+                    return b == null ? null : new DadosEntidadeIfc { Nome = b.Nome, NomeLongo = b.NomeLongo, Descricao = b.Descricao, Endereco = b.Endereco };
+                },
+            };
+            _dadosPainel.PadraoUsado += UsarEdificioDoPadrao;
+            return new ScrollViewer { Content = _dadosPainel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0, 0, 6, 0) };
+        }
 
-            var cols = new Grid();
-            cols.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            cols.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            cols.Children.Add(left);
-            Grid.SetColumn(right, 1);
-            cols.Children.Add(right);
-            return new ScrollViewer { Content = cols, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        /// <summary>Leva os campos do painel (IfcProject, IfcSite, MetroSP_Projeto) para a configuração.</summary>
+        void SincronizarProjeto()
+        {
+            if (_dadosPainel == null) return;
+            var d = _dadosPainel.Ler();
+            var e = _metro.Estrutura;
+            e.Projeto ??= new ProjectInfo();
+            e.Terreno ??= new SiteInfo();
+            static string N(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+            e.Projeto.Nome = N(d.Projeto.Nome); e.Projeto.NomeLongo = N(d.Projeto.NomeLongo);
+            e.Projeto.Descricao = N(d.Projeto.Descricao); e.Projeto.Fase = N(d.Projeto.Fase);
+            e.Terreno.Nome = N(d.Terreno.Nome); e.Terreno.NomeLongo = N(d.Terreno.NomeLongo);
+            e.Terreno.Descricao = N(d.Terreno.Descricao); e.Terreno.Endereco = N(d.Terreno.Endereco);
+            _metro.PropriedadesProjeto = d.Propriedades;
+        }
+
+        /// <summary>O edifício do padrão (salvo no Revit, por exemplo) entra como IfcBuilding, ou completa o de mesmo nome.</summary>
+        void UsarEdificioDoPadrao(DadosProjetoIfc padrao)
+        {
+            var ed = padrao?.Edificio;
+            if (ed == null || string.IsNullOrWhiteSpace(ed.Nome)) return;
+            var f = _facilities.FirstOrDefault(x => string.Equals((x.Nome ?? "").Trim(), ed.Nome.Trim(), StringComparison.OrdinalIgnoreCase));
+            if (f == null)
+            {
+                _facilities.Add(new FacilityInfo { Tipo = "IfcBuilding", Nome = ed.Nome.Trim(), NomeLongo = ed.NomeLongo, Descricao = ed.Descricao, Endereco = ed.Endereco });
+                return;
+            }
+            if (!string.IsNullOrWhiteSpace(ed.NomeLongo)) f.NomeLongo = ed.NomeLongo;
+            if (!string.IsNullOrWhiteSpace(ed.Descricao)) f.Descricao = ed.Descricao;
+            if (!string.IsNullOrWhiteSpace(ed.Endereco)) f.Endereco = ed.Endereco;
+            var i = _facilities.IndexOf(f);
+            _facilities[i] = f;   // atualiza a linha na tabela
         }
 
         // ================================================================== aba Alinhamento
