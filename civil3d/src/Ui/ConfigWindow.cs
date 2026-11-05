@@ -47,15 +47,9 @@ namespace MetroSP.Ui
 
         public static readonly string[] KnownSections = { "MapCADLayerName", "MapBlockName", "MapBaselineName" };
 
-        public static readonly string[] CommonIfcClasses =
-        {
-            "IfcAnnotation", "IfcBuiltElement", "IfcBuiltElement.USERDEFINED", "IfcBuildingElementProxy",
-            "IfcCourse.BALLASTBED", "IfcCourse.PAVEMENT", "IfcEarthworksFill.EMBANKMENT", "IfcEarthworksFill.SUBGRADE",
-            "IfcElementAssembly.TRACKPANEL", "IfcElementAssembly.TURNOUTPANEL", "IfcGeographicElement.TERRAIN",
-            "IfcRail.RAIL", "IfcRail.CHECKRAIL", "IfcRailway", "IfcRailwayPart.TRACK", "IfcRailwayPart.PLAINTRACK",
-            "IfcRailwayPart.TURNOUTTRACK", "IfcRailwayPart.SUBSTRUCTURE", "IfcRoad", "IfcRoadPart", "IfcSlab", "IfcWall",
-            "IfcColumn", "IfcBeam", "IfcTrackElement.SLEEPER", "IfcTrackElement.VEHICLESTOP", "IfcTrackElement.FROG"
-        };
+        /// <summary>Classes IFC do esquema escolhido no IfcInfraConfiguration.json (Export.IfcVersion).</summary>
+        string IfcVersion => (string)(_autodeskConfig?["Export"]?["IfcVersion"]) ?? "IFC4X3_ADD2";
+        string[] IfcClasses => IfcCatalog.For(IfcVersion);
 
         public ConfigWindow(string dwgDir)
         {
@@ -126,9 +120,17 @@ namespace MetroSP.Ui
                 return;
             }
 
+            CommitMappingSection();
+            var invalidas = InvalidClasses();
+            if (invalidas.Count > 0)
+            {
+                Theme.MudarResumo(_status, invalidas.Take(8).Select(m => "Classe fora do " + IfcCatalog.Label(IfcVersion) + " em " + m)
+                    .Concat(invalidas.Count > 8 ? new[] { $"e mais {invalidas.Count - 8}" } : new string[0]).ToList(), "");
+                return;
+            }
+
             try
             {
-                CommitMappingSection();
                 ConfigPackage.SaveJson(ConfigKind.ObjectMapping, _mapping);
                 if (_autodeskConfig != null) ConfigPackage.SaveJson(ConfigKind.AutodeskConfig, _autodeskConfig);
                 if (_templatesText != null && !string.IsNullOrWhiteSpace(_templatesText.Text))
@@ -312,7 +314,9 @@ namespace MetroSP.Ui
             _mappingSection.SelectionChanged += (s, e) => SwitchSection((_mappingSection.SelectedItem as ComboBoxItem)?.Tag as string);
             top.Children.Add(_mappingSection);
 
-            var classes = new ComboBox { Width = 250, IsEditable = true, ItemsSource = CommonIfcClasses, ToolTip = "Classe.TIPO do IFC 4.3" };
+            var classes = ClassPicker(IfcClasses);
+            classes.ToolTip = $"Todas as classes do {IfcCatalog.Label(IfcVersion)}, o esquema escolhido na configuração da Autodesk. " +
+                              "Digite parte do nome (ex.: TRACKSLAB) para filtrar; só vale uma classe da lista.";
             top.Children.Add(classes);
 
             var grid = new DataGrid
@@ -323,16 +327,32 @@ namespace MetroSP.Ui
                 HeadersVisibility = DataGridHeadersVisibility.Column
             };
             grid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Name"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Classe IFC", Binding = new Binding("IfcExportAs"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            MappingRow.Catalog = IfcClasses;
+            var invalid = new Style(typeof(TextBlock));
+            var trig = new DataTrigger { Binding = new Binding(nameof(MappingRow.ClasseInvalida)), Value = true };
+            trig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick));
+            trig.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            trig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Classe fora do esquema; escolha uma da lista e clique Aplicar."));
+            invalid.Triggers.Add(trig);
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "Classe IFC", Binding = new Binding("IfcExportAs"), IsReadOnly = true, ElementStyle = invalid,
+                Width = new DataGridLength(2, DataGridLengthUnitType.Star)
+            });
             grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding("Export"), Width = 70 });
             grid.ToolTip = "Nome aceita expressão regular (ex.: ^U-3D-). Vale a primeira regra que casar, de baixo para cima.";
 
             var apply = Btn("Aplicar", (s, e) =>
             {
-                if (grid.SelectedItem is MappingRow r) { r.IfcExportAs = classes.Text; grid.Items.Refresh(); }
+                var escolhida = classes.SelectedItem as string;
+                if (escolhida == null) { Status("Escolha uma classe da lista."); return; }
+                var linhas = grid.SelectedItems.OfType<MappingRow>().ToList();
+                if (linhas.Count == 0) { Status("Selecione as regras que vão receber a classe."); return; }
+                foreach (var r in linhas) r.IfcExportAs = escolhida == SemClasse ? "" : escolhida;
+                grid.Items.Refresh();
             });
             apply.Margin = new Thickness(6, 0, 16, 0);
-            apply.ToolTip = "Põe a classe escolhida na linha selecionada.";
+            apply.ToolTip = "Põe a classe escolhida nas regras selecionadas.";
             top.Children.Add(apply);
             top.Children.Add(SymbolButton("↑", "Subir", (s, e) => Move(grid, -1)));
             top.Children.Add(SymbolButton("↓", "Descer", (s, e) => Move(grid, +1)));
@@ -344,6 +364,62 @@ namespace MetroSP.Ui
             _currentSection = null;
             _mappingSection.SelectedIndex = 0;
             return panel;
+        }
+
+        const string SemClasse = "(vazio: classe da Autodesk)";
+
+        /// <summary>
+        /// Lista com todas as classes do esquema. Digitar só filtra (parte do nome, sem diferenciar maiúsculas);
+        /// o valor escolhido é sempre um item da lista.
+        /// </summary>
+        static ComboBox ClassPicker(string[] catalog)
+        {
+            var items = new[] { SemClasse }.Concat(catalog).ToList();
+            var view = new ListCollectionView(items);
+            var box = new ComboBox
+            {
+                Width = 280, IsEditable = true, IsTextSearchEnabled = false, StaysOpenOnEdit = true,
+                ItemsSource = view, MaxDropDownHeight = 360
+            };
+            string ultima = null;
+            box.Loaded += (s, e) =>
+            {
+                if (!(box.Template.FindName("PART_EditableTextBox", box) is TextBox tb)) return;
+                tb.TextChanged += (s2, e2) =>
+                {
+                    if (box.SelectedItem is string sel && sel == tb.Text) return;
+                    var f = tb.Text.Trim();
+                    view.Filter = f.Length == 0 ? null : (Predicate<object>)(o => ((string)o).IndexOf(f, StringComparison.OrdinalIgnoreCase) >= 0);
+                    if (!box.IsDropDownOpen && box.IsKeyboardFocusWithin) box.IsDropDownOpen = true;
+                    tb.SelectionStart = tb.Text.Length;
+                };
+            };
+            box.SelectionChanged += (s, e) => { if (box.SelectedItem is string sel) ultima = sel; };
+            box.LostKeyboardFocus += (s, e) =>
+            {
+                if (box.IsKeyboardFocusWithin) return;
+                var exata = items.FirstOrDefault(i => i.Equals(box.Text?.Trim(), StringComparison.OrdinalIgnoreCase));
+                view.Filter = null;
+                if (exata != null) box.SelectedItem = exata;
+                else { box.SelectedItem = ultima; box.Text = ultima ?? ""; }
+            };
+            return box;
+        }
+
+        /// <summary>Regras com classe fora do esquema, em todas as seções do mapeamento.</summary>
+        List<string> InvalidClasses()
+        {
+            var list = IfcClasses;
+            var bad = new List<string>();
+            foreach (var kv in _mapping)
+                if (kv.Value is JsonArray arr)
+                    foreach (var o in arr.OfType<JsonObject>())
+                    {
+                        var c = (string)o["IfcExportAs"];
+                        if (!IfcCatalog.IsValid(c, list))
+                            bad.Add($"{(SectionLabels.TryGetValue(kv.Key, out var l) ? l : kv.Key)}: {(string)o["Name"]} → \"{c}\"");
+                    }
+            return bad;
         }
 
         void SwitchSection(string section)
@@ -731,6 +807,10 @@ namespace MetroSP.Ui
         public string IfcExportAs { get; set; }
         public bool Export { get; set; } = true;
         JsonObject _extra;   // outras chaves do item, preservadas
+
+        /// <summary>Classes do esquema em uso, para marcar as que estão fora dele.</summary>
+        public static string[] Catalog;
+        public bool ClasseInvalida => Catalog != null && !IfcCatalog.IsValid(IfcExportAs, Catalog);
 
         public static MappingRow From(JsonObject o)
         {
