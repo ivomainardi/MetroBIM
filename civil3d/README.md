@@ -92,6 +92,18 @@ As explicações de cada campo ficam na dica (passe o mouse).
 
 Todo arquivo é validado antes de gravar e a versão anterior fica como `.bak`.
 
+## Property sets (`MSP_PSETS`)
+
+Monta as Property Set Definitions do Civil 3D (as do Style Manager) e anexa aos objetos que vão para o IFC.
+Código em `src/PropertySets`: `PsetsCore` (ler/comparar/criar no desenho, planilha, mapeamento IFC, anexar) e
+`MontarPsetsWindow` (abas Montar e Anexar aos objetos).
+
+- Planilha de entrada: uma linha por propriedade, colunas `Property set`, `Propriedade`, `Tipo`, `Valor padrão`,
+  `Aplica-se a` (tipos separados por `;`, ou `Todos`), `Descrição` e `IFC` (entidade, ex. `IfcElement`, ou `Não`).
+  Os títulos são reconhecidos com variações (inglês, sem acento). O `IFCInfraExportPropertyMapping.csv` também é aceito.
+- "Aplica-se a" grava o filtro de classes do property set (nomes RX, como `AeccDbAlignment`), lidos da própria API.
+- "Levar para o IFC" escreve no pacote de configuração ativo (`IFCInfraExportPropertyMapping.json` e `.csv`).
+
 ## Alinhamento 3D
 
 O IFC do Civil 3D grava o alinhamento como curva plana na cota 0. O **Exportar IFC** corrige isso no

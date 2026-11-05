@@ -68,6 +68,8 @@ namespace MetroSP
                     "Confere as classificações dos objetos com as planilhas do padrão. Cada linha tem a ação para corrigir.")));
 
             tab.Panels.Add(Panel("Dados",
+                Button("Property\nsets", "PropertySets", "MSP_PSETS",
+                    "Monta os property sets do Civil 3D (nome, propriedades, tipos e objetos), importa de planilha, leva ao IFC e anexa aos objetos."),
                 Button("Confrontar\nplanilha", "ConfrontarPlanilha", "MSP_CONFRONTAR",
                     "Compara property sets, nome, descrição e layer dos objetos com uma planilha externa e resolve as diferenças.")));
 
