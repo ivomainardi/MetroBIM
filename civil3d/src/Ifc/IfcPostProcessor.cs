@@ -35,6 +35,8 @@ namespace MetroSP.Ifc
             if (spatial == null || spatial.CoordenadasPtl) pp.ApplyPtl(spatial?.Terreno);
             if (spatial != null) pp.ApplySpatial(spatial);
             if (projectProperties != null && projectProperties.Count > 0) pp.ApplyProjectProperties(projectProperties);
+            try { IfcClassificacao.Aplicar(model, RegraIfc.DosPadroes(), log); }
+            catch (Exception ex) { log?.Invoke("classificação não foi gravada como IfcClassificationReference: " + ex.Message); }
 
             var backup = Path.ChangeExtension(ifcPath, ".autodesk.ifc");
             File.Copy(ifcPath, backup, overwrite: true);

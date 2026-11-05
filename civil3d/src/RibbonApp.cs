@@ -73,6 +73,10 @@ namespace MetroSP
                 Button("Confrontar\nplanilha", "ConfrontarPlanilha", "MSP_CONFRONTAR",
                     "Compara property sets, nome, descrição e layer dos objetos com uma planilha externa e resolve as diferenças.")));
 
+            tab.Panels.Add(Panel("Padrões",
+                Button("Padrões e\nplanilhas", "Padroes", "MSP_PADROES",
+                    "Todos os padrões salvos (classificação, confronto, exportação IFC) e as planilhas que eles usam: editar, trocar planilha e levar para a equipe num .zip.")));
+
             tab.Panels.Add(Panel("Ferramentas",
                 Stack(
                     Small("Só alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D."),

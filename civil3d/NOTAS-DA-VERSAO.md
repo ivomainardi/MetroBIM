@@ -45,8 +45,25 @@
 - Leitor de planilha e escolha de colunas comuns com o plugin do Revit (`src/Planilha`).
 - Falta testar no Civil 3D: abrir a janela no MB-20, criar um padrão com duas classificações em abas da mesma planilha,
   anexar o property set em corredores e sólidos, escolher e corrigir; conferir Desfazer (U), Mostrar (zoom) e se o
-  property set `Classification` chega ao IFC exportado. Hoje ele vai como property set; transformar em
-  `IfcClassificationReference` no pós-processamento fica para um próximo passo.
+  property set `Classification` chega ao IFC exportado.
+- **Padrões e planilhas** (painel Padrões, comando `MSP_PADROES`): um lugar só para todos os padrões salvos
+  (classificação, confrontar planilha e exportação IFC) e as planilhas que eles usam.
+  - Aba **Padrões**: tipo, nome, planilhas e situação (em laranja quando a planilha não está mais no lugar);
+    **Editar...** abre o editor da ferramenta, **Excluir**, **Abrir pasta**.
+  - Aba **Planilhas**: cada planilha e quais padrões a usam; **Abrir planilha**, **Abrir pasta** e **Trocar planilha...**
+    (a planilha mudou de lugar ou de nome: todos os padrões que a usam passam a usar a nova).
+  - **Exportar pacote... / Importar pacote...**: leva os padrões selecionados (ou todos) num .zip para a equipe, com as
+    planilhas, se quiser. Ao importar, as planilhas vão para `%APPDATA%\MetroSP\Planilhas` e os padrões já apontam para elas.
+- Falta testar no Civil 3D: abrir pelo ribbon, editar um padrão de classificação, trocar uma planilha e exportar e
+  importar um pacote em outro computador.
+- **Classificação no IfcClassification**: o pós-processamento do IFC (Exportar IFC) agora transforma a classificação
+  gravada em property set em `IfcClassification` + `IfcClassificationReference` + `IfcRelAssociatesClassification`,
+  como o exportador do Revit faz. Lê as classificações de todos os padrões salvos e também os nomes da Autodesk
+  (`ClassificationCode`, `ClassificationCode(2)`..., `Classification.X.Number`/`.Description`). O nome da classificação
+  vem do padrão (ou do `[Nome]` no valor) e a edição do padrão; o property set continua no IFC. Objeto que já tem a
+  mesma referência não é repetido. No IFC 2x3 não grava (só avisa no registro).
+- Falta testar no Civil 3D: exportar o MB-20 com classificação em dois property sets e abrir o IFC num visualizador
+  (BIMcollab Zoom, Solibri ou o Navisworks) para ver a aba de classificação de cada objeto.
 
 - **Confrontar planilha** (painel Dados, `MSP_CONFRONTAR`): compara os dados dos objetos com uma planilha externa (.xlsx ou .csv).
   - Você indica o campo que identifica cada linha (Handle, Nome, uma propriedade de property set...) e a coluna da planilha com esse valor; depois escolhe os dados a conferir (propriedades dos property sets, Nome, Descrição, Layer) e a coluna de cada um. "Sugerir pelos títulos" casa sozinho as colunas que têm o nome de uma propriedade.

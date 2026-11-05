@@ -36,6 +36,7 @@ namespace MetroSP.Classificacao
         private readonly Button _aplicar, _aplicarSelecionadas, _exportar, _selecionar, _reanalisar;
         private PadraoClassificacao _padrao;
         private bool _trocandoPadrao;
+        private Button _escolherPlanilha;
         private List<LinhaVerificacao> _linhas;
         private FilterableGrid _tabela;
         private string _situacao;
@@ -70,6 +71,17 @@ namespace MetroSP.Classificacao
             editar.Click += (s, e) => EditarPadroes();
             DockPanel.SetDock(editar, Dock.Left);
             linhaPadrao.Children.Add(editar);
+            _escolherPlanilha = new Button
+            {
+                Content = "Escolher planilha...",
+                Style = Theme.PrimaryButton,
+                Margin = new Thickness(8, 0, 0, 0),
+                Visibility = System.Windows.Visibility.Collapsed,
+                ToolTip = "Abre a planilha (.xlsx ou .csv) com a lista de classificação. As colunas são sugeridas pelos títulos; dá para mudar em \"Editar padrões...\".",
+            };
+            _escolherPlanilha.Click += (s, e) => EscolherPlanilha();
+            DockPanel.SetDock(_escolherPlanilha, Dock.Left);
+            linhaPadrao.Children.Add(_escolherPlanilha);
             _padraoInfo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
             linhaPadrao.Children.Add(_padraoInfo);
 
@@ -153,7 +165,38 @@ namespace MetroSP.Classificacao
                 $"{s.Nome}  ·  {s.Propriedades}  ·  {s.Planilha?.NomeArquivo}" + (string.IsNullOrEmpty(s.Planilha?.Aba) ? "" : $" › {s.Planilha.Aba}") +
                 (s.Lista?.Avisos.Count > 0 ? "\n   " + string.Join("\n   ", s.Lista.Avisos.Take(10)) : "")));
             _padraoInfo.Foreground = Theme.Solid(p.Sistemas.Any(s => s.Lista == null || s.Erro != null) ? Theme.LaranjaTexto : Theme.Cinza);
+            _escolherPlanilha.Visibility = p.Sistemas.Any(s => s.Lista == null) ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             if (_linhas != null) Verificar();
+        }
+
+        /// <summary>Escolhe a planilha da primeira classificação sem lista, sugere as colunas e salva o padrão.</summary>
+        private void EscolherPlanilha()
+        {
+            SistemaClassificacao s = _padrao?.Sistemas.FirstOrDefault(x => x.Lista == null);
+            if (s == null) return;
+            var d = new Microsoft.Win32.OpenFileDialog { Title = $"Planilha da classificação {s.Nome}", Filter = Planilha.LeitorPlanilha.Filtro };
+            if (d.ShowDialog(this) != true) return;
+            try
+            {
+                Planilha.Tabela t = Planilha.LeitorPlanilha.Ler(d.FileName);
+                var campos = SistemaClassificacao.Campos;
+                string aba = t.NomesAbas.FirstOrDefault(a => t.Linhas(a).Count > 1) ?? t.NomesAbas[0];
+                var mapa = new Planilha.MapaColunas { Arquivo = d.FileName, Aba = aba, LinhaCabecalho = Planilha.MapaColunas.AcharCabecalho(t, aba, campos) };
+                mapa.Sugerir(t, campos);
+                s.Planilha = mapa;
+                _padrao.Salvar();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Não foi possível ler a planilha:\n" + ex.Message, Title);
+                return;
+            }
+            UsarPadrao(_padrao);
+            if (s.Lista == null)
+            {
+                MessageBox.Show(this, $"Não achei sozinho as colunas da planilha ({s.Erro}). Indique em qual coluna está cada dado.", Title);
+                EditarPadroes();
+            }
         }
 
         private void EditarPadroes()
