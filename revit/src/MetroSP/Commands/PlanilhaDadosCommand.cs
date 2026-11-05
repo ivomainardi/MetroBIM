@@ -63,3 +63,13 @@ namespace MetroSP.Commands
             JanelaDados.Abrir(commandData, u => new Dados.GerenciarParametrosWindow(u));
     }
 }
+
+namespace MetroSP.Commands
+{
+    [Transaction(TransactionMode.Manual)]
+    public class ConfrontarPlanilhaCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            JanelaDados.Abrir(commandData, u => new Confronto.ConfrontarWindow(new Confronto.FonteRevit(u)));
+    }
+}

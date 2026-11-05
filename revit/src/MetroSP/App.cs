@@ -115,6 +115,11 @@ namespace MetroSP
                 "mostrando cada alteração antes de gravar.",
                 "PlanilhaDados");
 
+            AddButton<ConfrontarPlanilhaCommand>(panel, "Confrontar\nPlanilha",
+                "Compara os parâmetros dos elementos com uma planilha externa (você indica a coluna-chave e a coluna de cada dado), " +
+                "mostra o que está diferente e deixa aplicar o valor da planilha, ignorar ou selecionar. Os padrões ficam salvos.",
+                "ConfrontarPlanilha");
+
             AddButton<EdicaoMassaCommand>(panel, "Editar\nem Massa",
                 "Um parâmetro em muitos elementos: definir valor (juntando outros parâmetros com {Nome}), prefixo, sufixo, " +
                 "localizar e substituir ou limpar, com prévia.",
