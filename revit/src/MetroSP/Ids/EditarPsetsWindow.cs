@@ -76,6 +76,8 @@ namespace MetroSP.Ids
             }
             /// <summary>Linha com algo a ver: parâmetro ausente, tipo não aceito ou vazio em parte dos elementos.</summary>
             public bool Problema => !Encontrado || SemValor;
+            /// <summary>Entidades que não existem no IFC4 nem no IFC 4.3 (aparecem em vermelho e impedem salvar).</summary>
+            public bool EntidadesForaDoEsquema => ListaEntidades.Any(e => EsquemaIfc.Entidade(e) == null);
             internal List<string> ListaEntidades =>
                 (Entidades ?? "").Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries).Select(e => e.Trim()).ToList();
 
@@ -85,6 +87,7 @@ namespace MetroSP.Ids
                 if (campo == valor) return;
                 campo = valor;
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nome));
+                if (nome == nameof(Entidades)) PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EntidadesForaDoEsquema)));
                 if (nome == nameof(Parametro) || nome == nameof(TipoDado) || nome == nameof(Entidades) || nome == nameof(Aplicacao))
                 {
                     _contagem = null;
@@ -253,7 +256,15 @@ namespace MetroSP.Ids
 
             _grade.Columns.Add(Texto("Property set", nameof(Linha.PropertySet), 150));
             _grade.Columns.Add(Lista("Aplica em", nameof(Linha.Aplicacao), new[] { Instancia, Tipo }, 80));
-            _grade.Columns.Add(Texto("Entidades IFC", nameof(Linha.Entidades), 150));
+            DataGridTemplateColumn colEntidades = ColunaEntidades();
+            _grade.Columns.Add(colEntidades);
+            // Entidades: em vez de digitar, abre a lista de entidades do IFC4 e do IFC 4.3 para marcar.
+            _grade.BeginningEdit += (s, e) =>
+            {
+                if (e.Column != colEntidades) return;
+                e.Cancel = true;
+                if (e.Row.Item is Linha l) Dispatcher.BeginInvoke(new Action(() => EscolherEntidades(l)));
+            };
             _grade.Columns.Add(Texto("Propriedade", nameof(Linha.Propriedade), 150));
             _grade.Columns.Add(ComboEditavel("Tipo", nameof(Linha.TipoDado), TiposDado.ToList(), new DataGridLength(110), 90));
             _grade.Columns.Add(ComboEditavel("Parâmetro do Revit", nameof(Linha.Parametro),
@@ -665,6 +676,7 @@ namespace MetroSP.Ids
                 l.Propriedade = l.Propriedade?.Replace('\t', ' ').Trim();
                 l.Parametro = l.Parametro?.Replace('\t', ' ').Trim();
                 l.Entidades = l.Entidades?.Replace('\t', ',').Trim();
+                if (!l.EntidadesForaDoEsquema) l.Entidades = string.Join(",", l.ListaEntidades.Select(EsquemaIfc.Entidade));
             }
 
             Linha bloqueia = _linhas.FirstOrDefault(l => string.IsNullOrWhiteSpace(l.PropertySet) || string.IsNullOrWhiteSpace(l.Propriedade));
@@ -675,6 +687,14 @@ namespace MetroSP.Ids
                 if (bloqueia != null)
                     motivo = $"O property set {bloqueia.PropertySet} não tem entidades IFC. Sem elas o exportador da Autodesk ignora o cabeçalho " +
                              "e as propriedades vão para o property set anterior. Indique ao menos uma (ex.: IfcWall ou IfcElement).";
+            }
+            if (bloqueia == null)
+            {
+                bloqueia = _linhas.FirstOrDefault(l => l.EntidadesForaDoEsquema);
+                if (bloqueia != null)
+                    motivo = $"O property set {bloqueia.PropertySet} tem entidade que não existe no IFC4 nem no IFC 4.3 " +
+                             $"({string.Join(", ", bloqueia.ListaEntidades.Where(x => EsquemaIfc.Entidade(x) == null))}). " +
+                             "Clique duas vezes em Entidades IFC para escolher da lista.";
             }
             if (bloqueia != null)
             {
@@ -703,9 +723,6 @@ namespace MetroSP.Ids
             foreach (string pset in _linhas.Select(l => l.PropertySet).Distinct(StringComparer.OrdinalIgnoreCase)
                          .Where(p => p.StartsWith("Pset_", StringComparison.OrdinalIgnoreCase)))
                 avisos.Add($"\"{pset}\": nomes com Pset_ são reservados aos property sets padrão do IFC; o exportador renomeia os outros.");
-            foreach (string e in _linhas.SelectMany(Entidades).Distinct(StringComparer.OrdinalIgnoreCase)
-                         .Where(e => !e.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase)))
-                avisos.Add($"\"{e}\" não parece uma entidade IFC (deve começar com Ifc).");
             if (avisos.Count > 0 &&
                 MessageBox.Show(this, string.Join("\n", avisos.Take(8)) + "\n\nSalvar assim mesmo?", Title,
                     MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
@@ -764,6 +781,38 @@ namespace MetroSP.Ids
 
         private static DataGridComboBoxColumn Lista(string titulo, string campo, IEnumerable<string> valores, double largura) =>
             new DataGridComboBoxColumn { Header = titulo, ItemsSource = valores.ToList(), SelectedItemBinding = new Binding(campo), Width = largura };
+
+        /// <summary>Coluna Entidades IFC: só mostra (vermelho se alguma não existe); clicar duas vezes abre a lista para marcar.</summary>
+        private static DataGridTemplateColumn ColunaEntidades()
+        {
+            var leitura = new FrameworkElementFactory(typeof(TextBlock));
+            leitura.SetBinding(TextBlock.TextProperty, new Binding(nameof(Linha.Entidades)));
+            leitura.SetValue(TextBlock.PaddingProperty, new Thickness(2, 0, 2, 0));
+            leitura.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            leitura.SetBinding(FrameworkElement.ToolTipProperty, new Binding(nameof(Linha.Entidades)));
+            var modelo = new DataTemplate { VisualTree = leitura };
+            var fora = new DataTrigger { Binding = new Binding(nameof(Linha.EntidadesForaDoEsquema)), Value = true };
+            fora.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick, null));
+            fora.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold, null));
+            modelo.Triggers.Add(fora);
+            return new DataGridTemplateColumn
+            {
+                Header = "Entidades IFC", Width = new DataGridLength(150), MinWidth = 100, CellTemplate = modelo,
+                CellEditingTemplate = modelo,
+            };
+        }
+
+        /// <summary>Abre a lista de entidades. Vale para a linha e, se ela estiver entre as selecionadas, para todas as selecionadas.</summary>
+        private void EscolherEntidades(Linha l)
+        {
+            var janela = new EscolherEntidadesWindow(l.Entidades, l.PropertySet) { Owner = this };
+            if (janela.ShowDialog() != true) return;
+            List<Linha> alvo = _grade.SelectedItems.OfType<Linha>().Contains(l) ? _grade.SelectedItems.OfType<Linha>().ToList() : new List<Linha> { l };
+            foreach (Linha x in alvo) x.Entidades = janela.Resultado;
+            try { _vista.Refresh(); } catch (InvalidOperationException) { }
+            MontarArvore();
+            MostrarDetalhe();
+        }
 
         /// <summary>Coluna com caixa editável e sugestões (aceita também o que não está na lista, para mostrar o que veio do .txt).</summary>
         private static DataGridTemplateColumn ComboEditavel(string titulo, string campo, List<string> sugestoes, DataGridLength largura, double minimo)

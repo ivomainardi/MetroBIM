@@ -83,6 +83,7 @@ namespace MetroSP.Conferencia
             r.TotalElementos = elementos.Count;
             r.ForaDoPadrao = foraDoPadrao.Count;
             r.ClassesDoPadrao.AddRange(ClassesDoPadrao());
+            r.Esquema = CategoriasIfc.EsquemaDaVersao(_setup?.Versao.ToString()) ?? (_setup == null ? CategoriasIfc.Ifc4x3 : CategoriasIfc.Ifc4);
             r.Ids = _ids;
 
             EtapaConferencia parametros = new EtapaConferencia

@@ -63,7 +63,11 @@ namespace MetroSP.Ids
                 if (doModelo != null && arq != null)
                     foreach (CategoriasIfc.Linha m in doModelo.Where(m => !linhas.Any(l => l.Chave.Equals(m.Chave, StringComparison.OrdinalIgnoreCase))))
                         linhas.Add(m.Copia());
-                foreach (CategoriasIfc.Linha l in linhas) l.NoModelo = string.IsNullOrEmpty(l.Subcategoria) && _contagem.TryGetValue(l.Categoria, out int n) ? n : 0;
+                foreach (CategoriasIfc.Linha l in linhas)
+                {
+                    l.NoModelo = string.IsNullOrEmpty(l.Subcategoria) && _contagem.TryGetValue(l.Categoria, out int n) ? n : 0;
+                    l.Esquema = e;
+                }
                 _tabelas[e] = new ObservableCollection<CategoriasIfc.Linha>(linhas);
             }
 
@@ -105,13 +109,16 @@ namespace MetroSP.Ids
             _grade = new DataGrid
             {
                 AutoGenerateColumns = false, CanUserAddRows = false, CanUserDeleteRows = false, HeadersVisibility = DataGridHeadersVisibility.Column,
-                SelectionMode = DataGridSelectionMode.Extended, ToolTip = "Clique duas vezes na classe ou no tipo para editar. A lista de classes muda com o IFC schema.",
+                SelectionMode = DataGridSelectionMode.Extended, ToolTip = "Clique duas vezes na classe ou no tipo para escolher da lista (digite parte do nome para filtrar). A lista muda com o IFC schema.",
             };
             Theme.StyleSelection(_grade);
             _grade.Columns.Add(new DataGridTextColumn { Header = "Categoria do Revit", Binding = new Binding(nameof(CategoriasIfc.Linha.Categoria)), IsReadOnly = true, Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
             _grade.Columns.Add(new DataGridTextColumn { Header = "Subcategoria", Binding = new Binding(nameof(CategoriasIfc.Linha.Subcategoria)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             _grade.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding(nameof(CategoriasIfc.Linha.Exportar)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 64 });
-            _grade.Columns.Add(new DataGridTextColumn { Header = "Tipo predefinido", Binding = new Binding(nameof(CategoriasIfc.Linha.Tipo)), Width = 130 });
+            _grade.Columns.Add(SeletorLista.Coluna("Tipo predefinido", nameof(CategoriasIfc.Linha.Tipo),
+                o => EsquemaIfc.Tipos(_esquema, ((CategoriasIfc.Linha)o).Classe).ToList(), SemTipo,
+                nameof(CategoriasIfc.Linha.TipoInvalido), "Este tipo não existe para a classe neste IFC schema. Escolha um da lista.",
+                new DataGridLength(150), 110));
             _grade.Columns.Add(new DataGridTextColumn { Header = "No modelo", Binding = new Binding(nameof(CategoriasIfc.Linha.NoModelo)), IsReadOnly = true, Width = 80 });
             _colOutro = new DataGridTextColumn { Header = "No IFC 4.3", Binding = new Binding(nameof(CategoriasIfc.Linha.OutroEsquemaTexto)), IsReadOnly = true, Width = new DataGridLength(1, DataGridLengthUnitType.Star) };
             _grade.Columns.Add(_colOutro);
@@ -148,6 +155,8 @@ namespace MetroSP.Ids
             TrocarEsquema(CategoriasIfc.Ifc4);
         }
 
+        private const string SemClasse = "(vazio)", SemTipo = "(nenhum)";
+
         private string Outro => _esquema == CategoriasIfc.Ifc4 ? CategoriasIfc.Ifc4x3 : CategoriasIfc.Ifc4;
 
         private static string NomeEsquema(string e) => e == CategoriasIfc.Ifc4 ? "IFC4" : "IFC 4.3";
@@ -158,7 +167,11 @@ namespace MetroSP.Ids
             _grade.CommitEdit(DataGridEditingUnit.Row, true);
             _esquema = esquema;
             if (_colClasse != null) _grade.Columns.Remove(_colClasse);
-            _colClasse = ComboEditavel("Classe IFC", nameof(CategoriasIfc.Linha.Classe), CategoriasIfc.Classes(esquema).ToList());
+            List<string> classes = EsquemaIfc.Classes(esquema).ToList();
+            _colClasse = SeletorLista.Coluna("Classe IFC", nameof(CategoriasIfc.Linha.Classe), o => classes, SemClasse,
+                nameof(CategoriasIfc.Linha.ClasseInvalida), $"Esta classe não existe no {NomeEsquema(esquema)}. Escolha uma da lista.",
+                new DataGridLength(1.2, DataGridLengthUnitType.Star), 160,
+                o => { var l = (CategoriasIfc.Linha)o; if (!EsquemaIfc.TipoValido(_esquema, l.Classe, l.Tipo)) l.Tipo = ""; });
             _grade.Columns.Insert(3, _colClasse);
             var vista = new ListCollectionView(_tabelas[esquema]) { Filter = o => Passa((CategoriasIfc.Linha)o) };
             _grade.ItemsSource = vista;
@@ -201,6 +214,8 @@ namespace MetroSP.Ids
             if (_doc != null) _selos.Children.Add(Theme.Chip($"{usadas} usadas no modelo"));
             _selos.Children.Add(Theme.Chip($"{diferentes} diferentes do {NomeEsquema(Outro)}", destaque: diferentes > 0));
             if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{semClasse} usadas sem classe ou não exportadas", destaque: true));
+            int foraDoEsquema = t.Count(l => l.Exportar && (l.ClasseInvalida || l.TipoInvalido));
+            if (foraDoEsquema > 0) _selos.Children.Add(Theme.Chip($"{foraDoEsquema} com classe ou tipo fora do {NomeEsquema(_esquema)}", destaque: true));
             _resumo.Text = _alteradas.Count > 0 ? "Alterações não salvas em " + string.Join(" e ", _alteradas.Select(NomeEsquema))
                 : "Na exportação vale a tabela do IFC schema do setup (IFC4, Reference View e Design Transfer View usam a do IFC4).";
             _resumo.Foreground = Theme.Solid(_alteradas.Count > 0 ? Theme.LaranjaTexto : Theme.Cinza);
@@ -209,6 +224,16 @@ namespace MetroSP.Ids
         private bool Salvar()
         {
             _grade.CommitEdit(DataGridEditingUnit.Row, true);
+            var erradas = _alteradas.SelectMany(e => _tabelas[e].Where(l => l.Exportar && (l.ClasseInvalida || l.TipoInvalido))
+                .Select(l => $"{NomeEsquema(e)} · {l.Categoria}{(string.IsNullOrEmpty(l.Subcategoria) ? "" : " / " + l.Subcategoria)}: " +
+                             (l.ClasseInvalida ? l.Classe : l.Classe + " · " + l.Tipo))).ToList();
+            if (erradas.Count > 0)
+            {
+                MessageBox.Show(this, "Estas linhas têm classe ou tipo que não existe no IFC schema (em vermelho na tabela). " +
+                    "Escolha da lista antes de salvar:\n\n" + string.Join("\n", erradas.Take(12)) + (erradas.Count > 12 ? $"\n... e mais {erradas.Count - 12}" : ""),
+                    Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                return false;
+            }
             try
             {
                 foreach (string e in _alteradas.ToList())
@@ -259,7 +284,7 @@ namespace MetroSP.Ids
             int mudou = 0;
             foreach (CategoriasIfc.Linha l in _tabelas[_esquema])
                 if (porChave.TryGetValue(l.Chave, out CategoriasIfc.Linha n)) { l.Classe = n.Classe; l.Tipo = n.Tipo; l.Exportar = n.Exportar; porChave.Remove(l.Chave); mudou++; }
-            foreach (CategoriasIfc.Linha n in porChave.Values) { _tabelas[_esquema].Add(n); mudou++; }
+            foreach (CategoriasIfc.Linha n in porChave.Values) { n.Esquema = _esquema; _tabelas[_esquema].Add(n); mudou++; }
             _alteradas.Add(_esquema);
             Atualizar();
             _resumo.Text = $"{mudou} linhas importadas de {Path.GetFileName(d.FileName)} (salve para valer).";
@@ -284,24 +309,6 @@ namespace MetroSP.Ids
             MessageBox.Show(this, "Pronto. Abra a janela de novo para ver a tabela padrão.", Title);
             _alteradas.Remove(_esquema);
             Close();
-        }
-
-        private static DataGridTemplateColumn ComboEditavel(string titulo, string campo, List<string> sugestoes)
-        {
-            var leitura = new FrameworkElementFactory(typeof(TextBlock));
-            leitura.SetBinding(TextBlock.TextProperty, new Binding(campo));
-            leitura.SetValue(TextBlock.PaddingProperty, new Thickness(2, 0, 2, 0));
-            var edicao = new FrameworkElementFactory(typeof(ComboBox));
-            edicao.SetValue(ComboBox.IsEditableProperty, true);
-            edicao.SetValue(ComboBox.IsTextSearchEnabledProperty, true);
-            edicao.SetValue(ItemsControl.ItemsSourceProperty, sugestoes);
-            edicao.SetBinding(ComboBox.TextProperty, new Binding(campo) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
-            return new DataGridTemplateColumn
-            {
-                Header = titulo, Width = new DataGridLength(1.2, DataGridLengthUnitType.Star), MinWidth = 140,
-                CellTemplate = new DataTemplate { VisualTree = leitura },
-                CellEditingTemplate = new DataTemplate { VisualTree = edicao },
-            };
         }
     }
 }
