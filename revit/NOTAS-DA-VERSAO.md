@@ -1,4 +1,4 @@
-# Próxima versão (em preparação)
+# MetroSP 0.2.9
 
 ## Excluir padrões
 
