@@ -35,6 +35,12 @@ namespace MetroSP.Commands
                     Id = "revit-confrontar", Nome = "Confrontar planilha", Pasta = Confronto.Padroes.Pasta("Revit"),
                     Ferramenta = "Confrontar Planilha (lista de padrões no topo da janela)",
                 },
+                new TipoPadrao
+                {
+                    Id = "escrita", Nome = "Corrigir escrita", Pasta = Escrita.PadroesEscrita.Pasta,
+                    Ferramenta = "Dados do modelo › Corrigir Escrita (padrão no topo da janela; vale também no Civil 3D)",
+                    Editar = (dono, item) => Escrita.CorrigirEscritaWindow.EditarArquivo(dono, item.Arquivo),
+                },
                 Ifc(ArquivosIfc.Tipo.Setup, "revit-setup-ifc", "Setup IFC", "*.json"),
                 Ifc(ArquivosIfc.Tipo.PropertySets, "revit-psets-ifc", "Property sets IFC", "*.txt"),
                 Ifc(ArquivosIfc.Tipo.Mapeamento, "revit-mapeamento-ifc", "Mapeamento IFC", "*.txt"),
