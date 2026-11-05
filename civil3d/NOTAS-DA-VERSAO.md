@@ -1,9 +1,6 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## 0.10.0 (em teste)
-
-- **Instalador com a identidade MetroSP** (`MetroSP-Civil3D-Setup-0.10.0.exe`), igual ao do Revit: instala o bundle só para o usuário, sem administrador, em `%APPDATA%\Autodesk\ApplicationPlugins\MetroSP.bundle`, e serve para o Civil 3D 2025, 2026 e 2027. Aparece em Aplicativos instalados para desinstalar. O `MetroSP.settings.json` (Forma/APS) só é gravado na primeira instalação, para não apagar o que já foi preenchido. O zip com o bundle e o `instalar.bat` continua saindo junto. Gerado por `build.ps1`.
-- Falta testar no Windows: instalar por cima da 0.9 (zip), abrir o Civil 3D 2025/2026/2027 e ver a aba MetroSP; desinstalar e conferir se a pasta do bundle sai.
+## 0.11.0 (em teste)
 
 - **Property sets** (painel Dados, comando `MSP_PSETS`): monta os property sets do próprio Civil 3D (as mesmas
   Property Set Definitions do Style Manager) e anexa aos objetos. Não existe ferramenta nativa para isso além do Style
@@ -29,23 +26,6 @@
   - Falta testar no Civil 3D: abrir no MB-20 e no 4D2 (que já tem property sets), conferir se a lista bate com o Style
     Manager, criar um property set só para corredores e outro para todos, importar uma planilha indicando as colunas (e reabrir para ver se as colunas foram lembradas), anexar em sólidos,
     tubos e alinhamentos, ver os valores na paleta Propriedades, Desfazer (U) e exportar o IFC para ver se o Pset chega.
-- **Verificar classificação** (painel Classificação, comando `MSP_CLASSVERIFICAR`): confere a classificação dos objetos
-  que vão para o IFC (mesmo filtro das outras ferramentas) com planilhas externas, e propõe as correções.
-  - **Padrões salvos** em `%APPDATA%\MetroSP\Civil3D\Classificacao`, com **Exportar/Importar** (.json) para a equipe.
-  - **Mais de uma classificação por objeto**, com os nomes da Autodesk: `ClassificationCode`, `ClassificationCode(2)`...
-    ("Código:Descrição", com opção de "[Nome]Código:Descrição") ou código e descrição separados como no Classification
-    Manager (`Classification.Uniformat.Number`/`.Description`, OmniClass, Uniclass). Cada classificação fica num
-    property set (padrão `Classification`) e numa propriedade de texto, escolhidos na janela.
-  - **Planilha com as colunas indicadas**: para cada classificação, planilha (.xlsx ou .csv), aba, linha dos títulos e
-    a coluna de Código, Descrição e, opcional, Tipos ou layers (aceita `*`), com prévia. As colunas são sugeridas pelos títulos.
-  - **Botão de ação em cada linha**: **Corrigir**, **Escolher...** (lista filtrada pelo tipo e layer do objeto),
-    **Anexar property set** (cria a definição, se não existir, e anexa ao objeto) e **Mostrar** (seleciona e aproxima).
-    Com várias linhas selecionadas, a ação vale para todas. Também há **Aplicar todas**, **Aplicar selecionadas** e
-    exportação em .csv.
-- Leitor de planilha e escolha de colunas comuns com o plugin do Revit (`src/Planilha`).
-- Falta testar no Civil 3D: abrir a janela no MB-20, criar um padrão com duas classificações em abas da mesma planilha,
-  anexar o property set em corredores e sólidos, escolher e corrigir; conferir Desfazer (U), Mostrar (zoom) e se o
-  property set `Classification` chega ao IFC exportado.
 - **Padrões e planilhas** (painel Padrões, comando `MSP_PADROES`): um lugar só para todos os padrões salvos
   (classificação, confrontar planilha e exportação IFC) e as planilhas que eles usam.
   - Aba **Padrões**: tipo, nome, planilhas e situação (em laranja quando a planilha não está mais no lugar);
@@ -64,6 +44,32 @@
   mesma referência não é repetido. No IFC 2x3 não grava (só avisa no registro).
 - Falta testar no Civil 3D: exportar o MB-20 com classificação em dois property sets e abrir o IFC num visualizador
   (BIMcollab Zoom, Solibri ou o Navisworks) para ver a aba de classificação de cada objeto.
+- **Configuração inicial da equipe no padrão do plugin** (pasta Padrao): IfcInfraConfiguration.json, IFCInfraExportPropertyMapping.json e .csv como vieram da equipe; o IfcInfraExportMapping.json juntou o da equipe com as regras do plugin, com correções: vírgulas sobrando e "MapShapeCode" repetido (o arquivo não abria como JSON), "fcTrackElement" → IfcTrackElement.VEHICLESTOP, "IfcSlabTypeEnum.BASESLAB" → IfcSlab.BASESLAB, espaço antes de IfcSlab.TRACKSLAB, U-3D-OCUPACAO_VP com "--------" → IfcBuiltElement (o que já saía; IfcBuiltElement não tem tipo no IFC 4.3, então ".USERDEFINED" também saiu da regra ^G-3D-), U-3D-TRILHO_AMV antes de U-3D-TRILHO. Todas as classes conferidas no esquema IFC4X3_ADD2.
+- **Classe IFC escolhida numa lista** (Configurar IFC > Classes IFC): a lista traz todas as classes e Classe.TIPO do esquema escolhido na configuração da Autodesk (IFC 4.3 ou IFC4), geradas do esquema oficial. Digitar só filtra (ex.: TRACKSLAB); não dá mais para escrever uma classe solta. Aplicar vale para todas as regras selecionadas. Regra com classe fora do esquema aparece em vermelho e o Salvar avisa quais são antes de gravar.
+- Falta testar no Civil 3D: exportar com a configuração inicial da equipe (pasta Padrao) e conferir as classes no Iris; em Configurar IFC > Classes IFC, filtrar digitando, aplicar em várias regras e salvar.
+
+## 0.10.0
+
+- **Instalador com a identidade MetroSP** (`MetroSP-Civil3D-Setup-0.10.0.exe`), igual ao do Revit: instala o bundle só para o usuário, sem administrador, em `%APPDATA%\Autodesk\ApplicationPlugins\MetroSP.bundle`, e serve para o Civil 3D 2025, 2026 e 2027. Aparece em Aplicativos instalados para desinstalar. O `MetroSP.settings.json` (Forma/APS) só é gravado na primeira instalação, para não apagar o que já foi preenchido. O zip com o bundle e o `instalar.bat` continua saindo junto. Gerado por `build.ps1`.
+- Falta testar no Windows: instalar por cima da 0.9 (zip), abrir o Civil 3D 2025/2026/2027 e ver a aba MetroSP; desinstalar e conferir se a pasta do bundle sai.
+
+- **Verificar classificação** (painel Classificação, comando `MSP_CLASSVERIFICAR`): confere a classificação dos objetos
+  que vão para o IFC (mesmo filtro das outras ferramentas) com planilhas externas, e propõe as correções.
+  - **Padrões salvos** em `%APPDATA%\MetroSP\Civil3D\Classificacao`, com **Exportar/Importar** (.json) para a equipe.
+  - **Mais de uma classificação por objeto**, com os nomes da Autodesk: `ClassificationCode`, `ClassificationCode(2)`...
+    ("Código:Descrição", com opção de "[Nome]Código:Descrição") ou código e descrição separados como no Classification
+    Manager (`Classification.Uniformat.Number`/`.Description`, OmniClass, Uniclass). Cada classificação fica num
+    property set (padrão `Classification`) e numa propriedade de texto, escolhidos na janela.
+  - **Planilha com as colunas indicadas**: para cada classificação, planilha (.xlsx ou .csv), aba, linha dos títulos e
+    a coluna de Código, Descrição e, opcional, Tipos ou layers (aceita `*`), com prévia. As colunas são sugeridas pelos títulos.
+  - **Botão de ação em cada linha**: **Corrigir**, **Escolher...** (lista filtrada pelo tipo e layer do objeto),
+    **Anexar property set** (cria a definição, se não existir, e anexa ao objeto) e **Mostrar** (seleciona e aproxima).
+    Com várias linhas selecionadas, a ação vale para todas. Também há **Aplicar todas**, **Aplicar selecionadas** e
+    exportação em .csv.
+- Leitor de planilha e escolha de colunas comuns com o plugin do Revit (`src/Planilha`).
+- Falta testar no Civil 3D: abrir a janela no MB-20, criar um padrão com duas classificações em abas da mesma planilha,
+  anexar o property set em corredores e sólidos, escolher e corrigir; conferir Desfazer (U), Mostrar (zoom) e se o
+  property set `Classification` chega ao IFC exportado.
 
 - **Confrontar planilha** (painel Dados, `MSP_CONFRONTAR`): compara os dados dos objetos com uma planilha externa (.xlsx ou .csv).
   - Você indica o campo que identifica cada linha (Handle, Nome, uma propriedade de property set...) e a coluna da planilha com esse valor; depois escolhe os dados a conferir (propriedades dos property sets, Nome, Descrição, Layer) e a coluna de cada um. "Sugerir pelos títulos" casa sozinho as colunas que têm o nome de uma propriedade.
@@ -87,8 +93,6 @@
 - **Latitude e longitude do IfcSite**: "-23,63" (com vírgula) era gravado como -2363 graus e o modelo ia para o lugar errado no Iris. Agora o campo aceita vírgula ou ponto, e valor fora do intervalo fica de fora (vale o da Autodesk), com aviso.
 - **Coordenadas no PTL do Metrô, sem EPSG** (mesmo critério do plugin do Revit), ligado por padrão em Configurar IFC > Projeto: o deslocamento que a Autodesk põe no IfcMapConversion volta para a colocação, e o IFC sai nas coordenadas do desenho, sem IfcMapConversion, IfcProjectedCRS e EPSG. Latitude e longitude do IfcSite calculadas pelo PTL (núcleo GeoDoc v6.5, o mesmo do Revit). Assim a via do Civil 3D e as estruturas do Revit ficam no mesmo lugar no Iris e no Navisworks. Conferido no IFC do MB-20 002-0: Via 01 começa em E 160.572,74 / N 241.944,14 (PTL), sem erros no validador do IfcOpenShell.
 - **Alinhamento em coordenadas absolutas do PTL**: com o PTL ligado, o IfcAlignment (horizontal, vertical, eixo 3D e as estacas) passa a ter colocação na origem e pontos já nas coordenadas do PTL, como o MSP_IFCALINHAMENTO grava. O Iris lê o alinhamento sem aplicar a colocação; antes o eixo ficava perto da origem enquanto os sólidos iam para o PTL. Conferido no 002-0 e no 001-0: o eixo sai em E 160.572,74 / N 241.944,14 e as 582 estacas ficam no mesmo lugar de antes. Também sai o texto WKT do UTM que a Autodesk deixava solto (era o único erro do validador no 001-0).
-- **Configuração inicial da equipe no padrão do plugin** (pasta Padrao): IfcInfraConfiguration.json, IFCInfraExportPropertyMapping.json e .csv como vieram da equipe; o IfcInfraExportMapping.json juntou o da equipe com as regras do plugin, com correções: vírgulas sobrando e "MapShapeCode" repetido (o arquivo não abria como JSON), "fcTrackElement" → IfcTrackElement.VEHICLESTOP, "IfcSlabTypeEnum.BASESLAB" → IfcSlab.BASESLAB, espaço antes de IfcSlab.TRACKSLAB, U-3D-OCUPACAO_VP com "--------" → IfcBuiltElement (o que já saía; IfcBuiltElement não tem tipo no IFC 4.3, então ".USERDEFINED" também saiu da regra ^G-3D-), U-3D-TRILHO_AMV antes de U-3D-TRILHO. Todas as classes conferidas no esquema IFC4X3_ADD2.
-- **Classe IFC escolhida numa lista** (Configurar IFC > Classes IFC): a lista traz todas as classes e Classe.TIPO do esquema escolhido na configuração da Autodesk (IFC 4.3 ou IFC4), geradas do esquema oficial. Digitar só filtra (ex.: TRACKSLAB); não dá mais para escrever uma classe solta. Aplicar vale para todas as regras selecionadas. Regra com classe fora do esquema aparece em vermelho e o Salvar avisa quais são antes de gravar.
 - Erros gravados com o detalhe completo em `%APPDATA%\MetroSP\erros.log`.
 - Falta testar no Civil 3D: em Configurar IFC, incluir e excluir instalações, dados do projeto, regras e propriedades, salvar e reabrir; repetir a exportação que deu o erro; abrir cada janela e esticar/encolher; exportar o MB-20.03.01.00-4F4 (pavimentação) e o 4D2 (interferências) e conferir no Iris as classes, as redes de tubulação e se os Property Sets (Código Metrô, material, situação) chegam ao IFC.
 
