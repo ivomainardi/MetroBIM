@@ -35,7 +35,9 @@ $iscc = @(
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 if ($iscc) {
-    & $iscc (Join-Path $root 'installer\MetroSP.iss')
+    [xml]$csproj = Get-Content $proj
+    $versao = ($csproj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+    & $iscc "/DAppVersion=$versao" (Join-Path $root 'installer\MetroSP.iss')
     if ($LASTEXITCODE -ne 0) { throw 'Falha no Inno Setup' }
 } else {
     Write-Host 'Inno Setup 6 não encontrado: gerado só o .zip.' -ForegroundColor Yellow

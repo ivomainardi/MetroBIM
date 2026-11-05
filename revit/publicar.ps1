@@ -22,15 +22,7 @@ $sha = git rev-parse HEAD
 if ($sha -ne (git rev-parse origin/main)) { throw 'O HEAD local não é a origin/main. Faça git checkout main e git pull.' }
 if (git tag -l "v$v") { throw "A tag v$v já existe: suba a <Version> no MetroSP.csproj." }
 
-$iss = 'installer/MetroSP.iss'
-$issOriginal = Get-Content $iss -Raw
-try {
-    ($issOriginal -replace '#define AppVersion ".*"', "#define AppVersion `"$v`"") | Set-Content $iss -NoNewline
-    ./build.ps1
-} finally {
-    # O .iss volta como estava para não deixar alteração no repositório
-    $issOriginal | Set-Content $iss -NoNewline
-}
+./build.ps1   # a versão do instalador vem do csproj
 
 $zip = "MetroSP-$v-instalador.zip"
 if (Test-Path $zip) { Remove-Item $zip }
