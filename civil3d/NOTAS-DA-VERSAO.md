@@ -21,6 +21,15 @@
   property set `Classification` chega ao IFC exportado. Hoje ele vai como property set; transformar em
   `IfcClassificationReference` no pós-processamento fica para um próximo passo.
 
+- **Confrontar planilha** (painel Dados, `MSP_CONFRONTAR`): compara os dados dos objetos com uma planilha externa (.xlsx ou .csv).
+  - Você indica o campo que identifica cada linha (Handle, Nome, uma propriedade de property set...) e a coluna da planilha com esse valor; depois escolhe os dados a conferir (propriedades dos property sets, Nome, Descrição, Layer) e a coluna de cada um. "Sugerir pelos títulos" casa sozinho as colunas que têm o nome de uma propriedade.
+  - A aba Diferenças mostra cada caso com o valor no modelo, o da planilha e o que fazer: **Diferente**, **Vazio no modelo**, **Vazio na planilha**, **Sem o campo** (property set não anexado), **Não está no modelo** (chave da planilha sem objeto) e, se marcado, **Fora da planilha**.
+  - Ações nas linhas selecionadas: **Aplicar a planilha** (numa operação só, com Ctrl+Z), **Ignorar** (fica salvo no padrão), **Voltar a conferir** e **Selecionar no modelo** (seleciona e aproxima a vista). Duplo clique também seleciona. **Relatório...** grava as linhas visíveis num .csv.
+  - **Padrões salvos** em `%APPDATA%\MetroSP\Confrontar\Civil3D`: planilha, aba, linha dos títulos, colunas, campos, opções e as diferenças ignoradas. Dá para exportar e importar o .json para passar a outra pessoa.
+  - Só entram objetos que vão para o IFC (novo `FiltroIfc`): espaço do modelo, layer ligado e descongelado, fora dos layers e blocos com `"Export": false` no mapeamento ativo, sem textos, cotas e hachuras.
+  - Mesma janela e mesmas regras do Confrontar Planilha do Revit (código comum em `src/Confronto`).
+- Falta testar no Civil 3D: abrir a janela num desenho com property sets (MB-20), escolher uma planilha, confrontar, aplicar alguns valores e desfazer com Ctrl+Z; conferir se "Selecionar no modelo" mostra a seleção com a janela aberta e se o zoom acerta; gravar Nome e Layer; salvar, reabrir e importar um padrão.
+
 ## 0.9.0
 
 - **Excluir em Configurar IFC**: as tabelas Instalações, Dados do projeto, Classes IFC e Propriedades ganharam os botões **+** (incluir linha depois da selecionada) e **✕** (excluir as linhas selecionadas; com mais de uma, pede confirmação). A tecla Delete também exclui. Antes só Classes IFC tinha o ✕, e só para uma linha.
