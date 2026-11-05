@@ -34,6 +34,9 @@
     próxima planilha do mesmo padrão. Também lê o `IFCInfraExportPropertyMapping.csv` da Autodesk. **Exportar
     planilha** salva a lista em .csv para editar no Excel ou levar a outro desenho.
   - **Do mapeamento IFC**: traz os property sets que o mapeamento do exportador (Configurar IFC) espera achar no desenho.
+  - **Criar no desenho** com **Já anexar aos objetos** (ligado por padrão): além de criar, anexa os property sets
+    criados ou alterados aos objetos que vão para o IFC (da seleção, se houver), conforme o "Aplica-se a". Assim já
+    aparecem em Propriedades › Extended Data, sem passar pela aba Anexar.
   - **Criar no desenho**: cria os novos e completa os que mudaram. Nada é apagado e o tipo de uma propriedade que já
     existe não muda (os valores dos objetos se perderiam).
   - **Levar para o IFC** (por property set): acrescenta o Pset ao mapeamento ativo do exportador da Autodesk (modelo no

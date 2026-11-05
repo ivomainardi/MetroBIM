@@ -51,6 +51,7 @@ namespace MetroSP.PropertySets
 
         private readonly TabControl _abas;
         private readonly Button _criar, _anexar;
+        private readonly CheckBox _anexarAoCriar;
 
         public MontarPsetsWindow(AcDocument doc, List<ObjectId> selecao)
         {
@@ -244,13 +245,25 @@ namespace MetroSP.PropertySets
             // ============================================================ rodapé
             _resumo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
             _infoAnexar = _resumo;
-            _criar = new Button { Content = "Criar no desenho", Style = Theme.PrimaryButton, ToolTip = "Cria os property sets novos e completa os que mudaram. Nada é apagado do desenho." };
+            _criar = new Button { Content = "Criar no desenho", Style = Theme.PrimaryButton, ToolTip = "Cria os property sets novos e completa os que mudaram. Nada é apagado do desenho.\nCom \"Já anexar aos objetos\", também anexa aos objetos que vão para o IFC." };
             _criar.Click += (s, e) => Criar();
             _anexar = new Button { Content = "Anexar", Style = Theme.PrimaryButton, Visibility = System.Windows.Visibility.Collapsed, ToolTip = "Anexa o que falta aos objetos visíveis na tabela (use os filtros das colunas para escolher)." };
             _anexar.Click += (s, e) => Anexar();
             var fechar = new Button { Content = "Fechar", IsCancel = true };
             fechar.Click += (s, e) => Close();
             var rodape = Theme.Rodape(_resumo, _criar, _anexar, fechar);
+            _anexarAoCriar = new CheckBox
+            {
+                Content = "Já anexar aos objetos",
+                IsChecked = true,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 4, 0),
+                ToolTip = (_selecao != null ? "Anexa aos objetos selecionados" : "Anexa a todos os objetos do desenho") +
+                          " que vão para o IFC, conforme o \"Aplica-se a\" de cada property set.\n" +
+                          "Assim eles aparecem em Propriedades › Extended Data. Valem só os property sets criados ou alterados agora.",
+            };
+            DockPanel.SetDock(_anexarAoCriar, Dock.Right);
+            rodape.Children.Insert(1, _anexarAoCriar);
 
             Theme.Apply(this, "Property sets", Path.GetFileName(doc.Name) + " · monta os property sets do Civil 3D e anexa aos objetos", _abas, rodape);
             Carregar(false);
@@ -500,7 +513,19 @@ namespace MetroSP.PropertySets
             string msg;
             try
             {
-                using (_doc.LockDocument()) msg = alvo.Count > 0 ? PsetsCore.CriarNoDesenho(_db, alvo) : "Os property sets já estavam iguais no desenho.";
+                using (_doc.LockDocument())
+                {
+                    msg = alvo.Count > 0 ? PsetsCore.CriarNoDesenho(_db, alvo) : "Os property sets já estavam iguais no desenho.";
+                    if (alvo.Count > 0 && _anexarAoCriar.IsChecked == true)
+                    {
+                        List<ObjetoAnexar> objs = PsetsCore.Objetos(_db, _selecao);
+                        PsetsCore.CalcularFaltas(_db, objs, alvo.Select(p => p.Nome.Trim()).ToList());
+                        msg += "\n\n" + (objs.Any(o => !string.IsNullOrEmpty(o.Faltam))
+                            ? PsetsCore.Anexar(_db, objs) + "\nOs valores ficam em Propriedades › Extended Data."
+                            : "Os objetos que vão para o IFC já tinham esses property sets (ou nenhum é do tipo a que se aplicam).");
+                        _objetos = null;
+                    }
+                }
                 string ifc = PsetsCore.LevarParaIfc(_psets);
                 if (ifc != null) msg += "\n\n" + ifc;
                 if (semProps.Count > 0) msg += "\n\nSem propriedades: " + string.Join(", ", semProps) + ".";
@@ -519,6 +544,7 @@ namespace MetroSP.PropertySets
         {
             bool anexar = _abas.SelectedIndex == 1;
             _criar.Visibility = anexar ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
+            _anexarAoCriar.Visibility = _criar.Visibility;
             _anexar.Visibility = anexar ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
             if (!anexar) { Atualizar(); return; }
             PreencherEscolha();
