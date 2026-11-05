@@ -1,5 +1,17 @@
 # Próxima versão (em preparação)
 
+## Excluir padrões
+
+- **Padrões do Metrô** (Conferir Entrega › Padrões...): botão **Excluir padrões...** apaga o arquivo .metrosp aberto
+  (pede confirmação; os arquivos que ele indica não são apagados). Cada arquivo dos padrões ganhou um **✕** ao lado do
+  Procurar, para tirá-lo dos padrões.
+- **Verificar Padrões Metrô**: os arquivos opcionais (Property sets e Classes IFC) ganharam um **✕** para tirar o arquivo
+  escolhido. Antes, depois de escolhido, não dava para voltar a "nenhum".
+- Já existiam e continuam iguais: Apagar em Arquivos IFC, Remover em Listar Compartilhados, Remover selecionadas no
+  editor de property sets e "tirar" nas regras do Filtrar e Colorir.
+- Falta testar no Revit: abrir Padrões..., salvar um .metrosp de teste, excluir e conferir que a janela volta para
+  "arquivos escolhidos neste computador"; no Verificar Padrões, tirar o .txt de property sets e verificar.
+
 ## Faixa MetroSP reorganizada
 
 A aba MetroSP passou de 7 painéis para 4, na ordem do trabalho:
