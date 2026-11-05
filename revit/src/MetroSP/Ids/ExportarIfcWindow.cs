@@ -46,6 +46,7 @@ namespace MetroSP.Ids
         private readonly TextBox _arquivo;
         private readonly TextBlock _resumo;
         private readonly Border _seloLocalizacao;
+        private readonly Border _seloProjeto;
 
         private HashSet<string> _parametrosModelo;
         private List<string> _avisosPsets = new List<string>();
@@ -125,14 +126,18 @@ namespace MetroSP.Ids
             acoesPsets.Children.Insert(0, editarPsets);
             _mapeamento = ItemArquivo(arquivos, "Mapeamento", "Indicar...", primeiro: false, out _arqMapeamento, out _seloMapeamento, out _infoMapeamento, out Button procurarMapeamento, out _);
 
-            // ---------- Localização: a etapa 1 (botão Localização IFC) grava o Location; aqui só confere ----------
+            // ---------- Projeto e localização: a etapa 1 (botão Projeto e Local) grava no Revit; aqui só confere ----------
             Localizacao = LocalizacaoIfc.Calcular(doc);
-            corpo.Children.Add(Theme.Secao("Localização"));
+            corpo.Children.Add(Theme.Secao("Projeto e localização"));
             var linhaLocal = new DockPanel();
-            var abrirLocal = new Button { Content = "Localização IFC...", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var abrirLocal = new Button { Content = "Projeto e Local...", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
             abrirLocal.Click += (s, e) => AbrirLocalizacao();
             DockPanel.SetDock(abrirLocal, Dock.Right);
             linhaLocal.Children.Add(abrirLocal);
+            _seloProjeto = Theme.Selo();
+            _seloProjeto.Margin = new Thickness(0, 0, 8, 0);
+            DockPanel.SetDock(_seloProjeto, Dock.Left);
+            linhaLocal.Children.Add(_seloProjeto);
             _seloLocalizacao = Theme.Selo();
             linhaLocal.Children.Add(_seloLocalizacao);
             corpo.Children.Add(linhaLocal);
@@ -753,7 +758,7 @@ namespace MetroSP.Ids
             {
                 MessageBoxResult r = MessageBox.Show(this,
                     "O Location do Revit não está no ponto do Project Base Point.\n\n" +
-                    "Sim: abrir a etapa Localização para corrigir.\nNão: exportar assim mesmo (a MetroSP grava no IfcSite a latitude/longitude do Project Base Point).\nCancelar: voltar.",
+                    "Sim: abrir a etapa Projeto e Local para corrigir.\nNão: exportar assim mesmo (a MetroSP grava no IfcSite a latitude/longitude do Project Base Point).\nCancelar: voltar.",
                     Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
                 if (r == MessageBoxResult.Cancel) return;
                 if (r == MessageBoxResult.Yes) { AbrirLocalizacao(); return; }
@@ -784,14 +789,21 @@ namespace MetroSP.Ids
             else if (!l.LocationCorreto)
                 Theme.MudarSelo(_seloLocalizacao,
                     $"Location a {(l.Diferenca < 1000 ? l.Diferenca.ToString("0.00") + " m" : (l.Diferenca / 1000).ToString("0.0") + " km")} do Project Base Point",
-                    Theme.Estado.Aviso, $"Location atual: {ponto}. Use Localização IFC... antes de exportar.");
+                    Theme.Estado.Aviso, $"Location atual: {ponto}. Use Projeto e Local... antes de exportar.");
             else
                 Theme.MudarSelo(_seloLocalizacao, $"Location conferido: {ponto}", Theme.Estado.Ok,
                     $"Confere com o Project Base Point.\nIfcSite: \"{l.SiteAtual}\"\nIfcBuilding: \"{l.EdificioAtual}\"");
+            Ifc.DadosEntidadeIfc pr = l.DadosAtuais.Projeto;
+            if (string.IsNullOrWhiteSpace(pr.Nome))
+                Theme.MudarSelo(_seloProjeto, "IfcProject sem nome", Theme.Estado.Aviso, "Preencha o IfcProject em Projeto e Local... (número do projeto nas Informações do projeto).");
+            else
+                Theme.MudarSelo(_seloProjeto, "IfcProject: " + pr.Nome, Theme.Estado.Ok,
+                    $"Nome longo: \"{pr.NomeLongo}\"\nFase: \"{pr.Fase}\"\nIfcSite: \"{l.SiteAtual}\" · IfcBuilding: \"{l.EdificioAtual}\"\n" +
+                    $"Pset {Ifc.DadosProjetoIfc.NomePset}: {l.DadosAtuais.Propriedades.Count} propriedade(s)");
             AtualizarResumo();
         }
 
-        /// <summary>Abre a etapa Localização, grava no Revit e confere de novo.</summary>
+        /// <summary>Abre a etapa Projeto e Local, grava no Revit e confere de novo.</summary>
         private void AbrirLocalizacao()
         {
             try

@@ -35,6 +35,11 @@ namespace MetroSP.Commands
                     Id = "revit-confrontar", Nome = "Confrontar planilha", Pasta = Confronto.Padroes.Pasta("Revit"),
                     Ferramenta = "Confrontar Planilha (lista de padrões no topo da janela)",
                 },
+                new TipoPadrao
+                {
+                    Id = "metrosp-dados-projeto", Nome = "Dados do projeto IFC", Pasta = MetroSP.Ifc.DadosProjetoIfc.Pasta,
+                    Ferramenta = "Entrega Metrô › Projeto e Local (barra Padrão no topo da janela); vale também para o Civil 3D",
+                },
                 Ifc(ArquivosIfc.Tipo.Setup, "revit-setup-ifc", "Setup IFC", "*.json"),
                 Ifc(ArquivosIfc.Tipo.PropertySets, "revit-psets-ifc", "Property sets IFC", "*.txt"),
                 Ifc(ArquivosIfc.Tipo.Mapeamento, "revit-mapeamento-ifc", "Mapeamento IFC", "*.txt"),

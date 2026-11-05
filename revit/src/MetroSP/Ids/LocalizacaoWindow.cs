@@ -8,8 +8,8 @@ using DB = Autodesk.Revit.DB;
 namespace MetroSP.Ids
 {
     /// <summary>
-    /// Etapa 1 da exportação: calcula a lat/long pelo Project Base Point, mostra os dados do IfcSite e do IfcBuilding
-    /// e grava nos campos padrão do Revit o que estiver diferente. A exportação (etapa 2) só confere.
+    /// Etapa 1 da exportação: dados do IfcProject, do IfcSite (com a lat/long calculada pelo Project Base Point) e do
+    /// IfcBuilding, gravados nos campos padrão do Revit o que estiver diferente. A exportação só confere e completa o IFC.
     /// </summary>
     public class LocalizacaoWindow : Window
     {
@@ -20,20 +20,21 @@ namespace MetroSP.Ids
 
         public LocalizacaoWindow(LocalizacaoIfc local)
         {
-            Title = "MetroSP - Localização IFC";
-            Width = 680;
+            Title = "MetroSP - Projeto e localização IFC";
+            Width = 960;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
             ResizeMode = ResizeMode.CanResizeWithGrip;
-            MinWidth = 540;
+            MinWidth = 720;
 
             _painel = new LocalizacaoPainel(local);
-            var gravar = new Button { Content = "Gravar no Revit", IsDefault = true, Style = Theme.PrimaryButton, IsEnabled = local.Erro == null };
-            gravar.ToolTip = "A atualização do Location não altera o Survey Point, o Project Base Point nem as Shared Coordinates.";
+            var gravar = new Button { Content = "Gravar no Revit", IsDefault = true, Style = Theme.PrimaryButton };
+            gravar.ToolTip = "Grava nos campos do Revit que o exportador IFC lê. A atualização do Location não altera o Survey Point, " +
+                "o Project Base Point nem as Shared Coordinates.";
             gravar.Click += (s, e) => Confirmar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             _resumo = new TextBlock { FontSize = 11.5 };
-            Theme.Apply(this, "Localização IFC", "Location pelo Project Base Point e nomes do IfcSite e do IfcBuilding",
+            Theme.Apply(this, "Projeto e localização IFC", "IfcProject, IfcSite (com o Location pelo Project Base Point) e IfcBuilding",
                 _painel, Theme.Rodape(_resumo, cancelar, gravar));
             _painel.Mudou += AtualizarResumo;
             AtualizarResumo();
