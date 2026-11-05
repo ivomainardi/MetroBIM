@@ -1,4 +1,4 @@
-# Próxima versão (em teste)
+# MetroSP 0.3.0 (em teste)
 
 ## Verificar classificação com padrões e várias classificações
 
