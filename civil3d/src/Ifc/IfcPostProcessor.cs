@@ -493,12 +493,15 @@ namespace MetroSP.Ifc
                 var crsIds = maps.Select(m => StepModel.Ref(m.Args[1])).Distinct().ToList();
                 foreach (var m in maps) _m.Remove(m.Id);
                 foreach (var c in crsIds) if (c != 0 && _m.TypeOf(c) == "IFCPROJECTEDCRS") _m.Remove(c);
+                // texto WKT do UTM que a Autodesk grava solto (e sem o CRS, inválido)
+                foreach (var w in _m.OfType("IFCWELLKNOWNTEXT").ToList()) _m.Remove(w.Id);
                 foreach (var ps in _m.OfType("IFCPROPERTYSET").Where(ps => StepModel.Text(ps.Args[2]) == "Coordinate Reference System").ToList())
                 {
                     foreach (var r in _m.OfType("IFCRELDEFINESBYPROPERTIES").Where(r => StepModel.Ref(r.Args[5]) == ps.Id).ToList()) _m.Remove(r.Id);
                     _m.Remove(ps.Id);
                 }
                 _log($"coordenadas no PTL do Metrô: deslocamento ({e:0.###}; {n:0.###}; {h:0.###}) do IfcMapConversion levado à colocação; IFC sem EPSG.");
+                AlinhamentosAbsolutos();
             }
 
             // Latitude e longitude do IfcSite pelo PTL, como no Revit (a configuração, se tiver, vale depois).
@@ -515,6 +518,182 @@ namespace MetroSP.Ifc
             _m.SetArg(site.Id, 9, CompoundAngle(lat));
             _m.SetArg(site.Id, 10, CompoundAngle(lon));
             _log($"latitude e longitude do IfcSite pelo PTL: {lat:0.0000000}; {lon:0.0000000}.");
+        }
+
+        static readonly string[] AlignmentFamily = { "IFCALIGNMENT", "IFCALIGNMENTHORIZONTAL", "IFCALIGNMENTVERTICAL", "IFCALIGNMENTCANT", "IFCALIGNMENTSEGMENT" };
+
+        /// <summary>
+        /// Leva o alinhamento para coordenadas absolutas do PTL, com colocação identidade (como o MSP_IFCALINHAMENTO
+        /// grava). Visualizadores que leem o IfcAlignment sem aplicar a colocação (o web-ifc, usado no Iris) passam a
+        /// mostrar o eixo junto dos sólidos. Muda só o que está no plano do alinhamento: a colocação de cada trecho do
+        /// horizontal (e o StartPoint/StartDirection do trecho), a cota dos trechos do vertical e o eixo 3D por pontos.
+        /// As curvas canônicas dos trechos e a superelevação ficam como vieram.
+        /// </summary>
+        void AlinhamentosAbsolutos()
+        {
+            var produtos = AlignmentFamily.SelectMany(t => _m.OfType(t)).Where(p => StepModel.Ref(p.Args[5]) != 0).ToList();
+            if (produtos.Count == 0) return;
+            var placements = new HashSet<int>(produtos.Select(p => StepModel.Ref(p.Args[5])));
+            var mats = placements.Select(PlacementMatrix).ToList();
+            var A = mats[0];
+            if (mats.Any(m => !Igual(m, A)))
+            {
+                _log("aviso: os alinhamentos têm colocações diferentes; ficaram relativos à colocação, como vieram.");
+                return;
+            }
+            if (Igual(A, Matrix.Identity)) return;
+            if (Math.Abs(A.R[8] - 1) > 1e-9)
+            {
+                _log("aviso: a colocação dos alinhamentos não é horizontal; ficaram relativos à colocação, como vieram.");
+                return;
+            }
+            double c = A.R[0], s = A.R[3], tz = A.T[2], theta = Math.Atan2(s, c);
+            string F(double v) => IfcAlignmentWriter.F(v);
+
+            // curvas do alinhamento, pela representação dos produtos
+            var horizontais = new HashSet<int>();
+            var verticais = new HashSet<int>();
+            var porPontos = new HashSet<int>();
+            var segH = new HashSet<int>();
+            var segV = new HashSet<int>();
+            void Curva(int id, int guard = 0)
+            {
+                if (id == 0 || guard > 5) return;
+                switch (_m.TypeOf(id))
+                {
+                    case "IFCCOMPOSITECURVE": horizontais.Add(id); break;
+                    case "IFCGRADIENTCURVE": verticais.Add(id); Curva(StepModel.Ref(_m.Get(id).Args[2]), guard + 1); break;
+                    case "IFCSEGMENTEDREFERENCECURVE": Curva(StepModel.Ref(_m.Get(id).Args[2]), guard + 1); break;
+                    case "IFCINDEXEDPOLYCURVE": porPontos.Add(id); break;
+                }
+            }
+            foreach (var p in produtos)
+            {
+                var shape = _m.Get(StepModel.Ref(p.Args[6]));
+                if (shape == null || shape.Type != "IFCPRODUCTDEFINITIONSHAPE") continue;
+                var tipoTrecho = p.Type == "IFCALIGNMENTSEGMENT" ? _m.TypeOf(StepModel.Ref(p.Args[7])) : null;
+                foreach (var rep in StepModel.RefList(shape.Args[2]))
+                {
+                    var r = _m.Get(rep);
+                    if (r == null || r.Type != "IFCSHAPEREPRESENTATION") continue;
+                    foreach (var it in StepModel.RefList(r.Args[3]))
+                    {
+                        if (_m.TypeOf(it) != "IFCCURVESEGMENT") { Curva(it); continue; }
+                        if (tipoTrecho == "IFCALIGNMENTHORIZONTALSEGMENT") segH.Add(it);
+                        else if (tipoTrecho == "IFCALIGNMENTVERTICALSEGMENT") segV.Add(it);
+                    }
+                }
+            }
+            foreach (var cc in horizontais) foreach (var sg in StepModel.RefList(_m.Get(cc).Args[0])) segH.Add(sg);
+            foreach (var gc in verticais) foreach (var sg in StepModel.RefList(_m.Get(gc).Args[0])) segV.Add(sg);
+            segV.ExceptWith(segH);
+
+            // pontos e colocações novos (os antigos podem ser compartilhados com outras coisas)
+            var pontos = new Dictionary<int, int>();
+            int PontoPlano(int id)
+            {
+                if (pontos.TryGetValue(id, out var novo)) return novo;
+                var q = StepModel.RealList(_m.Get(id).Args[0]);
+                double x = q[0], y = q.Count > 1 ? q[1] : 0;
+                var w = A.Apply(x, y, q.Count > 2 ? q[2] : 0, new double[3]);
+                novo = _m.Add("IFCCARTESIANPOINT", q.Count > 2 ? "(" + F(w[0]) + "," + F(w[1]) + "," + F(w[2]) + ")" : "(" + F(w[0]) + "," + F(w[1]) + ")");
+                pontos[id] = novo;
+                return novo;
+            }
+            var direcoes = new Dictionary<int, int>();
+            int Direcao(int id)
+            {
+                if (direcoes.TryGetValue(id, out var novo)) return novo;
+                var q = StepModel.RealList(_m.Get(id).Args[0]);
+                novo = _m.Add("IFCDIRECTION", "(" + F(c * q[0] - s * q[1]) + "," + F(s * q[0] + c * q[1]) + ")");
+                direcoes[id] = novo;
+                return novo;
+            }
+            var colocacoes = new Dictionary<int, int>();
+            int n2 = 0;
+            foreach (var sg in segH.Concat(segV))
+            {
+                var e = _m.Get(sg);
+                var pl = StepModel.Ref(e.Args[1]);
+                var key = segH.Contains(sg) ? pl : -pl;
+                if (!colocacoes.TryGetValue(key, out var novo))
+                {
+                    var a2 = _m.Get(pl);
+                    if (a2 == null || a2.Type != "IFCAXIS2PLACEMENT2D") continue;
+                    var pt = StepModel.Ref(a2.Args[0]);
+                    if (segH.Contains(sg))
+                    {
+                        var dir = a2.Args[1] == "$" ? _m.Add("IFCDIRECTION", "(" + F(c) + "," + F(s) + ")") : Direcao(StepModel.Ref(a2.Args[1]));
+                        novo = _m.Add("IFCAXIS2PLACEMENT2D", "#" + PontoPlano(pt), "#" + dir);
+                    }
+                    else
+                    {
+                        if (Math.Abs(tz) < 1e-12) continue;
+                        var q = StepModel.RealList(_m.Get(pt).Args[0]);
+                        var np = _m.Add("IFCCARTESIANPOINT", "(" + F(q[0]) + "," + F(q[1] + tz) + ")");
+                        novo = _m.Add("IFCAXIS2PLACEMENT2D", "#" + np, a2.Args[1]);
+                    }
+                    colocacoes[key] = novo;
+                }
+                _m.SetArg(sg, 1, "#" + novo);
+                n2++;
+            }
+
+            // parâmetros de projeto dos trechos
+            foreach (var hs in _m.OfType("IFCALIGNMENTHORIZONTALSEGMENT").ToList())
+            {
+                var pt = StepModel.Ref(hs.Args[2]);
+                if (pt != 0) _m.SetArg(hs.Id, 2, "#" + PontoPlano(pt));
+                if (Math.Abs(theta) > 1e-12 && hs.Args[3] != "$") _m.SetArg(hs.Id, 3, F(StepModel.Real(hs.Args[3]) + theta));
+            }
+            if (Math.Abs(tz) > 1e-12)
+                foreach (var vs in _m.OfType("IFCALIGNMENTVERTICALSEGMENT").ToList())
+                    if (vs.Args[4] != "$") _m.SetArg(vs.Id, 4, F(StepModel.Real(vs.Args[4]) + tz));
+
+            // eixo 3D por pontos
+            foreach (var pc in porPontos)
+            {
+                var lista = _m.Get(StepModel.Ref(_m.Get(pc).Args[0]));
+                if (lista == null || lista.Type != "IFCCARTESIANPOINTLIST3D") continue;
+                var coords = lista.Args[0].Trim();
+                var pts = StepModel.SplitArgs(coords.Substring(1, coords.Length - 2)).Select(t =>
+                {
+                    var q = StepModel.RealList(t);
+                    var w = A.Apply(q[0], q[1], q[2], new double[3]);
+                    return "(" + F(w[0]) + "," + F(w[1]) + "," + F(w[2]) + ")";
+                });
+                var nova = new List<string>(lista.Args);
+                nova[0] = "(" + string.Join(",", pts) + ")";
+                var id = _m.Add("IFCCARTESIANPOINTLIST3D", nova.ToArray());
+                _m.SetArg(pc, 0, "#" + id);
+            }
+
+            // colocação identidade para os produtos do alinhamento e para as colocações lineares sobre ele
+            var o = _m.Add("IFCCARTESIANPOINT", "(0.,0.,0.)");
+            var raiz = _m.Add("IFCLOCALPLACEMENT", "$", "#" + _m.Add("IFCAXIS2PLACEMENT3D", "#" + o, "$", "$"));
+            foreach (var p in produtos) _m.SetArg(p.Id, 5, "#" + raiz);
+            int nl = 0;
+            foreach (var lp in _m.OfType("IFCLINEARPLACEMENT").Where(l => placements.Contains(StepModel.Ref(l.Args[0]))).ToList())
+            {
+                _m.SetArg(lp.Id, 0, "#" + raiz);
+                if (lp.Args.Count > 2 && StepModel.Ref(lp.Args[2]) != 0)
+                {
+                    var m = A.Multiply(Axis2Placement(StepModel.Ref(lp.Args[2])));
+                    var op = _m.Add("IFCCARTESIANPOINT", "(" + F(m.T[0]) + "," + F(m.T[1]) + "," + F(m.T[2]) + ")");
+                    var z = _m.Add("IFCDIRECTION", "(" + F(m.R[2]) + "," + F(m.R[5]) + "," + F(m.R[8]) + ")");
+                    var x = _m.Add("IFCDIRECTION", "(" + F(m.R[0]) + "," + F(m.R[3]) + "," + F(m.R[6]) + ")");
+                    _m.SetArg(lp.Id, 2, "#" + _m.Add("IFCAXIS2PLACEMENT3D", "#" + op, "#" + z, "#" + x));
+                }
+                nl++;
+            }
+            _log($"alinhamentos em coordenadas absolutas do PTL: {produtos.Count} objeto(s), {n2} trecho(s) de curva, {porPontos.Count} eixo(s) 3D, {nl} colocação(ões) linear(es).");
+        }
+
+        static bool Igual(Matrix a, Matrix b)
+        {
+            for (int i = 0; i < 9; i++) if (Math.Abs(a.R[i] - b.R[i]) > 1e-9) return false;
+            for (int i = 0; i < 3; i++) if (Math.Abs(a.T[i] - b.T[i]) > 1e-6) return false;
+            return true;
         }
 
         /// <summary>Pset "MetroSP_Projeto" no IfcProject (substitui o anterior, se houver).</summary>
