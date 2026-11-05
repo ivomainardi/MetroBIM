@@ -1,0 +1,225 @@
+IfcPropertySet Name,IfcProperty Name,Active,Source,Group,Civil 3D Name
+Summary,Title,TRUE,DrawingProperties,Summary,Title
+Summary,Subject,TRUE,DrawingProperties,Summary,Subject
+Summary,Author,TRUE,DrawingProperties,Summary,Author
+Summary,Keywords,TRUE,DrawingProperties,Summary,Keywords
+Summary,Comments,TRUE,DrawingProperties,Summary,Comments
+Summary,HyperlinkBase,TRUE,DrawingProperties,Summary,HyperlinkBase
+Custom_Properties,IfcFacility_GlobalId,TRUE,DrawingProperties,Custom_Properties,IfcFacility_GlobalId
+Custom_Properties,IfcFacility_Name,TRUE,DrawingProperties,Custom_Properties,IfcFacility_Name
+Custom_Properties,IfcProject_GlobalId,TRUE,DrawingProperties,Custom_Properties,IfcProject_GlobalId
+Custom_Properties,IfcProject_ShortName,TRUE,DrawingProperties,Custom_Properties,IfcProject_ShortName
+Properties,Convergence,TRUE,General,Properties,Convergence
+Properties,DescriptionFormat,TRUE,General,Properties,DescriptionFormat
+Properties,Easting,TRUE,General,Properties,Easting
+Properties,Elevation,TRUE,General,Properties,Elevation
+Properties,ElevationOverride,TRUE,General,Properties,ElevationOverride
+Properties,FullDescription,TRUE,General,Properties,FullDescription
+Properties,FullDescriptionOverride,TRUE,General,Properties,FullDescriptionOverride
+Properties,GridEasting,TRUE,General,Properties,GridEasting
+Properties,GridNorthing,TRUE,General,Properties,GridNorthing
+Properties,IsCheckedOut,TRUE,General,Properties,IsCheckedOut
+Properties,IsLabelDragged,TRUE,General,Properties,IsLabelDragged
+Properties,IsLabelPinned,TRUE,General,Properties,IsLabelPinned
+Properties,IsLabelVisible,TRUE,General,Properties,IsLabelVisible
+Properties,IsLocked,TRUE,General,Properties,IsLocked
+Properties,IsMovable,TRUE,General,Properties,IsMovable
+Properties,IsProjectPoint,TRUE,General,Properties,IsProjectPoint
+Properties,IsSurveyPoint,TRUE,General,Properties,IsSurveyPoint
+Properties,LabelRotation,TRUE,General,Properties,LabelRotation
+Properties,Latitude,TRUE,General,Properties,Latitude
+Properties,Longitude,TRUE,General,Properties,Longitude
+Properties,MarkerRotation,TRUE,General,Properties,MarkerRotation
+Properties,Northing,TRUE,General,Properties,Northing
+Properties,PointName,TRUE,General,Properties,PointName
+Properties,PointNumber,TRUE,General,Properties,PointNumber
+Properties,RawDescription,TRUE,General,Properties,RawDescription
+Properties,RawDescriptionOverride,TRUE,General,Properties,RawDescriptionOverride
+Properties,Scale,TRUE,General,Properties,Scale
+Properties,ScaleXY,TRUE,General,Properties,ScaleXY
+Properties,ScaleZ,TRUE,General,Properties,ScaleZ
+Properties,ShowToolTip,TRUE,General,Properties,ShowToolTip
+Properties,CloneMeForDragging,TRUE,General,Properties,CloneMeForDragging
+Properties,ForceAnnoAllVisible,TRUE,General,Properties,ForceAnnoAllVisible
+Properties,HasSaveVersionOverride,TRUE,General,Properties,HasSaveVersionOverride
+Properties,IsCancelling,TRUE,General,Properties,IsCancelling
+Properties,IsErased,TRUE,General,Properties,IsErased
+Properties,IsEraseStatusToggled,TRUE,General,Properties,IsEraseStatusToggled
+Properties,IsModified,TRUE,General,Properties,IsModified
+Properties,IsModifiedGraphics,TRUE,General,Properties,IsModifiedGraphics
+Properties,IsModifiedXData,TRUE,General,Properties,IsModifiedXData
+Properties,IsNewObject,TRUE,General,Properties,IsNewObject
+Properties,IsNotifyEnabled,TRUE,General,Properties,IsNotifyEnabled
+Properties,IsNotifying,TRUE,General,Properties,IsNotifying
+Properties,IsObjectIdsInFlux,TRUE,General,Properties,IsObjectIdsInFlux
+Properties,IsPersistent,TRUE,General,Properties,IsPersistent
+Properties,IsReadEnabled,TRUE,General,Properties,IsReadEnabled
+Properties,IsReallyClosing,TRUE,General,Properties,IsReallyClosing
+Properties,IsTransactionResident,TRUE,General,Properties,IsTransactionResident
+Properties,IsUndoing,TRUE,General,Properties,IsUndoing
+Properties,IsWriteEnabled,TRUE,General,Properties,IsWriteEnabled
+Properties,Bounds,TRUE,General,Properties,Bounds
+Properties,AutoDelete,TRUE,General,Properties,AutoDelete
+Properties,IsDisposed,TRUE,General,Properties,IsDisposed
+Properties,AutoRebuild,TRUE,General,Properties,AutoRebuild
+Properties,HasSnapshot,TRUE,General,Properties,HasSnapshot
+Properties,IsLevelOfDetailEnabled,TRUE,General,Properties,IsLevelOfDetailEnabled
+Properties,IsOutOfDate,TRUE,General,Properties,IsOutOfDate
+Properties,IsSnapshotOutOfDate,TRUE,General,Properties,IsSnapshotOutOfDate
+Properties,IsVolumeSurface,TRUE,General,Properties,IsVolumeSurface
+Properties,Lock,TRUE,General,Properties,Lock
+Properties,Description,TRUE,General,Properties,Description
+Properties,DisplayName,TRUE,General,Properties,DisplayName
+Properties,FingerPrint,TRUE,General,Properties,FingerPrint
+Properties,IsCWSReferenceObject,TRUE,General,Properties,IsCWSReferenceObject
+Properties,IsCWSSourceObject,TRUE,General,Properties,IsCWSSourceObject
+Properties,IsPartialReferenceObject,TRUE,General,Properties,IsPartialReferenceObject
+Properties,IsReadOnlyReferenceObject,TRUE,General,Properties,IsReadOnlyReferenceObject
+Properties,IsReferenceObject,TRUE,General,Properties,IsReferenceObject
+Properties,IsReferenceStale,TRUE,General,Properties,IsReferenceStale
+Properties,IsReferenceSubObject,TRUE,General,Properties,IsReferenceSubObject
+Properties,IsReferenceValid,TRUE,General,Properties,IsReferenceValid
+Properties,IsUsed,TRUE,General,Properties,IsUsed
+Properties,Name,TRUE,General,Properties,Name
+Properties,StyleName,TRUE,General,Properties,StyleName
+Misc,BlockName,TRUE,General,Misc,BlockName
+Misc,ClassID,TRUE,General,Misc,ClassID
+Misc,HasFields,TRUE,General,Misc,HasFields
+Misc,IsAProxy,TRUE,General,Misc,IsAProxy
+3D Visualization,CastShadows,TRUE,General,3D Visualization,CastShadows
+3D Visualization,Material,TRUE,General,3D Visualization,Material
+3D Visualization,ReceiveShadows,TRUE,General,3D Visualization,ReceiveShadows
+General,ColorIndex,TRUE,General,General,ColorIndex
+General,Layer,TRUE,General,General,Layer
+General,Linetype,TRUE,General,General,Linetype
+General,LinetypeScale,TRUE,General,General,LinetypeScale
+General,PlotStyleName,TRUE,General,General,PlotStyleName
+General,Visible,TRUE,General,General,Visible
+General,LayerKey,TRUE,General,General,LayerKey
+Geometry,IsPlanar,TRUE,General,Geometry,IsPlanar
+Geometry,Closed,TRUE,General,Geometry,Closed
+Geometry,IsPeriodic,TRUE,General,Geometry,IsPeriodic
+Miscellaneous,IsHighlighting,TRUE,General,Miscellaneous,IsHighlighting
+Miscellaneous,NeedsPromoting,TRUE,General,Miscellaneous,NeedsPromoting
+Miscellaneous,SupportsBaseCurveCommands,TRUE,General,Miscellaneous,SupportsBaseCurveCommands
+Miscellaneous,SupportsProfileCommands,TRUE,General,Miscellaneous,SupportsProfileCommands
+Miscellaneous,SwappingReferences,TRUE,General,Miscellaneous,SwappingReferences
+Miscellaneous,TypeIcon,TRUE,General,Miscellaneous,TypeIcon
+PONTOS,PONTOS,TRUE,UserDefined,PONTOS,PONTOS
+CMSP-C1,Nome_Ponto,TRUE,UserDefined,CMSP-C1,Nome_Ponto
+Dados adicionais,Nome da Estação,TRUE,UserDefined,Dados adicionais,Nome da Estação
+Corridor Property Data – User Defined,HorizontalBaseline,TRUE,PropertySet,Corridor Property Data – User Defined,HorizontalBaseline
+Corridor Property Data – User Defined,VerticalBaseline,TRUE,PropertySet,Corridor Property Data – User Defined,VerticalBaseline
+Corridor Property Data – User Defined,CorridorName,TRUE,PropertySet,Corridor Property Data – User Defined,CorridorName
+Corridor Property Data – User Defined,AssemblyName,TRUE,PropertySet,Corridor Property Data – User Defined,AssemblyName
+Corridor Property Data – User Defined,RegionName,TRUE,PropertySet,Corridor Property Data – User Defined,RegionName
+Corridor Property Data – User Defined,StartStation,TRUE,PropertySet,Corridor Property Data – User Defined,StartStation
+Corridor Property Data – User Defined,EndStation,TRUE,PropertySet,Corridor Property Data – User Defined,EndStation
+Corridor Property Data – User Defined,Lenght,TRUE,PropertySet,Corridor Property Data – User Defined,Lenght
+Corridor Property Data – User Defined,ShapeCodeName,TRUE,PropertySet,Corridor Property Data – User Defined,ShapeCodeName
+Corridor Property Data – User Defined,Volume,TRUE,PropertySet,Corridor Property Data – User Defined,Volume
+Corridor Property Data – User Defined,RegionID,TRUE,PropertySet,Corridor Property Data – User Defined,RegionID
+IfcObject Hiearchy,IFC::CorridorName,TRUE,PropertySet,IfcObject Hiearchy,IFC::CorridorName
+IfcObject Hiearchy,IFC::BaselineName,TRUE,PropertySet,IfcObject Hiearchy,IFC::BaselineName
+IfcObject Hiearchy,IFC::BaselineRegionName,TRUE,PropertySet,IfcObject Hiearchy,IFC::BaselineRegionName
+IfcObject Properties,IFC::GlobalId,TRUE,PropertySet,IfcObject Properties,IFC::GlobalId
+IfcObject Properties,IFC::IfcExportAs,TRUE,PropertySet,IfcObject Properties,IFC::IfcExportAs
+Imported LandXML File [AeccDbAlignment],[LandXML::Creation date],TRUE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::Creation date]
+Imported LandXML File [AeccDbAlignment],[LandXML::File name],TRUE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::File name]
+Imported LandXML File [AeccDbAlignment],[LandXML::File path],TRUE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::File path]
+Imported LandXML File [AeccDbAlignment],[LandXML::Import date event],TRUE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::Import date event]
+Imported LandXML File [AeccDbAlignment],[LandXML::Version],TRUE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::Version]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::Creation date],TRUE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::Creation date]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::File name],TRUE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::File name]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::File path],TRUE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::File path]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::Import date event],TRUE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::Import date event]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::Version],TRUE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::Version]
+LandXML Attributes [AeccDbAlignment],[Alignments::desc],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignments::desc]
+LandXML Attributes [AeccDbAlignment],[Alignments::name],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignments::name]
+LandXML Attributes [AeccDbAlignment],[Alignments::state],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignments::state]
+LandXML Attributes [AeccDbAlignment],[Alignment::desc],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::desc]
+LandXML Attributes [AeccDbAlignment],[Alignment::length],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::length]
+LandXML Attributes [AeccDbAlignment],[Alignment::name],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::name]
+LandXML Attributes [AeccDbAlignment],[Alignment::oID],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::oID]
+LandXML Attributes [AeccDbAlignment],[Alignment::staStart],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::staStart]
+LandXML Attributes [AeccDbAlignment],[Alignment::state],TRUE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::state]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::DTMAttribute],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::DTMAttribute]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::code],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::code]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::desc],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::desc]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::name],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::name]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::state],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::state]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::zoneNumber],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::zoneNumber]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::DTMAttribute],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::DTMAttribute]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::code],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::code]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::desc],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::desc]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::determinedTimeStamp],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::determinedTimeStamp]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::eastingStdError],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::eastingStdError]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::elevationStdError],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::elevationStdError]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::ellipsoidHeight],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::ellipsoidHeight]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::featureRef],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::featureRef]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::latitude],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::latitude]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::localUncertainity],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::localUncertainity]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::longitude],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::longitude]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::name],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::name]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::northingStdError],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::northingStdError]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::oID],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::oID]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntRef],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntRef]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntSurv],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntSurv]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::pointGeometry],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::pointGeometry]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::positionalUncertainity],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::positionalUncertainity]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::role],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::role]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::state],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::state]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyHorizontalOrder],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyHorizontalOrder]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyOrder],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyOrder]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyVerticalOrder],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyVerticalOrder]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::timeStamp],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::timeStamp]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::zone],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::zone]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::zoneNumber],TRUE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::zoneNumber]
+LandXML Features [AeccDbAlignment],[Alignment::speed],TRUE,PropertySet,LandXML Features [AeccDbAlignment],[Alignment::speed]
+LandXML Features [AeccDbAlignment],[Alignment::station],TRUE,PropertySet,LandXML Features [AeccDbAlignment],[Alignment::station]
+MetroFase,Phase Created,TRUE,PropertySet,MetroFase,Phase Created
+Platform Edge Information,AlignmentName,TRUE,PropertySet,Platform Edge Information,AlignmentName
+Platform Edge Information,ProfileName,TRUE,PropertySet,Platform Edge Information,ProfileName
+Platform Edge Information,StartStation,TRUE,PropertySet,Platform Edge Information,StartStation
+Platform Edge Information,EndStation,TRUE,PropertySet,Platform Edge Information,EndStation
+Platform Edge Information,Length,TRUE,PropertySet,Platform Edge Information,Length
+Platform Edge Information,TrackGauge,TRUE,PropertySet,Platform Edge Information,TrackGauge
+Platform Edge Information,Side,TRUE,PropertySet,Platform Edge Information,Side
+Platform Edge Information,RailType,TRUE,PropertySet,Platform Edge Information,RailType
+Platform Edge Information,CalculationInterval,TRUE,PropertySet,Platform Edge Information,CalculationInterval
+Platform Edge Information,PlatformEdgeType,TRUE,PropertySet,Platform Edge Information,PlatformEdgeType
+Platform Edge Information,DesignCriteria,TRUE,PropertySet,Platform Edge Information,DesignCriteria
+Platform Edge Information,Parameters,TRUE,PropertySet,Platform Edge Information,Parameters
+Platform Edge Information,CarriageLength,TRUE,PropertySet,Platform Edge Information,CarriageLength
+Platform Edge Information,CarriageWidth,TRUE,PropertySet,Platform Edge Information,CarriageWidth
+Platform Edge Information,BogieOffset,TRUE,PropertySet,Platform Edge Information,BogieOffset
+Platform Edge Information,AxleSpacing,TRUE,PropertySet,Platform Edge Information,AxleSpacing
+Platform Edge Information,OffsetFromCarriage,TRUE,PropertySet,Platform Edge Information,OffsetFromCarriage
+Platform Edge Information,SafetyTolerance,TRUE,PropertySet,Platform Edge Information,SafetyTolerance
+Platform Edge Information,PlatformHeight,TRUE,PropertySet,Platform Edge Information,PlatformHeight
+Pset_EnvironmentalImpactIndicators,Reference,TRUE,PropertySet,Pset_EnvironmentalImpactIndicators,Reference
+Pset_ReinforcementBarPitchOfSlab,Reference,TRUE,PropertySet,Pset_ReinforcementBarPitchOfSlab,Reference
+Pset_SlabCommon,IsExternal,TRUE,PropertySet,Pset_SlabCommon,IsExternal
+Pset_SlabCommon,Reference,TRUE,PropertySet,Pset_SlabCommon,Reference
+Pset_SlabCommon,PitchAngle,TRUE,PropertySet,Pset_SlabCommon,PitchAngle
+Pset_SlabCommon,LoadBearing,TRUE,PropertySet,Pset_SlabCommon,LoadBearing
+Source IFC File,IFC::File Name,TRUE,PropertySet,Source IFC File,IFC::File Name
+Source IFC File,IFC::File Path,TRUE,PropertySet,Source IFC File,IFC::File Path
+Source IFC File,IFC::Creation Date,TRUE,PropertySet,Source IFC File,IFC::Creation Date
+Source IFC File,IFC::Originating System,TRUE,PropertySet,Source IFC File,IFC::Originating System
+Source IFC File,IFC::Import Date Event,TRUE,PropertySet,Source IFC File,IFC::Import Date Event
+U_Escadas,DocRef,TRUE,PropertySet,U_Escadas,DocRef
+U_Escadas,NumPreco,TRUE,PropertySet,U_Escadas,NumPreco
+U_Escadas,Km,TRUE,PropertySet,U_Escadas,Km
+U_Escadas,Via,TRUE,PropertySet,U_Escadas,Via
+U_Escadas,Name,TRUE,PropertySet,U_Escadas,Name
+U_pset_hectometrico,Via,TRUE,PropertySet,U_pset_hectometrico,Via
+U_pset_hectometrico,pk,TRUE,PropertySet,U_pset_hectometrico,pk
+U_pset_via permanente,Descrição,TRUE,PropertySet,U_pset_via permanente,Descrição
+U_pset_via permanente,Via,TRUE,PropertySet,U_pset_via permanente,Via
+U_pset_via permanente,Unidade,TRUE,PropertySet,U_pset_via permanente,Unidade
+U_pset_via permanente,Quantidade,TRUE,PropertySet,U_pset_via permanente,Quantidade
+U_pset_via permanente,pk Final,TRUE,PropertySet,U_pset_via permanente,pk Final
+U_pset_via permanente,pk Inicial,TRUE,PropertySet,U_pset_via permanente,pk Inicial
+U_pset_via permanente,Preço MAN,TRUE,PropertySet,U_pset_via permanente,Preço MAN
+U_pset_via permanente,Cod. Insumo,TRUE,PropertySet,U_pset_via permanente,Cod. Insumo
