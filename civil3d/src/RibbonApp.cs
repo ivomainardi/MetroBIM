@@ -52,6 +52,9 @@ namespace MetroSP
                     "Exporta o desenho em IFC 4.3, já com o alinhamento 3D."),
                 Button("Exportar\nseleção", "IfcSelecao", "MSP_IFCEXPORTSEL",
                     "Exporta só os objetos selecionados."),
+                Button("Projeto\nIFC", "ProjetoIfc", "MSP_IFCPROJETO",
+                    "Preenche o IfcProject, o IfcSite, as instalações (a linha como IfcRailway e cada estação como IfcBuilding) e o Pset MetroSP_Projeto. " +
+                    "Os dados podem ser salvos como padrão e usados em outros desenhos, também no Revit."),
                 Button("Configurar\nIFC", "IfcConfigurar", "MSP_IFCCONFIG",
                     "Classes, propriedades, projeto, terreno, edificações e alinhamento.")));
 
@@ -75,7 +78,7 @@ namespace MetroSP
 
             tab.Panels.Add(Panel("Padrões",
                 Button("Padrões e\nplanilhas", "Padroes", "MSP_PADROES",
-                    "Todos os padrões salvos (classificação, confronto, exportação IFC) e as planilhas que eles usam: editar, trocar planilha e levar para a equipe num .zip.")));
+                    "Todos os padrões salvos (classificação, confronto, dados do projeto, exportação IFC) e as planilhas que eles usam: editar, trocar planilha e levar para a equipe num .zip.")));
 
             tab.Panels.Add(Panel("Ferramentas",
                 Stack(
