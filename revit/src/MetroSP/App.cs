@@ -125,6 +125,12 @@ namespace MetroSP
                 "mostra o que está diferente e deixa aplicar o valor da planilha, ignorar ou selecionar. Os padrões ficam salvos.",
                 "ConfrontarPlanilha");
 
+            AddButton<CorrigirEscritaCommand>(panel, "Corrigir\nEscrita",
+                "Procura nos parâmetros de texto espaços sobrando ou errados (duplos, nas pontas, na pontuação, entre número e unidade), " +
+                "acentuação e caracteres estranhos. Mostra o valor atual e a sugestão para corrigir ou ignorar; siglas e códigos " +
+                "ficam numa lista de termos que não mudam.",
+                "CorrigirEscrita");
+
             AddButton<EdicaoMassaCommand>(panel, "Editar\nem Massa",
                 "Um parâmetro em muitos elementos: definir valor (juntando outros parâmetros com {Nome}), prefixo, sufixo, " +
                 "localizar e substituir ou limpar, com prévia.",

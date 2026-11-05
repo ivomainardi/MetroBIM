@@ -34,6 +34,8 @@ namespace MetroSP.Confronto
         public string Grupo { get; set; }
         public string Detalhe { get; set; }
         public bool Editavel { get; set; }
+        /// <summary>Texto livre (não número, medida, Sim/Não ou referência): entra no Corrigir escrita.</summary>
+        public bool Texto { get; set; }
         public string Rotulo => string.IsNullOrEmpty(Grupo) ? Nome : $"{Nome}  ·  {Grupo}";
         public override string ToString() => Rotulo;
     }

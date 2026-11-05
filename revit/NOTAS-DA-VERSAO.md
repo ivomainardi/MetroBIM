@@ -25,6 +25,35 @@
   visualizador para ver IfcProject (Name, LongName, Description, Phase), IfcSite, IfcBuilding e o Pset MetroSP_Projeto.
   O 2027 não foi compilado aqui (falta o .NET 10); o 2025 e o 2026 compilaram sem erro.
 
+## Corrigir escrita
+
+- Novo botão **Dados do modelo › Corrigir Escrita**.
+- Procura nos parâmetros de texto (instância e tipo; parâmetros de tipo aparecem uma vez só) dos elementos que vão para o IFC:
+  - **espaços**: repetidos no meio (`Concreto  armado`), no começo ou no fim, espaço não separável e caracteres
+    invisíveis (vêm do Word e do Excel), quebras de linha e tabulações;
+  - **espaços errados na pontuação**: antes de vírgula, ponto, ponto e vírgula, dois-pontos, `!`, `?` e `)`, depois
+    de `(`, e o que falta depois de vírgula entre palavras (`aço ,concreto` → `aço, concreto`). Listas de códigos
+    (`IfcWall,IfcSlab`) ficam juntas;
+  - **número e unidade**: `10m` → `10 m`, `25MPa` → `25 MPa` (mm, cm, m, km, m², m³, kg, kgf, tf, kN, kPa, MPa, GPa,
+    kV, kVA, kW, kWh, Hz, rpm, °C); ordinais juntos (`1 º` → `1º`). Códigos como `E1-10m` não mudam;
+  - **acentuação**: lista de palavras de projeto e as terminações que sempre levam acento (`estacao` → `estação`,
+    `nivel` → `nível`, `eletrica` → `elétrica`, `padroes` → `padrões`), acentos que o Acordo tirou (`idéia`, `ítem`,
+    `freqüência`). Mantém maiúsculas (`ESTACAO` → `ESTAÇÃO`), não mexe em camelCase, em palavras que também existem
+    sem acento (`calculo`, `analise`, `publico`), em valores em inglês (`Section Area`) nem em caminhos e endereços;
+  - **texto embaralhado** (`EstaÃ§Ã£o` → `Estação`) e **caracteres estranhos** (aspas curvas, `d´água`); letra perdida
+    (`Esta??o`, `�`) aparece como **Revisar** para digitar a palavra certa.
+- Tabela com filtro por coluna: valor **Atual** (com `·` nos espaços sobrando, `¤` nos especiais e `↵` nas quebras),
+  **Sugestão** (dá para ajustar com dois cliques antes de gravar), o que foi achado e o motivo. **Corrigir** grava as
+  linhas selecionadas numa operação só (desfazível); **Ignorar** guarda no padrão; **Não mexer na palavra...** põe a
+  sigla ou o código nos termos do padrão; **Selecionar no modelo**.
+- Cada regra liga e desliga (a dica de cada uma tem exemplos). O **padrão** (`%AppData%\MetroSP\Escrita`, o mesmo para
+  Revit e Civil 3D) guarda as regras, os **termos que não mudam** (PTL, Pr_20_30...), as **correções próprias**
+  (`plataf = plataforma`) e o que foi ignorado. Aparece também em **Padrões e planilhas** (editar e levar no .zip).
+- Nomes de família e de tipo também são conferidos, mas a correção é feita no **Renomear Famílias**.
+- Falta testar no Revit: abrir pelo ribbon com seleção e sem, procurar no modelo todo de um projeto grande (tempo de
+  resposta), corrigir parâmetro de instância e de tipo, desfazer com Ctrl+Z, editar a sugestão na tabela, ignorar,
+  "Não mexer na palavra..." e abrir o padrão pelo **Padrões e planilhas**.
+
 # MetroSP 0.3.1 (em teste)
 
 ## Padrões e planilhas
