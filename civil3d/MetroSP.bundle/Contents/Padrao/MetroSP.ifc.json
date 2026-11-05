@@ -3,6 +3,7 @@
     "Projeto": { "Nome": null, "NomeLongo": null, "Descricao": null, "Fase": null },
     "Terreno": { "Nome": null, "NomeLongo": null, "Descricao": null, "Latitude": null, "Longitude": null, "Elevacao": null, "Matricula": null },
     "Instalacoes": [ { "Tipo": "IfcRailway", "Nome": null, "NomeLongo": null, "Descricao": null } ],
+    "CoordenadasPtl": true,
     "SistemaCoordenadas": "EPSG:31983"
   },
   "Alinhamento": {

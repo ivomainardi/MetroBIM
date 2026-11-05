@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using MetroSP.Config;
@@ -335,7 +336,8 @@ namespace MetroSP.Ui
             top.Children.Add(apply);
             top.Children.Add(SymbolButton("↑", "Subir", (s, e) => Move(grid, -1)));
             top.Children.Add(SymbolButton("↓", "Descer", (s, e) => Move(grid, +1)));
-            top.Children.Add(SymbolButton("✕", "Remover", (s, e) => { if (grid.SelectedItem is MappingRow r) _mappingRows.Remove(r); }));
+            top.Children.Add(SymbolButton("+", "Nova regra", (s, e) => AddRow(grid, _mappingRows)));
+            top.Children.Add(SymbolButton("✕", "Excluir as regras selecionadas (ou tecla Delete)", (s, e) => RemoveSelected(grid, _mappingRows, "regra")));
             panel.Children.Add(top);
             panel.Children.Add(grid);
 
@@ -387,7 +389,7 @@ namespace MetroSP.Ui
             grid.Columns.Add(new DataGridTextColumn { Header = "Grupo", Binding = new Binding("Group"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             grid.Columns.Add(new DataGridTextColumn { Header = "Nome no Civil 3D", Binding = new Binding("CivilName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             grid.ToolTip = "Origem: Properties, PartData, General ou PropertySet.";
-            tabs.Items.Add(new TabItem { Header = "De onde vem cada uma", Content = grid });
+            tabs.Items.Add(new TabItem { Header = "De onde vem cada uma", Content = WithTools(grid, _propertyRows, "propriedade") });
 
             var tpl = File.Exists(ConfigPackage.PathOf(ConfigKind.PropertyTemplates))
                 ? File.ReadAllText(ConfigPackage.PathOf(ConfigKind.PropertyTemplates))
@@ -453,10 +455,11 @@ namespace MetroSP.Ui
                 ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo.")),
                 ("Elevação (m)", Text(e.Terreno, nameof(SiteInfo.Elevacao))),
                 ("Matrícula", Text(e.Terreno, nameof(SiteInfo.Matricula), "LandTitleNumber")),
-                ("Coordenadas", Text(e, nameof(SpatialConfig.SistemaCoordenadas), "EPSG do IfcMapConversion, ex.: EPSG:31983"))));
+                ("Coordenadas", Ptl(e))));
 
             var right = new StackPanel();
-            right.Children.Add(Section("Instalações · IfcRailway, IfcBuilding"));
+            var bgridHead = new DockPanel();
+            right.Children.Add(bgridHead);
             var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _facilities, MinHeight = 120,
                 ToolTip = "Dentro do IfcSite. A linha como IfcRailway; cada estação como IfcBuilding." };
             bgrid.Columns.Add(new DataGridComboBoxColumn { Header = "Tipo", ItemsSource = FacilityInfo.Types, SelectedItemBinding = new Binding("Tipo"), Width = 110 });
@@ -464,12 +467,15 @@ namespace MetroSP.Ui
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome longo", Binding = new Binding("NomeLongo"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 90 });
             right.Children.Add(bgrid);
+            SectionWithTools(bgridHead, "Instalações · IfcRailway, IfcBuilding", bgrid, _facilities, "instalação");
 
-            right.Children.Add(Section("Dados do projeto · MetroSP_Projeto"));
+            var pgridHead = new DockPanel();
+            right.Children.Add(pgridHead);
             var pgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _projectProps, MinHeight = 120, ToolTip = "Gravados no IfcProject. Valor vazio não entra." };
             pgrid.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding("Chave"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             pgrid.Columns.Add(new DataGridTextColumn { Header = "Valor", Binding = new Binding("Valor"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
             right.Children.Add(pgrid);
+            SectionWithTools(pgridHead, "Dados do projeto · MetroSP_Projeto", pgrid, _projectProps, "propriedade");
 
             var cols = new Grid();
             cols.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -577,19 +583,104 @@ namespace MetroSP.Ui
             return b;
         }
 
+        /// <summary>Título de seção com + (incluir) e ✕ (excluir as linhas selecionadas) à direita.</summary>
+        static void SectionWithTools<T>(DockPanel head, string title, DataGrid grid, ObservableCollection<T> rows, string what) where T : new()
+        {
+            var tools = Tools(grid, rows, what);
+            tools.Margin = new Thickness(0, 10, 0, 4);
+            DockPanel.SetDock(tools, Dock.Right);
+            head.Children.Add(tools);
+            head.Children.Add(Section(title));
+        }
+
+        /// <summary>Tabela com a barra + / ✕ em cima.</summary>
+        static UIElement WithTools<T>(DataGrid grid, ObservableCollection<T> rows, string what) where T : new()
+        {
+            var panel = new DockPanel();
+            var tools = Tools(grid, rows, what);
+            tools.HorizontalAlignment = HorizontalAlignment.Right;
+            tools.Margin = new Thickness(0, 8, 0, 0);
+            DockPanel.SetDock(tools, Dock.Top);
+            panel.Children.Add(tools);
+            grid.Margin = new Thickness(0, 4, 0, 0);
+            panel.Children.Add(grid);
+            return panel;
+        }
+
+        static StackPanel Tools<T>(DataGrid grid, ObservableCollection<T> rows, string what) where T : new()
+        {
+            var p = new StackPanel { Orientation = Orientation.Horizontal };
+            p.Children.Add(SymbolButton("+", "Incluir " + what, (s, e) => AddRow(grid, rows)));
+            var del = SymbolButton("✕", "Excluir as linhas selecionadas (ou tecla Delete)", (s, e) => RemoveSelected(grid, rows, what));
+            del.Margin = new Thickness(0);
+            p.Children.Add(del);
+            return p;
+        }
+
+        /// <summary>Linha nova depois da selecionada (ou no fim), já selecionada e em edição.</summary>
+        static void AddRow<T>(DataGrid grid, ObservableCollection<T> rows) where T : new()
+        {
+            grid.CommitEdit(DataGridEditingUnit.Row, true);
+            var item = new T();
+            var i = grid.SelectedItem is T sel ? rows.IndexOf(sel) + 1 : rows.Count;
+            rows.Insert(Math.Max(0, Math.Min(i, rows.Count)), item);
+            grid.SelectedItem = item;
+            grid.ScrollIntoView(item);
+            grid.CurrentCell = new DataGridCellInfo(item, grid.Columns.FirstOrDefault(c => !c.IsReadOnly) ?? grid.Columns[0]);
+            grid.Focus();
+            grid.BeginEdit();
+        }
+
+        /// <summary>Exclui as linhas selecionadas; com mais de uma, pergunta antes.</summary>
+        static void RemoveSelected<T>(DataGrid grid, ObservableCollection<T> rows, string what)
+        {
+            grid.CancelEdit(DataGridEditingUnit.Row);
+            var sel = grid.SelectedItems.OfType<T>().ToList();
+            if (sel.Count == 0) return;
+            if (sel.Count > 1 && MessageBox.Show(Window.GetWindow(grid), $"Excluir {sel.Count} linhas?", "MetroSP",
+                    MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            var first = rows.IndexOf(sel[0]);
+            foreach (var r in sel) rows.Remove(r);
+            if (rows.Count > 0) grid.SelectedItem = rows[Math.Max(0, Math.Min(first, rows.Count - 1))];
+        }
+
         static TextBlock Section(string text) { var t = Theme.Secao(text); t.Margin = new Thickness(0, 10, 0, 4); return t; }
 
         static TextBox Text(object source, string property, string tip = null)
         {
             var tb = new TextBox { MinWidth = 180, ToolTip = tip ?? "Vazio mantém o que a Autodesk gravou." };
-            tb.SetBinding(TextBox.TextProperty, new Binding(property)
+            var binding = new Binding(property)
             {
                 Source = source,
                 TargetNullValue = "",
                 UpdateSourceTrigger = UpdateSourceTrigger.LostFocus,
                 ConverterCulture = CultureInfo.InvariantCulture
-            });
+            };
+            // Número aceita vírgula ou ponto: "-23,63" com a cultura invariante virava -2363 (vírgula de milhar).
+            var type = source?.GetType().GetProperty(property)?.PropertyType;
+            if (type == typeof(double?) || type == typeof(double)) binding.Converter = new NumeroConverter();
+            tb.SetBinding(TextBox.TextProperty, binding);
             return tb;
+        }
+
+        /// <summary>PTL do Metrô (padrão, igual ao Revit) ou um EPSG digitado.</summary>
+        static UIElement Ptl(SpatialConfig e)
+        {
+            var panel = new StackPanel();
+            var check = new CheckBox
+            {
+                Content = "PTL do Metrô, sem EPSG",
+                ToolTip = "Ligado (padrão): o IFC sai nas coordenadas do desenho (PTL do Metrô), sem EPSG, IfcProjectedCRS e " +
+                          "IfcMapConversion, como no plugin do Revit. Assim o modelo encontra as estruturas do Revit.\n" +
+                          "Desligado: vale o EPSG ao lado no IfcMapConversion.",
+                Margin = new Thickness(0, 3, 0, 3)
+            };
+            check.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(SpatialConfig.CoordenadasPtl)) { Source = e });
+            var epsg = Text(e, nameof(SpatialConfig.SistemaCoordenadas), "Só com o PTL desligado: EPSG do IfcMapConversion, ex.: EPSG:31983");
+            epsg.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(SpatialConfig.CoordenadasPtl)) { Source = e, Converter = new InverterConverter() });
+            panel.Children.Add(check);
+            panel.Children.Add(epsg);
+            return panel;
         }
 
         /// <summary>Campo obrigatório: atualiza a cada tecla e fica com a borda laranja enquanto vazio.</summary>
@@ -786,5 +877,27 @@ namespace MetroSP.Ui
             item.Header = row;
             return item;
         }
+    }
+
+    /// <summary>Número com vírgula ou ponto decimal; vazio = sem valor; texto inválido fica marcado no campo.</summary>
+    class NumeroConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) =>
+            value is double d ? d.ToString("0.#########", CultureInfo.InvariantCulture) : "";
+
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        {
+            var s = (value as string ?? "").Trim();
+            if (s.Length == 0) return null;
+            if (s.Count(c => c == ',') + s.Count(c => c == '.') > 1) return DependencyProperty.UnsetValue;
+            return double.TryParse(s.Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var n)
+                ? n : DependencyProperty.UnsetValue;
+        }
+    }
+
+    class InverterConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => !(value is bool b && b);
     }
 }

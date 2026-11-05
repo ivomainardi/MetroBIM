@@ -32,6 +32,9 @@ namespace MetroSP.Alinhamento
 
     public class AlignmentModel
     {
+        /// <summary>Estacas do eixo 3D em que o perfil não tem cota (perfil com trecho faltando).</summary>
+        public int Lacunas;
+
         public string Name;
         public string Description;
         public string ProfileName;
