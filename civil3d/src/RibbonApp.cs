@@ -63,6 +63,10 @@ namespace MetroSP
                 Stack(
                     Small("Conta", "Conta", "MSP_CONFIG", "Client ID, projeto e pasta do Forma."))));
 
+            tab.Panels.Add(Panel("Classificação",
+                Button("Verificar\nclassificação", "ClassVerificar", "MSP_CLASSVERIFICAR",
+                    "Confere as classificações dos objetos com as planilhas do padrão. Cada linha tem a ação para corrigir.")));
+
             tab.Panels.Add(Panel("Ferramentas",
                 Stack(
                     Small("Só alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D."),
