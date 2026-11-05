@@ -1,3 +1,27 @@
+# Próxima versão (em teste, ainda não publicada)
+
+## Confrontar Planilha
+
+Botão novo no painel **Dados do modelo**: compara os parâmetros dos elementos com uma planilha externa (.xlsx ou .csv)
+e resolve as diferenças.
+
+- Você indica o campo que identifica cada linha (Id, UniqueId, Família: Tipo, Marca, um código...) e a coluna da
+  planilha com esse valor. Uma linha pode casar com vários elementos (ex.: chave pelo tipo).
+- Escolhe os parâmetros a conferir (instância ou tipo) e a coluna de cada um. "Sugerir pelos títulos" casa sozinho as
+  colunas que têm o nome de um parâmetro.
+- A aba **Diferenças** mostra o valor no modelo, o da planilha e o que fazer: **Diferente**, **Vazio no modelo**,
+  **Vazio na planilha**, **Sem o campo**, **Conflito no tipo**, **Não está no modelo** e, se marcado, **Fora da planilha**.
+  Medidas são comparadas na precisão das unidades do projeto ("2,5" = "2,50 m").
+- Ações nas linhas selecionadas: **Aplicar a planilha** (uma transação só, com Ctrl+Z), **Ignorar** (fica salvo no padrão),
+  **Voltar a conferir** e **Selecionar no modelo**. Duplo clique também seleciona. **Relatório...** grava as linhas visíveis num .csv.
+- **Padrões salvos** em `%APPDATA%\MetroSP\Confrontar\Revit`: planilha, aba, linha dos títulos, colunas, parâmetros,
+  opções e as diferenças ignoradas. Exportar e importar o .json para passar a outra pessoa.
+- Só elementos que vão para o IFC (FiltroIfc), como nas outras ferramentas de dados.
+- Mesma janela do Confrontar Planilha do Civil 3D (código comum em `Confronto/`) e o mesmo leitor de planilha da
+  Verificação de classificação (`Planilha/`).
+- Falta testar no Revit: confrontar o EP.000.00 com uma planilha de quantitativo; aplicar parâmetros de instância e de
+  tipo e desfazer com Ctrl+Z; medida com unidade; chave por Marca e por Família: Tipo; salvar, reabrir e importar um padrão.
+
 # MetroSP 0.2.9
 
 ## Excluir padrões
