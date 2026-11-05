@@ -37,6 +37,11 @@ namespace MetroSP.Commands
                 },
                 new TipoPadrao
                 {
+                    Id = "metrosp-dados-projeto", Nome = "Dados do projeto IFC", Pasta = MetroSP.Ifc.DadosProjetoIfc.Pasta,
+                    Ferramenta = "Entrega Metrô › Projeto e Local (barra Padrão no topo da janela); vale também para o Civil 3D",
+                },
+                new TipoPadrao
+                {
                     Id = "escrita", Nome = "Corrigir escrita", Pasta = Escrita.PadroesEscrita.Pasta,
                     Ferramenta = "Dados do modelo › Corrigir Escrita (padrão no topo da janela; vale também no Civil 3D)",
                     Editar = (dono, item) => Escrita.CorrigirEscritaWindow.EditarArquivo(dono, item.Arquivo),

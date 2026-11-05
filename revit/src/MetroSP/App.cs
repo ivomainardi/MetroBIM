@@ -60,16 +60,17 @@ namespace MetroSP
 
             panel.AddSeparator();
 
-            AddButton<LocalizacaoIfcCommand>(panel, "Localização",
-                "Passo 1 da entrega IFC. Calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô) e grava em " +
-                "Manage › Location, com o nome do IfcSite e os dados do IfcBuilding.",
+            AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
+                "Passo 1 da entrega IFC. Preenche o IfcProject, o IfcSite e o IfcBuilding (nome, nome longo, descrição, fase, endereço) " +
+                "e o Pset MetroSP_Projeto, e calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô). " +
+                "Os dados podem ser salvos como padrão e usados em outros modelos, também no Civil 3D.",
                 "Etapa1");
 
             PulldownButton configurar = AddPulldown(panel, "Configurar", "Configurar",
                 "Passo 2 da entrega IFC. Os arquivos da classe (setup, property sets e mapeamentos) e em que classe IFC cada categoria do Revit sai.",
                 "Etapa2");
             AddToPulldown<PadroesCommand>(configurar, "Padrões e planilhas",
-                "Todos os padrões salvos (classificação, confronto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
+                "Todos os padrões salvos (classificação, confronto, dados do projeto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
                 "editar, trocar a planilha de todos de uma vez e levar para a equipe num .zip.",
                 "Padroes");
             AddToPulldown<ArquivosIfcCommand>(configurar, "Arquivos IFC",

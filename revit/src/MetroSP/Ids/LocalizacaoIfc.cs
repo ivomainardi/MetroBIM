@@ -33,14 +33,16 @@ namespace MetroSP.Ids
         public double LongitudeAtual { get; private set; }
         /// <summary>Distância entre o Location atual e o calculado (m).</summary>
         public double Diferenca { get; private set; }
-        /// <summary>Endereço do projeto em Manage › Location (vai para o endereço do IfcSite/IfcBuilding).</summary>
-        public string LocalAtual { get; private set; }
+        /// <summary>Dados do IfcProject, IfcSite e IfcBuilding que estão hoje no Revit (o que o exportador vai usar).</summary>
+        public Ifc.DadosProjetoIfc DadosAtuais { get; private set; } = new Ifc.DadosProjetoIfc();
+        /// <summary>Endereço do projeto em Manage › Location (vai para o endereço do IfcSite).</summary>
+        public string LocalAtual => DadosAtuais.Terreno.Endereco;
         /// <summary>Informações do projeto › Nome do edifício (IfcBuilding.Name).</summary>
-        public string EdificioAtual { get; private set; }
+        public string EdificioAtual => DadosAtuais.Edificio.Nome;
         /// <summary>Informações do projeto › Endereço (IfcPostalAddress do IfcBuilding).</summary>
-        public string EnderecoAtual { get; private set; }
+        public string EnderecoAtual => DadosAtuais.Edificio.Endereco;
         /// <summary>Informações do projeto › SiteName (o exportador usa como IfcSite.Name), ou vazio.</summary>
-        public string SiteAtual { get; private set; }
+        public string SiteAtual => DadosAtuais.Terreno.Nome;
         /// <summary>Sistema de coordenadas GIS do Location (ex.: SA-SIR-23S), ou null. Com ele o exportador grava EPSG.</summary>
         public string SistemaGis { get; private set; }
         /// <summary>Motivo que impede a correção (e a exportação), ou null.</summary>
@@ -48,7 +50,6 @@ namespace MetroSP.Ids
 
         /// <summary>Parâmetro de Informações do projeto que o exportador IFC lê para o nome do IfcSite.</summary>
         public const string ParametroSite = "SiteName";
-        private static readonly Guid GuidSiteName = new Guid("5b3c1f4e-8d2a-4c7e-9f61-0a2d6e4b7c19");
 
         public static string LinkMapa(double lat, double lon) =>
             "https://www.openstreetmap.org/?mlat=" + Num(lat, 8) + "&mlon=" + Num(lon, 8) + "#map=18/" + Num(lat, 8) + "/" + Num(lon, 8);
@@ -58,10 +59,12 @@ namespace MetroSP.Ids
         {
             public double Latitude { get; set; }
             public double Longitude { get; set; }
-            public string Local { get; set; }
-            public string Site { get; set; }
-            public string Edificio { get; set; }
-            public string Endereco { get; set; }
+            /// <summary>IfcProject, IfcSite (nome, endereço...), IfcBuilding e Pset MetroSP_Projeto.</summary>
+            public Ifc.DadosProjetoIfc Dados { get; set; } = new Ifc.DadosProjetoIfc();
+            public string Local => Dados.Terreno.Endereco;
+            public string Site => Dados.Terreno.Nome;
+            public string Edificio => Dados.Edificio.Nome;
+            public string Endereco => Dados.Edificio.Endereco;
         }
 
         /// <summary>Valores iniciais da janela: lat/long calculada pelo PBP e os textos atuais do Revit.</summary>
@@ -69,10 +72,7 @@ namespace MetroSP.Ids
         {
             Latitude = Erro == null ? Latitude : LatitudeAtual,
             Longitude = Erro == null ? Longitude : LongitudeAtual,
-            Local = LocalAtual,
-            Site = SiteAtual,
-            Edificio = EdificioAtual,
-            Endereco = EnderecoAtual,
+            Dados = DadosAtuais.Copia(),
         };
 
         /// <summary>Valores que estão hoje nos campos do Revit (o que o exportador vai usar).</summary>
@@ -80,10 +80,7 @@ namespace MetroSP.Ids
         {
             Latitude = LatitudeAtual,
             Longitude = LongitudeAtual,
-            Local = LocalAtual,
-            Site = SiteAtual,
-            Edificio = EdificioAtual,
-            Endereco = EnderecoAtual,
+            Dados = DadosAtuais.Copia(),
         };
 
         /// <summary>O Location do Revit já está no ponto do Project Base Point.</summary>
@@ -95,15 +92,10 @@ namespace MetroSP.Ids
             ProjectLocation ativa = doc.ActiveProjectLocation;
             SiteLocation site = ativa?.GetSiteLocation();
             r.NomeLocalizacao = ativa?.Name;
-            ProjectInfo info = doc.ProjectInformation;
-            try { r.EdificioAtual = info?.BuildingName ?? string.Empty; }
-            catch (Autodesk.Revit.Exceptions.InvalidOperationException) { r.EdificioAtual = string.Empty; }
-            r.EnderecoAtual = info?.Address ?? string.Empty;
-            r.SiteAtual = info?.LookupParameter(ParametroSite)?.AsString() ?? string.Empty;
+            r.DadosAtuais = DadosProjetoRevit.Ler(doc);
             if (site == null) return r.Falha("o modelo não tem Location (Manage › Location).");
             r.LatitudeAtual = site.Latitude * 180 / Math.PI;
             r.LongitudeAtual = site.Longitude * 180 / Math.PI;
-            r.LocalAtual = site.PlaceName ?? string.Empty;
 
             // Com um sistema GIS no Location, o exportador preenche sozinho o EPSG (IfcProjectedCRS/IfcMapConversion).
             // Não impede o cálculo: a janela pede para ignorar e a MetroSP tira essas entidades do IFC depois.
@@ -143,52 +135,29 @@ namespace MetroSP.Ids
         }
 
         /// <summary>
-        /// Grava nos campos padrão do Revit o que difere da escolha: lat/long e endereço em Manage › Location,
-        /// nome do edifício e endereço em Informações do projeto. Transação própria, que fica no modelo
-        /// (pode ser desfeita com Ctrl+Z). Devolve o que mudou, vazio se nada mudou.
+        /// Grava nos campos padrão do Revit o que difere da escolha: lat/long em Manage › Location e os dados do
+        /// IfcProject, IfcSite e IfcBuilding (ver <see cref="DadosProjetoRevit"/>). Transação própria, que fica no
+        /// modelo (pode ser desfeita com Ctrl+Z). Devolve o que mudou, vazio se nada mudou.
         /// </summary>
         public List<string> Aplicar(Document doc, Escolha e)
         {
             var mudou = new List<string>();
             bool latLong = PtlMetroSP.DistanciaMetros(LatitudeAtual, LongitudeAtual, e.Latitude, e.Longitude) > ToleranciaLocation;
-            bool local = !MesmoTexto(LocalAtual, e.Local);
-            bool siteNome = !MesmoTexto(SiteAtual, e.Site);
-            bool edificio = !MesmoTexto(EdificioAtual, e.Edificio);
-            bool endereco = !MesmoTexto(EnderecoAtual, e.Endereco);
-            if (!latLong && !local && !siteNome && !edificio && !endereco) return mudou;
+            bool dados = DadosProjetoRevit.Diferencas(DadosAtuais, e.Dados) > 0;
+            if (!latLong && !dados) return mudou;
 
-            using (var t = new Transaction(doc, "MetroSP: localização para o IFC"))
+            using (var t = new Transaction(doc, "MetroSP: projeto e localização para o IFC"))
             {
                 t.Start();
-                SiteLocation site = doc.ActiveProjectLocation.GetSiteLocation();
                 if (latLong)
                 {
+                    SiteLocation site = doc.ActiveProjectLocation?.GetSiteLocation()
+                        ?? throw new InvalidOperationException("o modelo não tem Location (Manage › Location) para a latitude/longitude.");
                     site.Latitude = e.Latitude * Math.PI / 180;
                     site.Longitude = e.Longitude * Math.PI / 180;
                     mudou.Add($"Location: latitude/longitude {Num(e.Latitude, 8)}, {Num(e.Longitude, 8)}");
                 }
-                if (local)
-                {
-                    site.PlaceName = e.Local ?? string.Empty;
-                    mudou.Add("Location: endereço do projeto \"" + e.Local + "\"");
-                }
-                if (siteNome)
-                {
-                    Parameter par = ParametroSiteName(doc);
-                    if (par == null || par.IsReadOnly || !par.Set(e.Site ?? string.Empty))
-                        throw new InvalidOperationException($"não foi possível gravar o nome do IfcSite no parâmetro {ParametroSite} das Informações do projeto.");
-                    mudou.Add($"Informações do projeto: {ParametroSite} (nome do IfcSite) \"" + e.Site + "\"");
-                }
-                if (edificio)
-                {
-                    doc.ProjectInformation.BuildingName = e.Edificio ?? string.Empty;
-                    mudou.Add("Informações do projeto: nome do edifício \"" + e.Edificio + "\"");
-                }
-                if (endereco)
-                {
-                    doc.ProjectInformation.Address = e.Endereco ?? string.Empty;
-                    mudou.Add("Informações do projeto: endereço \"" + e.Endereco + "\"");
-                }
+                if (dados) DadosProjetoRevit.Gravar(doc, DadosAtuais, e.Dados, mudou);
                 if (t.Commit() != TransactionStatus.Committed)
                     throw new InvalidOperationException("o Revit não aceitou a alteração.");
             }
@@ -209,42 +178,6 @@ namespace MetroSP.Ids
             return mudou;
         }
 
-        /// <summary>
-        /// Parâmetro SiteName das Informações do projeto. Se o modelo não tem, cria como parâmetro compartilhado
-        /// de texto (grupo IFC) a partir de um arquivo temporário. Precisa de transação aberta.
-        /// </summary>
-        private static Parameter ParametroSiteName(Document doc)
-        {
-            ProjectInfo info = doc.ProjectInformation;
-            Parameter p = info.LookupParameter(ParametroSite);
-            if (p != null) return p;
-
-            Autodesk.Revit.ApplicationServices.Application app = doc.Application;
-            string original = app.SharedParametersFilename;
-            string temp = Path.Combine(Path.GetTempPath(), "MetroSP_SiteName.txt");
-            try
-            {
-                File.WriteAllText(temp, string.Empty);
-                app.SharedParametersFilename = temp;
-                DefinitionGroup grupo = app.OpenSharedParameterFile().Groups.Create("MetroSP");
-                var opcoes = new ExternalDefinitionCreationOptions(ParametroSite, SpecTypeId.String.Text)
-                {
-                    GUID = GuidSiteName,
-                    Description = "Nome do IfcSite na exportação IFC (lido pelo exportador da Autodesk).",
-                };
-                Definition def = grupo.Definitions.Create(opcoes);
-                var cats = app.Create.NewCategorySet();
-                cats.Insert(Category.GetCategory(doc, BuiltInCategory.OST_ProjectInformation));
-                doc.ParameterBindings.Insert(def, app.Create.NewInstanceBinding(cats), GroupTypeId.Ifc);
-            }
-            finally
-            {
-                try { app.SharedParametersFilename = original ?? ""; } catch { }
-                try { File.Delete(temp); } catch { }
-            }
-            return info.LookupParameter(ParametroSite);
-        }
-
         private static bool MesmoTexto(string a, string b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.Ordinal);
 
         /// <summary>Texto para a confirmação e para o log.</summary>
@@ -259,7 +192,8 @@ namespace MetroSP.Ids
                 $"IfcSite: {Num(e.Latitude, 8)}, {Num(e.Longitude, 8)}" +
                 (desvio > ToleranciaLocation ? $"  (a {Distancia(desvio)} do Project Base Point)" : "") +
                 $" · nome \"{e.Site}\" · endereço do projeto \"{e.Local}\"\n" +
-                $"IfcBuilding: nome \"{e.Edificio}\" · endereço \"{e.Endereco}\"";
+                $"IfcBuilding: nome \"{e.Edificio}\" · endereço \"{e.Endereco}\"\n" +
+                $"IfcProject: nome \"{e.Dados.Projeto.Nome}\" · nome longo \"{e.Dados.Projeto.NomeLongo}\" · fase \"{e.Dados.Projeto.Fase}\"";
         }
 
         // ---- Conferência do IFC exportado ----

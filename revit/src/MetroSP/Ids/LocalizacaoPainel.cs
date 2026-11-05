@@ -9,19 +9,16 @@ using MetroSP.Ui;
 namespace MetroSP.Ids
 {
     /// <summary>
-    /// Conteúdo da janela Localização IFC: o Project Base Point e o Location com selos, e os campos do IfcSite
-    /// (nome, latitude, longitude, endereço) e do IfcBuilding (nome, endereço), já com a lat/long calculada pelo PBP.
-    /// O que o usuário deixar diferente do Revit é gravado nos campos padrão.
+    /// Conteúdo da janela Projeto e localização IFC: o Project Base Point e o Location com selos, e os campos do
+    /// IfcProject, do IfcSite (com a lat/long calculada pelo PBP), do IfcBuilding e do Pset MetroSP_Projeto
+    /// (painel comum com o Civil 3D). O que o usuário deixar diferente do Revit é gravado nos campos padrão.
     /// </summary>
     public class LocalizacaoPainel : StackPanel
     {
         private readonly LocalizacaoIfc _local;
         private readonly TextBox _latitude;
         private readonly TextBox _longitude;
-        private readonly TextBox _endereco;
-        private readonly TextBox _site;
-        private readonly TextBox _edificio;
-        private readonly TextBox _enderecoEdificio;
+        private readonly DadosProjetoPainel _dados;
         private readonly Border _seloPbp;
         private readonly Border _seloLocation;
         private readonly TextBlock _location;
@@ -73,17 +70,7 @@ namespace MetroSP.Ids
                 itens.Children.Add(Theme.Item("Sistema GIS", gis, seloGis, null));
             }
 
-            // ---------- IfcSite à esquerda, IfcBuilding à direita ----------
-            var colunas = new Grid();
-            colunas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            colunas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
-            colunas.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            Children.Add(colunas);
-
-            StackPanel site = Coluna(colunas, 0, "IfcSite",
-                "Nome: parâmetro SiteName das Informações do projeto (criado se o modelo não tiver). " +
-                "Latitude, longitude e endereço: Manage › Location.");
-            _site = Campo(site, "Nome", p.Site);
+            // ---------- IfcProject, IfcSite (com a lat/long) e IfcBuilding: painel comum com o Civil 3D ----------
             var latLong = new Grid();
             latLong.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             latLong.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(8) });
@@ -93,9 +80,11 @@ namespace MetroSP.Ids
             Grid.SetColumn(lon, 2);
             latLong.Children.Add(lat);
             latLong.Children.Add(lon);
-            site.Children.Add(latLong);
-            _latitude = Campo(lat, "Latitude", Num(p.Latitude, 8));
-            _longitude = Campo(lon, "Longitude", Num(p.Longitude, 8));
+            const string dicaLatLong = "Graus decimais (sul e oeste negativos). No Revit: Manage › Location. Já vem calculada pelo Project Base Point.";
+            _latitude = DadosProjetoPainel.Campo(lat, "Latitude", Num(p.Latitude, 8), dicaLatLong);
+            _longitude = DadosProjetoPainel.Campo(lon, "Longitude", Num(p.Longitude, 8), dicaLatLong);
+            var extra = new StackPanel();
+            extra.Children.Add(latLong);
             _usarPbp = Theme.Link("Usar o Project Base Point");
             _usarPbp.HorizontalAlignment = HorizontalAlignment.Left;
             _usarPbp.Margin = new Thickness(0, 4, 0, 0);
@@ -104,14 +93,13 @@ namespace MetroSP.Ids
                 _latitude.Text = Num(_local.Latitude, 8);
                 _longitude.Text = Num(_local.Longitude, 8);
             };
-            site.Children.Add(_usarPbp);
-            _endereco = Campo(site, "Endereço", p.Local);
+            extra.Children.Add(_usarPbp);
 
-            StackPanel edificio = Coluna(colunas, 2, "IfcBuilding", "Nome do edifício e endereço: Informações do projeto.");
-            _edificio = Campo(edificio, "Nome", p.Edificio);
-            _enderecoEdificio = Campo(edificio, "Endereço", p.Endereco);
+            _dados = new DadosProjetoPainel(p.Dados, DadosProjetoRevit.Dicas, extra);
+            Children.Add(_dados);
+            _dados.Mudou += () => Mudou?.Invoke();
 
-            foreach (TextBox t in new[] { _latitude, _longitude, _endereco, _site, _edificio, _enderecoEdificio })
+            foreach (TextBox t in new[] { _latitude, _longitude })
                 t.TextChanged += (s, e) => Atualizar();
             Atualizar();
         }
@@ -120,6 +108,7 @@ namespace MetroSP.Ids
         public List<string> Avisos()
         {
             var a = new List<string>();
+            if (string.IsNullOrWhiteSpace(_dados.Ler().Projeto.Nome)) a.Add("IfcProject sem nome");
             if (_local.Erro != null) { a.Add("lat/long não calculada pelo Project Base Point"); return a; }
             if (!Ler(_latitude.Text, out double lat) || !Ler(_longitude.Text, out double lon)) { a.Add("latitude/longitude inválidas"); return a; }
             double? desvio = DesvioDoPbp();
@@ -133,41 +122,26 @@ namespace MetroSP.Ids
             int n = 0;
             if (Ler(_latitude.Text, out double lat) && Ler(_longitude.Text, out double lon) &&
                 PtlMetroSP.DistanciaMetros(_local.LatitudeAtual, _local.LongitudeAtual, lat, lon) > LocalizacaoIfc.ToleranciaLocation) n++;
-            if (Diferente(_local.SiteAtual, _site.Text)) n++;
-            if (Diferente(_local.LocalAtual, _endereco.Text)) n++;
-            if (Diferente(_local.EdificioAtual, _edificio.Text)) n++;
-            if (Diferente(_local.EnderecoAtual, _enderecoEdificio.Text)) n++;
-            return n;
+            return n + DadosProjetoRevit.Diferencas(_local.DadosAtuais, _dados.Ler());
         }
 
         /// <summary>Lê e valida os campos. Devolve null e a mensagem em erro se algo estiver errado.</summary>
         public LocalizacaoIfc.Escolha Ler(out string erro)
         {
             erro = null;
-            if (_local.Erro != null)
-            {
-                erro = "Não foi possível calcular a lat/long pelo Project Base Point: " + _local.Erro;
-                return null;
-            }
             if (!Ler(_latitude.Text, out double lat) || !Ler(_longitude.Text, out double lon) || Math.Abs(lat) > 90 || Math.Abs(lon) > 180)
             {
                 erro = "Latitude e longitude precisam ser números em graus decimais (por exemplo -23.5508467 e -46.7315776).";
                 return null;
             }
-            if (lat >= 0 || lon >= 0)
+            // Sem o cálculo pelo PBP, a lat/long que já está no Location pode ficar como está (os dados do projeto gravam mesmo assim).
+            bool semMudarLocation = _local.Erro != null && PtlMetroSP.DistanciaMetros(_local.LatitudeAtual, _local.LongitudeAtual, lat, lon) <= LocalizacaoIfc.ToleranciaLocation;
+            if (!semMudarLocation && (lat >= 0 || lon >= 0))
             {
                 erro = "A latitude e a longitude têm que ser negativas (hemisférios sul e oeste).";
                 return null;
             }
-            return new LocalizacaoIfc.Escolha
-            {
-                Latitude = lat,
-                Longitude = lon,
-                Local = _endereco.Text.Trim(),
-                Site = _site.Text.Trim(),
-                Edificio = _edificio.Text.Trim(),
-                Endereco = _enderecoEdificio.Text.Trim(),
-            };
+            return new LocalizacaoIfc.Escolha { Latitude = lat, Longitude = lon, Dados = _dados.Ler() };
         }
 
         /// <summary>Distância (m) entre a lat/long digitada e a calculada pelo PBP, ou null se não dá para ler.</summary>
@@ -203,29 +177,6 @@ namespace MetroSP.Ids
             try { Process.Start(new ProcessStartInfo(LocalizacaoIfc.LinkMapa(lat, lon)) { UseShellExecute = true }); }
             catch { /* sem navegador: ignora */ }
         }
-
-        private static StackPanel Coluna(Grid colunas, int coluna, string titulo, string dica)
-        {
-            var p = new StackPanel();
-            TextBlock t = Theme.Secao(titulo);
-            t.ToolTip = dica;
-            p.Children.Add(t);
-            Grid.SetColumn(p, coluna);
-            colunas.Children.Add(p);
-            return p;
-        }
-
-        private static TextBox Campo(Panel painel, string rotulo, string valor)
-        {
-            TextBlock r = Theme.Label(rotulo);
-            r.Margin = new Thickness(0, 4, 0, 3);
-            painel.Children.Add(r);
-            var box = new TextBox { Text = valor ?? string.Empty, VerticalContentAlignment = VerticalAlignment.Center };
-            painel.Children.Add(box);
-            return box;
-        }
-
-        private static bool Diferente(string a, string b) => !string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.Ordinal);
 
         /// <summary>Aceita ponto ou vírgula como separador decimal.</summary>
         private static bool Ler(string texto, out double valor) =>
