@@ -1,0 +1,61 @@
+#
+# Property sets do sistema VENT (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Potência	Text	Power[Type]
+	Capacidade	Text	Capacity[Type]
+	Locais Atendidos	Text	Location[Type]
+	Tipo de Equipamento	Text	TipoEquipamento[Type]
+	Vazão	Text	Flowrate[Type]
+	Peso	Text	Peso[Type]
+	Pressão Estática	Text	StaticPressure[Type]
+	Pintura	Text	Pintura[Type]
+	Tratamento Anti Corrosão	Text	Galvanizado[Type]
+	Reversível	Ratio	Reversivel[Type]
+	Empuxo	Force	Empuxo[Type]
+	Tipo de Aspiração	Text	TipoAspiracao[Type]
+	Tipo de Ventilador Centrifugo	Text	TipoVentCentrif[Type]
+	Tipo de Acoplamento	Text	TipoAcoplamento[Type]
+	Hermético	Boolean	Hermetic[Type]
+	Tempo de Resistência ao Fogo	Time	TempResistFogo[Type]
+	Temperatura de Resistência ao Fogo	ThermodynamicTemperature	TemperatResistFogo[Type]
+	Temperatura de Operação	ThermodynamicTemperature	TemperatOper[Type]
+	Desnível Atendido	Length	Desnivel[Type]
+	Tipo de Acionamento	Text	TipoAcionamento[Type]
+	Disjuntor Extraível	Text	DisjuntorExtraivel[Type]
+	Disjuntor Caixa Moldada	Text	DisjuntorMold[Type]
+	CLP	Text	Clp[Type]
+	Barramento	Text	Barramento[Type]
+	Gabinete Compartimentado	Text	GabineteCompart[Type]
+	IHM	Text	Ihm[Type]
+	Material	Text	Material[Type]
+	Tipo de Conexão	Text	ConnectionType[Type]
+	Densidade	Text	Density
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length
+	Largura	Length
+	Profundidade	Length
+	Comprimento	Length
+	Diâmetro	Length
+	Diametro	Text	Size
+	Height	Length
+	Width	Length
+	Length	Length
+	Seção	Area	Secao[Type]
+	Espessura	Length
+	Diametro Nominal	Length

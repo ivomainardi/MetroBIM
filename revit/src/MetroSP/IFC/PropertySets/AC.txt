@@ -1,0 +1,57 @@
+#
+# Property sets do sistema AC (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Potência	Text	Power[Type]
+	Capacidade	Text	Capacity[Type]
+	Tipo de sensor	Text	SensorType[Type]
+	Locais Atendidos	Text	Location[Type]
+	Tipo de Equipamento	Text	TipoEquipamento[Type]
+	Vazão	Text	Flowrate[Type]
+	Peso	Text	Peso[Type]
+	Pressão Estática	Text	StaticPressure[Type]
+	Pintura	Text	Pintura[Type]
+	Tratamento Anti Corrosão	Text	Galvanizado[Type]
+	Reversível	Ratio	Reversivel[Type]
+	Tipo de Aspiração	Text	TipoAspiracao[Type]
+	Tipo de Ventilador Centrifugo	Text	TipoVentCentrif[Type]
+	Tipo de Acoplamento	Text	TipoAcoplamento[Type]
+	Hermético	Boolean	Hermetic[Type]
+	Tempo de Resistência ao Fogo	Time	TempResistFogo[Type]
+	Temperatura de Resistência ao Fogo	ThermodynamicTemperature	TemperatResistFogo[Type]
+	Temperatura de Operação	ThermodynamicTemperature	TemperatOper[Type]
+	Tipo de Acionamento	Text	TipoAcionamento[Type]
+	Restrição	Boolean	Restrictions[Type]
+	Pressão máx. de Trabalho	Text	MaximumWorkingPressure[Type]
+	Pressão Nominal	Text	PressaoNominal[Type]
+	Tipo de Conexão	Text	ConnectionType[Type]
+	Material	Text	Material[Type]
+	Densidade	Text	Density
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length
+	Largura	Length
+	Profundidade	Length
+	Comprimento	Length
+	Diâmetro	Length
+	Diametro	Text	Size
+	Width	Length
+	Height	Length
+	Length	Length
+	Seção	Area	Secao[Type]
+	Espessura	Length
+	Diametro Nominal	Length

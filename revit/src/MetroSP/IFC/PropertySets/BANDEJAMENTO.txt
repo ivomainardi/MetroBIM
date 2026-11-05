@@ -1,0 +1,34 @@
+#
+# Property sets do sistema BANDEJAMENTO (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Vão Livre Entre Níveis	Length	VaoLivre[Type]
+	Distanciamento entre Peças	Length	DistanciaPeça[Type]
+	Material	Text	Material[Type]
+	Tipo de Conexão	Text	ConnectionType[Type]
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length	Height
+	Largura	Length	Width
+	Profundidade	Length
+	Comprimento	Length	Length
+	Diâmetro	Length
+	Seção	Text	Size
+
+# Aba MetroLoc
+PropertySet:	MetroLoc	I	IfcElement
+	Site Name	Text	SiteName

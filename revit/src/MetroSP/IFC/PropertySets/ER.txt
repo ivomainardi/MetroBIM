@@ -1,0 +1,42 @@
+#
+# Property sets do sistema ER (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Barramento	Text	Barramento[Type]
+	CLP	Text	Clp[Type]
+	Disjuntor Extraível	Text	DisjuntorExtraivel[Type]
+	Disjuntor Caixa Moldada	Text	DisjuntorMold[Type]
+	IHM	Text	Ihm[Type]
+	Gabinete Compartimentado	Text	GabineteCompart[Type]
+	Tipo de Acionamento	Text	TipoAcionamento[Type]
+	Reversível	Ratio	Reversivel[Type]
+	Material	Text	Material[Type]
+	Tipo de Conexão	Text	ConnectionType[Type]
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length
+	Largura	Length
+	Profundidade	Length
+	Comprimento	Length
+	Diâmetro	Length
+	Diametro	Text	Size
+	Width	Length
+	Height	Length
+	Length	Length
+	Comprimento	Length	Comprimento da escada
+	Largura	Length	Largura da escada
+	Seção	Area	Secao[Type]
