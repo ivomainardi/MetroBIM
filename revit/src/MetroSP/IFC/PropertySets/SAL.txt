@@ -34,7 +34,7 @@ PropertySet:	Metro	I	IfcElement
 	Corrente Curto-Circuito	ElectricCurrent	ShortCircuitCurrent[Type]
 	Tipo de Conexão	Text	ConnectionType[Type]
 	Peso	Text	Peso[Type]
-	Potencia Nominal	Text	ClassificationCode(3)
+	Potencia Nominal	Text	NominalPower[Type]
 
 # Aba MetroQto
 PropertySet:	MetroQto	I	IfcElement
