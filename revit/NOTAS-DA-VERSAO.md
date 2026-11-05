@@ -1,4 +1,4 @@
-# Próxima versão (em preparo)
+# Próxima versão (em teste)
 
 ## Verificar classificação com padrões e várias classificações
 
@@ -23,6 +23,21 @@
   planilha; um com Classification Manager (Uniformat) e outro com Código de montagem; verificar, usar cada botão de ação
   (inclusive com várias linhas selecionadas, em tipo e em grupo) e conferir no IFC exportado as duas
   IfcClassificationReference. Conferir também os nomes dos parâmetros do Classification Manager no modelo de vocês.
+## Classe IFC escolhida da lista, sem digitar
+
+Onde se escolhe uma classe IFC, a caixa agora lista **todas as classes do IFC schema** e digitar só filtra. Classe ou
+tipo fora do esquema aparece em vermelho e não deixa salvar. As listas vêm dos esquemas oficiais IFC4 (ADD2 TC1) e
+IFC4X3_ADD2 (gerador em `tools/gerar-esquema-ifc.py`), o mesmo padrão do Civil 3D.
+
+- **Categorias IFC**: a coluna Classe IFC lista as classes do IFC schema escolhido (IFC4 ou IFC 4.3) e o **Tipo
+  predefinido** lista os tipos da classe da linha. Ao trocar a classe, um tipo que ela não tem é apagado.
+- **Conferir Entrega** (etapa 3, Exportar como): primeiro as classes dos padrões, depois todas as do IFC schema do
+  setup, com Classe e Classe.TIPO.
+- **Editar property sets**: Entidades IFC deixou de ser texto livre; clicar duas vezes abre a lista de entidades do
+  IFC4 e do IFC 4.3 (inclui IfcElement e os tipos, como IfcWallType) para marcar. Vale para as linhas selecionadas.
+- Falta testar no Revit: abrir Categorias IFC e trocar classe e tipo nos dois esquemas (filtrar digitando, Enter,
+  sair da célula com texto que não é classe); no Conferir Entrega, Definir classe com IfcWall.SHEAR; no editor de
+  property sets, marcar entidades em várias linhas e salvar.
 
 # MetroSP 0.2.9
 

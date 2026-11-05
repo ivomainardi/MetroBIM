@@ -41,6 +41,12 @@ namespace MetroSP.Ids
                 return p.Length > 1 && p[1].Length > 0 ? p[0] + " · " + p[1] : p[0];
             }
             public string OutroEsquemaTexto => Mostrar(OutroEsquema);
+            /// <summary>Esquema da tabela da linha (CategoriasIfc.Ifc4 ou Ifc4x3), para conferir a classe e o tipo.</summary>
+            public string Esquema { get; set; }
+            /// <summary>Classe que não existe no esquema da tabela (aparece em vermelho e impede salvar).</summary>
+            public bool ClasseInvalida => Esquema != null && !EsquemaIfc.ClasseValida(Esquema, Classe);
+            /// <summary>Tipo predefinido que a classe não tem no esquema da tabela.</summary>
+            public bool TipoInvalido => Esquema != null && !ClasseInvalida && !EsquemaIfc.TipoValido(Esquema, Classe, Tipo);
             public Linha Copia() => (Linha)MemberwiseClone();
         }
 
@@ -178,30 +184,6 @@ namespace MetroSP.Ids
             {
                 return $"Categorias IFC: não foi possível aplicar a tabela {esquema} ({ex.Message}); valeu o mapeamento do modelo.";
             }
-        }
-
-        /// <summary>Classes sugeridas na lista (a caixa aceita qualquer outra).</summary>
-        public static IReadOnlyList<string> Classes(string esquema)
-        {
-            var comuns = new[]
-            {
-                "IfcBeam", "IfcBuildingElementProxy", "IfcChimney", "IfcColumn", "IfcCovering", "IfcCurtainWall", "IfcDoor", "IfcFooting",
-                "IfcFurniture", "IfcMember", "IfcPile", "IfcPlate", "IfcRailing", "IfcRamp", "IfcRampFlight", "IfcRoof", "IfcShadingDevice",
-                "IfcSlab", "IfcStair", "IfcStairFlight", "IfcWall", "IfcWindow", "IfcSpace", "IfcOpeningElement", "IfcReinforcingBar",
-                "IfcReinforcingMesh", "IfcTendon", "IfcDiscreteAccessory", "IfcMechanicalFastener", "IfcFastener", "IfcElementAssembly",
-                "IfcGeographicElement", "IfcTransportElement", "IfcFlowTerminal", "IfcFlowSegment", "IfcFlowFitting", "IfcPipeSegment",
-                "IfcPipeFitting", "IfcDuctSegment", "IfcDuctFitting", "IfcCableCarrierSegment", "IfcCableSegment", "IfcLightFixture",
-                "IfcSanitaryTerminal", "IfcDistributionElement", "IfcSystemFurnitureElement", "IfcAnnotation", "IfcGrid",
-            };
-            var ifc4x3 = new[]
-            {
-                "IfcBuiltElement", "IfcBearing", "IfcCourse", "IfcPavement", "IfcKerb", "IfcRail", "IfcTrackElement", "IfcEarthworksFill",
-                "IfcEarthworksCut", "IfcGeotechnicalStratum", "IfcBorehole", "IfcDeepFoundation", "IfcCaissonFoundation", "IfcReinforcedSoil",
-                "IfcSign", "IfcSignal", "IfcLiquidTerminal", "IfcMobileTelecommunicationsAppliance", "IfcConveyorSegment", "IfcImpactProtectionDevice",
-                "IfcVibrationDamper", "IfcBridgePart", "IfcRailwayPart", "IfcRoadPart",
-            };
-            IEnumerable<string> lista = esquema == Ifc4x3 ? comuns.Concat(ifc4x3) : comuns;
-            return lista.Distinct().OrderBy(x => x, StringComparer.Ordinal).ToList();
         }
     }
 }
