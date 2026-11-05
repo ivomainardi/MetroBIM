@@ -77,7 +77,8 @@ namespace MetroSP.PropertySets
             Acao("+ Property set", "Acrescenta um property set vazio à lista.", NovoPset);
             Acao("Tirar da lista", "Tira o property set da lista. Não apaga do desenho (para isso, use o Style Manager).", TirarPset);
             barra.Children.Add(new Border { Width = 12 });
-            Acao("Importar planilha...", "Uma linha por propriedade: Property set, Propriedade, Tipo, Valor padrão, Aplica-se a, Descrição, IFC.\n" +
+            Acao("Importar planilha...", "Cria a estrutura a partir de uma planilha (uma linha por propriedade). Você indica a coluna de cada informação:\n" +
+                "Property set, Propriedade, Tipo, Valor padrão, Aplica-se a, Descrição e IFC. Os valores dos objetos não são preenchidos.\n" +
                 "Também lê o IFCInfraExportPropertyMapping.csv da Autodesk (linhas com Source = PropertySet).", Importar);
             Acao("Exportar planilha...", "Salva a lista em .csv para editar no Excel, levar a outro desenho ou mandar para a equipe.", Exportar);
             Acao("Do mapeamento IFC", "Traz os property sets que o mapeamento do exportador IFC (Configurar IFC) espera encontrar no desenho.", DoMapeamento);
@@ -440,10 +441,16 @@ namespace MetroSP.PropertySets
             if (dlg.ShowDialog(this) != true) return;
             try
             {
-                List<PsetMontagem> lidos = PsetsCore.LerPlanilha(dlg.FileName, out string aviso);
+                // O mapeamento da Autodesk tem formato fixo; as outras planilhas passam pela escolha das colunas.
+                List<PsetMontagem> lidos = PsetsCore.SeMapeamentoAutodesk(dlg.FileName);
+                if (lidos == null)
+                {
+                    var w = new ImportarPsetsWindow(dlg.FileName) { Owner = this };
+                    if (w.ShowDialog() != true) return;
+                    lidos = w.Resultado;
+                }
                 if (lidos.Count == 0) { MessageBox.Show(this, "Nenhum property set encontrado na planilha.", Title); return; }
                 Acrescentar(lidos, Path.GetFileName(dlg.FileName));
-                if (aviso != null) MessageBox.Show(this, aviso, Title);
             }
             catch (Exception ex) { MessageBox.Show(this, "Não foi possível ler a planilha:\n" + ex.Message, Title); }
         }

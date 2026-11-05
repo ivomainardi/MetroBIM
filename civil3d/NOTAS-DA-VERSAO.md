@@ -8,9 +8,12 @@
   - **Aba Montar**: lista dos property sets do desenho, com nome, descrição, a quais tipos de objeto se aplica
     (alinhamento, corredor, superfície, tubos, sólidos, blocos... ou todos) e as propriedades com tipo (Texto, Inteiro,
     Real, Sim/Não) e valor padrão. Tabela com filtro por coluna e situação de cada um: Novo, Muda ou No desenho.
-  - **Importar planilha** (.xlsx ou .csv, uma linha por propriedade: Property set, Propriedade, Tipo, Valor padrão,
-    Aplica-se a, Descrição, IFC). Também lê o `IFCInfraExportPropertyMapping.csv` da Autodesk. **Exportar planilha**
-    salva a lista em .csv para editar no Excel ou levar a outro desenho.
+  - **Importar planilha** (.xlsx ou .csv, uma linha por propriedade): a janela mostra a aba, a linha dos títulos e
+    pede a coluna de cada informação (Property set e Propriedade obrigatórias; Tipo, Valor padrão, Aplica-se a,
+    Descrição e IFC opcionais), com prévia e a contagem do que vai entrar. Cria só a estrutura: os valores dos objetos
+    não são preenchidos. As colunas indicadas ficam lembradas (`%APPDATA%\MetroSP\Civil3D\PropertySets`) para a
+    próxima planilha do mesmo padrão. Também lê o `IFCInfraExportPropertyMapping.csv` da Autodesk. **Exportar
+    planilha** salva a lista em .csv para editar no Excel ou levar a outro desenho.
   - **Do mapeamento IFC**: traz os property sets que o mapeamento do exportador (Configurar IFC) espera achar no desenho.
   - **Criar no desenho**: cria os novos e completa os que mudaram. Nada é apagado e o tipo de uma propriedade que já
     existe não muda (os valores dos objetos se perderiam).
@@ -21,7 +24,7 @@
     desenho todo, com os property sets já anexados e o que falta. Anexa aos visíveis na tabela, respeitando os tipos
     de objeto de cada property set.
   - Falta testar no Civil 3D: abrir no MB-20 e no 4D2 (que já tem property sets), conferir se a lista bate com o Style
-    Manager, criar um property set só para corredores e outro para todos, importar uma planilha, anexar em sólidos,
+    Manager, criar um property set só para corredores e outro para todos, importar uma planilha indicando as colunas (e reabrir para ver se as colunas foram lembradas), anexar em sólidos,
     tubos e alinhamentos, ver os valores na paleta Propriedades, Desfazer (U) e exportar o IFC para ver se o Pset chega.
 - **Verificar classificação** (painel Classificação, comando `MSP_CLASSVERIFICAR`): confere a classificação dos objetos
   que vão para o IFC (mesmo filtro das outras ferramentas) com planilhas externas, e propõe as correções.

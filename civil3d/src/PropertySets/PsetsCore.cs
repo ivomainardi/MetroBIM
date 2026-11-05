@@ -501,13 +501,9 @@ namespace MetroSP.PropertySets
             new CampoPlanilha(CampoIfc, "IFC", false, "Entidade IFC (ex.: IfcElement) para levar ao IFC; \"Não\" para não levar.", "ifc", "entidade ifc", "applicableentities", "levar para o ifc"),
         };
 
-        /// <summary>
-        /// Lê uma planilha (uma linha por propriedade). Também aceita o IFCInfraExportPropertyMapping.csv da Autodesk:
-        /// nesse caso entram só as linhas com Source = PropertySet.
-        /// </summary>
-        public static List<PsetMontagem> LerPlanilha(string arquivo, out string aviso)
+        /// <summary>Se o arquivo é o IFCInfraExportPropertyMapping.csv da Autodesk, devolve os property sets dele (Source = PropertySet).</summary>
+        public static List<PsetMontagem> SeMapeamentoAutodesk(string arquivo)
         {
-            aviso = null;
             Tabela t = LeitorPlanilha.Ler(arquivo);
             List<List<string>> linhas = t.Linhas(null);
             int cab = MapaColunas.AcharCabecalho(t, null, Campos);
@@ -515,21 +511,42 @@ namespace MetroSP.PropertySets
             int iSource = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "source");
             int iCivil = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "civil 3d name");
             int iGroup = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "group");
-            if (iSource >= 0 && iCivil >= 0 && iGroup >= 0) return LerMapeamentoAutodesk(linhas.Skip(cab).ToList(), iSource, iGroup, iCivil);
+            return iSource >= 0 && iCivil >= 0 && iGroup >= 0 ? LerMapeamentoAutodesk(linhas.Skip(cab).ToList(), iSource, iGroup, iCivil) : null;
+        }
 
-            var mapa = new MapaColunas { LinhaCabecalho = cab };
+        /// <summary>
+        /// Lê uma planilha (uma linha por propriedade) com as colunas sugeridas pelos títulos. Também aceita o
+        /// IFCInfraExportPropertyMapping.csv da Autodesk.
+        /// </summary>
+        public static List<PsetMontagem> LerPlanilha(string arquivo, out string aviso)
+        {
+            aviso = null;
+            List<PsetMontagem> autodesk = SeMapeamentoAutodesk(arquivo);
+            if (autodesk != null) return autodesk;
+            Tabela t = LeitorPlanilha.Ler(arquivo);
+            var mapa = new MapaColunas { LinhaCabecalho = MapaColunas.AcharCabecalho(t, null, Campos) };
             mapa.Sugerir(t, Campos);
             var faltam = mapa.Faltando(Campos);
             if (faltam.Count > 0)
                 throw new InvalidDataException("A planilha precisa das colunas: " + string.Join(", ", faltam.Select(f => f.Rotulo)) + ".");
+            var r = DeLinhas(mapa.Linhas(t), out int ignoradas);
+            if (ignoradas > 0) aviso = $"{ignoradas} linha(s) sem property set ou propriedade foram ignoradas.";
+            return r;
+        }
 
+        /// <summary>
+        /// Monta a estrutura (property sets, propriedades, tipos, aplica-se a) a partir das linhas da planilha, uma por propriedade.
+        /// Só a estrutura: nenhum valor é gravado nos objetos.
+        /// </summary>
+        public static List<PsetMontagem> DeLinhas(IEnumerable<LinhaPlanilha> linhas, out int ignoradas)
+        {
             var r = new List<PsetMontagem>();
-            int ignoradas = 0;
-            foreach (LinhaPlanilha l in mapa.Linhas(t))
+            ignoradas = 0;
+            foreach (LinhaPlanilha l in linhas)
             {
                 string ps = l[CampoPset], pr = l[CampoProp];
                 if (string.IsNullOrWhiteSpace(ps) || string.IsNullOrWhiteSpace(pr)) { ignoradas++; continue; }
-                PsetMontagem p = r.FirstOrDefault(x => string.Equals(x.Nome, ps, StringComparison.OrdinalIgnoreCase));
+                PsetMontagem p = r.FirstOrDefault(x => string.Equals(x.Nome, ps.Trim(), StringComparison.OrdinalIgnoreCase));
                 if (p == null) r.Add(p = new PsetMontagem { Nome = ps.Trim() });
                 if (!string.IsNullOrWhiteSpace(l[CampoDescricao]) && string.IsNullOrEmpty(p.Descricao)) p.Descricao = l[CampoDescricao];
                 string ap = l[CampoAplica];
@@ -552,8 +569,34 @@ namespace MetroSP.PropertySets
                 if (p.Propriedades.Any(x => string.Equals(x.Nome, pr.Trim(), StringComparison.OrdinalIgnoreCase))) continue;
                 p.Propriedades.Add(new PropriedadeMontagem { Nome = pr.Trim(), Tipo = LerTipo(l[CampoTipo]), Padrao = l[CampoPadrao] ?? "" });
             }
-            if (ignoradas > 0) aviso = $"{ignoradas} linha(s) sem property set ou propriedade foram ignoradas.";
             return r;
+        }
+
+        // ------------------------------------------------------------------ colunas lembradas
+
+        static readonly string ArquivoColunas = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "MetroSP", "Civil3D", "PropertySets", "colunas-planilha.json");
+
+        /// <summary>Colunas indicadas na última importação (o padrão da equipe), ou um mapa vazio.</summary>
+        public static MapaColunas ColunasLembradas()
+        {
+            try
+            {
+                if (File.Exists(ArquivoColunas))
+                    return System.Text.Json.JsonSerializer.Deserialize<MapaColunas>(File.ReadAllText(ArquivoColunas, Encoding.UTF8)) ?? new MapaColunas();
+            }
+            catch { }
+            return new MapaColunas();
+        }
+
+        public static void LembrarColunas(MapaColunas mapa)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(ArquivoColunas));
+                File.WriteAllText(ArquivoColunas, System.Text.Json.JsonSerializer.Serialize(mapa, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }), new UTF8Encoding(false));
+            }
+            catch { }
         }
 
         static List<PsetMontagem> LerMapeamentoAutodesk(List<List<string>> linhas, int iSource, int iGroup, int iCivil)
