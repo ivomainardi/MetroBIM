@@ -19,6 +19,33 @@
   Revit), exportar e conferir no IFC o endereço do IfcSite e das estações e a descrição de uma instalação que a
   Autodesk já grava. O R26 (.NET 10) não foi compilado aqui; o R25 compilou sem erro.
 
+- **Corrigir escrita** (painel Dados, comando `MSP_ESCRITA`).
+- Procura nos property sets (propriedades de texto), no nome e na descrição dos objetos que vão para o IFC:
+  - **espaços**: repetidos no meio (`Concreto  armado`), no começo ou no fim, espaço não separável e caracteres
+    invisíveis (vêm do Word e do Excel), quebras de linha e tabulações;
+  - **espaços errados na pontuação**: antes de vírgula, ponto, ponto e vírgula, dois-pontos, `!`, `?` e `)`, depois
+    de `(`, e o que falta depois de vírgula entre palavras (`aço ,concreto` → `aço, concreto`). Listas de códigos
+    (`IfcWall,IfcSlab`) ficam juntas;
+  - **número e unidade**: `10m` → `10 m`, `25MPa` → `25 MPa` (mm, cm, m, km, m², m³, kg, kgf, tf, kN, kPa, MPa, GPa,
+    kV, kVA, kW, kWh, Hz, rpm, °C); ordinais juntos (`1 º` → `1º`). Códigos como `E1-10m` não mudam;
+  - **acentuação**: lista de palavras de projeto e as terminações que sempre levam acento (`estacao` → `estação`,
+    `nivel` → `nível`, `eletrica` → `elétrica`, `padroes` → `padrões`), acentos que o Acordo tirou (`idéia`, `ítem`,
+    `freqüência`). Mantém maiúsculas (`ESTACAO` → `ESTAÇÃO`), não mexe em camelCase, em palavras que também existem
+    sem acento (`calculo`, `analise`, `publico`), em valores em inglês (`Section Area`) nem em caminhos e endereços;
+  - **texto embaralhado** (`EstaÃ§Ã£o` → `Estação`) e **caracteres estranhos** (aspas curvas, `d´água`); letra perdida
+    (`Esta??o`, `�`) aparece como **Revisar** para digitar a palavra certa.
+- Tabela com filtro por coluna: valor **Atual** (com `·` nos espaços sobrando, `¤` nos especiais e `↵` nas quebras),
+  **Sugestão** (dá para ajustar com dois cliques antes de gravar), o que foi achado e o motivo. **Corrigir** grava as
+  linhas selecionadas numa operação só (desfazível); **Ignorar** guarda no padrão; **Não mexer na palavra...** põe a
+  sigla ou o código nos termos do padrão; **Selecionar no modelo**.
+- Cada regra liga e desliga (a dica de cada uma tem exemplos). O **padrão** (`%AppData%\MetroSP\Escrita`, o mesmo para
+  Revit e Civil 3D) guarda as regras, os **termos que não mudam** (PTL, Pr_20_30...), as **correções próprias**
+  (`plataf = plataforma`) e o que foi ignorado. Aparece também em **Padrões e planilhas** (editar e levar no .zip).
+- Propriedades automáticas e de fórmula aparecem como **Não grava** (corrigir na origem).
+- Falta testar no Civil 3D 2025/2026/2027: abrir pelo ribbon com seleção e sem, procurar no desenho todo, corrigir
+  property set, nome e descrição, desfazer com U, editar a sugestão na tabela, ignorar e abrir o padrão pelo
+  **Padrões e planilhas**.
+
 ## 0.11.0 (em teste)
 
 - **Property sets** (painel Dados, comando `MSP_PSETS`): monta os property sets do próprio Civil 3D (as mesmas

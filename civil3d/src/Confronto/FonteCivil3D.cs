@@ -84,8 +84,8 @@ namespace MetroSP.Confronto
             _campos = new Dictionary<string, CampoConfronto>
             {
                 [Handle] = new CampoConfronto { Chave = Handle, Nome = "Handle", Grupo = "Desenho" },
-                [Nome] = new CampoConfronto { Chave = Nome, Nome = "Nome", Grupo = "Desenho", Editavel = true },
-                [Descricao] = new CampoConfronto { Chave = Descricao, Nome = "Descrição", Grupo = "Desenho", Editavel = true },
+                [Nome] = new CampoConfronto { Chave = Nome, Nome = "Nome", Grupo = "Desenho", Editavel = true, Texto = true },
+                [Descricao] = new CampoConfronto { Chave = Descricao, Nome = "Descrição", Grupo = "Desenho", Editavel = true, Texto = true },
                 [Layer] = new CampoConfronto { Chave = Layer, Nome = "Layer", Grupo = "Desenho", Editavel = true },
                 [Classe] = new CampoConfronto { Chave = Classe, Nome = "Tipo de objeto", Grupo = "Desenho" },
             };
@@ -167,7 +167,7 @@ namespace MetroSP.Confronto
                             Tipo = pd.DataType,
                         };
                         if (!_campos.TryGetValue(chave, out CampoConfronto c))
-                            _campos[chave] = c = new CampoConfronto { Chave = chave, Nome = pd.Name, Grupo = psd.Name, Detalhe = pd.DataType.ToString() };
+                            _campos[chave] = c = new CampoConfronto { Chave = chave, Nome = pd.Name, Grupo = psd.Name, Detalhe = pd.DataType.ToString(), Texto = pd.DataType == DataType.Text };
                         if (editavel) c.Editavel = true;
                     }
                 }

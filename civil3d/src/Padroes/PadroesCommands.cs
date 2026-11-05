@@ -32,6 +32,12 @@ namespace MetroSP.Padroes
             },
             new TipoPadrao
             {
+                Id = "escrita", Nome = "Corrigir escrita", Pasta = Escrita.PadroesEscrita.Pasta,
+                Ferramenta = "Dados › Corrigir escrita (padrão no topo da janela; vale também no Revit)",
+                Editar = (dono, item) => Escrita.CorrigirEscritaWindow.EditarArquivo(dono, item.Arquivo),
+            },
+            new TipoPadrao
+            {
                 Id = "civil3d-exportacao-ifc", Nome = "Exportação IFC", Pasta = ConfigPackage.ActiveDir,
                 Ferramenta = "Configurar IFC",
                 Editar = (dono, item) => new Ui.ConfigWindow(doc == null ? null : Commands.DrawingFolder(doc)) { Owner = dono }.ShowDialog(),
