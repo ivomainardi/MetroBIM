@@ -1,0 +1,38 @@
+#
+# Property sets do sistema SCC (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Tensao	Text	Voltage[Type]
+	Potencia	Text	Power[Type]
+	Tipo de Interface Física	Text	InterfaceFisica[Type]
+	Localização	Text	Location[Type]
+	Material	Text	Material[Type]
+	Peso	Text	Peso[Type]
+	Subsistema	Text
+	Tipo de Conexão	Text	ConnectionType[Type]
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length
+	Largura	Length
+	Profundidade	Length
+	Comprimento	Length
+	Diâmetro	Length
+	Diametro	Text	Size
+	Width	Length
+	Height	Length
+	Length	Length
+	Seção	Area	Secao[Type]

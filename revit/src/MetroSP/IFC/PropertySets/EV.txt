@@ -1,0 +1,53 @@
+#
+# Property sets do sistema EV (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Aplicação do Equipamento	Text	AplicacaoEquip[Type]
+	Barramento	Text	Barramento[Type]
+	Capacidade	Text	Capacity[Type]
+	Quantidade de Passageiros	Integer	CapacityPeople[Type]
+	Presença de casa de máquinas	Text	CasaMaquina[Type]
+	CLP	Text	Clp[Type]
+	Desnível Atendido	Length	Desnivel[Type]
+	Disjuntor Extraível	Text	DisjuntorExtraivel[Type]
+	Disjuntor Caixa Moldada	Text	DisjuntorMold[Type]
+	Gabinete Compartimentado	Text	GabineteCompart[Type]
+	IHM	Text	Ihm[Type]
+	Locais Atendidos	Text	Location[Type]
+	Pavimentos atendidos	Integer	PavAtendidos[Type]
+	Tipo de Acionamento	Text	TipoAcionamento[Type]
+	Tipo de Equipamento	Text	TipoEquipamento[Type]
+	Tipo de Estrutura de suporte	Text	TipoSuporte[Type]
+	Velocidade	Text	Velocidade[Type]
+	Tipo de Conexão	Text	ConnectionType[Type]
+	Material	Text	Material[Type]
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length
+	Largura	Length
+	Profundidade	Length
+	Comprimento	Length
+	Diâmetro	Length
+	Diametro	Text	Size
+	Width	Length
+	Height	Length
+	Length	Length
+	Altura Total Porta	Length
+	Largura Total Porta	Length
+	Largura Porta	Length
+	Largura Total	Length
+	Seção	Area	Secao[Type]

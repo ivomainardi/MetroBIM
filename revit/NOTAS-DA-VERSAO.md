@@ -1,5 +1,15 @@
 # Próxima versão (em desenvolvimento)
 
+## Exportar IFC: property sets por sistema
+
+- 14 classes novas no Exportar IFC, uma por sistema: AC, BANDEJAMENTO, BOMBAS, CCO, DI, ER, EV, ILUMeTOM, PATIO,
+  PSD, SAL, SCC, TEL e VENT (Psets MetroClassificacao, Metro, MetroQto e, em BANDEJAMENTO, MetroLoc).
+- Correções em relação aos arquivos recebidos: tipos que o exportador não conhece (Interger, Number, Angle,
+  Temperature, Current, KG), linha sem tipo em PATIO, linhas repetidas, tabs duplos e espaços sobrando.
+  `Codigo Metro` passou a `CodigoMetro`, como nas outras classes; no SAL, a Potencia Nominal lê `NominalPower[Type]`.
+- Falta testar no Revit: escolher cada classe no Exportar IFC, exportar um modelo de cada sistema e conferir os Psets
+  no IFC (principalmente MetroClassificacao, ângulos, temperaturas e correntes).
+
 ## Projeto e Local: IfcProject, IfcSite e IfcBuilding
 
 - O passo 1 da entrega (antes **Localização**) virou **Projeto e Local**. A janela, redimensionável, preenche:
