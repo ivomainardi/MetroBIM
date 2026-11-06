@@ -2,6 +2,14 @@
 
 ## Próxima versão (em desenvolvimento)
 
+- **Exportar IFC leva todos os property sets**: o exportador da Autodesk só grava os property sets que estão no
+  mapeamento (`IFCInfraExportPropertyMapping.json` e `.csv`). Os criados no Style Manager (ex.: Metro,
+  MetroClassificacao, MetroLoc, MetroQto) ficavam de fora. Agora, a cada exportação, o plugin acrescenta às cópias do
+  mapeamento gravadas para o desenho todo property set anexado a algum objeto que vai para o IFC, com todas as
+  propriedades. O pacote ativo (Configurar IFC) não muda. A linha de comando lista os que entraram.
+- Falta testar no Civil 3D: exportar o MB-20.03.01.00-4D2-001-1 e conferir no IFC os Psets Metro, MetroClassificacao,
+  MetroLoc e MetroQto nos tubos e caixas, com os valores preenchidos.
+
 - Botão **Projeto IFC** (painel IFC 4.3, comando `MSP_IFCPROJETO`): abre só a aba Projeto do Configurar IFC, numa
   janela própria e redimensionável. Os campos são os mesmos do plugin do Revit:
   - **IfcProject**: nome, nome longo, descrição e fase;

@@ -247,6 +247,17 @@ namespace MetroSP
 
                 var written = ConfigPackage.ApplyToDrawing(dwgDir, Path.GetFileNameWithoutExtension(doc.Name), cfg.Destino, ProgramDataDir);
                 ed.WriteMessage($"\nMetroSP: configuração IFC aplicada ({written.Count} arquivo(s)).");
+
+                // O IFCINFRAEXPORT só leva os property sets que estão no mapeamento: entram os anexados aos objetos que vão para o IFC.
+                try
+                {
+                    string Escrito(ConfigKind k) => written.FirstOrDefault(w => string.Equals(Path.GetFileName(w), ConfigPackage.FileNames[k], StringComparison.OrdinalIgnoreCase));
+                    var novos = PropertySets.PsetsCore.CompletarMapeamentoNaExportacao(doc.Database,
+                        Escrito(ConfigKind.PropertyTemplates), Escrito(ConfigKind.PropertyMappingCsv));
+                    if (novos.Count > 0)
+                        ed.WriteMessage($"\nMetroSP: property sets do desenho incluídos na exportação: {string.Join(", ", novos)}.");
+                }
+                catch (System.Exception ex) { ed.WriteMessage("\nMetroSP: aviso: não deu para incluir os property sets do desenho no mapeamento: " + ex.Message); }
                 if (selected == null) return;
 
                 var metro = ConfigPackage.LoadMetroSp();
