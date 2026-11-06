@@ -1,4 +1,4 @@
-# MetroSP 0.3.2 (em preparação)
+# Próxima versão (em desenvolvimento)
 
 ## Exportar IFC: property sets por sistema
 
@@ -6,9 +6,63 @@
   PSD, SAL, SCC, TEL e VENT (Psets MetroClassificacao, Metro, MetroQto e, em BANDEJAMENTO, MetroLoc).
 - Correções em relação aos arquivos recebidos: tipos que o exportador não conhece (Interger, Number, Angle,
   Temperature, Current, KG), linha sem tipo em PATIO, linhas repetidas, tabs duplos e espaços sobrando.
-  `Codigo Metro` passou a `CodigoMetro`, como nas outras classes.
+  `Codigo Metro` passou a `CodigoMetro`, como nas outras classes; no SAL, a Potencia Nominal lê `NominalPower[Type]`.
 - Falta testar no Revit: escolher cada classe no Exportar IFC, exportar um modelo de cada sistema e conferir os Psets
   no IFC (principalmente MetroClassificacao, ângulos, temperaturas e correntes).
+
+## Projeto e Local: IfcProject, IfcSite e IfcBuilding
+
+- O passo 1 da entrega (antes **Localização**) virou **Projeto e Local**. A janela, redimensionável, preenche:
+  - **IfcProject**: nome (Número do projeto), nome longo (Nome do projeto), descrição (`IfcDescription`) e fase
+    (`Project Phase`);
+  - **IfcSite**: nome (`SiteName`), nome longo (`SiteLongName`), descrição (`SiteDescription`), latitude/longitude pelo
+    Project Base Point (como antes) e endereço (Manage › Location);
+  - **IfcBuilding**: nome (Nome do edifício), nome longo (`BuildingLongName`), descrição (`BuildingDescription`) e
+    endereço (Informações do projeto);
+  - **Dados do projeto · MetroSP_Projeto**: tabela propriedade/valor gravada como Pset no IfcProject (linha, lote,
+    contrato...). Fica guardada no modelo.
+- Os campos são os que o exportador IFC da Autodesk lê; os que não existem no modelo são criados como parâmetros
+  compartilhados de texto (grupo IFC) nas Informações do projeto. A dica de cada campo diz onde ele fica no Revit.
+- O **Exportar IFC** confere e completa o IFC: grava no IfcProject, no IfcSite e no IfcBuilding o que o exportador não
+  gravou (o nome longo do IfcSite, por exemplo) e o Pset MetroSP_Projeto, e mostra a conferência no fim. A janela de
+  exportação mostra o nome do IfcProject ao lado do Location.
+- Barra **Padrão** no topo da janela: **Salvar como padrão…** guarda os dados (sem latitude/longitude) em
+  `%AppData%\MetroSP\DadosProjeto`, e **Usar** preenche outro modelo com eles. É o mesmo padrão do Civil 3D (o mesmo
+  arquivo serve nos dois) e aparece em **Padrões e planilhas** como "Dados do projeto IFC".
+- Os dados do projeto podem ser gravados mesmo quando a latitude/longitude não pode ser calculada pelo Project Base Point.
+- Falta testar no Revit (2025, 2026 e 2027): abrir Projeto e Local num modelo sem esses parâmetros e gravar (os
+  parâmetros são criados?), conferir em Informações do projeto, salvar e usar um padrão, exportar o IFC e abrir no
+  visualizador para ver IfcProject (Name, LongName, Description, Phase), IfcSite, IfcBuilding e o Pset MetroSP_Projeto.
+  O 2027 não foi compilado aqui (falta o .NET 10); o 2025 e o 2026 compilaram sem erro.
+
+## Corrigir escrita
+
+- Novo botão **Dados do modelo › Corrigir Escrita**.
+- Procura nos parâmetros de texto (instância e tipo; parâmetros de tipo aparecem uma vez só) dos elementos que vão para o IFC:
+  - **espaços**: repetidos no meio (`Concreto  armado`), no começo ou no fim, espaço não separável e caracteres
+    invisíveis (vêm do Word e do Excel), quebras de linha e tabulações;
+  - **espaços errados na pontuação**: antes de vírgula, ponto, ponto e vírgula, dois-pontos, `!`, `?` e `)`, depois
+    de `(`, e o que falta depois de vírgula entre palavras (`aço ,concreto` → `aço, concreto`). Listas de códigos
+    (`IfcWall,IfcSlab`) ficam juntas;
+  - **número e unidade**: `10m` → `10 m`, `25MPa` → `25 MPa` (mm, cm, m, km, m², m³, kg, kgf, tf, kN, kPa, MPa, GPa,
+    kV, kVA, kW, kWh, Hz, rpm, °C); ordinais juntos (`1 º` → `1º`). Códigos como `E1-10m` não mudam;
+  - **acentuação**: lista de palavras de projeto e as terminações que sempre levam acento (`estacao` → `estação`,
+    `nivel` → `nível`, `eletrica` → `elétrica`, `padroes` → `padrões`), acentos que o Acordo tirou (`idéia`, `ítem`,
+    `freqüência`). Mantém maiúsculas (`ESTACAO` → `ESTAÇÃO`), não mexe em camelCase, em palavras que também existem
+    sem acento (`calculo`, `analise`, `publico`), em valores em inglês (`Section Area`) nem em caminhos e endereços;
+  - **texto embaralhado** (`EstaÃ§Ã£o` → `Estação`) e **caracteres estranhos** (aspas curvas, `d´água`); letra perdida
+    (`Esta??o`, `�`) aparece como **Revisar** para digitar a palavra certa.
+- Tabela com filtro por coluna: valor **Atual** (com `·` nos espaços sobrando, `¤` nos especiais e `↵` nas quebras),
+  **Sugestão** (dá para ajustar com dois cliques antes de gravar), o que foi achado e o motivo. **Corrigir** grava as
+  linhas selecionadas numa operação só (desfazível); **Ignorar** guarda no padrão; **Não mexer na palavra...** põe a
+  sigla ou o código nos termos do padrão; **Selecionar no modelo**.
+- Cada regra liga e desliga (a dica de cada uma tem exemplos). O **padrão** (`%AppData%\MetroSP\Escrita`, o mesmo para
+  Revit e Civil 3D) guarda as regras, os **termos que não mudam** (PTL, Pr_20_30...), as **correções próprias**
+  (`plataf = plataforma`) e o que foi ignorado. Aparece também em **Padrões e planilhas** (editar e levar no .zip).
+- Nomes de família e de tipo também são conferidos, mas a correção é feita no **Renomear Famílias**.
+- Falta testar no Revit: abrir pelo ribbon com seleção e sem, procurar no modelo todo de um projeto grande (tempo de
+  resposta), corrigir parâmetro de instância e de tipo, desfazer com Ctrl+Z, editar a sugestão na tabela, ignorar,
+  "Não mexer na palavra..." e abrir o padrão pelo **Padrões e planilhas**.
 
 # MetroSP 0.3.1 (em teste)
 

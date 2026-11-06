@@ -8,8 +8,8 @@ using MetroSP.Ids;
 namespace MetroSP.Commands
 {
     /// <summary>
-    /// Etapa 1 da exportação IFC: calcula a lat/long pelo Project Base Point (PTL do Metrô) e grava em Manage › Location,
-    /// junto com o nome do IfcSite e os dados do IfcBuilding. Não exporta.
+    /// Etapa 1 da exportação IFC (Projeto e Local): dados do IfcProject, IfcSite e IfcBuilding e lat/long pelo
+    /// Project Base Point (PTL do Metrô), gravados nos campos do Revit que o exportador lê. Não exporta.
     /// </summary>
     [Transaction(TransactionMode.Manual)]
     public class LocalizacaoIfcCommand : IExternalCommand
@@ -20,7 +20,7 @@ namespace MetroSP.Commands
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null || doc.IsFamilyDocument)
             {
-                TaskDialog.Show("MetroSP", "Abra um projeto (.rvt) para conferir a localização.");
+                TaskDialog.Show("MetroSP", "Abra um projeto (.rvt) para preencher os dados do projeto e a localização.");
                 return Result.Cancelled;
             }
 
@@ -28,7 +28,7 @@ namespace MetroSP.Commands
             try { mudou = LocalizacaoWindow.Executar(doc, LocalizacaoIfc.Calcular(doc), null, uiapp.MainWindowHandle); }
             catch (Exception ex)
             {
-                TaskDialog.Show("MetroSP", "Não foi possível gravar a localização no Revit:\n" + ex.Message);
+                TaskDialog.Show("MetroSP", "Não foi possível gravar no Revit:\n" + ex.Message);
                 return Result.Failed;
             }
             if (mudou == null) return Result.Cancelled;

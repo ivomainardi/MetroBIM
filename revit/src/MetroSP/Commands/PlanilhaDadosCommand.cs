@@ -73,3 +73,13 @@ namespace MetroSP.Commands
             JanelaDados.Abrir(commandData, u => new Confronto.ConfrontarWindow(new Confronto.FonteRevit(u)));
     }
 }
+
+namespace MetroSP.Commands
+{
+    [Transaction(TransactionMode.Manual)]
+    public class CorrigirEscritaCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            JanelaDados.Abrir(commandData, u => new Escrita.CorrigirEscritaWindow(new Confronto.FonteRevit(u)));
+    }
+}

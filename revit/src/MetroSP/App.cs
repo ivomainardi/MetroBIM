@@ -60,16 +60,17 @@ namespace MetroSP
 
             panel.AddSeparator();
 
-            AddButton<LocalizacaoIfcCommand>(panel, "Localização",
-                "Passo 1 da entrega IFC. Calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô) e grava em " +
-                "Manage › Location, com o nome do IfcSite e os dados do IfcBuilding.",
+            AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
+                "Passo 1 da entrega IFC. Preenche o IfcProject, o IfcSite e o IfcBuilding (nome, nome longo, descrição, fase, endereço) " +
+                "e o Pset MetroSP_Projeto, e calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô). " +
+                "Os dados podem ser salvos como padrão e usados em outros modelos, também no Civil 3D.",
                 "Etapa1");
 
             PulldownButton configurar = AddPulldown(panel, "Configurar", "Configurar",
                 "Passo 2 da entrega IFC. Os arquivos da classe (setup, property sets e mapeamentos) e em que classe IFC cada categoria do Revit sai.",
                 "Etapa2");
             AddToPulldown<PadroesCommand>(configurar, "Padrões e planilhas",
-                "Todos os padrões salvos (classificação, confronto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
+                "Todos os padrões salvos (classificação, confronto, dados do projeto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
                 "editar, trocar a planilha de todos de uma vez e levar para a equipe num .zip.",
                 "Padroes");
             AddToPulldown<ArquivosIfcCommand>(configurar, "Arquivos IFC",
@@ -123,6 +124,12 @@ namespace MetroSP
                 "Compara os parâmetros dos elementos com uma planilha externa (você indica a coluna-chave e a coluna de cada dado), " +
                 "mostra o que está diferente e deixa aplicar o valor da planilha, ignorar ou selecionar. Os padrões ficam salvos.",
                 "ConfrontarPlanilha");
+
+            AddButton<CorrigirEscritaCommand>(panel, "Corrigir\nEscrita",
+                "Procura nos parâmetros de texto espaços sobrando ou errados (duplos, nas pontas, na pontuação, entre número e unidade), " +
+                "acentuação e caracteres estranhos. Mostra o valor atual e a sugestão para corrigir ou ignorar; siglas e códigos " +
+                "ficam numa lista de termos que não mudam.",
+                "CorrigirEscrita");
 
             AddButton<EdicaoMassaCommand>(panel, "Editar\nem Massa",
                 "Um parâmetro em muitos elementos: definir valor (juntando outros parâmetros com {Nome}), prefixo, sufixo, " +

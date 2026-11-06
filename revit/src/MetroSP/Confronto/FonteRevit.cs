@@ -48,8 +48,8 @@ namespace MetroSP.Confronto
             {
                 new CampoConfronto { Chave = Id, Nome = "Id do elemento", Grupo = "Revit" },
                 new CampoConfronto { Chave = UniqueId, Nome = "UniqueId (GUID)", Grupo = "Revit" },
-                new CampoConfronto { Chave = Familia, Nome = "Família", Grupo = "Revit" },
-                new CampoConfronto { Chave = Tipo, Nome = "Tipo", Grupo = "Revit" },
+                new CampoConfronto { Chave = Familia, Nome = "Família", Grupo = "Revit", Texto = true },
+                new CampoConfronto { Chave = Tipo, Nome = "Tipo", Grupo = "Revit", Texto = true },
                 new CampoConfronto { Chave = FamiliaTipo, Nome = "Família: Tipo", Grupo = "Revit" },
                 new CampoConfronto { Chave = Categoria, Nome = "Categoria", Grupo = "Revit" },
             };
@@ -64,6 +64,7 @@ namespace MetroSP.Confronto
                     Grupo = p.DoTipo ? "tipo" : "instância",
                     Detalhe = p.TipoLabel + " · " + p.Origem,
                     Editavel = p.Editavel && p.Storage != StorageType.ElementId,
+                    Texto = p.Storage == StorageType.String && p.Editavel,
                 });
             }
             return r;
@@ -78,8 +79,8 @@ namespace MetroSP.Confronto
             {
                 case Id: return Fixo(o.Id);
                 case UniqueId: return Fixo(e.UniqueId);
-                case Familia: return Fixo(Valores.Familia(_doc, e));
-                case Tipo: return Fixo(Valores.Tipo(_doc, e));
+                case Familia: return Fixo(Valores.Familia(_doc, e), "nome da família: corrija em Renomear Famílias");
+                case Tipo: return Fixo(Valores.Tipo(_doc, e), "nome do tipo: corrija em Renomear Famílias");
                 case FamiliaTipo: return Fixo(Valores.Nome(_doc, e));
                 case Categoria: return Fixo(e.Category?.Name ?? "");
             }
@@ -101,7 +102,8 @@ namespace MetroSP.Confronto
             return v;
         }
 
-        private static ValorConfronto Fixo(string texto) => new ValorConfronto { Existe = true, Texto = texto ?? "", Motivo = "dado do Revit, não é parâmetro" };
+        private static ValorConfronto Fixo(string texto, string motivo = "dado do Revit, não é parâmetro") =>
+            new ValorConfronto { Existe = true, Texto = texto ?? "", Motivo = motivo };
 
         private Parameter Param(ObjetoConfronto o, CampoConfronto c) =>
             _refs.TryGetValue(c.Chave, out ParamRef r) ? r.Resolver(_doc, E(o)).Param : null;
