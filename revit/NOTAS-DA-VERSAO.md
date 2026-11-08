@@ -2,8 +2,9 @@
 
 ## Revit 2022
 
-- O MetroSP passa a ter versão para o **Revit 2022**, além de 2025, 2026 e 2027. O instalador e o `Instalar.bat`
-  oferecem o 2022 quando ele está no computador.
+- O MetroSP passa a ter versão para o **Revit 2022**, além de 2025, 2026 e 2027, sempre com **instalador separado**:
+  `MetroSP-Revit2022-Setup-<versão>.exe` (e `MetroSP-Revit2022-<versão>-instalador.zip`). O instalador de 2025-2027
+  continua igual.
 - O IFC sai pelo exportador do próprio Revit 2022, que vai até o **IFC4** (Reference View ou Design Transfer View):
   setups em IFC 4.3 avisam que esta versão do Revit não os exporta.
 - Diferenças em relação ao 2025+:

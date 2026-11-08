@@ -49,7 +49,8 @@ As diferenças entre versões (API do Revit e do .NET) ficam em `src/MetroSP/Com
 
 1. Suba a `<Version>` no `src/MetroSP/MetroSP.csproj` e descreva a versão no `NOTAS-DA-VERSAO.md`.
 2. Faça o merge na `main`. O GitHub Actions (`.github/workflows/release.yml`) compila para 2022, 2025, 2026 e 2027,
-   gera o instalador e cria a release `v<versão>` com o `.exe` e o `.zip`. Ele só roda quando o csproj muda.
+   gera os instaladores e cria a release `v<versão>` com os `.exe` e os `.zip`. O Revit 2022 tem sempre um instalador
+   separado (`MetroSP-Revit2022-Setup-<versão>.exe`). Ele só roda quando o csproj muda.
 
 Sem o Actions, dá para publicar pelo PC com `.\publicar.ps1` (precisa do [GitHub CLI](https://cli.github.com/)
 logado e de um clone da `main`).
