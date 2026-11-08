@@ -52,6 +52,7 @@ jobs:
           }
           ./build.ps1
           Rename-Item MetroSP-instalador.zip "MetroSP-$v-instalador.zip"
+          Rename-Item MetroSP-Revit2022-instalador.zip "MetroSP-Revit2022-$v-instalador.zip"
 
       - name: Publicar release
         if: steps.versao.outputs.existe == 'false'
@@ -60,5 +61,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $v = '${{ steps.versao.outputs.versao }}'
-          $arquivos = @("MetroSP-$v-instalador.zip") + @(Get-ChildItem "MetroSP-Setup-*.exe" -ErrorAction SilentlyContinue | ForEach-Object Name)
+          $arquivos = @("MetroSP-$v-instalador.zip", "MetroSP-Revit2022-$v-instalador.zip") + @(Get-ChildItem "MetroSP-Setup-*.exe", "MetroSP-Revit2022-Setup-*.exe" -ErrorAction SilentlyContinue | ForEach-Object Name)
           gh release create "v$v" @arquivos --target $env:GITHUB_SHA --title "MetroSP $v" --notes-file NOTAS-DA-VERSAO.md

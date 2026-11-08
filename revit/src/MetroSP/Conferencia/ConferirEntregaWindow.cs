@@ -914,9 +914,9 @@ namespace MetroSP.Conferencia
                     {
                         Element e = _doc.GetElement(id);
                         if (e == null) continue;
-                        Parameter inst = e.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_AS);
+                        Parameter inst = Compat.ExportarComo(e, false);
                         Element tipo = _doc.GetElement(e.GetTypeId());
-                        Parameter doTipo = tipo?.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_TYPE_AS);
+                        Parameter doTipo = Compat.ExportarComo(tipo, true);
                         bool instanciaTemValor = inst != null && !string.IsNullOrWhiteSpace(inst.AsString());
                         if (!instanciaTemValor && doTipo != null && !doTipo.IsReadOnly)
                         {

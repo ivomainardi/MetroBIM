@@ -254,8 +254,8 @@ namespace MetroSP.Ids
         public static string EntidadeDe(Document doc, Element e)
         {
             Element tipo = doc.GetElement(e.GetTypeId());
-            string valor = Texto(e.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_AS)) ?? Texto(e.LookupParameter("IfcExportAs")) ??
-                           Texto(tipo?.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT_TYPE_AS)) ?? Texto(tipo?.LookupParameter("IfcExportAs"));
+            string valor = Texto(Compat.ExportarComo(e, false)) ?? Texto(e.LookupParameter("IfcExportAs")) ??
+                           Texto(Compat.ExportarComo(tipo, true)) ?? Texto(tipo?.LookupParameter("IfcExportAs"));
             if (valor != null)
             {
                 string ent = valor.Split('.')[0].Trim();

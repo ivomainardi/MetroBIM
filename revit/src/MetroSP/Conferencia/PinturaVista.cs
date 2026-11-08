@@ -77,9 +77,9 @@ namespace MetroSP.Conferencia
                 {
                     try
                     {
-                        if (doc.GetElement(new ElementId(k.Vista)) is View v)
+                        if (doc.GetElement(Compat.NovoId(k.Vista)) is View v)
                         {
-                            v.SetElementOverrides(new ElementId(k.Elemento), Originais[k]);
+                            v.SetElementOverrides(Compat.NovoId(k.Elemento), Originais[k]);
                             n++;
                         }
                     }

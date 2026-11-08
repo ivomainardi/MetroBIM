@@ -34,6 +34,13 @@
   <PropertyGroup Condition="'$(RevitVersion)' &lt; '2025'">
     <TargetFramework>net48</TargetFramework>
   </PropertyGroup>
+  <!-- APIs que o Revit ganhou depois do 2022 (ver Compat.cs). -->
+  <PropertyGroup Condition="'$(RevitVersion)' &lt; '2024'">
+    <DefineConstants>$(DefineConstants);REVIT_ANTES_2024</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RevitVersion)' &lt; '2023'">
+    <DefineConstants>$(DefineConstants);REVIT_ANTES_2023</DefineConstants>
+  </PropertyGroup>
 
   <ItemGroup>
     <!-- Referências da API do Revit via NuGet (não copiadas para a saída). -->
@@ -41,6 +48,17 @@
     <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
     <!-- Biblioteca de interface do Revit (Ribbon), usada só para o painel com as logos. -->
     <PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Revit 2022-2024 (.NET Framework 4.8): o que o .NET 8 já traz e o 4.8 não tem. Essas DLLs vão junto na pasta do add-in. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
 
   <ItemGroup>

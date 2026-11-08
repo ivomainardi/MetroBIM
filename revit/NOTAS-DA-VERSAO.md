@@ -1,5 +1,25 @@
 # Próxima versão (em desenvolvimento)
 
+## Revit 2022
+
+- O MetroSP passa a ter versão para o **Revit 2022**, além de 2025, 2026 e 2027, sempre com **instalador separado**:
+  `MetroSP-Revit2022-Setup-<versão>.exe` (e `MetroSP-Revit2022-<versão>-instalador.zip`). O instalador de 2025-2027
+  continua igual.
+- O IFC sai pelo exportador do próprio Revit 2022, que vai até o **IFC4** (Reference View ou Design Transfer View):
+  setups em IFC 4.3 avisam que esta versão do Revit não os exporta.
+- Diferenças em relação ao 2025+:
+  - **Categorias IFC**: o Revit 2022 não deixa o add-in gravar a tabela de categorias no modelo. A janela abre e
+    edita as tabelas, mas na exportação vale o mapeamento do próprio Revit (Arquivo › Exportar › Opções › Opções IFC).
+  - **Exportar para IFC**: no 2022 esse parâmetro não existe; o filtro do IFC deixa de fora o que tem
+    `IfcExportAs = DontExport`. A classe IFC também vem do `IfcExportAs` (no tipo, também `IfcExportAs[Type]`).
+  - **Aplicar classificação**: o resumo da seleção é atualizado quando o Revit fica ocioso (o 2022 não avisa a
+    mudança de seleção).
+  - **Listar compartilhados › Adicionar pasta** usa a janela de pasta do Windows antiga.
+  - Sem troca automática de tema claro/escuro nas logos da Ribbon (o 2022 não tem tema escuro).
+- Falta testar no Revit 2022: carregar a aba (primeira vez, com "Sempre carregar"), abrir cada janela, exportar um IFC
+  com o setup IFC4 Reference View e conferir Psets, classificação, IfcSite/IfcProject e a Conferir entrega;
+  Aplicar classificação com a seleção mudando; Forma online (login e download).
+
 ## Exportar IFC: o arquivo diz que passou pelo MetroSP
 
 - O IFC exportado registra o plugin e a versão nos dois lugares que as normas preveem:

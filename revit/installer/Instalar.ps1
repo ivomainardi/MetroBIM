@@ -19,5 +19,5 @@ foreach ($dir in Get-ChildItem $here -Directory | Where-Object { $_.Name -match 
     }
     $instalados++
 }
-if ($instalados -eq 0) { Write-Host 'Nenhuma versão compatível do Revit (2025-2027) encontrada.' -ForegroundColor Yellow }
+if ($instalados -eq 0) { Write-Host 'Nenhuma versão do Revit deste pacote foi encontrada neste computador.' -ForegroundColor Yellow }
 Write-Host 'Feche e abra o Revit para carregar a aba MetroSP.'
