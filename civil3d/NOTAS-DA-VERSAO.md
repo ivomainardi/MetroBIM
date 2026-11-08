@@ -2,6 +2,16 @@
 
 ## Próxima versão (em desenvolvimento)
 
+- **Exportar IFC**: o arquivo registra o plugin e a versão nos dois lugares que as normas preveem:
+  - **cabeçalho** (ISO 10303-21): `MetroSP Civil 3D 0.11.0` no fim do `preprocessor_version` do `FILE_NAME`. O texto da
+    Autodesk fica, e o `originating_system` (de onde vieram os dados) não muda;
+  - **modelo** (IFC): `IfcApplication` do MetroSP (Ação BIM · Metrô) como `LastModifyingApplication` no
+    `IfcOwnerHistory` do IfcProject, com `ChangeAction` MODIFIED e a data. O Civil 3D continua como `OwningApplication`.
+  - Exportar de novo atualiza a marca, sem repetir. O IFC só de alinhamento também leva a versão no cabeçalho.
+    O arquivo `Ifc/OrigemIfc.cs` é igual no Revit.
+  - Testado aqui no IFC de teste `MB-20.00.00.00-4U1-002-3.autodesk.ifc`. Falta testar no Civil 3D (2025, 2026 e 2027):
+    exportar e conferir o cabeçalho e o histórico do IfcProject num visualizador (Solibri, BIMcollab ou Navisworks).
+
 - Botão **Projeto IFC** (painel IFC 4.3, comando `MSP_IFCPROJETO`): abre só a aba Projeto do Configurar IFC, numa
   janela própria e redimensionável. Os campos são os mesmos do plugin do Revit:
   - **IfcProject**: nome, nome longo, descrição e fase;
