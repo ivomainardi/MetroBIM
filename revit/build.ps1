@@ -1,7 +1,7 @@
 # Compila o add-in para cada versão do Revit e gera o instalador.
-#   .\build.ps1                      -> 2025, 2026, 2027
+#   .\build.ps1                      -> 2022, 2025, 2026, 2027
 #   .\build.ps1 -Versions 2025       -> só uma versão
-param([string[]]$Versions = @('2025', '2026', '2027'))
+param([string[]]$Versions = @('2022', '2025', '2026', '2027'))
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot

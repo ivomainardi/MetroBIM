@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -35,7 +36,23 @@ namespace MetroSP.Commands
             // Assina uma vez por sessão; sem janela aberta o evento não faz nada.
             if (!_assinado)
             {
+#if REVIT_ANTES_2023
+                // Revit 2022 não tem o evento SelectionChanged: confere a seleção quando o Revit fica ocioso.
+                string ultima = null;
+                uiapp.Idling += (s, e) =>
+                {
+                    if (_janela == null) { ultima = null; return; }
+                    UIApplication app = s as UIApplication ?? uiapp;
+                    string atual;
+                    try { atual = string.Join(",", app.ActiveUIDocument?.Selection.GetElementIds().Select(i => i.IntegerValue).OrderBy(i => i) ?? Enumerable.Empty<int>()); }
+                    catch { return; }
+                    if (atual == ultima) return;
+                    ultima = atual;
+                    _janela.SelecaoMudou(app);
+                };
+#else
                 uiapp.SelectionChanged += (s, e) => _janela?.SelecaoMudou(s as UIApplication ?? uiapp);
+#endif
                 _assinado = true;
             }
 

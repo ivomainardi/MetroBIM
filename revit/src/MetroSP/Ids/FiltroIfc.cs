@@ -34,7 +34,7 @@ namespace MetroSP.Ids
                 Parameter p = v.get_Parameter(BuiltInParameter.VIEW_PHASE);
                 if (p != null && p.AsElementId() != ElementId.InvalidElementId) return p.AsElementId();
             }
-            if (faseSetup > 0 && doc.GetElement(new ElementId(faseSetup)) is Phase) return new ElementId(faseSetup);
+            if (faseSetup > 0 && doc.GetElement(Compat.NovoId(faseSetup)) is Phase) return Compat.NovoId(faseSetup);
             return doc.Phases.Size > 0 ? doc.Phases.get_Item(doc.Phases.Size - 1).Id : ElementId.InvalidElementId;
         }
 
@@ -109,6 +109,11 @@ namespace MetroSP.Ids
         /// <summary>Parâmetro "Exportar para IFC": 0 = pelo tipo, 1 = sim, 2 = não.</summary>
         private static bool ExportarParaIfcNao(Document doc, Element e)
         {
+#if REVIT_ANTES_2023
+            // Revit 2022: não existe o parâmetro "Exportar para IFC"; vale o IfcExportAs = DontExport.
+            string como = Compat.ExportarComo(e, false)?.AsString() ?? Compat.ExportarComo(doc.GetElement(e.GetTypeId()), true)?.AsString();
+            if (como != null && como.Trim().StartsWith("DontExport", StringComparison.OrdinalIgnoreCase)) return true;
+#endif
             int? inst = Inteiro(e, "IFC_EXPORT_ELEMENT");
             if (inst == 2) return true;
             if (inst == 1) return false;

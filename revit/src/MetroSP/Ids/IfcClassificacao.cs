@@ -181,7 +181,7 @@ namespace MetroSP.Ifc
         /// <summary>16 bytes no formato de 22 caracteres do IFC.</summary>
         private static string CompressGuid(byte[] bytes16)
         {
-            var n = new System.Numerics.BigInteger(bytes16, isUnsigned: true, isBigEndian: true);
+            var n = Compat.InteiroSemSinal(bytes16);
             var chars = new char[22];
             for (int i = 21; i >= 0; i--)
             {

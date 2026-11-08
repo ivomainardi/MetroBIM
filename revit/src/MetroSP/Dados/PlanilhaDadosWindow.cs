@@ -313,7 +313,7 @@ namespace MetroSP.Dados
             foreach (List<string> l in dados.Skip(1))
             {
                 if (!long.TryParse(Celula(l, 0), NumberStyles.Integer, CultureInfo.InvariantCulture, out long id)) continue;
-                Element e = _doc.GetElement(new ElementId(id));
+                Element e = _doc.GetElement(Compat.NovoId(id));
                 if (e == null || e is ElementType) { naoExiste++; continue; }
                 elementos.Add((e, l));
             }

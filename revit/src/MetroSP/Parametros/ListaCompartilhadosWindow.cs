@@ -950,9 +950,19 @@ namespace MetroSP.Parametros
 
         private void AdicionarPasta()
         {
+#if NETFRAMEWORK
+            string pasta;
+            using (var dialogo = new System.Windows.Forms.FolderBrowserDialog { Description = "Pasta com arquivos .txt de parâmetros compartilhados" })
+            {
+                if (dialogo.ShowDialog() != System.Windows.Forms.DialogResult.OK) return;
+                pasta = dialogo.SelectedPath;
+            }
+            _refs.Adicionar(pasta);
+#else
             var dialogo = new Microsoft.Win32.OpenFolderDialog { Title = "Pasta com arquivos .txt de parâmetros compartilhados" };
             if (dialogo.ShowDialog(this) != true) return;
             _refs.Adicionar(dialogo.FolderName);
+#endif
             _refs.Salvar();
             CarregarReferencias();
         }

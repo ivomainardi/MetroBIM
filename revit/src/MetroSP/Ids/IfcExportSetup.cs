@@ -159,7 +159,7 @@ namespace MetroSP.Ids
 
             // A fase só vale para o modelo inteiro, e só se existir neste arquivo
             if (!filtrarVista && _props.TryGetValue("ActivePhaseId", out JsonElement fase) && fase.TryGetInt64(out long faseId)
-                && doc.GetElement(new ElementId(faseId)) is Phase)
+                && doc.GetElement(Compat.NovoId(faseId)) is Phase)
                 o.AddOption("ActivePhaseId", faseId.ToString(CultureInfo.InvariantCulture));
 
             // Aço estrutural só no IFC 2x3
@@ -238,8 +238,12 @@ namespace MetroSP.Ids
         private IFCVersion LerVersao()
         {
             JsonElement v = _props["IFCVersion"];
-            if (v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out int n)) return (IFCVersion)n;
-            if (v.ValueKind == JsonValueKind.String && Enum.TryParse(v.GetString(), true, out IFCVersion e)) return e;
+            if (v.ValueKind == JsonValueKind.Number && v.TryGetInt32(out int n) && Enum.IsDefined(typeof(IFCVersion), n)) return (IFCVersion)n;
+            if (v.ValueKind == JsonValueKind.String && Enum.TryParse(v.GetString(), true, out IFCVersion e) && Enum.IsDefined(typeof(IFCVersion), e)) return e;
+            // Ex.: setup em IFC 4.3 aberto no Revit 2022, cujo exportador vai só até o IFC4.
+            if (v.ValueKind == JsonValueKind.Number || v.ValueKind == JsonValueKind.String)
+                throw new InvalidDataException("Este setup usa uma versão IFC que este Revit não exporta (" + v.ToString() +
+                                               "). Escolha um setup em IFC4 Reference View.");
             throw new InvalidDataException("Versão IFC não reconhecida: " + v.GetRawText());
         }
 

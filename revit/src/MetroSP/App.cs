@@ -21,6 +21,11 @@ namespace MetroSP
 
         public Result OnStartup(UIControlledApplication application)
         {
+#if NETFRAMEWORK
+            // Revit 2022-2024 (.NET Framework): as DLLs que vão junto (System.Text.Json e dependências) ficam na pasta do add-in.
+            // Se o Revit já tiver carregado outra versão delas, o .NET Framework procura aqui com este evento.
+            AppDomain.CurrentDomain.AssemblyResolve += ResolverDaPastaDoAddin;
+#endif
             try { VersaoRevit = application.ControlledApplication.SubVersionNumber; } catch { }
             if (string.IsNullOrEmpty(VersaoRevit)) VersaoRevit = application.ControlledApplication.VersionNumber;
 
@@ -42,10 +47,25 @@ namespace MetroSP
 
             // As logos entram depois que a Ribbon do Revit está pronta (fica à direita, depois dos painéis).
             application.ControlledApplication.ApplicationInitialized += (s, e) => Ui.MarcaRibbon.Adicionar(TabName);
+#if !REVIT_ANTES_2024
             try { application.ThemeChanged += (s, e) => Ui.MarcaRibbon.AtualizarTema(); } catch { }
+#endif
 
             return Result.Succeeded;
         }
+
+#if NETFRAMEWORK
+        private static Assembly ResolverDaPastaDoAddin(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                string nome = new AssemblyName(args.Name).Name;
+                string arquivo = Path.Combine(Path.GetDirectoryName(typeof(App).Assembly.Location) ?? "", nome + ".dll");
+                return File.Exists(arquivo) ? Assembly.LoadFrom(arquivo) : null;
+            }
+            catch { return null; }
+        }
+#endif
 
         public Result OnShutdown(UIControlledApplication application) => Result.Succeeded;
 

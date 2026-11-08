@@ -45,11 +45,13 @@ ptbr.FinishedHeadingLabel=MetroSP instalado
 ptbr.FinishedLabel=Abra o Revit e procure a aba MetroSP. Na primeira vez, o Revit pergunta se confia no add-in: escolha "Sempre carregar".
 
 [Components]
+Name: "r2022"; Description: "Revit 2022"; Check: RevitInstalado('2022')
 Name: "r2025"; Description: "Revit 2025"; Check: RevitInstalado('2025')
 Name: "r2026"; Description: "Revit 2026"; Check: RevitInstalado('2026')
 Name: "r2027"; Description: "Revit 2027"; Check: RevitInstalado('2027')
 
 [Files]
+Source: "..\dist\2022\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2022"; Components: r2022; Flags: recursesubdirs ignoreversion skipifsourcedoesntexist
 Source: "..\dist\2025\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2025"; Components: r2025; Flags: recursesubdirs ignoreversion skipifsourcedoesntexist
 Source: "..\dist\2026\*"; DestDir: "{userappdata}\Autodesk\Revit\Addins\2026"; Components: r2026; Flags: recursesubdirs ignoreversion skipifsourcedoesntexist
 
