@@ -20,6 +20,17 @@
   com o setup IFC4 Reference View e conferir Psets, classificação, IfcSite/IfcProject e a Conferir entrega;
   Aplicar classificação com a seleção mudando; Forma online (login e download).
 
+## Exportar IFC: o arquivo diz que passou pelo MetroSP
+
+- O IFC exportado registra o plugin e a versão nos dois lugares que as normas preveem:
+  - **cabeçalho** (ISO 10303-21): `MetroSP Revit 0.3.1` no fim do `preprocessor_version` do `FILE_NAME`. O texto do
+    exportador da Autodesk fica, e o `originating_system` (de onde vieram os dados) não muda;
+  - **modelo** (IFC): `IfcApplication` do MetroSP (Ação BIM · Metrô) como `LastModifyingApplication` no
+    `IfcOwnerHistory` do IfcProject, com `ChangeAction` MODIFIED e a data. O Revit continua como `OwningApplication`.
+- Exportar de novo o mesmo arquivo atualiza a marca, sem repetir. O arquivo `Ids/OrigemIfc.cs` é igual no Civil 3D.
+- Falta testar no Revit (2025, 2026 e 2027): exportar um IFC 2x3 e um IFC4 e conferir o cabeçalho e o histórico do
+  IfcProject num visualizador (Solibri, BIMcollab ou Navisworks), e abrir o IFC de novo no Revit.
+
 ## Exportar IFC: property sets por sistema
 
 - 14 classes novas no Exportar IFC, uma por sistema: AC, BANDEJAMENTO, BOMBAS, CCO, DI, ER, EV, ILUMeTOM, PATIO,
