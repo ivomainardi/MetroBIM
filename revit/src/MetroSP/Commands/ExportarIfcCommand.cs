@@ -135,6 +135,9 @@ namespace MetroSP.Commands
                     linhasDados = escolha.Dados.Conferir(modelo, out dadosComProblema);
                 }
                 catch (Exception ex) { linhasDados.Add("Não foi possível gravar os dados do IfcProject/IfcSite/IfcBuilding: " + ex.Message); dadosComProblema = true; }
+                // Por último: Plugin e VersaoPlugin no Pset MetroSP_Projeto e a marca no cabeçalho.
+                try { Ifc.OrigemIfc.Marcar(modelo, "MetroSP Revit"); salvar = true; }
+                catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a origem MetroSP no IFC: " + ex.Message); }
                 if (salvar) modelo.Save(arquivo);
             }
             catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar o IFC (classificação e dados do projeto): " + ex.Message); }
