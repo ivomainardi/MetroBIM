@@ -670,8 +670,79 @@ namespace MetroSP.PropertySets
             if (psets.Count == 0) return null;
             ConfigPackage.EnsureActive();
 
-            // JSON
             JsonNode raiz = ConfigPackage.LoadJson(ConfigKind.PropertyTemplates) ?? new JsonObject();
+            string caminho = ConfigPackage.PathOf(ConfigKind.PropertyMappingCsv);
+            var linhas = File.Exists(caminho) ? File.ReadAllLines(caminho).ToList() : new List<string>();
+            var (novosTpl, novasProps, novasLinhas) = Mesclar(psets, raiz, linhas);
+            ConfigPackage.SaveJson(ConfigKind.PropertyTemplates, raiz);
+            ConfigPackage.Write(ConfigKind.PropertyMappingCsv, new UTF8Encoding(true).GetBytes(string.Join("\r\n", linhas) + "\r\n"));
+
+            if (novosTpl + novasProps + novasLinhas == 0) return "O mapeamento IFC já tinha esses property sets.";
+            return $"Mapeamento IFC: {novosTpl} Pset(s) e {novasProps} propriedade(s) novos (Configurar IFC › Property sets).";
+        }
+
+        /// <summary>
+        /// Na exportação: acrescenta às cópias do mapeamento que o exportador da Autodesk vai ler (as que o plugin acabou
+        /// de gravar para o desenho) todos os property sets anexados a objetos que vão para o IFC. Sem isso, o
+        /// IFCINFRAEXPORT só leva os property sets que já estavam no mapeamento. O pacote ativo não muda.
+        /// Devolve os nomes dos property sets que entraram ou ganharam propriedades.
+        /// </summary>
+        public static List<string> CompletarMapeamentoNaExportacao(Database db, string jsonMapeamento, string csvMapeamento)
+        {
+            List<PsetMontagem> anexados = AnexadosAoIfc(db);
+            if (anexados.Count == 0 || jsonMapeamento == null || csvMapeamento == null) return new List<string>();
+
+            JsonNode raiz = File.Exists(jsonMapeamento)
+                ? JsonNode.Parse(File.ReadAllText(jsonMapeamento), null, new System.Text.Json.JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = System.Text.Json.JsonCommentHandling.Skip })
+                : new JsonObject();
+            raiz ??= new JsonObject();
+            var linhas = File.Exists(csvMapeamento) ? File.ReadAllLines(csvMapeamento).ToList() : new List<string>();
+            var antes = ChavesCsv(linhas);
+            var (novosTpl, novasProps, novasLinhas) = Mesclar(anexados, raiz, linhas);
+            if (novosTpl + novasProps + novasLinhas == 0) return new List<string>();
+
+            File.WriteAllText(jsonMapeamento, raiz.ToJsonString(ConfigPackage.JsonOpts), new UTF8Encoding(false));
+            File.WriteAllText(csvMapeamento, string.Join("\r\n", linhas) + "\r\n", new UTF8Encoding(true));
+            return anexados.Where(p => p.Propriedades.Any(pr => !antes.Contains(p.Nome + "\u0001" + pr.Nome))).Select(p => p.Nome).ToList();
+        }
+
+        /// <summary>
+        /// Property sets de objeto anexados a pelo menos um objeto que vai para o IFC (FiltroIfc), com as propriedades
+        /// da definição. Os que estão no desenho mas em nenhum objeto exportado ficam de fora.
+        /// </summary>
+        public static List<PsetMontagem> AnexadosAoIfc(Database db)
+        {
+            var nomes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            using (Transaction tr = db.TransactionManager.StartTransaction())
+            {
+                foreach (ObjectId id in Ifc.FiltroIfc.Objetos(db, tr))
+                {
+                    if (!(tr.GetObject(id, OpenMode.ForRead) is Entity e)) continue;
+                    try
+                    {
+                        foreach (ObjectId ps in PropertyDataServices.GetPropertySets(e))
+                            if (tr.GetObject(ps, OpenMode.ForRead) is PropertySet s) nomes.Add(s.PropertySetDefinitionName);
+                    }
+                    catch { /* objeto sem property sets */ }
+                }
+                tr.Commit();
+            }
+            var r = LerDesenho(db).Where(p => nomes.Contains(p.Nome) && p.Propriedades.Count > 0).ToList();
+            foreach (PsetMontagem p in r) { p.LevarIfc = true; p.EntidadeIfc = "IfcProduct"; }
+            return r;
+        }
+
+        static HashSet<string> ChavesCsv(List<string> linhas)
+        {
+            var cab = linhas.FirstOrDefault(l => l.Trim().Length > 0) ?? "";
+            char sep = cab.Count(c => c == ';') > cab.Count(c => c == ',') ? ';' : ',';
+            return new HashSet<string>(linhas.Where(l => l.Trim().Length > 0).Skip(1).Select(l => LeitorPlanilhaLinha(l, sep)).Where(c => c.Count >= 2)
+                .Select(c => c[0].Trim() + "\u0001" + c[1].Trim()), StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Acrescenta os property sets ao modelo (JSON) e às linhas do CSV do mapeamento; o que já existe fica.</summary>
+        static (int Tpl, int Props, int Linhas) Mesclar(List<PsetMontagem> psets, JsonNode raiz, List<string> linhas)
+        {
             JsonArray tpls = Templates(raiz);
             if (tpls == null) { tpls = new JsonArray(); raiz["PropertySetTemplates"] = tpls; }
             int novosTpl = 0, novasProps = 0;
@@ -699,15 +770,11 @@ namespace MetroSP.PropertySets
                     novasProps++;
                 }
             }
-            ConfigPackage.SaveJson(ConfigKind.PropertyTemplates, raiz);
 
-            // CSV
-            string caminho = ConfigPackage.PathOf(ConfigKind.PropertyMappingCsv);
-            var linhas = File.Exists(caminho) ? File.ReadAllLines(caminho).Where(l => l.Trim().Length > 0).ToList() : new List<string>();
+            linhas.RemoveAll(l => l.Trim().Length == 0);
             if (linhas.Count == 0) linhas.Add("IfcPropertySet Name,IfcProperty Name,Active,Source,Group,Civil 3D Name");
             char sep = linhas[0].Count(c => c == ';') > linhas[0].Count(c => c == ',') ? ';' : ',';
-            var existentes = new HashSet<string>(linhas.Skip(1).Select(l => LeitorPlanilhaLinha(l, sep)).Where(c => c.Count >= 2)
-                .Select(c => c[0].Trim() + "\u0001" + c[1].Trim()), StringComparer.OrdinalIgnoreCase);
+            var existentes = ChavesCsv(linhas);
             string Q(string s) => s.IndexOfAny(new[] { sep, '"' }) >= 0 ? "\"" + s.Replace("\"", "\"\"") + "\"" : s;
             int novasLinhas = 0;
             foreach (PsetMontagem p in psets)
@@ -717,10 +784,7 @@ namespace MetroSP.PropertySets
                     linhas.Add(string.Join(sep.ToString(), new[] { p.Nome, pr.Nome, "TRUE", "PropertySet", p.Nome, pr.Nome }.Select(Q)));
                     novasLinhas++;
                 }
-            ConfigPackage.Write(ConfigKind.PropertyMappingCsv, new UTF8Encoding(true).GetBytes(string.Join("\r\n", linhas) + "\r\n"));
-
-            if (novosTpl + novasProps + novasLinhas == 0) return "O mapeamento IFC já tinha esses property sets.";
-            return $"Mapeamento IFC: {novosTpl} Pset(s) e {novasProps} propriedade(s) novos (Configurar IFC › Property sets).";
+            return (novosTpl, novasProps, novasLinhas);
         }
 
         static List<string> LeitorPlanilhaLinha(string linha, char sep)
