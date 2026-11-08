@@ -6,6 +6,7 @@ using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
+using MetroSP.Ifc;
 
 namespace MetroSP.Alinhamento
 {
@@ -73,7 +74,7 @@ namespace MetroSP.Alinhamento
             sb.Append("ISO-10303-21;\n");
             sb.Append("HEADER;\n");
             sb.Append("FILE_DESCRIPTION(('ViewDefinition [Alignment-basedView]'),'2;1');\n");
-            sb.Append($"FILE_NAME({S(Path.GetFileName(path))},{S(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"))},({S(_info.Author)}),('MetroSP'),'MetroSP','MetroSP Civil 3D','');\n");
+            sb.Append($"FILE_NAME({S(Path.GetFileName(path))},{S(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss"))},({S(_info.Author)}),('MetroSP'),{S(OrigemIfc.Texto("MetroSP Civil 3D"))},'MetroSP Civil 3D','');\n");
             sb.Append("FILE_SCHEMA(('IFC4X3_ADD2'));\n");
             sb.Append("ENDSEC;\n");
             sb.Append("DATA;\n");

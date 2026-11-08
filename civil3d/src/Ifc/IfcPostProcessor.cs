@@ -37,6 +37,9 @@ namespace MetroSP.Ifc
             if (projectProperties != null && projectProperties.Count > 0) pp.ApplyProjectProperties(projectProperties);
             try { IfcClassificacao.Aplicar(model, RegraIfc.DosPadroes(), log); }
             catch (Exception ex) { log?.Invoke("classificação não foi gravada como IfcClassificationReference: " + ex.Message); }
+            // Por último: Plugin e VersaoPlugin no Pset MetroSP_Projeto e a marca no cabeçalho.
+            try { OrigemIfc.Marcar(model, "MetroSP Civil 3D", log); }
+            catch (Exception ex) { log?.Invoke("origem MetroSP não foi gravada no IFC: " + ex.Message); }
 
             var backup = Path.ChangeExtension(ifcPath, ".autodesk.ifc");
             File.Copy(ifcPath, backup, overwrite: true);
