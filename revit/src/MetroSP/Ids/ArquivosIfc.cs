@@ -279,9 +279,25 @@ namespace MetroSP.Ids
             get
             {
                 JsonNode v = Valor("ActivePhaseId");
+                if (v is JsonObject o)   // ElementId gravado como objeto ({"IntegerValue": n} no Revit 2022)
+                    v = o[Chave(o, "Value") ?? Chave(o, "IntegerValue") ?? "Value"];
                 return v is JsonValue jv && jv.TryGetValue(out long n) ? n : -1;
             }
-            set => Mudar("ActivePhaseId", JsonValue.Create(value));
+            set
+            {
+                // Mantém o formato do exportador que salvou o setup (objeto ou número)
+                if (Valor("ActivePhaseId") is JsonObject o)
+                {
+                    var novo = (JsonObject)o.DeepClone();
+                    foreach (string k in new[] { "Value", "IntegerValue" })
+                    {
+                        string real = Chave(novo, k);
+                        if (real != null) novo[real] = value;
+                    }
+                    Mudar("ActivePhaseId", novo);
+                }
+                else Mudar("ActivePhaseId", JsonValue.Create(value));
+            }
         }
 
         public string ArquivoPsets => Texto("ExportUserDefinedPsetsFileName");

@@ -1,3 +1,14 @@
+# MetroSP 0.3.3 (em teste)
+
+## Correção: Conferir Entrega no Revit 2022
+
+- O **Conferir Entrega** parava com "Command Failure for External Command" ao ler um setup IFC salvo pelo exportador
+  do Revit 2022. Esse exportador grava a fase (`ActivePhaseId`) como objeto (`{"IntegerValue": n}`) e não como número.
+  Agora a fase e o nível de Space Boundaries são lidos nos dois formatos, e em Arquivos IFC a fase é salva mantendo o
+  formato original do setup.
+- Falta testar no Revit 2022: Conferir Entrega e Exportar IFC com um setup salvo no 2022 (com e sem fase escolhida),
+  e mudar a fase em Arquivos IFC e reabrir o setup no exportador do Revit.
+
 # MetroSP 0.3.2 (em teste)
 
 ## Exportar IFC: aceita setup em IFC 4.3
