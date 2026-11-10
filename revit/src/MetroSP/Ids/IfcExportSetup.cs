@@ -190,15 +190,8 @@ namespace MetroSP.Ids
             return o;
         }
 
-        /// <summary>IFC4 (Coordination View, Reference View ou Design Transfer View), exigido pela exportação MetroSP.</summary>
-        public bool EhIfc4
-        {
-            get
-            {
-                string v = Versao.ToString();
-                return v == "IFC4" || v == "IFC4RV" || v == "IFC4DTV";
-            }
-        }
+        /// <summary>IFC4 (Coordination View, Reference View, Design Transfer View) ou IFC 4.3: as versões que a exportação MetroSP aceita.</summary>
+        public bool VersaoAceita => OpcoesSetup.VersaoAceita(Versao.ToString());
 
         /// <summary>Base de coordenadas gravada no setup, se não for Shared Coordinates (a MetroSP troca por Shared).</summary>
         public string SitePlacementDiferente
@@ -243,7 +236,7 @@ namespace MetroSP.Ids
             // Ex.: setup em IFC 4.3 aberto no Revit 2022, cujo exportador vai só até o IFC4.
             if (v.ValueKind == JsonValueKind.Number || v.ValueKind == JsonValueKind.String)
                 throw new InvalidDataException("Este setup usa uma versão IFC que este Revit não exporta (" + v.ToString() +
-                                               "). Escolha um setup em IFC4 Reference View.");
+                                               "). Escolha um setup em IFC4 Reference View ou IFC 4.3.");
             throw new InvalidDataException("Versão IFC não reconhecida: " + v.GetRawText());
         }
 

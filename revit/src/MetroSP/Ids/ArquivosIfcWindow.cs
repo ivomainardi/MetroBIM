@@ -160,7 +160,7 @@ namespace MetroSP.Ids
             var d = new DockPanel { Margin = new Thickness(2, 3, 2, 3) };
             UIElement direita;
             if (a.Tipo == ArquivosIfc.Tipo.PropertySets && SeloPsets(a) is Border selo) direita = selo;
-            else if (a.Tipo == ArquivosIfc.Tipo.Setup && !SetupIfc4(a.Caminho)) direita = Theme.Selo("não é IFC4", Theme.Estado.Aviso);
+            else if (a.Tipo == ArquivosIfc.Tipo.Setup && !SetupAceito(a.Caminho)) direita = Theme.Selo("não é IFC4 nem 4.3", Theme.Estado.Aviso);
             else direita = new TextBlock { Text = a.Origem, Foreground = Theme.Solid(Theme.Cinza), FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
             DockPanel.SetDock(direita, Dock.Right);
             d.Children.Add(direita);
@@ -180,9 +180,9 @@ namespace MetroSP.Ids
             catch { return Theme.Selo("erro", Theme.Estado.Aviso); }
         }
 
-        private static bool SetupIfc4(string caminho)
+        private static bool SetupAceito(string caminho)
         {
-            try { return OpcoesSetup.Ler(caminho).EhIfc4; } catch { return false; }
+            try { return OpcoesSetup.Ler(caminho).EhVersaoAceita; } catch { return false; }
         }
 
         /// <summary>Só os nomes dos parâmetros do modelo (rápido), para os selos da lista.</summary>
@@ -321,8 +321,8 @@ namespace MetroSP.Ids
             _setup = o;
             var painel = new StackPanel();
             Border seloVersao = Theme.Selo();
-            void AtualizarVersao() => Theme.MudarSelo(seloVersao, o.EhIfc4 ? "IFC4: pronto para exportar" : "a exportação MetroSP exige IFC4",
-                o.EhIfc4 ? Theme.Estado.Ok : Theme.Estado.Aviso);
+            void AtualizarVersao() => Theme.MudarSelo(seloVersao, o.EhVersaoAceita ? "pronto para exportar" : "a exportação MetroSP exige IFC4 ou IFC 4.3",
+                o.EhVersaoAceita ? Theme.Estado.Ok : Theme.Estado.Aviso);
             AtualizarVersao();
             painel.Children.Add(Cabecalho(a, seloVersao));
 
@@ -426,8 +426,8 @@ namespace MetroSP.Ids
         private void SalvarSetup(ArquivosIfc.Arquivo a)
         {
             if (_setup == null) return;
-            if (!_setup.EhIfc4 &&
-                MessageBox.Show(this, "A exportação MetroSP exige IFC4. Salvar assim mesmo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            if (!_setup.EhVersaoAceita &&
+                MessageBox.Show(this, "A exportação MetroSP exige IFC4 ou IFC 4.3. Salvar assim mesmo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
             string destino = ArquivosIfc.Destino(ArquivosIfc.Tipo.Setup, a.Classe);
             try

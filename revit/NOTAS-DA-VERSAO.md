@@ -1,5 +1,13 @@
 # Próxima versão (em desenvolvimento)
 
+## Exportar IFC: aceita setup em IFC 4.3
+
+- O Exportar IFC deixa de bloquear setups em **IFC 4.3** (ex.: "Ponte Grande IFC4X3 Armação"). Valem IFC4 (CV 2.0,
+  Reference View, Design Transfer View) e IFC 4.3; só o IFC 2x3 continua com aviso. O selo do setup fica verde e o
+  rodapé não conta mais "setup não é IFC4". Em Arquivos IFC, o mesmo vale para a lista e para salvar o setup.
+- Falta testar no Revit (2025, 2026 e 2027): exportar com o setup IFC 4.3 e conferir Psets, classificação,
+  IfcSite/IfcProject e a Localização no IFC gerado.
+
 ## Revit 2022
 
 - O MetroSP passa a ter versão para o **Revit 2022**, além de 2025, 2026 e 2027, sempre com **instalador separado**:

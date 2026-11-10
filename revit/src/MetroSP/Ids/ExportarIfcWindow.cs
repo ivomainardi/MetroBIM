@@ -472,7 +472,7 @@ namespace MetroSP.Ids
             if (_resumo == null) return;
             var avisos = new List<string>();
             if (Setup == null) avisos.Add("setup não indicado");
-            else if (!Setup.EhIfc4) avisos.Add("setup não é IFC4");
+            else if (!Setup.VersaoAceita) avisos.Add("setup não é IFC4 nem IFC 4.3");
             if (_seloPsets.Visibility == Visibility.Visible && ((TextBlock)_seloPsets.Child).Foreground is System.Windows.Media.SolidColorBrush bp && bp.Color == Theme.LaranjaTexto)
                 avisos.Add("property sets: " + ((TextBlock)_seloPsets.Child).Text);
             if (_seloMapeamento.Visibility == Visibility.Visible && ((TextBlock)_seloMapeamento.Child).Foreground is System.Windows.Media.SolidColorBrush bm && bm.Color == Theme.LaranjaTexto)
@@ -602,7 +602,7 @@ namespace MetroSP.Ids
             var partes = new List<string> { Setup.Nome };
             if (Setup.SoVisiveisNaVista) partes.Add("só elementos visíveis na vista");
             if (Setup.GravaGuid) partes.Add("grava o GUID IFC nos elementos");
-            Mostrar(_seloSetup, _infoSetup, Setup.DescricaoVersao, Setup.EhIfc4 ? Theme.Estado.Ok : Theme.Estado.Aviso, string.Join(" · ", partes));
+            Mostrar(_seloSetup, _infoSetup, Setup.DescricaoVersao, Setup.VersaoAceita ? Theme.Estado.Ok : Theme.Estado.Aviso, string.Join(" · ", partes));
 
             if (preencherTxt)
             {
@@ -695,10 +695,10 @@ namespace MetroSP.Ids
                 MessageBox.Show(this, "Indique um setup de exportação (.json) válido.", Title);
                 return;
             }
-            if (!Setup.EhIfc4)
+            if (!Setup.VersaoAceita)
             {
-                MessageBox.Show(this, $"O setup {Setup.Nome} exporta em {Setup.DescricaoVersao}. A exportação MetroSP é em IFC4: " +
-                    "escolha ou salve um setup IFC4 (por exemplo IFC 4 Reference View).", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(this, $"O setup {Setup.Nome} exporta em {Setup.DescricaoVersao}. A exportação MetroSP é em IFC4 ou IFC 4.3: " +
+                    "escolha ou salve um setup IFC4 ou IFC 4.3 (por exemplo IFC 4 Reference View).", Title, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             string psets = TextoPsets();
