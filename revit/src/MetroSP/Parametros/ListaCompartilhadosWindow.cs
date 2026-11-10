@@ -50,6 +50,11 @@ namespace MetroSP.Parametros
         private readonly TabControl _abas;
         private readonly TabItem _abaArquivo;
         private readonly TabItem _abaComparar;
+
+        /// <summary>Abas da janela: o comando Parâmetros acrescenta as abas de Gerenciar parâmetros (ver AbasEntreJanelas).</summary>
+        internal TabControl Abas => _abas;
+        internal TabItem AbaArquivo => _abaArquivo;
+        internal TabItem AbaComparar => _abaComparar;
         private readonly DockPanel _dockArquivo;
         private readonly DockPanel _dockComparar;
         private readonly WrapPanel _resumoArquivo;
@@ -89,7 +94,7 @@ namespace MetroSP.Parametros
             _refs = ReferenceLibrary.Abrir();
             _soProjeto = !ehFamilia;
 
-            Title = $"MetroSP - Parâmetros compartilhados: {documento}";
+            Title = $"MetroSP - Parâmetros: {documento}";
             Width = 1300;
             Height = 700;
             MinWidth = 800;
@@ -157,8 +162,8 @@ namespace MetroSP.Parametros
             Grid.SetColumn(_dockComparar, 2);
             comparar.Children.Add(_dockComparar);
 
-            _abaArquivo = new TabItem { Header = "Parâmetros do arquivo", Content = _dockArquivo };
-            _abaComparar = new TabItem { Header = "Comparar com .txt", Content = comparar };
+            _abaArquivo = new TabItem { Header = "Compartilhados", Content = _dockArquivo, ToolTip = "Os parâmetros compartilhados do arquivo, com GUID, tipo, categorias e o .txt de origem. Renomear, trocar instância ↔ tipo e deletar os sem uso." };
+            _abaComparar = new TabItem { Header = "Comparar com .txt", Content = comparar, ToolTip = "Compara os parâmetros do arquivo com os .txt de referência e com a base MetroShared." };
             _abas = new TabControl();
             _abas.Items.Add(_abaArquivo);
             _abas.Items.Add(_abaComparar);
@@ -234,7 +239,7 @@ namespace MetroSP.Parametros
             }
             corpo.Children.Add(_abas);
 
-            Theme.Apply(this, "Parâmetros compartilhados", documento, corpo, rodape);
+            Theme.Apply(this, "Parâmetros", documento, corpo, rodape);
             CarregarReferencias();
         }
 
@@ -1004,7 +1009,7 @@ namespace MetroSP.Parametros
             {
                 Header = "Parâmetros compartilhados (.txt) para usar no Revit",
                 IsEnabled = !comparar,
-                ToolTip = comparar ? "Disponível na aba \"Parâmetros do arquivo\"." : "Mesmo GUID, nome, tipo e visibilidade.",
+                ToolTip = comparar ? "Disponível na aba \"Compartilhados\"." : "Mesmo GUID, nome, tipo e visibilidade.",
             };
             var csv = new MenuItem { Header = "Planilha (.csv)" };
             foreach (Escopo e in new[] { Escopo.Visiveis, Escopo.Selecionados, Escopo.Todos })

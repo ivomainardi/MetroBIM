@@ -145,15 +145,11 @@ namespace MetroSP
         {
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Parâmetros e famílias");
 
-            AddButton<GerenciarParametrosCommand>(panel, "Gerenciar\nParâmetros",
-                "Veja e exporte os parâmetros de projeto, crie vários de uma vez a partir de uma planilha (com as categorias) " +
-                "e acrescente parâmetros compartilhados em várias famílias.",
+            AddButton<ListarCompartilhadosCommand>(panel, "Parâmetros",
+                "Uma janela para os parâmetros: compartilhados do arquivo (GUID, tipo, categorias, renomear mantendo o GUID, " +
+                "instância ↔ tipo, deletar os sem uso), comparação com o .txt do MetroShared, parâmetros de projeto, " +
+                "criar vários pela planilha e adicionar em famílias.",
                 "GerenciarParametros");
-
-            AddButton<ListarCompartilhadosCommand>(panel, "Parâmetros\nCompartilhados",
-                "Todos os parâmetros compartilhados do arquivo aberto, com GUID, tipo, categorias e comparação com o .txt. " +
-                "Também renomeia mantendo o GUID, troca entre instância e tipo e apaga os sem uso.",
-                "Listar");
 
             AddButton<RenomearFamiliasCommand>(panel, "Renomear\nFamílias",
                 "Renomeia famílias e tipos por regra (prefixo, sufixo, substituir, modelo com {Nome}), com prévia e conferência de nomes repetidos.",

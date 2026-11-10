@@ -7,17 +7,28 @@
   - **Classificação**: Aplicar e Verificar.
   - **Dados do modelo**: igual (Planilha de Dados, Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e
     Colorir, Copiar Valores).
-  - **Parâmetros e famílias**: Gerenciar Parâmetros, Parâmetros Compartilhados (antes "Listar compartilhados") e
-    Renomear Famílias, como botões grandes (o menu Parâmetros saiu).
+  - **Parâmetros e famílias**: **Parâmetros** e Renomear Famílias (o menu Parâmetros saiu; ver abaixo).
   - **Coordenador BIM** (novo, no fim, botões pequenos): Padrões e planilhas, Arquivos IFC e Categorias IFC (antes no
     menu Configurar, no meio da entrega).
 - Saíram da Ribbon, sem perder a função:
   - **Verificar Padrões**: a verificação do IDS já roda dentro do Conferir Entrega (botão "Detalhes dos padrões (IDS)...").
   - **Consistência**: abre pelo botão **Códigos × descrições...** na janela Verificar classificação.
-  - **Renomear compartilhado**: fica no botão **Renomear...** de Parâmetros Compartilhados.
+  - **Renomear compartilhado**: fica no botão **Renomear...** da aba Compartilhados, em Parâmetros.
 - Falta testar no Revit (2022, 2025, 2026 e 2027): abrir a aba e conferir os 5 painéis e os ícones 1, 2 e 3; abrir cada
-  botão; em Verificar classificação, abrir Códigos × descrições e unificar; em Parâmetros Compartilhados, renomear um
-  parâmetro; no Conferir Entrega com IDS no pacote, abrir os detalhes do IDS.
+  botão; em Verificar classificação, abrir Códigos × descrições e unificar; em Parâmetros › Compartilhados, renomear
+  um parâmetro; no Conferir Entrega com IDS no pacote, abrir os detalhes do IDS.
+
+## Parâmetros: uma ferramenta só
+
+- **Gerenciar parâmetros**, **Listar compartilhados** e **Renomear compartilhado** viram o botão **Parâmetros**, com as
+  abas **Compartilhados**, **Comparar com .txt**, **Parâmetros de projeto** (antes "Parâmetros do modelo"),
+  **Criar pela planilha** e **Adicionar em famílias**. Tudo o que cada uma fazia continua igual.
+- Por dentro ainda são duas janelas: ao trocar entre as duas primeiras abas e as outras, a janela fecha e reabre no
+  mesmo lugar e tamanho, já na aba clicada. Numa família, aparecem só Compartilhados e Comparar com .txt.
+- O Conferir Entrega abre Parâmetros na aba Compartilhados.
+- Falta testar no Revit (2022, 2025, 2026 e 2027): abrir Parâmetros num projeto e passar por todas as abas (a janela
+  deve reabrir no mesmo lugar, também maximizada); renomear, Instância ↔ Tipo e Deletar sem uso na aba Compartilhados;
+  criar pela planilha e adicionar em famílias; abrir Parâmetros numa família; abrir pelo Conferir Entrega.
 
 ## Ribbon: sai o botão Contar
 

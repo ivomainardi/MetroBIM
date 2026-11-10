@@ -723,7 +723,7 @@ namespace MetroSP.Conferencia
             {
                 case Correcao.EditarPacote: texto = "Editar os padrões..."; dica = "Escolher os arquivos do Metrô."; break;
                 case Correcao.ParametrosDeProjeto: texto = "Parâmetros de projeto..."; dica = "Abre a janela Parâmetros de projeto do Revit para vincular o parâmetro às categorias. Depois clique em Conferir de novo."; break;
-                case Correcao.ListarCompartilhados: texto = "Parâmetros Compartilhados..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
+                case Correcao.ListarCompartilhados: texto = "Parâmetros..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
                 case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha dos padrões."; break;
                 case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha dos padrões: ela propõe as correções."; break;
                 case Correcao.DetalhesIds: texto = "Detalhes dos padrões (IDS)..."; dica = "Abre o resultado completo da verificação dos padrões do Metrô (IDS)."; break;
