@@ -160,13 +160,9 @@ namespace MetroSP
                 "Encontre elementos por regras sobre parâmetros (E/OU) e selecione, isole na vista ou colora por valor, com legenda.",
                 "FiltroCor");
 
-            panel.AddStackedItems(
-                Dados<CopiarValoresCommand>("Copiar valores",
-                    "Copia valores de um parâmetro para outro, inclusive entre tipos de dado diferentes, com análise antes de gravar.",
-                    "Copiar"),
-                Dados<ContarElementosCommand>("Contar",
-                    "Conta os elementos selecionados (ou todos da vista ativa) por categoria.",
-                    "Contar"));
+            AddButton<CopiarValoresCommand>(panel, "Copiar\nValores",
+                "Copia valores de um parâmetro para outro, inclusive entre tipos de dado diferentes, com análise antes de gravar.",
+                "Copiar");
         }
 
         private static void CreateParametrosPanel(UIControlledApplication application)

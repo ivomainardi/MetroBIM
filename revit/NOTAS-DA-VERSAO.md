@@ -1,5 +1,11 @@
 # MetroSP 0.3.3 (em teste)
 
+## Ribbon: sai o botão Contar
+
+- O botão **Contar** (Contar Elementos) saiu do painel **Dados do modelo**, no Revit 2022 e no 2025+. O
+  **Copiar Valores** passa a ser um botão grande no lugar da pilha.
+- Falta testar no Revit (2022 e 2025+): abrir a aba MetroSP, conferir o painel Dados do modelo e abrir o Copiar Valores.
+
 ## Revit 2022: Exportar IFC aceita IFC 2x3
 
 - No Revit 2022, o Exportar IFC e o Arquivos IFC deixam de bloquear setups em **IFC 2x3** (o exportador do 2022 vai
