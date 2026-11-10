@@ -257,7 +257,11 @@ namespace MetroSP.Ids
 
         public static bool VersaoExiste(string nome) => Enum.TryParse(nome, true, out IFCVersion _) && Enum.IsDefined(typeof(IFCVersion), Enum.Parse(typeof(IFCVersion), nome, true));
 
-        public bool EhIfc4 => Versao == "IFC4" || Versao == "IFC4RV" || Versao == "IFC4DTV";
+        /// <summary>IFC4 (CV 2.0, RV, DTV) ou IFC 4.3. O IFC 2x3 fica de fora.</summary>
+        public static bool VersaoAceita(string versao) =>
+            !string.IsNullOrEmpty(versao) && versao.StartsWith("IFC4", StringComparison.OrdinalIgnoreCase);
+
+        public bool EhVersaoAceita => VersaoAceita(Versao);
 
         /// <summary>0 = nenhum, 1 = 1º nível, 2 = 2º nível.</summary>
         public int SpaceBoundaries { get => Inteiro("SpaceBoundaries"); set => Mudar("SpaceBoundaries", JsonValue.Create(value)); }
