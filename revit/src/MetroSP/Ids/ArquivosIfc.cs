@@ -257,9 +257,20 @@ namespace MetroSP.Ids
 
         public static bool VersaoExiste(string nome) => Enum.TryParse(nome, true, out IFCVersion _) && Enum.IsDefined(typeof(IFCVersion), Enum.Parse(typeof(IFCVersion), nome, true));
 
-        /// <summary>IFC4 (CV 2.0, RV, DTV) ou IFC 4.3. O IFC 2x3 fica de fora.</summary>
+#if REVIT_ANTES_2023
+        /// <summary>Revit 2022: o exportador vai só até o IFC4, então o IFC 2x3 também é aceito.</summary>
+        public const bool Aceita2x3 = true;
+        public const string VersoesAceitas = "IFC4 ou IFC 2x3";
+#else
+        public const bool Aceita2x3 = false;
+        public const string VersoesAceitas = "IFC4 ou IFC 4.3";
+#endif
+
+        /// <summary>IFC4 (CV 2.0, RV, DTV) ou IFC 4.3. O IFC 2x3 só no Revit 2022 (COBie fica de fora).</summary>
         public static bool VersaoAceita(string versao) =>
-            !string.IsNullOrEmpty(versao) && versao.StartsWith("IFC4", StringComparison.OrdinalIgnoreCase);
+            !string.IsNullOrEmpty(versao) &&
+            (versao.StartsWith("IFC4", StringComparison.OrdinalIgnoreCase) ||
+             (Aceita2x3 && versao.StartsWith("IFC2x3", StringComparison.OrdinalIgnoreCase)));
 
         public bool EhVersaoAceita => VersaoAceita(Versao);
 

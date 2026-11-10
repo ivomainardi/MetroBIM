@@ -236,7 +236,7 @@ namespace MetroSP.Ids
             // Ex.: setup em IFC 4.3 aberto no Revit 2022, cujo exportador vai só até o IFC4.
             if (v.ValueKind == JsonValueKind.Number || v.ValueKind == JsonValueKind.String)
                 throw new InvalidDataException("Este setup usa uma versão IFC que este Revit não exporta (" + v.ToString() +
-                                               "). Escolha um setup em IFC4 Reference View ou IFC 4.3.");
+                                               "). Escolha um setup " + OpcoesSetup.VersoesAceitas + " (por exemplo IFC4 Reference View).");
             throw new InvalidDataException("Versão IFC não reconhecida: " + v.GetRawText());
         }
 

@@ -1,5 +1,12 @@
 # MetroSP 0.3.3 (em teste)
 
+## Revit 2022: Exportar IFC aceita IFC 2x3
+
+- No Revit 2022, o Exportar IFC e o Arquivos IFC deixam de bloquear setups em **IFC 2x3** (o exportador do 2022 vai
+  só até o IFC4). Nas versões 2025+ continua valendo IFC4 ou IFC 4.3. COBie segue de fora.
+- Em IFC 2x3 a classificação (IfcClassificationReference) não é gravada no pós-processamento: o log avisa.
+- Falta testar no Revit 2022: exportar com um setup IFC 2x3 e conferir Psets, IfcSite/IfcProject e a Localização.
+
 ## Correção: Conferir Entrega no Revit 2022
 
 - O **Conferir Entrega** parava com "Command Failure for External Command" ao ler um setup IFC salvo pelo exportador
