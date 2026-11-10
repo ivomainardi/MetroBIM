@@ -70,9 +70,9 @@ namespace MetroSP.Classificacao
             if (def == null)
                 return guid != null
                     ? $"O arquivo já tem {nome} (GUID {guid}), mas esse GUID não está em nenhum .txt de referência. " +
-                      "Adicione o .txt que o contém em Listar Compartilhados → Comparar com .txt e tente de novo."
+                      "Adicione o .txt que o contém em Parâmetros Compartilhados → Comparar com .txt e tente de novo."
                     : $"{nome} não está em nenhum .txt de referência nem no arquivo configurado no Revit. " +
-                      "Adicione o .txt da base Metrô (ou o IFC Shared Parameters) em Listar Compartilhados → Comparar com .txt.";
+                      "Adicione o .txt da base Metrô (ou o IFC Shared Parameters) em Parâmetros Compartilhados → Comparar com .txt.";
             if (def.TipoDeDado != null && !def.TipoDeDado.Equals("TEXT", StringComparison.OrdinalIgnoreCase))
                 return $"{nome} em {Path.GetFileName(def.Arquivo.Caminho)} é do tipo {def.TipoDeDado}; a classificação precisa de texto.";
 

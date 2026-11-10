@@ -1,5 +1,24 @@
 # MetroSP 0.3.3 (em teste)
 
+## Ribbon reorganizada (mais simples)
+
+- A aba MetroSP fica com 5 painéis na ordem do trabalho e sem menus que escondem botões:
+  - **Entrega Metrô**: os 3 passos, numerados no ícone: **1 Conferir Entrega**, **2 Projeto e Local**, **3 Exportar IFC**.
+  - **Classificação**: Aplicar e Verificar.
+  - **Dados do modelo**: igual (Planilha de Dados, Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e
+    Colorir, Copiar Valores).
+  - **Parâmetros e famílias**: Gerenciar Parâmetros, Parâmetros Compartilhados (antes "Listar compartilhados") e
+    Renomear Famílias, como botões grandes (o menu Parâmetros saiu).
+  - **Coordenador BIM** (novo, no fim, botões pequenos): Padrões e planilhas, Arquivos IFC e Categorias IFC (antes no
+    menu Configurar, no meio da entrega).
+- Saíram da Ribbon, sem perder a função:
+  - **Verificar Padrões**: a verificação do IDS já roda dentro do Conferir Entrega (botão "Detalhes dos padrões (IDS)...").
+  - **Consistência**: abre pelo botão **Códigos × descrições...** na janela Verificar classificação.
+  - **Renomear compartilhado**: fica no botão **Renomear...** de Parâmetros Compartilhados.
+- Falta testar no Revit (2022, 2025, 2026 e 2027): abrir a aba e conferir os 5 painéis e os ícones 1, 2 e 3; abrir cada
+  botão; em Verificar classificação, abrir Códigos × descrições e unificar; em Parâmetros Compartilhados, renomear um
+  parâmetro; no Conferir Entrega com IDS no pacote, abrir os detalhes do IDS.
+
 ## Ribbon: sai o botão Contar
 
 - O botão **Contar** (Contar Elementos) saiu do painel **Dados do modelo**, no Revit 2022 e no 2025+. O

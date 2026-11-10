@@ -723,10 +723,10 @@ namespace MetroSP.Conferencia
             {
                 case Correcao.EditarPacote: texto = "Editar os padrões..."; dica = "Escolher os arquivos do Metrô."; break;
                 case Correcao.ParametrosDeProjeto: texto = "Parâmetros de projeto..."; dica = "Abre a janela Parâmetros de projeto do Revit para vincular o parâmetro às categorias. Depois clique em Conferir de novo."; break;
-                case Correcao.ListarCompartilhados: texto = "Listar Compartilhados..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
+                case Correcao.ListarCompartilhados: texto = "Parâmetros Compartilhados..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
                 case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha dos padrões."; break;
                 case Correcao.VerificarClassificacao: texto = "Verificar Classificação..."; dica = "Abre a Verificar Classificação com a planilha dos padrões: ela propõe as correções."; break;
-                case Correcao.DetalhesIds: texto = "Detalhes dos padrões (IDS)..."; dica = "Abre o resultado completo do Verificar Padrões Metrô."; break;
+                case Correcao.DetalhesIds: texto = "Detalhes dos padrões (IDS)..."; dica = "Abre o resultado completo da verificação dos padrões do Metrô (IDS)."; break;
                 case Correcao.EditarEmMassa: texto = "Editar em Massa..."; dica = "Seleciona os elementos (as linhas escolhidas ou, sem escolha, todas) e abre o Editar em Massa já no parâmetro. Ao fechar, confere de novo."; break;
                 case Correcao.CategoriasIfc: texto = "Categorias IFC..."; dica = "Abre a tabela categoria do Revit → classe IFC para definir a classe dos elementos. Ao fechar, confere de novo."; break;
                 case Correcao.EditarPropertySets: texto = "Editar property sets..."; dica = "Abre o .txt de property sets dos padrões no editor, para incluir ou corrigir propriedades. Ao salvar, confere de novo."; break;

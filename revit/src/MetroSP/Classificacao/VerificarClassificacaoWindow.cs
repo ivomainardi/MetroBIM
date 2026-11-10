@@ -105,6 +105,16 @@ namespace MetroSP.Classificacao
             barra.Children.Add(_escopo);
             barra.Children.Add(_categorias);
             barra.Children.Add(verificar);
+            // A Consistência saiu da Ribbon (0.3.3): abre daqui, com a mesma planilha.
+            var consistencia = new Button
+            {
+                Content = "Códigos × descrições...",
+                Margin = new Thickness(8, 0, 0, 0),
+                ToolTip = "Encontra códigos usados com descrições diferentes no modelo e unifica pela descrição escolhida " +
+                          "(antes era o botão Consistência da Ribbon).",
+            };
+            consistencia.Click += (s, e) => AbrirConsistencia();
+            barra.Children.Add(consistencia);
             _escopo.SelectionChanged += (s, e) => CarregarEscopo();
             _categorias.Mudou += () => { if (_linhas != null) Verificar(); };
 
@@ -158,6 +168,13 @@ namespace MetroSP.Classificacao
             Theme.Apply(this, "Verificar classificação", _doc.Title + " · confere as classificações com as planilhas do padrão", corpo, rodape);
             CarregarEscopo();
             CarregarPadroes(config.Padrao);
+        }
+
+        /// <summary>Abre a conferência código × descrição (modal, no mesmo contexto da API desta janela).</summary>
+        private void AbrirConsistencia()
+        {
+            var janela = new ConsistenciaClassificacaoWindow(_uidoc, _config) { Owner = this };
+            janela.ShowDialog();
         }
 
         // ------------------------------------------------------------------ padrões
