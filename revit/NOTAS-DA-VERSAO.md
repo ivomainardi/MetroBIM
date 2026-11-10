@@ -1,5 +1,19 @@
 # MetroSP 0.3.3 (em teste)
 
+## Revit 2023 e 2024
+
+- O MetroSP passa a ter versão para o **Revit 2023 e 2024**, no mesmo instalador do Revit 2022:
+  `MetroSP-Revit2022-2024-Setup-<versão>.exe` (e `MetroSP-Revit2022-2024-<versão>-instalador.zip`). Cada versão do
+  Revit recebe a sua DLL, compilada contra a API dela. O instalador de 2025-2027 continua igual, e quem já tem o do
+  2022 instalado é atualizado.
+- Diferenças em relação ao 2025+: como no 2022, o Revit 2023 e 2024 não deixam o add-in gravar a tabela de
+  **Categorias IFC** no modelo; vale o mapeamento do próprio Revit (Opções IFC). No 2023 também não há troca
+  automática de tema nas logos da Ribbon. O resto funciona como no 2025+ (parâmetro "Exportar para IFC", seleção
+  em Aplicar classificação, tema escuro no 2024).
+- Falta testar no Revit 2023 e 2024: instalar, carregar a aba ("Sempre carregar"), abrir cada janela, exportar um IFC
+  (IFC4 Reference View e, se o exportador aceitar, IFC 4.3) e conferir Psets, classificação, IfcSite/IfcProject e a
+  Conferir entrega; no 2024, trocar o tema claro/escuro.
+
 ## Revit 2022: Exportar IFC aceita IFC 2x3
 
 - No Revit 2022, o Exportar IFC e o Arquivos IFC deixam de bloquear setups em **IFC 2x3** (o exportador do 2022 vai

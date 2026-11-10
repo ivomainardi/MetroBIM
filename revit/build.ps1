@@ -1,10 +1,11 @@
 # Compila o add-in para cada versão do Revit e gera os instaladores.
-#   .\build.ps1                      -> 2022, 2025, 2026, 2027
+#   .\build.ps1                      -> 2022 a 2027
 #   .\build.ps1 -Versions 2025       -> só uma versão
 # Dois pacotes, sempre separados:
 #   MetroSP-instalador.zip / MetroSP-Setup-<versão>.exe                  -> Revit 2025, 2026 e 2027
-#   MetroSP-Revit2022-instalador.zip / MetroSP-Revit2022-Setup-<versão>.exe -> Revit 2022 (.NET Framework 4.8)
-param([string[]]$Versions = @('2022', '2025', '2026', '2027'))
+#   MetroSP-Revit2022-2024-instalador.zip / MetroSP-Revit2022-2024-Setup-<versão>.exe -> Revit 2022, 2023 e 2024 (.NET Framework 4.8)
+# Cada versão do Revit tem a sua DLL, compilada contra a API daquela versão.
+param([string[]]$Versions = @('2022', '2023', '2024', '2025', '2026', '2027'))
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
@@ -13,8 +14,8 @@ $proj = Join-Path $root 'src\MetroSP\MetroSP.csproj'
 
 if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
 
-# dist\revit\<versão> (2025+) e dist\revit2022\2022
-function Pasta([string]$v) { if ($v -eq '2022') { 'revit2022' } else { 'revit' } }
+# dist\revit\<versão> (2025+) e dist\revit2022-2024\<versão> (2022 a 2024)
+function Pasta([string]$v) { if ([int]$v -lt 2025) { 'revit2022-2024' } else { 'revit' } }
 
 foreach ($v in $Versions) {
     Write-Host "=== Revit $v ===" -ForegroundColor Cyan
@@ -38,7 +39,7 @@ if (-not $iscc) { Write-Host 'Inno Setup 6 não encontrado: gerados só os .zip.
 
 foreach ($pacote in @(
     @{ Pasta = 'revit';     Zip = 'MetroSP-instalador.zip';           Iss = @() },
-    @{ Pasta = 'revit2022'; Zip = 'MetroSP-Revit2022-instalador.zip'; Iss = @('/DRevit2022') }
+    @{ Pasta = 'revit2022-2024'; Zip = 'MetroSP-Revit2022-2024-instalador.zip'; Iss = @('/DRevit2022a2024') }
 )) {
     $base = Join-Path $dist $pacote.Pasta
     if (-not (Test-Path $base)) { continue }
