@@ -1,4 +1,4 @@
-# Próxima versão (em desenvolvimento)
+# MetroSP 0.3.2 (em teste)
 
 ## Exportar IFC: aceita setup em IFC 4.3
 
@@ -31,7 +31,7 @@
 ## Exportar IFC: o arquivo diz que passou pelo MetroSP
 
 - O IFC exportado registra o plugin e a versão nos dois lugares que as normas preveem:
-  - **cabeçalho** (ISO 10303-21): `MetroSP Revit 0.3.1` no fim do `preprocessor_version` do `FILE_NAME`. O texto do
+  - **cabeçalho** (ISO 10303-21): `MetroSP Revit 0.3.2` no fim do `preprocessor_version` do `FILE_NAME`. O texto do
     exportador da Autodesk fica, e o `originating_system` (de onde vieram os dados) não muda;
   - **modelo** (IFC): `IfcApplication` do MetroSP (Ação BIM · Metrô) como `LastModifyingApplication` no
     `IfcOwnerHistory` do IfcProject, com `ChangeAction` MODIFIED e a data. O Revit continua como `OwningApplication`.
@@ -103,7 +103,7 @@
   resposta), corrigir parâmetro de instância e de tipo, desfazer com Ctrl+Z, editar a sugestão na tabela, ignorar,
   "Não mexer na palavra..." e abrir o padrão pelo **Padrões e planilhas**.
 
-# MetroSP 0.3.1 (em teste)
+# MetroSP 0.3.1
 
 ## Padrões e planilhas
 
