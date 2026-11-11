@@ -46,7 +46,7 @@ namespace MetroSP.Ui
             ("Classificação", "Aplicar e Verificar (com a conferência códigos × descrições)"),
             ("Dados do modelo", "Planilha de Dados (Excel ida e volta), Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e Colorir, Copiar Valores"),
             ("Parâmetros e famílias", "Parâmetros (compartilhados com renomear mantendo o GUID e troca instância ↔ tipo, comparar com .txt, parâmetros de projeto, criar pela planilha, adicionar em famílias) e Renomear Famílias e tipos"),
-            ("Coordenador BIM", "Padrões e planilhas, Arquivos IFC e Categorias IFC"),
+            ("Configurar padrões", "Padrões e planilhas, Arquivos IFC e Categorias IFC"),
         };
 
         /// <summary>Abre a janela sobre o Revit (pela logo da Ribbon ou pelo botão Sobre).</summary>

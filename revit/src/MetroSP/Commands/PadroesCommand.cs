@@ -19,7 +19,7 @@ namespace MetroSP.Commands
             TipoPadrao Ifc(ArquivosIfc.Tipo t, string id, string nome, string filtro) => new TipoPadrao
             {
                 Id = id, Nome = nome, Pasta = Path.Combine(ClassesIfc.PastaUsuario, ArquivosIfc.Sub(t)), Filtro = filtro,
-                Ferramenta = "Coordenador BIM › Arquivos IFC",
+                Ferramenta = "Configurar padrões › Arquivos IFC",
                 Editar = (dono, item) => new ArquivosIfcWindow(doc, Path.GetFileNameWithoutExtension(item.Arquivo), t) { Owner = dono }.ShowDialog(),
             };
             return new List<TipoPadrao>

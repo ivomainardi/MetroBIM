@@ -173,7 +173,7 @@ namespace MetroSP
         /// <summary>O que o coordenador BIM prepara uma vez e distribui para a equipe: botões pequenos, no fim da aba.</summary>
         private static void CreateCoordenadorPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Coordenador BIM");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Configurar padrões");
 
             panel.AddStackedItems(
                 Dados<PadroesCommand>("Padrões e planilhas",
