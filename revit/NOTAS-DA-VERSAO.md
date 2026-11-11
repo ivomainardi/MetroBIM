@@ -1,5 +1,13 @@
 # MetroSP 0.3.3 (em teste)
 
+## Categorias IFC: IFC4 e IFC 4.3 lado a lado
+
+- Sai a troca de IFC schema no topo. A grade tem uma linha por categoria e, para cada IFC schema, as colunas Exportar,
+  Classe e Tipo. A linha fica laranja quando os dois são diferentes, e "Só as diferentes entre IFC4 e IFC 4.3" filtra.
+- Copiar entre IFC schemas, Importar .txt, Exportar .txt e Voltar ao padrão abrem um menu para escolher o IFC4 ou o IFC 4.3.
+- **Salvar** grava os IFC schemas alterados e fecha a janela (antes ficava aberta).
+- Testar no Revit: editar uma classe em cada coluna, salvar (deve fechar), reabrir e conferir as duas colunas.
+
 ## Painel MetroSP: o passo Projeto e Local mostra se está pronto
 
 - O passo 6 ficava sempre cinza, mesmo depois de aplicar. Agora ele fica verde quando o Location do Revit está no
