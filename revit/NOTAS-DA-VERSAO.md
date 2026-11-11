@@ -1,5 +1,16 @@
 # MetroSP 0.3.3 (em teste)
 
+## Correção: Categorias IFC acusava classes válidas como fora do IFC schema
+
+- Ao salvar, a janela dizia que linhas como "Cable Tray Fittings: IfcCableCarrierFittingType" ou "HVAC Zones: IfcZone"
+  tinham classe fora do IFC4. A conferência só conhecia o nome das classes de elemento (IfcCableCarrierFitting), e a tabela
+  padrão do Revit usa o nome do tipo (IfcCableCarrierFittingType), que o exportador aceita.
+- Agora valem também o nome do tipo (IfcValveType vale como IfcValve, com os mesmos tipos predefinidos) e os grupos que o
+  exportador cria para algumas categorias (IfcZone, IfcGroup e os sistemas), desde que existam no IFC schema escolhido.
+- Continua barrando o que não existe no IFC schema, como IfcAssembly (no IFC4 o certo é IfcElementAssembly).
+- Testar no Revit: abrir Categorias IFC num modelo sem tabela salva, conferir que o selo "fora do IFC4" some para essas
+  linhas e que Salvar grava sem aviso.
+
 ## Painel MetroSP (ao lado do modelo)
 
 - O botão **1 Conferir Entrega** virou **1 Painel MetroSP**. Ele abre um painel encaixado à direita do modelo (como
