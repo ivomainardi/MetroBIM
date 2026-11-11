@@ -38,7 +38,7 @@
 - **Voltar ao padrão › Recomendado MetroSP (ISO 16739)**: aplica uma tabela com a classe IFC própria de cada categoria de
   modelo do Revit 2027 (147 linhas, com subcategorias como Joist, Purlin, Bracing, Bolts e as categorias de ponte; revisão em
   docs/categorias-ifc-recomendadas.xlsx), só com classes e tipos que existem no IFC4 (ISO 16739-1:2018) e no IFC 4.3 (ISO 16739-1:2024).
-  Proxy só onde não há classe adequada (Modelo genérico, Equipamento especializado). Exemplos: Structural Framing →
+  Nenhuma categoria vai para IfcBuildingElementProxy: as genéricas vão para IfcCivilElement / IfcBuiltElement ou IfcFurnishingElement. Exemplos: Structural Framing →
   IfcBeam, Structural Foundations → IfcFooting, Structural Trusses → IfcElementAssembly TRUSS, Pipe Accessories →
   IfcValve, Cable Trays → IfcCableCarrierSegment CABLETRAYSEGMENT. No 4.3 usa o que só existe nele (IfcSign, IfcPavement,
   IfcBeam EDGEBEAM). Pode ser só numa coluna. Subcategorias e anotações ficam como estão, e nada grava até Salvar.

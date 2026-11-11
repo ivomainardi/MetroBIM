@@ -7,8 +7,8 @@ namespace MetroSP.Ids
     /// <summary>
     /// Tabela recomendada pelo MetroSP: classe IFC de cada categoria (e subcategoria) de modelo do Revit, com base nas
     /// categorias do Revit 2027, só com classes e tipos que existem no IFC4 ADD2 TC1 (ISO 16739-1:2018) e no IFC 4.3 ADD2
-    /// (ISO 16739-1:2024). Usa a classe específica sempre que o esquema tem uma; IfcBuildingElementProxy só onde a categoria
-    /// junta coisas de classes diferentes ou o IFC4 não tem classe (pontes, por exemplo, que só o 4.3 cobre).
+    /// (ISO 16739-1:2024). Usa a classe específica sempre que o esquema tem uma e nunca IfcBuildingElementProxy:
+    /// onde a categoria é genérica, vai para IfcCivilElement / IfcBuiltElement ou IfcFurnishingElement.
     /// A categoria vem pelo BuiltInCategory (nome no idioma do Revit; subcategoria resolvida pela categoria-mãe);
     /// as que a versão do Revit não tem são puladas. O "Exportar para IFC como" de uma família vale antes da tabela.
     /// A mesma tabela gera a planilha de revisão (docs/categorias-ifc-recomendadas.xlsx).
@@ -54,17 +54,17 @@ namespace MetroSP.Ids
             ("OST_Casework", "Casework", "IfcFurniture", null, true, ""),
             ("OST_Rooms", "Rooms", "IfcSpace", null, true, ""),
             ("OST_MEPSpaces", "Spaces", "IfcSpace", null, true, ""),
-            ("OST_GenericModel", "Generic Models", "IfcBuildingElementProxy", null, true, "Proxy: categoria genérica. Defina a classe por família."),
-            ("OST_SpecialityEquipment", "Specialty Equipment", "IfcBuildingElementProxy", null, true, "Proxy: junta coisas diferentes. Defina por família."),
+            ("OST_GenericModel", "Generic Models", "IfcCivilElement", "IfcBuiltElement", true, "Categoria genérica: IfcCivilElement no IFC4 e IfcBuiltElement no 4.3. Melhor ainda: defina a classe certa por família."),
+            ("OST_SpecialityEquipment", "Specialty Equipment", "IfcFurnishingElement", null, true, "Junta coisas diferentes: defina por família quando houver classe melhor (ex.: bloqueio como IfcDoor TURNSTILE no 4.3)."),
             ("OST_Parts", "Parts", "IfcBuildingElementPart", null, true, ""),
             ("OST_Assemblies", "Assemblies", "IfcElementAssembly", null, true, ""),
-            ("OST_Signage", "Signage", "IfcBuildingElementProxy", "IfcSign", true, "IfcSign só existe no 4.3."),
+            ("OST_Signage", "Signage", "IfcFurnishingElement", "IfcSign", true, "IfcSign só existe no 4.3."),
             ("OST_VerticalCirculation", "Vertical Circulation", "IfcTransportElement", null, true, "Elevadores e escadas rolantes: tipo por família."),
             ("OST_Hardscape", "Hardscape", "IfcSlab", "IfcPavement", true, "IfcPavement só existe no 4.3."),
-            ("OST_TemporaryStructure", "Temporary Structures", "IfcBuildingElementProxy", null, true, "Proxy: não há classe para estrutura provisória."),
-            ("OST_Parking", "Parking", "IfcBuildingElementProxy", null, true, "Proxy: não há classe para vaga."),
-            ("OST_Mass", "Mass", "IfcBuildingElementProxy", null, false, "Estudo de massa: não exportar."),
-            ("OST_Entourage", "Entourage", "IfcBuildingElementProxy", null, false, "Entourage: não exportar."),
+            ("OST_TemporaryStructure", "Temporary Structures", "IfcCivilElement", null, true, "Não há classe para estrutura provisória: elemento civil."),
+            ("OST_Parking", "Parking", "IfcSpace.PARKING", null, true, "Vaga como espaço do tipo PARKING."),
+            ("OST_Mass", "Mass", "", null, false, "Estudo de massa: não exportar."),
+            ("OST_Entourage", "Entourage", "", null, false, "Entourage: não exportar."),
 
             // ---------------------------------------------------------------- Terreno
             ("OST_Topography", "Topography", "IfcSite", null, true, "O exportador põe o terreno no IfcSite."),
@@ -72,7 +72,7 @@ namespace MetroSP.Ids
             ("OST_BuildingPad", "Pads", "IfcSlab.BASESLAB", null, true, ""),
             ("OST_Roads", "Roads", "IfcSlab", "IfcPavement", true, "IfcPavement só existe no 4.3."),
             ("OST_Planting", "Planting", "IfcGeographicElement", "IfcGeographicElement.VEGETATION", true, "VEGETATION só existe no 4.3."),
-            ("OST_Site", "Site", "IfcBuildingElementProxy", null, true, "Proxy: mobiliário urbano e componentes variados. Defina por família."),
+            ("OST_Site", "Site", "IfcCivilElement", null, true, "Componentes de implantação variados: defina por família quando houver classe melhor."),
 
             // ---------------------------------------------------------------- Estrutura
             ("OST_StructuralColumns", "Structural Columns", "IfcColumn", null, true, ""),
@@ -104,31 +104,31 @@ namespace MetroSP.Ids
             ("OST_Coupler", "Structural Rebar Couplers", "IfcMechanicalFastener", "IfcMechanicalFastener.COUPLER", true, "COUPLER só existe no 4.3."),
             ("OST_VibrationManagement", "Vibration Management", "IfcVibrationIsolator", null, true, ""),
             ("OST_VibrationIsolators", "Vibration Isolators", "IfcVibrationIsolator", null, true, ""),
-            ("OST_VibrationDampers", "Vibration Dampers", "IfcBuildingElementProxy", "IfcVibrationDamper", true, "IfcVibrationDamper só existe no 4.3."),
+            ("OST_VibrationDampers", "Vibration Dampers", "IfcVibrationIsolator", "IfcVibrationDamper", true, "IfcVibrationDamper só existe no 4.3."),
 
             // ---------------------------------------------------------------- Pontes (IFC4 não tem classes de ponte)
-            ("OST_BridgeAbutments", "Abutments", "IfcBuildingElementProxy", "IfcElementAssembly.ABUTMENT", true, "Só o 4.3 tem classes de ponte."),
+            ("OST_BridgeAbutments", "Abutments", "IfcElementAssembly", "IfcElementAssembly.ABUTMENT", true, "O tipo ABUTMENT só existe no 4.3."),
             ("OST_AbutmentFoundations", "Abutment Foundations", "IfcFooting", null, true, ""),
             ("OST_AbutmentPiles", "Abutment Piles", "IfcPile", null, true, ""),
             ("OST_AbutmentWalls", "Abutment Walls", "IfcWall", null, true, ""),
             ("OST_ApproachSlabs", "Approach Slabs", "IfcSlab", "IfcSlab.APPROACH_SLAB", true, ""),
-            ("OST_BridgePiers", "Piers", "IfcBuildingElementProxy", "IfcElementAssembly.PIER", true, "Só o 4.3 tem classes de ponte."),
+            ("OST_BridgePiers", "Piers", "IfcElementAssembly", "IfcElementAssembly.PIER", true, "O tipo PIER só existe no 4.3."),
             ("OST_PierCaps", "Pier Caps", "IfcBeam", "IfcBeam.PIERCAP", true, ""),
             ("OST_PierColumns", "Pier Columns", "IfcColumn", "IfcColumn.PIERSTEM", true, ""),
             ("OST_PierPiles", "Pier Piles", "IfcPile", null, true, ""),
             ("OST_PierWalls", "Pier Walls", "IfcWall", null, true, ""),
-            ("OST_BridgeTowers", "Towers", "IfcBuildingElementProxy", "IfcElementAssembly.PYLON", true, "Só o 4.3 tem classes de ponte."),
+            ("OST_BridgeTowers", "Towers", "IfcElementAssembly", "IfcElementAssembly.PYLON", true, "O tipo PYLON só existe no 4.3."),
             ("OST_BridgeCables", "Bridge Cables", "IfcMember", "IfcMember.STAY_CABLE", true, ""),
             ("OST_BridgeArches", "Bridge Arches", "IfcElementAssembly.ARCH", null, true, ""),
             ("OST_BridgeDecks", "Bridge Decks", "IfcSlab", "IfcElementAssembly.DECK", true, ""),
             ("OST_BridgeFoundations", "Bridge Foundations", "IfcFooting", null, true, ""),
             ("OST_BridgeGirders", "Bridge Girders", "IfcBeam", "IfcBeam.GIRDER_SEGMENT", true, ""),
-            ("OST_BridgeBearings", "Bridge Bearings", "IfcBuildingElementProxy", "IfcBearing", true, "IfcBearing só existe no 4.3."),
+            ("OST_BridgeBearings", "Bridge Bearings", "IfcDiscreteAccessory", "IfcBearing", true, "IfcBearing só existe no 4.3."),
             ("OST_BridgeFraming", "Bridge Framing", "IfcBeam", null, true, ""),
             ("OST_BridgeFramingCrossBracing", "Cross Bracing", "IfcMember.BRACE", null, true, ""),
             ("OST_BridgeFramingDiaphragms", "Diaphragms", "IfcBeam", "IfcBeam.DIAPHRAGM", true, ""),
             ("OST_BridgeFramingTrusses", "Trusses (Bridge)", "IfcElementAssembly.TRUSS", null, true, ""),
-            ("OST_ExpansionJoints", "Expansion Joints", "IfcBuildingElementProxy", "IfcDiscreteAccessory.EXPANSION_JOINT_DEVICE", true, ""),
+            ("OST_ExpansionJoints", "Expansion Joints", "IfcDiscreteAccessory", "IfcDiscreteAccessory.EXPANSION_JOINT_DEVICE", true, "O tipo EXPANSION_JOINT_DEVICE só existe no 4.3."),
 
             // ---------------------------------------------------------------- Mecânica (ar)
             ("OST_DuctCurves", "Ducts", "IfcDuctSegment.RIGIDSEGMENT", null, true, ""),
@@ -153,7 +153,7 @@ namespace MetroSP.Ids
             ("OST_PipeAccessory", "Pipe Accessories", "IfcValve", null, true, "Maioria são válvulas; filtro, medidor por família."),
             ("OST_PipeInsulations", "Pipe Insulations", "IfcCovering.INSULATION", null, true, ""),
             ("OST_PlumbingFixtures", "Plumbing Fixtures", "IfcSanitaryTerminal", null, true, ""),
-            ("OST_PlumbingEquipment", "Plumbing Equipment", "IfcBuildingElementProxy", null, true, "Proxy: bomba (IfcPump), reservatório (IfcTank), aquecedor... defina por família."),
+            ("OST_PlumbingEquipment", "Plumbing Equipment", "IfcPump", null, true, "Maioria são bombas; reservatório por família como IfcTank."),
             ("OST_Sprinklers", "Sprinklers", "IfcFireSuppressionTerminal.SPRINKLER", null, true, ""),
             ("OST_FireProtection", "Fire Protection", "IfcFireSuppressionTerminal", null, true, "Hidrante, mangotinho: tipo por família."),
             ("OST_FabricationPipework", "MEP Fabrication Pipework", "IfcPipeSegment", null, true, ""),
@@ -218,7 +218,7 @@ namespace MetroSP.Ids
                 }
                 catch { continue; }
                 if (string.IsNullOrWhiteSpace(categoria)) continue;
-                string valor = esquema == CategoriasIfc.Ifc4x3 ? t.Ifc43 ?? t.Ifc4 : t.Ifc4;
+                string valor = (esquema == CategoriasIfc.Ifc4x3 ? t.Ifc43 ?? t.Ifc4 : t.Ifc4) ?? "";
                 int ponto = valor.IndexOf('.');
                 var item = new Item
                 {
