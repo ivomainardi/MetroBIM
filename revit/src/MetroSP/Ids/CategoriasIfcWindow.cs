@@ -24,7 +24,8 @@ namespace MetroSP.Ids
         private readonly Dictionary<string, int> _contagem;
         private string _esquema = CategoriasIfc.Ifc4;
         private readonly DataGrid _grade;
-        private readonly CheckBox _soUsadas, _soDiferentes;
+        private readonly CheckBox _soUsadas, _soDiferentes, _soErros;
+        private readonly Button _trocar;
         private readonly TextBox _busca;
         private readonly WrapPanel _selos;
         private readonly TextBlock _resumo, _origem;
@@ -94,12 +95,19 @@ namespace MetroSP.Ids
             var filtros = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             _soUsadas = new CheckBox { Content = "Só as categorias usadas no modelo", IsChecked = doc != null, Margin = new Thickness(0, 0, 14, 0), VerticalAlignment = VerticalAlignment.Center };
             _soDiferentes = new CheckBox { Content = "Só as diferentes do IFC 4.3", VerticalAlignment = VerticalAlignment.Center };
+            _soDiferentes.Margin = new Thickness(0, 0, 14, 0);
+            _soErros = new CheckBox { Content = "Só os erros", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0),
+                ToolTip = "Mostra só as linhas exportadas com classe ou tipo que não existe no IFC schema (célula em vermelho)." };
+            _trocar = new Button { Padding = new Thickness(8, 1, 8, 1), VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+            _trocar.Click += (s, e) => TrocarSugeridas();
             _soUsadas.Click += (s, e) => Filtrar();
             _soDiferentes.Click += (s, e) => Filtrar();
-            DockPanel.SetDock(_soUsadas, Dock.Left);
-            DockPanel.SetDock(_soDiferentes, Dock.Left);
-            filtros.Children.Add(_soUsadas);
-            filtros.Children.Add(_soDiferentes);
+            _soErros.Click += (s, e) => Filtrar();
+            foreach (FrameworkElement f in new FrameworkElement[] { _soUsadas, _soDiferentes, _soErros, _trocar })
+            {
+                DockPanel.SetDock(f, Dock.Left);
+                filtros.Children.Add(f);
+            }
             _busca = new TextBox { Width = 220, HorizontalAlignment = HorizontalAlignment.Right, ToolTip = "Procurar categoria ou classe" };
             _busca.TextChanged += (s, e) => Filtrar();
             filtros.Children.Add(_busca);
@@ -186,6 +194,7 @@ namespace MetroSP.Ids
         {
             if (_soUsadas.IsChecked == true && l.NoModelo == 0) return false;
             if (_soDiferentes.IsChecked == true && !l.Diferente) return false;
+            if (_soErros.IsChecked == true && !(l.Exportar && (l.ClasseInvalida || l.TipoInvalido))) return false;
             string b = _busca.Text.Trim();
             if (b.Length > 0 && (l.Categoria + " " + l.Subcategoria + " " + l.Classe).IndexOf(b, StringComparison.CurrentCultureIgnoreCase) < 0) return false;
             return true;
@@ -216,9 +225,40 @@ namespace MetroSP.Ids
             if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{semClasse} usadas sem classe ou não exportadas", destaque: true));
             int foraDoEsquema = t.Count(l => l.Exportar && (l.ClasseInvalida || l.TipoInvalido));
             if (foraDoEsquema > 0) _selos.Children.Add(Theme.Chip($"{foraDoEsquema} com classe ou tipo fora do {NomeEsquema(_esquema)}", destaque: true));
+            List<CategoriasIfc.Linha> sugeridas = Sugeridas();
+            _trocar.Visibility = sugeridas.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            if (sugeridas.Count > 0)
+            {
+                var pares = sugeridas.Select(l => l.Classe.Trim() + " → " + EsquemaIfc.Sugestao(_esquema, l.Classe)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                _trocar.Content = pares.Count == 1 ? $"Trocar {pares[0]} ({sugeridas.Count})" : $"Corrigir classes antigas ({sugeridas.Count})";
+                _trocar.ToolTip = "Troca nomes que não existem no " + NomeEsquema(_esquema) + " pela classe certa:\n" + string.Join("\n", pares);
+            }
             _resumo.Text = _alteradas.Count > 0 ? "Alterações não salvas em " + string.Join(" e ", _alteradas.Select(NomeEsquema))
                 : "Na exportação vale a tabela do IFC schema do setup (IFC4, Reference View e Design Transfer View usam a do IFC4).";
             _resumo.Foreground = Theme.Solid(_alteradas.Count > 0 ? Theme.LaranjaTexto : Theme.Cinza);
+        }
+
+        private List<CategoriasIfc.Linha> Sugeridas() =>
+            _tabelas[_esquema].Where(l => EsquemaIfc.Sugestao(_esquema, l.Classe) != null).ToList();
+
+        /// <summary>Troca as classes que têm um nome certo conhecido (IfcAssembly → IfcElementAssembly), mantendo o tipo se ele valer.</summary>
+        private void TrocarSugeridas()
+        {
+            _grade.CommitEdit(DataGridEditingUnit.Row, true);
+            List<CategoriasIfc.Linha> linhas = Sugeridas();
+            if (linhas.Count == 0) return;
+            string lista = string.Join("\n", linhas.Take(12).Select(l => $"{l.Categoria}{(string.IsNullOrEmpty(l.Subcategoria) ? "" : " / " + l.Subcategoria)}: " +
+                                                                         $"{l.Classe} → {EsquemaIfc.Sugestao(_esquema, l.Classe)}")) +
+                           (linhas.Count > 12 ? $"\n... e mais {linhas.Count - 12}" : "");
+            if (MessageBox.Show(this, $"Trocar no {NomeEsquema(_esquema)}:\n\n{lista}", Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+                return;
+            foreach (CategoriasIfc.Linha l in linhas)
+            {
+                l.Classe = EsquemaIfc.Sugestao(_esquema, l.Classe);
+                if (!EsquemaIfc.TipoValido(_esquema, l.Classe, l.Tipo)) l.Tipo = "";
+            }
+            _alteradas.Add(_esquema);
+            Atualizar();
         }
 
         private bool Salvar()
@@ -230,7 +270,7 @@ namespace MetroSP.Ids
             if (erradas.Count > 0)
             {
                 MessageBox.Show(this, "Estas linhas têm classe ou tipo que não existe no IFC schema (em vermelho na tabela). " +
-                    "Escolha da lista antes de salvar:\n\n" + string.Join("\n", erradas.Take(12)) + (erradas.Count > 12 ? $"\n... e mais {erradas.Count - 12}" : ""),
+                    "Escolha da lista antes de salvar (marque \"Só os erros\" para ver só essas linhas):\n\n" + string.Join("\n", erradas.Take(12)) + (erradas.Count > 12 ? $"\n... e mais {erradas.Count - 12}" : ""),
                     Title, MessageBoxButton.OK, MessageBoxImage.Warning);
                 return false;
             }

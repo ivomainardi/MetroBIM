@@ -16,8 +16,11 @@
 - Agora valem também o nome do tipo (IfcValveType vale como IfcValve, com os mesmos tipos predefinidos) e os grupos que o
   exportador cria para algumas categorias (IfcZone, IfcGroup e os sistemas), desde que existam no IFC schema escolhido.
 - Continua barrando o que não existe no IFC schema, como IfcAssembly (no IFC4 o certo é IfcElementAssembly).
-- Testar no Revit: abrir Categorias IFC num modelo sem tabela salva, conferir que o selo "fora do IFC4" some para essas
-  linhas e que Salvar grava sem aviso.
+- Célula com classe ou tipo errado agora tem fundo vermelho, e o filtro **Só os erros** mostra só essas linhas.
+- Quando o nome errado tem uma classe certa conhecida, aparece o botão **Trocar IfcAssembly → IfcElementAssembly (n)**,
+  que troca todas de uma vez e mantém o tipo predefinido (TRUSS continua valendo).
+- Testar no Revit: abrir Categorias IFC num modelo sem tabela salva, marcar Só os erros, usar o botão de troca e
+  conferir que Salvar grava sem aviso.
 
 ## Painel MetroSP (ao lado do modelo)
 

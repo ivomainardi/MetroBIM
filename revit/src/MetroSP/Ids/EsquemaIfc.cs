@@ -103,6 +103,19 @@ namespace MetroSP.Ids
             return c.EndsWith("Type", StringComparison.OrdinalIgnoreCase) || Grupos.Contains(c, StringComparer.OrdinalIgnoreCase);
         }
 
+        /// <summary>Nomes que não existem no IFC4/4.3 mas aparecem em tabelas antigas do Revit, com a classe certa.</summary>
+        private static readonly Dictionary<string, string> Trocas = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["IfcAssembly"] = "IfcElementAssembly",
+        };
+
+        /// <summary>Classe certa para um nome que não existe no esquema (ex.: IfcAssembly → IfcElementAssembly), ou null.</summary>
+        public static string Sugestao(string esquema, string classe)
+        {
+            if (string.IsNullOrWhiteSpace(classe) || ClasseValida(esquema, classe)) return null;
+            return Trocas.TryGetValue(classe.Trim(), out string certa) && ClasseValida(esquema, certa) ? certa : null;
+        }
+
         /// <summary>Vazio vale. Senão, o tipo tem de ser um PredefinedType da classe.</summary>
         public static bool TipoValido(string esquema, string classe, string tipo) =>
             string.IsNullOrWhiteSpace(tipo) || Tipos(esquema, classe).Contains(tipo.Trim(), StringComparer.OrdinalIgnoreCase);

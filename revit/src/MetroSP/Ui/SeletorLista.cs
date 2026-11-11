@@ -87,17 +87,22 @@ namespace MetroSP.Ui
         public static DataGridTemplateColumn Coluna(string titulo, string campo, Func<object, IList<string>> itens, string vazio,
             string invalido, string dicaInvalido, DataGridLength largura, double minimo = 120, Action<object> alterou = null)
         {
-            var leitura = new FrameworkElementFactory(typeof(TextBlock));
+            // Valor inválido: célula com fundo vermelho claro e texto em vermelho, para achar de longe.
+            var fundo = new FrameworkElementFactory(typeof(Border), "fundo");
+            fundo.SetValue(Border.BackgroundProperty, Brushes.Transparent);
+            var leitura = new FrameworkElementFactory(typeof(TextBlock), "texto");
             leitura.SetBinding(TextBlock.TextProperty, new Binding(campo));
-            leitura.SetValue(TextBlock.PaddingProperty, new Thickness(2, 0, 2, 0));
+            leitura.SetValue(TextBlock.PaddingProperty, new Thickness(3, 0, 2, 0));
             leitura.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
-            var dataTemplateLeitura = new DataTemplate { VisualTree = leitura };
+            fundo.AppendChild(leitura);
+            var dataTemplateLeitura = new DataTemplate { VisualTree = fundo };
             if (invalido != null)
             {
                 var gatilho = new DataTrigger { Binding = new Binding(invalido), Value = true };
-                gatilho.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick, null));
-                gatilho.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold, null));
-                gatilho.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, dicaInvalido, null));
+                gatilho.Setters.Add(new Setter(Border.BackgroundProperty, new SolidColorBrush(Color.FromRgb(0xF8, 0xD4, 0xD4)), "fundo"));
+                gatilho.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick, "texto"));
+                gatilho.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold, "texto"));
+                gatilho.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, dicaInvalido, "fundo"));
                 dataTemplateLeitura.Triggers.Add(gatilho);
             }
 
