@@ -1,6 +1,7 @@
 // Diferenças entre as versões do Revit (2022 a 2027) e do .NET (Framework 4.8 e .NET 8/10), num lugar só,
 // para o resto do código escrever do jeito novo. As constantes vêm do MetroSP.csproj:
-//   REVIT_ANTES_2023: Revit 2022          REVIT_ANTES_2024: Revit 2022 e 2023          NETFRAMEWORK: Revit 2024 e anteriores
+//   REVIT_ANTES_2023: Revit 2022          REVIT_ANTES_2024: Revit 2022 e 2023
+//   REVIT_ANTES_2025 / NETFRAMEWORK: Revit 2022 a 2024 (.NET Framework 4.8)
 using System.Security.Cryptography;
 using System.Text;
 using Autodesk.Revit.DB;

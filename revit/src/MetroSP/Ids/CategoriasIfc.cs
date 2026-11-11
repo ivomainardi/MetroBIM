@@ -109,8 +109,8 @@ namespace MetroSP.Ids
         public static List<Linha> DoModelo(Document doc)
         {
             var r = new List<Linha>();
-#if REVIT_ANTES_2024
-            return r;   // Revit 2022/2023: a API não lê o mapeamento de categorias do modelo
+#if REVIT_ANTES_2025
+            return r;   // Revit 2022 a 2024: a API não lê o mapeamento de categorias do modelo
 #else
             IFCCategoryTemplate t = IFCCategoryTemplate.GetActiveTemplate(doc) ?? IFCCategoryTemplate.GetOrCreateInSessionTemplate(doc);
             if (t == null) return r;
@@ -149,7 +149,7 @@ namespace MetroSP.Ids
         /// </summary>
         public static int Aplicar(Document doc, string esquema, IList<Linha> linhas)
         {
-#if REVIT_ANTES_2024
+#if REVIT_ANTES_2025
             throw new InvalidOperationException(SemApiNoRevit);
 #else
             string nome = NomeNoModelo(esquema);
@@ -177,7 +177,7 @@ namespace MetroSP.Ids
 #endif
         }
 
-        /// <summary>Aviso do Revit 2022/2023, que não deixam o add-in gravar o mapeamento de categorias.</summary>
+        /// <summary>Aviso do Revit 2022 a 2024, que não deixam o add-in gravar o mapeamento de categorias.</summary>
         public const string SemApiNoRevit =
             "Nesta versão do Revit o add-in não consegue gravar a tabela de categorias no modelo. " +
             "Vale o mapeamento do próprio Revit (Arquivo > Exportar > Opções > Opções IFC).";
@@ -188,7 +188,7 @@ namespace MetroSP.Ids
             string esquema = EsquemaDaVersao(versao);
             string arquivo = esquema == null ? null : Arquivo(esquema);
             if (arquivo == null) return null;
-#if REVIT_ANTES_2024
+#if REVIT_ANTES_2025
             return "Categorias IFC: nesta versão do Revit vale o mapeamento do próprio Revit (Opções IFC).";
 #else
             try

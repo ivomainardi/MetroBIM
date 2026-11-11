@@ -31,7 +31,7 @@ src/MetroSP/
 
 ## Compilar e testar
 
-Requisitos: SDK .NET 10 no Windows. Revit 2022, 2025, 2026 ou 2027.
+Requisitos: SDK .NET 10 no Windows. Revit 2022 a 2027.
 
 ```
 dotnet build -c Debug -p:RevitVersion=2025
@@ -41,16 +41,16 @@ Em **Debug**, o build copia `MetroSP.addin` e `MetroSP.dll` para
 `%AppData%\Autodesk\Revit\Addins\<versão>\`. É só abrir o Revit.
 Na primeira vez o Revit pergunta se confia no add-in: escolha "Sempre carregar".
 
-Revit 2027 usa .NET 10; 2025 e 2026 usam .NET 8; 2022 usa .NET Framework 4.8 (o csproj escolhe sozinho).
-As diferenças entre versões (API do Revit e do .NET) ficam em `src/MetroSP/Compat.cs`; no 2022 vão junto
+Revit 2027 usa .NET 10; 2025 e 2026 usam .NET 8; 2022, 2023 e 2024 usam .NET Framework 4.8 (o csproj escolhe sozinho).
+As diferenças entre versões (API do Revit e do .NET) ficam em `src/MetroSP/Compat.cs`; de 2022 a 2024 vão junto
 `System.Text.Json` e as DLLs de que ele depende.
 
 ## Publicar uma versão
 
 1. Suba a `<Version>` no `src/MetroSP/MetroSP.csproj` e descreva a versão no `NOTAS-DA-VERSAO.md`.
-2. Faça o merge na `main`. O GitHub Actions (`.github/workflows/release.yml`) compila para 2022, 2025, 2026 e 2027,
-   gera os instaladores e cria a release `v<versão>` com os `.exe` e os `.zip`. O Revit 2022 tem sempre um instalador
-   separado (`MetroSP-Revit2022-Setup-<versão>.exe`). Ele só roda quando o csproj muda.
+2. Faça o merge na `main`. O GitHub Actions (`.github/workflows/release.yml`) compila para cada versão de 2022 a 2027,
+   gera os instaladores e cria a release `v<versão>` com os `.exe` e os `.zip`. Revit 2022, 2023 e 2024 têm sempre um
+   instalador separado (`MetroSP-Revit2022-2024-Setup-<versão>.exe`). Ele só roda quando o csproj muda.
 
 Sem o Actions, dá para publicar pelo PC com `.\publicar.ps1` (precisa do [GitHub CLI](https://cli.github.com/)
 logado e de um clone da `main`).
