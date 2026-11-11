@@ -50,6 +50,40 @@ namespace MetroSP.Classificacao
         public Dictionary<string, ClassItem> PorCodigo { get; } = new Dictionary<string, ClassItem>(StringComparer.OrdinalIgnoreCase);
         public List<string> Avisos { get; } = new List<string>();
 
+        // ---- preparado uma vez por lista, para não recalcular a cada elemento na verificação
+        private List<(ClassItem Item, string Alfa, string Desc)> _preparados;
+        private Dictionary<string, ClassItem> _porAlfa;
+
+        /// <summary>Cada item com o código só com letras e números (maiúsculas) e a descrição normalizada.</summary>
+        internal List<(ClassItem Item, string Alfa, string Desc)> Preparados
+        {
+            get
+            {
+                if (_preparados == null)
+                    _preparados = Itens.Select(i => (i, ClassificationCore.SoAlfanumerico(i.Codigo), ClassificationCore.Normalizar(i.Descricao))).ToList();
+                return _preparados;
+            }
+        }
+
+        /// <summary>Código só com letras e números → primeiro item da lista com ele.</summary>
+        internal Dictionary<string, ClassItem> PorAlfa
+        {
+            get
+            {
+                if (_porAlfa == null)
+                {
+                    _porAlfa = new Dictionary<string, ClassItem>(StringComparer.Ordinal);
+                    foreach (var x in Preparados)
+                        if (!_porAlfa.ContainsKey(x.Alfa)) _porAlfa[x.Alfa] = x.Item;
+                }
+                return _porAlfa;
+            }
+        }
+
+        /// <summary>Resultados já calculados das buscas por código parecido e por texto (o mesmo valor se repete em muitos elementos).</summary>
+        internal Dictionary<(string, string), ClassItem> CacheParecido { get; } = new Dictionary<(string, string), ClassItem>();
+        internal Dictionary<string, ClassItem> CachePorTexto { get; } = new Dictionary<string, ClassItem>(StringComparer.Ordinal);
+
         /// <summary>Lê a planilha achando sozinho a linha dos títulos e as colunas (Código, Descrição, Código pai, Categorias).</summary>
         public static ClassificationList Ler(string caminho)
         {
@@ -101,11 +135,10 @@ namespace MetroSP.Classificacao
                 if (!string.IsNullOrEmpty(i.CodigoPai)) PorCodigo.TryGetValue(i.CodigoPai, out pai);
                 if (pai == null)
                 {
-                    // Maior código que é prefixo deste, seguido de separador.
-                    pai = Itens.Where(o => o != i && o.Codigo.Length < i.Codigo.Length &&
-                                           i.Codigo.StartsWith(o.Codigo, StringComparison.OrdinalIgnoreCase) &&
-                                           ".- _/".IndexOf(i.Codigo[o.Codigo.Length]) >= 0)
-                               .OrderByDescending(o => o.Codigo.Length).FirstOrDefault();
+                    // Maior código que é prefixo deste, seguido de separador (procura direto no dicionário,
+                    // do separador mais à direita para a esquerda, em vez de comparar com a lista inteira).
+                    for (int k = i.Codigo.Length - 1; k > 0 && pai == null; k--)
+                        if (".- _/".IndexOf(i.Codigo[k]) >= 0) PorCodigo.TryGetValue(i.Codigo.Substring(0, k), out pai);
                 }
                 i.Pai = pai;
                 if (pai != null) pai.Filhos.Add(i); else Raizes.Add(i);

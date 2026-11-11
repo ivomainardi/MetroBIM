@@ -113,14 +113,16 @@ namespace MetroSP.Classificacao
                 return x.Alvo.Valor == novo ? "Já igual" : "Será substituída";
             }
 
-            foreach (var g in sel.GroupBy(Situacao))
+            // A situação de cada elemento é calculada uma vez só (antes era recalculada em cada contagem).
+            var comSituacao = sel.Select(x => (x.E, x.Alvo, Sit: Situacao(x))).ToList();
+            foreach (var g in comSituacao.GroupBy(x => x.Sit))
             {
                 string atual = g.Key == "Será substituída" || g.Key == "Já igual"
                     ? string.Join(" | ", g.Select(x => x.Alvo.Valor).Distinct().Take(3))
                     : "";
                 r.Linhas.Add((g.Key, g.Count(), atual));
             }
-            var gravaveis = sel.Where(x => Situacao(x) == ClassificationCore.SemClassificacao || Situacao(x) == "Será substituída").ToList();
+            var gravaveis = comSituacao.Where(x => x.Sit == ClassificationCore.SemClassificacao || x.Sit == "Será substituída").ToList();
             r.Gravaveis = gravaveis.Count;
             r.NoTipo = gravaveis.Where(x => x.Alvo.NoTipo).Select(x => x.Alvo.Dono.Id).Distinct().Count();
             r.SemParametro = sel.Where(x => x.Alvo.Parametro == null).Select(x => x.E.Category.Name).Distinct().OrderBy(c => c).ToList();
@@ -193,6 +195,13 @@ namespace MetroSP.Classificacao
         private readonly TextBlock _status;
         private readonly Button _aplicar;
         private ClassificationList _lista;
+        /// <summary>Código + descrição normalizados de cada item (para a busca não recalcular a cada tecla).</summary>
+        private Dictionary<ClassItem, string> _textoBusca = new Dictionary<ClassItem, string>();
+        /// <summary>A busca espera uma pausa na digitação antes de remontar a árvore.</summary>
+        private readonly System.Windows.Threading.DispatcherTimer _esperaBusca =
+            new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+        /// <summary>true enquanto a árvore é remontada: as trocas de seleção nesse meio não contam.</summary>
+        private bool _montandoArvore;
         private List<string> _categoriasSelecao = new List<string>();
 
         public ClassItem Item { get; private set; }
@@ -214,17 +223,21 @@ namespace MetroSP.Classificacao
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             _planilha = new PlanilhaSeletor(config);
-            _planilha.Carregada += l => { _lista = l; MontarArvore(); };
+            _planilha.Carregada += l => { _lista = l; _textoBusca = new Dictionary<ClassItem, string>(); MontarArvore(); };
 
             // Esquerda: busca e árvore.
             _busca = new TextBox { ToolTip = "Procure por código ou descrição (sem diferenciar acentos)." };
-            _busca.TextChanged += (s, e) => MontarArvore();
+            _esperaBusca.Tick += (s, e) => { _esperaBusca.Stop(); MontarArvore(); };
+            _busca.TextChanged += (s, e) => { _esperaBusca.Stop(); _esperaBusca.Start(); };
             _soCategorias = new CheckBox { Content = "Mostrar só o que vale para as categorias selecionadas", IsChecked = true, Margin = new Thickness(0, 6, 0, 6) };
             _soCategorias.Click += (s, e) => MontarArvore();
             _arvore = new TreeView { BorderBrush = Theme.Solid(Theme.CinzaClaro) };
             _arvore.SelectedItemChanged += (s, e) =>
             {
-                Item = (_arvore.SelectedItem as TreeViewItem)?.Tag as ClassItem;
+                if (_montandoArvore) return; // a árvore está sendo remontada (ex.: busca): o item é conferido no fim
+                var novo = (_arvore.SelectedItem as TreeViewItem)?.Tag as ClassItem;
+                if (novo == Item && novo != null) return; // mesmo item (remontagem da árvore): não refaz o resumo
+                Item = novo;
                 MostrarDetalhe();
                 PedirResumo();
             };
@@ -343,33 +356,55 @@ namespace MetroSP.Classificacao
 
         private void MontarArvore()
         {
-            _arvore.Items.Clear();
-            if (_lista == null) return;
-            string busca = ClassificationCore.Normalizar(_busca.Text);
-            bool filtrando = busca.Length > 0;
-            string codigoAnterior = Item?.Codigo;
-
-            bool Combina(ClassItem i) =>
-                (!filtrando || ClassificationCore.Normalizar(i.Codigo + " " + i.Descricao).Contains(busca)) &&
-                (_soCategorias.IsChecked != true || _categoriasSelecao.Count == 0 || _categoriasSelecao.Any(i.ValeParaCategoria));
-
-            TreeViewItem No(ClassItem i)
+            _esperaBusca.Stop();
+            ClassItem anterior = Item;
+            ClassItem reselecionado = null;
+            _montandoArvore = true;
+            try
             {
-                var filhos = i.Filhos.Select(No).Where(n => n != null).ToList();
-                if (!Combina(i) && filhos.Count == 0) return null;
-                var header = new StackPanel { Orientation = Orientation.Horizontal };
-                header.Children.Add(new TextBlock { Text = i.Codigo, FontFamily = new FontFamily("Consolas"), Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 8, 0) });
-                header.Children.Add(new TextBlock { Text = i.Descricao, Opacity = Combina(i) ? 1 : 0.55 });
-                var n = new TreeViewItem { Header = header, Tag = i, IsExpanded = filtrando || i.Pai == null };
-                foreach (TreeViewItem f in filhos) n.Items.Add(f);
-                if (i.Codigo == codigoAnterior) n.IsSelected = true;
-                return n;
+                _arvore.Items.Clear();
+                if (_lista == null) return;
+                string busca = ClassificationCore.Normalizar(_busca.Text);
+                bool filtrando = busca.Length > 0;
+                bool porCategoria = _soCategorias.IsChecked == true && _categoriasSelecao.Count > 0;
+                var fonte = new FontFamily("Consolas");
+                Brush cinza = Theme.Solid(Theme.Cinza);
+
+                string Texto(ClassItem i)
+                {
+                    if (!_textoBusca.TryGetValue(i, out string t)) _textoBusca[i] = t = ClassificationCore.Normalizar(i.Codigo + " " + i.Descricao);
+                    return t;
+                }
+
+                bool Combina(ClassItem i) =>
+                    (!filtrando || Texto(i).Contains(busca)) && (!porCategoria || _categoriasSelecao.Any(i.ValeParaCategoria));
+
+                TreeViewItem No(ClassItem i)
+                {
+                    var filhos = i.Filhos.Select(No).Where(n => n != null).ToList();
+                    bool combina = Combina(i);
+                    if (!combina && filhos.Count == 0) return null;
+                    var header = new StackPanel { Orientation = Orientation.Horizontal };
+                    header.Children.Add(new TextBlock { Text = i.Codigo, FontFamily = fonte, Foreground = cinza, Margin = new Thickness(0, 0, 8, 0) });
+                    header.Children.Add(new TextBlock { Text = i.Descricao, Opacity = combina ? 1 : 0.55 });
+                    var n = new TreeViewItem { Header = header, Tag = i, IsExpanded = filtrando || i.Pai == null };
+                    foreach (TreeViewItem f in filhos) n.Items.Add(f);
+                    if (anterior != null && i.Codigo == anterior.Codigo) { n.IsSelected = true; reselecionado = i; }
+                    return n;
+                }
+
+                foreach (ClassItem r in _lista.Raizes)
+                {
+                    TreeViewItem n = No(r);
+                    if (n != null) _arvore.Items.Add(n);
+                }
             }
-
-            foreach (ClassItem r in _lista.Raizes)
+            finally
             {
-                TreeViewItem n = No(r);
-                if (n != null) _arvore.Items.Add(n);
+                _montandoArvore = false;
+                // Só pede um novo resumo ao Revit se o item escolhido mudou (antes, cada tecla na busca refazia o resumo).
+                Item = reselecionado;
+                if (Item != anterior) { MostrarDetalhe(); PedirResumo(); }
             }
         }
 
