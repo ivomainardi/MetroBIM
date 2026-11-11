@@ -43,6 +43,9 @@ namespace MetroSP.Painel
         private DB.Document _doc;
         private PacoteMetro _pacote;
         private ResultadoConferencia _res;
+        /// <summary>Situação do passo Projeto e Local, lida no contexto da API junto com a conferência.</summary>
+        private (Sinal Sinal, string Texto) _local = (Sinal.Cinza, TextoLocal);
+        private const string TextoLocal = "IfcProject, IfcSite, IfcBuilding e a localização pelo Project Base Point.";
         private readonly HashSet<int> _abertos = new HashSet<int>();
 
         /// <summary>Criar no OnStartup (contexto da API, para o ExternalEvent).</summary>
@@ -209,6 +212,7 @@ namespace MetroSP.Painel
             }
             _doc = doc;
             _res = r;
+            _local = SituacaoLocal(doc);
             Avisar(null);
             MostrarPassos();
         }
@@ -266,9 +270,13 @@ namespace MetroSP.Painel
             foreach (EtapaConferencia etapa in _res.Etapas) _passos.Children.Add(Passo(etapa));
 
             // Passos que não são conferências: abrir a ferramenta.
-            _passos.Children.Add(PassoAcao(_res.Etapas.Count + 1, "Projeto e Local",
-                "IfcProject, IfcSite, IfcBuilding e a localização pelo Project Base Point.", "Abrir",
-                app => LocalizacaoIfcCommand.Abrir(app), Sinal.Cinza));
+            // Ao fechar a janela do Projeto e Local, relê só este passo (sem reconferir o modelo todo).
+            _passos.Children.Add(PassoAcao(_res.Etapas.Count + 1, "Projeto e Local", _local.Texto, "Abrir",
+                app =>
+                {
+                    LocalizacaoIfcCommand.Abrir(app);
+                    if (_doc != null && _doc.IsValidObject) { _local = SituacaoLocal(_doc); MostrarPassos(); }
+                }, _local.Sinal));
             Sinal sinalExportar = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Cinza;
             string textoExportar = _res.ProntoParaExportar
                 ? (_res.Amarelas > 0 ? "Pronto, com avisos." : "Tudo certo para exportar.")
@@ -277,6 +285,27 @@ namespace MetroSP.Painel
                 app => { ExportarIfcCommand.Exportar(app); }, sinalExportar, primario: _res.ProntoParaExportar));
 
             _pintar.Content = TemPintura ? "Limpar pintura" : "Pintar pendências";
+        }
+
+        /// <summary>
+        /// Verde quando o Location do Revit está no Project Base Point e o IfcProject, o IfcSite e o IfcBuilding têm nome.
+        /// Chamar no contexto da API.
+        /// </summary>
+        private static (Sinal, string) SituacaoLocal(DB.Document doc)
+        {
+            Ids.LocalizacaoIfc l;
+            try { l = Ids.LocalizacaoIfc.Calcular(doc); }
+            catch (Exception ex) { return (Sinal.Amarelo, "Não foi possível ler a localização: " + ex.Message); }
+            if (l.Erro != null) return (Sinal.Vermelho, "Não dá para localizar: " + l.Erro);
+            var faltam = new List<string>();
+            if (string.IsNullOrWhiteSpace(l.DadosAtuais.Projeto.Nome)) faltam.Add("nome do IfcProject");
+            if (string.IsNullOrWhiteSpace(l.DadosAtuais.Terreno.Nome)) faltam.Add("nome do IfcSite");
+            if (string.IsNullOrWhiteSpace(l.DadosAtuais.Edificio.Nome)) faltam.Add("nome do IfcBuilding");
+            if (!l.LocationCorreto)
+                return (Sinal.Amarelo, $"O Location do Revit está a {l.Diferenca:0.##} m do Project Base Point. Abra e confirme." +
+                                       (faltam.Count > 0 ? " Falta também: " + string.Join(", ", faltam) + "." : ""));
+            if (faltam.Count > 0) return (Sinal.Amarelo, "Location certo. Falta: " + string.Join(", ", faltam) + ".");
+            return (Sinal.Verde, "Location no Project Base Point; IfcProject, IfcSite e IfcBuilding preenchidos.");
         }
 
         private bool TemPintura => _doc != null && _doc.IsValidObject && PinturaVista.TemPintura(_doc);

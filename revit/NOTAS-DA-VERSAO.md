@@ -1,5 +1,13 @@
 # MetroSP 0.3.3 (em teste)
 
+## Painel MetroSP: o passo Projeto e Local mostra se está pronto
+
+- O passo 6 ficava sempre cinza, mesmo depois de aplicar. Agora ele fica verde quando o Location do Revit está no
+  Project Base Point e o IfcProject, o IfcSite e o IfcBuilding têm nome; amarelo dizendo o que falta; vermelho quando a
+  localização não pode ser calculada (por exemplo, Project Base Point fora da área do PTL).
+- Ao fechar a janela do Projeto e Local, o painel atualiza este passo na hora, sem precisar clicar em Conferir.
+- Testar no Revit: abrir pelo painel, aplicar e ver o passo ficar verde ao fechar.
+
 ## Correção: Categorias IFC acusava classes válidas como fora do IFC schema
 
 - Ao salvar, a janela dizia que linhas como "Cable Tray Fittings: IfcCableCarrierFittingType" ou "HVAC Zones: IfcZone"
