@@ -6,6 +6,8 @@
   mapeamento do modelo, e a exportação IFC aplica esse padrão (Revit 2025 a 2027).
 - Quem salvou uma tabela própria continua com a sua. **Voltar ao padrão › Padrão MetroSP** aplica o padrão na janela, e
   **Apagar a minha tabela** volta de vez ao padrão MetroSP.
+- Como no MetroDATA: Signage no IFC4 vai como IfcBuildingElementProxy.USERDEFINED (ObjectType SIGN; no 4.3, IfcSign), e o
+  bloqueio (família de Specialty Equipment) como IfcCommunicationsAppliance.USERDEFINED, ObjectType BLOQUEIO.
 - Revit 2022 a 2024: a janela mostra o padrão, mas na exportação continua valendo o mapeamento do próprio Revit (limite da API).
 - Testar no Revit: num modelo sem tabela salva, abrir Categorias IFC (origem "padrão MetroSP") e exportar um IFC; o resumo
   diz "Categorias IFC: padrão MetroSP".
@@ -48,7 +50,7 @@
 - **Voltar ao padrão › Recomendado MetroSP (ISO 16739)**: aplica uma tabela com a classe IFC própria de cada categoria de
   modelo do Revit 2027 (148 linhas, com subcategorias como Joist, Purlin, Bracing, Bolts e as categorias de ponte; revisão em
   docs/categorias-ifc-recomendadas.xlsx), só com classes e tipos que existem no IFC4 (ISO 16739-1:2018) e no IFC 4.3 (ISO 16739-1:2024).
-  Nenhuma categoria vai para IfcBuildingElementProxy nem para classe depreciada (IfcFurnishingElement; no 4.3, IfcCivilElement e IfcElectricDistributionBoard): as genéricas vão para IfcCivilElement no IFC4 e IfcBuiltElement no 4.3. Quando o 4.3 tem classe ou tipo que o IFC4 não tem, o IFC4 usa Classe.USERDEFINED (regra do MetroDATA). Exemplos: Structural Framing →
+  Nenhuma categoria vai para IfcBuildingElementProxy (exceto Signage no IFC4, proxy USERDEFINED com ObjectType SIGN, como no MetroDATA) nem para classe depreciada (IfcFurnishingElement; no 4.3, IfcCivilElement e IfcElectricDistributionBoard): as genéricas vão para IfcCivilElement no IFC4 e IfcBuiltElement no 4.3. Quando o 4.3 tem classe ou tipo que o IFC4 não tem, o IFC4 usa Classe.USERDEFINED (regra do MetroDATA). Exemplos: Structural Framing →
   IfcBeam, Structural Foundations → IfcFooting, Structural Trusses → IfcElementAssembly TRUSS, Pipe Accessories →
   IfcValve, Cable Trays → IfcCableCarrierSegment CABLETRAYSEGMENT. No 4.3 usa o que só existe nele (IfcSign, IfcPavement,
   IfcBeam EDGEBEAM). Pode ser só numa coluna. Subcategorias e anotações ficam como estão, e nada grava até Salvar.
