@@ -43,6 +43,15 @@ namespace MetroSP.Conferencia
             return r;
         }
 
+        /// <summary>
+        /// Pendências do passo 2 que vêm do .txt de property sets (parâmetro que os elementos não têm, ou tipo diferente):
+        /// o caminho é ajustar o .txt, não os parâmetros de projeto.
+        /// </summary>
+        public static List<Pendencia> PendenciasDoMapeamento(Document doc) =>
+            De(doc)?.Etapas.FirstOrDefault(e => e.Numero == 2)?.Pendencias
+                .Where(p => p.Correcao == Correcao.EditarPropertySets && (p.Sinal == Sinal.Vermelho || p.Sinal == Sinal.Amarelo))
+                .OrderByDescending(p => p.QtdElementos).ToList() ?? new List<Pendencia>();
+
         private static string Chave(Document d) => (d.PathName ?? "") + "|" + d.Title;
     }
 }

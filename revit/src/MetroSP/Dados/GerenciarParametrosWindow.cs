@@ -48,6 +48,8 @@ namespace MetroSP.Dados
         };
 
         private readonly Document _doc;
+        private readonly Autodesk.Revit.UI.UIDocument _uidoc;
+        private readonly StackPanel _mapeamento = new StackPanel();
         private readonly Autodesk.Revit.ApplicationServices.Application _app;
         private readonly TextBlock _resumo;
         private readonly TextBlock _arquivoTxt;
@@ -81,6 +83,7 @@ namespace MetroSP.Dados
 
         public GerenciarParametrosWindow(Autodesk.Revit.UI.UIDocument uidoc)
         {
+            _uidoc = uidoc;
             _doc = uidoc.Document;
             _app = _doc.Application;
             _compartilhado = _app.SharedParametersFilename;
@@ -121,6 +124,8 @@ namespace MetroSP.Dados
             var abaModelo = new DockPanel();
             DockPanel.SetDock(barraModelo, Dock.Top);
             abaModelo.Children.Add(barraModelo);
+            DockPanel.SetDock(_mapeamento, Dock.Top);
+            abaModelo.Children.Add(_mapeamento);
             abaModelo.Children.Add(_areaModelo);
 
             // ---- aba 2: criar pela planilha
@@ -362,8 +367,7 @@ namespace MetroSP.Dados
             Dictionary<string, string> problemas = Conferencia.UltimaConferencia.ProblemasDeParametro(_doc);
             foreach (LinhaParametro p in l)
                 if (problemas.TryGetValue(p.Nome, out string pr)) p.Problema = pr;
-            foreach (var kv in problemas.Where(kv => !l.Any(p => string.Equals(p.Nome, kv.Key, StringComparison.OrdinalIgnoreCase))))
-                l.Add(new LinhaParametro { Nome = kv.Key, Compartilhado = "", Problema = "Não é parâmetro de projeto (interno do Revit ou de família). " + kv.Value });
+            MostrarMapeamento();
             l = l.OrderBy(p => p.TemProblema ? 0 : 1).ThenBy(p => p.Nome, StringComparer.CurrentCultureIgnoreCase).ToList();
             int comProblema = l.Count(p => p.TemProblema);
             _soErros.IsEnabled = comProblema > 0;
@@ -378,7 +382,7 @@ namespace MetroSP.Dados
             t.ExtraFilter = o => _soErros.IsChecked != true || ((LinhaParametro)o).TemProblema;
             _gradeModelo = t;
             DataGridTextColumn nome = t.AddColumn("Nome", nameof(LinhaParametro.Nome), 220);
-            DataGridTextColumn problema = t.AddColumn("Problema", nameof(LinhaParametro.Problema), 260);
+            DataGridTextColumn problema = t.AddColumn("Problema", nameof(LinhaParametro.Problema), 360, wrap: true);
             // Problema em vermelho: fundo na célula do nome e do problema.
             var vermelho = new Style(typeof(DataGridCell));
             var gatilho = new DataTrigger { Binding = new System.Windows.Data.Binding(nameof(LinhaParametro.TemProblema)), Value = true };
@@ -399,6 +403,76 @@ namespace MetroSP.Dados
             int doProjeto = l.Count(x => x.Existente != null);
             _resumo.Text = $"{doProjeto} parâmetros de projeto no modelo ({l.Count(x => x.Compartilhado == "Sim")} compartilhados)" +
                            (conferido ? $" · {comProblema} com problema na última conferência." : " · confira no painel MetroSP para ver os problemas aqui.");
+        }
+
+        /// <summary>
+        /// Problemas que vêm do .txt de property sets dos padrões (não dos parâmetros de projeto): de onde vem a exigência,
+        /// por que é problema e o que fazer, com os botões para ajustar o .txt e selecionar os elementos.
+        /// </summary>
+        private void MostrarMapeamento()
+        {
+            _mapeamento.Children.Clear();
+            List<Conferencia.Pendencia> lista = Conferencia.UltimaConferencia.PendenciasDoMapeamento(_doc);
+            if (lista.Count == 0) return;
+            var caixa = new StackPanel();
+            caixa.Children.Add(new TextBlock
+            {
+                Text = $"Do mapeamento ({lista.Count}): campos do .txt de property sets que não saem destes elementos",
+                FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2),
+            });
+            caixa.Children.Add(Theme.Detalhe("Não é problema de parâmetro de projeto: o .txt dos padrões manda ler um parâmetro do Revit pelo nome, e estes elementos não têm esse parâmetro (ou ele é de outro tipo)."));
+            foreach (Conferencia.Pendencia p in lista.Take(8))
+            {
+                var linha = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
+                var botoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+                var ajustar = new Button { Content = "Ajustar o .txt", MinWidth = 0, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(6, 0, 0, 0), ToolTip = "Abre o .txt de property sets dos padrões no editor." };
+                ajustar.Click += (s, e) => AjustarTxt();
+                botoes.Children.Add(ajustar);
+                if (p.QtdElementos > 0)
+                {
+                    var sel = new Button { Content = $"Selecionar ({p.QtdElementos})", MinWidth = 0, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(6, 0, 0, 0) };
+                    sel.Click += (s, e) => { try { _uidoc.Selection.SetElementIds(p.Elementos.Where(id => _doc.GetElement(id) != null).ToList()); } catch { } };
+                    botoes.Children.Add(sel);
+                }
+                DockPanel.SetDock(botoes, Dock.Right);
+                linha.Children.Add(botoes);
+                var textos = new StackPanel();
+                string onde = (string.IsNullOrEmpty(p.Campo) ? "" : p.Campo + " ← ") + $"\"{p.Assunto}\"" +
+                              (string.IsNullOrEmpty(p.Categoria) ? "" : " · " + p.Categoria) + (string.IsNullOrEmpty(p.Origem) ? "" : " · " + p.Origem);
+                textos.Children.Add(new TextBlock { Text = onde, FontWeight = FontWeights.SemiBold, Foreground = System.Windows.Media.Brushes.Firebrick, TextWrapping = TextWrapping.Wrap });
+                textos.Children.Add(new TextBlock { Text = p.Problema, TextWrapping = TextWrapping.Wrap });
+                if (!string.IsNullOrEmpty(p.OQueFazer))
+                    textos.Children.Add(new TextBlock { Text = "→ " + p.OQueFazer, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.Cinza) });
+                linha.Children.Add(textos);
+                caixa.Children.Add(linha);
+            }
+            if (lista.Count > 8) caixa.Children.Add(Theme.Detalhe($"e mais {lista.Count - 8}. Veja todas no painel MetroSP (passo 2)."));
+            _mapeamento.Children.Add(new Border
+            {
+                Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFD, 0xEC, 0xEC)),
+                BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE8, 0xB4, 0xB4)),
+                BorderThickness = new Thickness(1), Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 0, 8),
+                Child = new ScrollViewer { MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = caixa },
+            });
+        }
+
+        private void AjustarTxt()
+        {
+            Conferencia.PacoteMetro pacote = Conferencia.PacoteMetro.Abrir();
+            if (string.IsNullOrWhiteSpace(pacote.PropertySets) || !File.Exists(pacote.PropertySets))
+            {
+                MessageBox.Show(this, "Os padrões escolhidos não têm um .txt de property sets que exista neste computador.", Title);
+                return;
+            }
+            Ids.EditarPsetsWindow editor;
+            try
+            {
+                var modelo = new Ids.ModeloIfc(_doc);
+                editor = new Ids.EditarPsetsWindow(pacote.PropertySets, modelo.Parametros, pacote.PropertySets, podeRestaurar: false, modelo: modelo) { Owner = this };
+            }
+            catch (Exception ex) { MessageBox.Show(this, "Não deu para abrir o .txt de property sets:\n" + ex.Message, Title); return; }
+            if (editor.ShowDialog() == true)
+                MessageBox.Show(this, "Salvo. Clique em Conferir no painel MetroSP para atualizar esta lista.", Title);
         }
 
         private void ExportarModelo()

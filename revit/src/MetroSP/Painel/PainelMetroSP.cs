@@ -419,6 +419,7 @@ namespace MetroSP.Painel
                 DockPanel.SetDock(ponto, Dock.Left);
                 linha.Children.Add(ponto);
                 string onde = string.IsNullOrEmpty(p.Categoria) ? p.Assunto : string.IsNullOrEmpty(p.Assunto) ? p.Categoria : p.Categoria + " · " + p.Assunto;
+                if (!string.IsNullOrEmpty(p.Campo)) onde += $" → {p.Campo}" + (string.IsNullOrEmpty(p.Origem) ? "" : $" ({p.Origem})");
                 linha.Children.Add(new TextBlock
                 {
                     Text = string.IsNullOrEmpty(p.Problema) ? onde : $"{onde}: {p.Problema}",

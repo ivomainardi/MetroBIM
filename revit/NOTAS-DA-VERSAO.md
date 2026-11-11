@@ -4,8 +4,12 @@
 
 - A aba Parâmetros de projeto mostra os problemas da última conferência (painel MetroSP ou Conferência completa) numa
   coluna Problema, com o nome e o problema em vermelho, e os parâmetros com problema vêm primeiro.
-- **Só os erros (n)** mostra só esses. Entram também os parâmetros que o .txt pede e não são de projeto (internos do Revit
-  ou de família), para ficar claro por que não dá para vincular.
+- **Só os erros (n)** mostra só esses.
+- Os problemas que vêm do .txt de property sets (o .txt manda ler um parâmetro pelo nome, como "Length", e os elementos não
+  o têm) ficam numa caixa à parte, "Do mapeamento", com o campo (ex.: MetroQto.ComprimentoAnalitico ← "Length"), a
+  categoria, o .txt, o motivo e o que fazer, e os botões **Ajustar o .txt** e **Selecionar**.
+- A conferência diz quantos desses elementos são DirectShape (geometria importada), que não têm os parâmetros das famílias,
+  e só oferece "Vincular à categoria" quando o parâmetro é mesmo de projeto.
 - Sem conferência neste modelo, o filtro fica desligado e o rodapé lembra de clicar em Conferir no painel.
 - Testar no Revit: Conferir no painel, abrir Parâmetros › Parâmetros de projeto e marcar Só os erros.
 

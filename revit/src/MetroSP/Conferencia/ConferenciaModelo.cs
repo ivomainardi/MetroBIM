@@ -37,6 +37,10 @@ namespace MetroSP.Conferencia
         public Correcao Correcao { get; set; }
         /// <summary>Parâmetro do Revit a preencher (etapa 4), para abrir o Editar em Massa já nele.</summary>
         public string Parametro { get; set; }
+        /// <summary>Campos do .txt (Pset.Propriedade) que leem o parâmetro, para mostrar de onde vem a exigência.</summary>
+        public string Campo { get; set; }
+        /// <summary>Arquivo que faz a exigência (ex.: o .txt de property sets dos padrões).</summary>
+        public string Origem { get; set; }
 
         public int QtdElementos => Elementos.Count;
         public string Situacao =>

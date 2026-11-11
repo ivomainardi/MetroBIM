@@ -387,6 +387,7 @@ namespace MetroSP.Conferencia
             var parametroConferido = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             // Faltas de parâmetro: (parâmetro, categoria) → elementos.
             var semParametro = new Dictionary<(string Param, string Cat), List<ElementId>>();
+            var camposDoParametro = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
             var campos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
             Ui.Progresso.Atual?.Etapa($"Conferindo os dados de {elementos.Count} elementos", elementos.Count);
@@ -424,6 +425,8 @@ namespace MetroSP.Conferencia
                         var k = (x.Parametro, categoria);
                         if (!semParametro.TryGetValue(k, out List<ElementId> ids)) semParametro[k] = ids = new List<ElementId>();
                         ids.Add(e.Id);
+                        if (!camposDoParametro.TryGetValue(x.Parametro, out HashSet<string> cs)) camposDoParametro[x.Parametro] = cs = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                        cs.Add(x.Campo);
                         continue;
                     }
 
@@ -480,15 +483,27 @@ namespace MetroSP.Conferencia
             }
 
             // Etapa 2: parâmetros que faltam nas categorias e problemas de mapeamento.
+            // O parâmetro é de projeto? Então dá para vincular à categoria; senão, o caminho é o .txt (ou a família).
+            var deProjeto = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            DefinitionBindingMapIterator it = _doc.ParameterBindings.ForwardIterator();
+            while (it.MoveNext()) if (it.Key != null) deProjeto.Add(it.Key.Name);
+            string txt = Path.GetFileName(_pacote.PropertySets ?? "");
             foreach (var k in semParametro.OrderByDescending(k => k.Value.Count))
             {
+                string lidos = camposDoParametro.TryGetValue(k.Key.Param, out HashSet<string> cs) ? string.Join(", ", cs) : "";
+                int importados = k.Value.Count(id => _doc.GetElement(id) is DirectShape);
+                bool projeto = deProjeto.Contains(k.Key.Param);
                 parametros.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Vermelho, Categoria = k.Key.Cat, Assunto = k.Key.Param,
-                    Problema = $"O parâmetro não existe em {k.Value.Count} elemento(s) da categoria.",
-                    OQueFazer = "Vincule o parâmetro à categoria em Parâmetros de projeto (do MetroShared) ou carregue a família com ele.",
+                    Sinal = Sinal.Vermelho, Categoria = k.Key.Cat, Assunto = k.Key.Param, Campo = lidos, Origem = txt,
+                    Problema = $"O .txt lê \"{k.Key.Param}\" para {lidos}, mas {k.Value.Count} elemento(s) não têm parâmetro com esse nome." +
+                               (importados > 0 ? $" {importados} são DirectShape (geometria importada), que não têm os parâmetros das famílias." : ""),
+                    OQueFazer = projeto
+                        ? $"\"{k.Key.Param}\" é parâmetro de projeto, mas não está vinculado a {k.Key.Cat}: vincule à categoria."
+                        : $"\"{k.Key.Param}\" não é parâmetro de projeto (é interno do Revit ou de família) e esses elementos não o têm. " +
+                          $"Aponte {lidos} para um parâmetro que eles têm (Ajustar o .txt), ou crie um parâmetro de projeto com esse nome e vincule a {k.Key.Cat}.",
                     Elementos = k.Value,
-                    Correcao = Correcao.ParametrosDeProjeto,
+                    Correcao = projeto ? Correcao.ParametrosDeProjeto : Correcao.EditarPropertySets,
                 });
             }
             foreach (Pendencia p in _problemasMapeamento.Values)
@@ -519,7 +534,7 @@ namespace MetroSP.Conferencia
             {
                 parametros.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Vermelho, Assunto = x.Parametro,
+                    Sinal = Sinal.Vermelho, Assunto = x.Parametro, Campo = x.Campo, Origem = Path.GetFileName(_pacote.PropertySets ?? ""),
                     Problema = $"No Revit o parâmetro é {MappingAnalyzer.RevitTypeName(prm)}, mas o .txt exporta como \"{x.TipoArquivo}\" ({x.Campo}).",
                     OQueFazer = "Ajuste o tipo no .txt de property sets ou use um parâmetro do tipo certo.",
                     Correcao = Correcao.EditarPropertySets,
