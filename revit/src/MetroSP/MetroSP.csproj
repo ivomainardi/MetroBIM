@@ -35,6 +35,9 @@
     <TargetFramework>net48</TargetFramework>
   </PropertyGroup>
   <!-- APIs que o Revit ganhou depois do 2022 (ver Compat.cs). -->
+  <PropertyGroup Condition="'$(RevitVersion)' &lt; '2025'">
+    <DefineConstants>$(DefineConstants);REVIT_ANTES_2025</DefineConstants>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(RevitVersion)' &lt; '2024'">
     <DefineConstants>$(DefineConstants);REVIT_ANTES_2024</DefineConstants>
   </PropertyGroup>

@@ -149,15 +149,18 @@ namespace MetroSP.Classificacao
         /// <param name="soIfc">Só os elementos que vão para o IFC (regra de todas as ferramentas MetroSP).</param>
         public static List<Element> Elementos(Document doc, ICollection<ElementId> selecao, ElementId vista, bool soIfc = true)
         {
+            // Filtros rápidos do Revit primeiro (tipos e elementos de vista, como anotações, ficam de fora sem abrir cada elemento).
             IEnumerable<Element> elems = selecao != null
                 ? selecao.Select(doc.GetElement).Where(e => e != null && !(e is ElementType))
-                : (vista != null ? new FilteredElementCollector(doc, vista) : new FilteredElementCollector(doc)).WhereElementIsNotElementType();
+                : (vista != null ? new FilteredElementCollector(doc, vista) : new FilteredElementCollector(doc))
+                    .WhereElementIsNotElementType().WhereElementIsViewIndependent();
             elems = elems.Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model && !(e is View) &&
                                      !(e is RevitLinkInstance) && !(e is ImportInstance)); // vínculos: classificar no arquivo de origem
             if (soIfc)
             {
                 ElementId fase = Ids.FiltroIfc.Fase(doc, -1, vista);
-                elems = elems.Where(e => Ids.FiltroIfc.VaiParaIfc(doc, e, fase));
+                var tiposComSolido = new HashSet<ElementId>(); // geometria conferida uma vez por tipo
+                elems = elems.Where(e => Ids.FiltroIfc.VaiParaIfc(doc, e, fase, tiposComSolido));
             }
             return elems.ToList();
         }
@@ -428,39 +431,57 @@ namespace MetroSP.Classificacao
         {
             if (s == null) return "";
             string d = s.Normalize(NormalizationForm.FormD);
-            var sb = new StringBuilder();
+            var sb = new StringBuilder(d.Length);
+            bool espaco = false;
             foreach (char c in d)
             {
-                UnicodeCategory cat = CharUnicodeInfo.GetUnicodeCategory(c);
-                if (cat == UnicodeCategory.NonSpacingMark) continue;
-                sb.Append(char.IsLetterOrDigit(c) ? char.ToLowerInvariant(c) : ' ');
+                if (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.NonSpacingMark) continue;
+                if (char.IsLetterOrDigit(c))
+                {
+                    if (espaco && sb.Length > 0) sb.Append(' ');
+                    espaco = false;
+                    sb.Append(char.ToLowerInvariant(c));
+                }
+                else espaco = true;
             }
-            return Regex.Replace(sb.ToString(), @"\s+", " ").Trim();
+            return sb.ToString();
         }
 
-        private static string SoAlfanumerico(string s) => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+        internal static string SoAlfanumerico(string s) => new string((s ?? "").Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
 
+        // Muitos elementos repetem o mesmo valor: a busca na lista é feita uma vez por valor (cache na própria lista).
         private static ClassItem ProcurarPorTexto(ClassificationList lista, string texto)
         {
+            var cache = lista.CachePorTexto;
+            if (cache.TryGetValue(texto, out ClassItem r)) return r;
             string t = SoAlfanumerico(texto);
-            return lista.Itens.Where(i => t.StartsWith(SoAlfanumerico(i.Codigo)))
-                .OrderByDescending(i => SoAlfanumerico(i.Codigo).Length).FirstOrDefault();
+            r = lista.Preparados.Where(x => x.Alfa.Length > 0 && t.StartsWith(x.Alfa, StringComparison.Ordinal))
+                .OrderByDescending(x => x.Alfa.Length).Select(x => x.Item).FirstOrDefault();
+            cache[texto] = r;
+            return r;
         }
 
         /// <summary>Código da lista mais parecido: mesmo código sem separadores, ou poucas letras de diferença com descrição parecida.</summary>
         private static ClassItem Parecido(ClassificationList lista, string codigo, string descricao)
         {
+            var cache = lista.CacheParecido;
+            var chave = (codigo ?? "", descricao ?? "");
+            if (cache.TryGetValue(chave, out ClassItem r)) return r;
             string c = SoAlfanumerico(codigo);
-            ClassItem igual = lista.Itens.FirstOrDefault(i => SoAlfanumerico(i.Codigo) == c);
-            if (igual != null) return igual;
-            string d = Normalizar(descricao);
-            var candidatos = lista.Itens
-                .Select(i => (Item: i, Dist: Distancia(c, SoAlfanumerico(i.Codigo)), Desc: Normalizar(i.Descricao)))
-                .Where(x => x.Dist <= 2)
-                .OrderBy(x => x.Dist)
-                .ThenByDescending(x => PalavrasEmComum(d, x.Desc))
-                .ToList();
-            return candidatos.FirstOrDefault().Item;
+            if (!lista.PorAlfa.TryGetValue(c, out r))
+            {
+                string d = Normalizar(descricao);
+                r = lista.Preparados
+                    .Where(x => Math.Abs(x.Alfa.Length - c.Length) <= 2) // mais de 2 letras de diferença no tamanho: nem calcula
+                    .Select(x => (x.Item, Dist: Distancia(c, x.Alfa), x.Desc))
+                    .Where(x => x.Dist <= 2)
+                    .OrderBy(x => x.Dist)
+                    .ThenByDescending(x => PalavrasEmComum(d, x.Desc))
+                    .Select(x => x.Item)
+                    .FirstOrDefault();
+            }
+            cache[chave] = r;
+            return r;
         }
 
         private static int PalavrasEmComum(string a, string b) =>

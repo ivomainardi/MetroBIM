@@ -39,7 +39,11 @@ namespace MetroSP.Ids
         }
 
         /// <summary>Por que o elemento não vai para o IFC, ou null se vai.</summary>
-        public static string MotivoFora(Document doc, Element e, ElementId fase)
+        /// <param name="tiposComSolido">
+        /// Opcional: tipos de família já vistos com sólido. Instâncias do mesmo tipo têm a mesma geometria,
+        /// então o teste de geometria (a parte lenta) é feito uma vez por tipo, e não por instância.
+        /// </param>
+        public static string MotivoFora(Document doc, Element e, ElementId fase, HashSet<ElementId> tiposComSolido = null)
         {
             if (e == null || e is ElementType) return "Tipo";
             if (e.Category == null || e.Category.CategoryType != CategoryType.Model) return "Não é elemento de modelo";
@@ -72,12 +76,23 @@ namespace MetroSP.Ids
             if (e.get_BoundingBox(null) == null) return "Sem geometria 3D";
             // Famílias (inclusive as no local) e formas diretas podem ter só linhas, planos ou vazios: aparecem como
             // contorno no Revit, mas o exportador não leva nada. Paredes, pisos e outros elementos de sistema têm sólido.
-            if ((e is FamilyInstance || e is DirectShape) && !TemSolido(e)) return "Sem geometria 3D";
+            if ((e is FamilyInstance || e is DirectShape) && !TemSolido(e, tiposComSolido)) return "Sem geometria 3D";
             return null;
         }
 
         /// <summary>O elemento tem algum sólido com volume ou malha (no nível de detalhe Alto).</summary>
-        public static bool TemSolido(Element e)
+        public static bool TemSolido(Element e) => TemSolido(e, null);
+
+        private static bool TemSolido(Element e, HashSet<ElementId> tiposComSolido)
+        {
+            ElementId tipo = tiposComSolido != null && e is FamilyInstance ? e.GetTypeId() : null;
+            if (tipo != null && tiposComSolido.Contains(tipo)) return true;
+            bool tem = TemSolidoGeometria(e);
+            if (tem && tipo != null) tiposComSolido.Add(tipo);
+            return tem;
+        }
+
+        private static bool TemSolidoGeometria(Element e)
         {
             try
             {
@@ -96,7 +111,8 @@ namespace MetroSP.Ids
                     case Solid s when s.Volume > 1e-9: return true;
                     case Mesh m when m.NumTriangles > 0: return true;
                     case GeometryInstance gi when nivel < 6:
-                        GeometryElement dentro = gi.GetInstanceGeometry();
+                        // Geometria do tipo, sem transformar: bem mais rápida que GetInstanceGeometry e o volume é o mesmo.
+                        GeometryElement dentro = gi.GetSymbolGeometry();
                         if (dentro != null && TemSolido(dentro, nivel + 1)) return true;
                         break;
                 }
@@ -104,7 +120,8 @@ namespace MetroSP.Ids
             return false;
         }
 
-        public static bool VaiParaIfc(Document doc, Element e, ElementId fase) => MotivoFora(doc, e, fase) == null;
+        public static bool VaiParaIfc(Document doc, Element e, ElementId fase, HashSet<ElementId> tiposComSolido = null) =>
+            MotivoFora(doc, e, fase, tiposComSolido) == null;
 
         /// <summary>Parâmetro "Exportar para IFC": 0 = pelo tipo, 1 = sim, 2 = não.</summary>
         private static bool ExportarParaIfcNao(Document doc, Element e)
