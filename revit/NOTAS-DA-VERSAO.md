@@ -13,7 +13,7 @@
   - embaixo: **Conferir**, **Pintar pendências / Limpar pintura**, **Só a vista ativa** e **Conferência completa**
     (a janela do Conferir Entrega, com a matriz, o IDS e o .csv).
 - A conferência é a mesma do Conferir Entrega. Ao trocar de modelo, o painel avisa que o resultado é do outro modelo.
-- Falta testar no Revit (2022, 2025, 2026 e 2027): o painel aparece à direita na primeira vez (e, se for fechado, volta pelo
+- Falta testar no Revit (2022 a 2027): o painel aparece à direita na primeira vez (e, se for fechado, volta pelo
   botão); Conferir num modelo com e sem padrões escolhidos; abrir cada passo, selecionar, pintar e limpar; abrir
   cada ferramenta pelo passo e ver o painel conferir de novo; Projeto e Local e Exportar IFC pelo painel; trocar de
   modelo com o painel aberto; Conferência completa; Revit com tema escuro (2024+).
@@ -33,7 +33,7 @@
     "Detalhes dos padrões (IDS)...").
   - **Consistência**: abre pelo botão **Códigos × descrições...** na janela Verificar classificação.
   - **Renomear compartilhado**: fica no botão **Renomear...** da aba Compartilhados, em Parâmetros.
-- Falta testar no Revit (2022, 2025, 2026 e 2027): abrir a aba e conferir os 5 painéis e os ícones 1, 2 e 3; abrir cada
+- Falta testar no Revit (2022 a 2027): abrir a aba e conferir os 5 painéis e os ícones 1, 2 e 3; abrir cada
   botão; em Verificar classificação, abrir Códigos × descrições e unificar; em Parâmetros › Compartilhados, renomear
   um parâmetro; no Conferir Entrega com IDS no pacote, abrir os detalhes do IDS.
 
@@ -45,15 +45,29 @@
 - Por dentro ainda são duas janelas: ao trocar entre as duas primeiras abas e as outras, a janela fecha e reabre no
   mesmo lugar e tamanho, já na aba clicada. Numa família, aparecem só Compartilhados e Comparar com .txt.
 - O Conferir Entrega abre Parâmetros na aba Compartilhados.
-- Falta testar no Revit (2022, 2025, 2026 e 2027): abrir Parâmetros num projeto e passar por todas as abas (a janela
+- Falta testar no Revit (2022 a 2027): abrir Parâmetros num projeto e passar por todas as abas (a janela
   deve reabrir no mesmo lugar, também maximizada); renomear, Instância ↔ Tipo e Deletar sem uso na aba Compartilhados;
   criar pela planilha e adicionar em famílias; abrir Parâmetros numa família; abrir pelo Conferir Entrega.
 
+## Revit 2023 e 2024
+
+- O MetroSP passa a ter versão para o **Revit 2023 e 2024**, no mesmo instalador do Revit 2022:
+  `MetroSP-Revit2022-2024-Setup-<versão>.exe` (e `MetroSP-Revit2022-2024-<versão>-instalador.zip`). Cada versão do
+  Revit recebe a sua DLL, compilada contra a API dela. O instalador de 2025-2027 continua igual, e quem já tem o do
+  2022 instalado é atualizado.
+- Diferenças em relação ao 2025+: como no 2022, o Revit 2023 e 2024 não deixam o add-in gravar a tabela de
+  **Categorias IFC** no modelo; vale o mapeamento do próprio Revit (Opções IFC). No 2023 também não há troca
+  automática de tema nas logos da Ribbon. O resto funciona como no 2025+ (parâmetro "Exportar para IFC", seleção
+  em Aplicar classificação, tema escuro no 2024).
+- Falta testar no Revit 2023 e 2024: instalar, carregar a aba ("Sempre carregar"), abrir cada janela, exportar um IFC
+  (IFC4 Reference View e, se o exportador aceitar, IFC 4.3) e conferir Psets, classificação, IfcSite/IfcProject e a
+  Conferir entrega; no 2024, trocar o tema claro/escuro.
+
 ## Ribbon: sai o botão Contar
 
-- O botão **Contar** (Contar Elementos) saiu do painel **Dados do modelo**, no Revit 2022 e no 2025+. O
+- O botão **Contar** (Contar Elementos) saiu do painel **Dados do modelo**, em todas as versões (2022 a 2027). O
   **Copiar Valores** passa a ser um botão grande no lugar da pilha.
-- Falta testar no Revit (2022 e 2025+): abrir a aba MetroSP, conferir o painel Dados do modelo e abrir o Copiar Valores.
+- Falta testar no Revit (2022 a 2024 e 2025+): abrir a aba MetroSP, conferir o painel Dados do modelo e abrir o Copiar Valores.
 
 ## Revit 2022: Exportar IFC aceita IFC 2x3
 
