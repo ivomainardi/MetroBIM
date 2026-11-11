@@ -424,9 +424,24 @@ namespace MetroSP.Painel
                     Text = string.IsNullOrEmpty(p.Problema) ? onde : $"{onde}: {p.Problema}",
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center,
-                    ToolTip = string.IsNullOrEmpty(p.OQueFazer) ? null : p.OQueFazer,
+                    ToolTip = string.IsNullOrEmpty(p.Problema) ? onde : $"{onde}: {p.Problema}",
                 });
                 painel.Children.Add(linha);
+
+                // O que fazer e, quando dá, o botão que já faz.
+                var fazer = new DockPanel { Margin = new Thickness(13, 0, 0, 6) };
+                var botoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+                foreach ((string texto, string dica, Action acao) in Decisoes(etapa, p))
+                {
+                    var b = new Button { Content = texto, ToolTip = dica, MinWidth = 0, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(6, 0, 0, 0), FontSize = 11 };
+                    b.Click += (s, e) => acao();
+                    botoes.Children.Add(b);
+                }
+                DockPanel.SetDock(botoes, Dock.Right);
+                fazer.Children.Add(botoes);
+                if (!string.IsNullOrEmpty(p.OQueFazer))
+                    fazer.Children.Add(new TextBlock { Text = "→ " + p.OQueFazer, FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Color.FromRgb(0x55, 0x55, 0x55)), VerticalAlignment = VerticalAlignment.Center });
+                if (fazer.Children.Count > 1 || botoes.Children.Count > 0) painel.Children.Add(fazer);
             }
             if (pendencias.Count > Maximo)
                 painel.Children.Add(Theme.Detalhe($"e mais {pendencias.Count - Maximo}. Veja todas na Conferência completa."));
@@ -446,6 +461,152 @@ namespace MetroSP.Painel
             acoes.Children.Add(pintar);
             painel.Children.Add(acoes);
             return painel;
+        }
+
+        /// <summary>Botões de decisão de uma pendência: o que dá para resolver dali mesmo, ou a ferramenta já no ponto certo.</summary>
+        private IEnumerable<(string Texto, string Dica, Action Acao)> Decisoes(EtapaConferencia etapa, Pendencia p)
+        {
+            bool faltaNaCategoria = p.Correcao == Correcao.ParametrosDeProjeto && !string.IsNullOrEmpty(p.Categoria) && !string.IsNullOrEmpty(p.Assunto);
+            if (faltaNaCategoria)
+                yield return ("Vincular à categoria", $"Acrescenta {p.Categoria} nas categorias do parâmetro de projeto \"{p.Assunto}\" e confere de novo. Ctrl+Z desfaz.",
+                    () => Revit(app => VincularCategoria(app, p.Assunto, p.Categoria)));
+            if (p.Correcao == Correcao.EditarPropertySets)
+                yield return ("Ajustar o .txt", "Abre o .txt de property sets dos padrões para trocar o tipo ou o parâmetro; ao salvar, confere de novo.",
+                    () => Revit(EditarPropertySets));
+            if (p.Correcao == Correcao.ListarCompartilhados)
+                yield return ("Ver em Compartilhados", "Abre Parâmetros › Compartilhados, onde a coluna Padrão mostra o parâmetro do MetroShared.",
+                    () => AbrirFerramenta(Correcao.ListarCompartilhados, p.Elementos));
+            if (etapa.Numero == 3 && p.Elementos.Count > 0)
+                yield return ("Escolher classe...", "Escolhe a classe IFC desses elementos e grava no \"Exportar para IFC como\" dos tipos.",
+                    () => Revit(app => EscolherClasse(app, p)));
+            if (p.Correcao == Correcao.EditarEmMassa && p.Elementos.Count > 0)
+                yield return ("Preencher...", $"Seleciona os {p.Elementos.Count} elemento(s) e abre o Editar em massa.",
+                    () => AbrirFerramenta(Correcao.EditarEmMassa, p.Elementos));
+        }
+
+        /// <summary>Acrescenta a categoria no vínculo do parâmetro de projeto. Contexto da API.</summary>
+        private void VincularCategoria(UIApplication app, string parametro, string categoria)
+        {
+            DB.Document doc = _doc;
+            DB.Definition def = null;
+            DB.ElementBinding vinculo = null;
+            DB.DefinitionBindingMapIterator it = doc.ParameterBindings.ForwardIterator();
+            while (it.MoveNext())
+            {
+                if (it.Key != null && string.Equals(it.Key.Name, parametro, StringComparison.OrdinalIgnoreCase))
+                {
+                    def = it.Key;
+                    vinculo = it.Current as DB.ElementBinding;
+                    break;
+                }
+            }
+            if (def == null || vinculo == null)
+            {
+                TaskDialog.Show("MetroSP", $"\"{parametro}\" não é um parâmetro de projeto deste modelo, então não dá para vincular daqui.\n\n" +
+                    "Se é um parâmetro interno do Revit, os elementos dessa categoria não têm esse nome: use \"Ajustar o .txt\" para apontar o campo " +
+                    "para o parâmetro certo. Se é do MetroShared, crie em Parâmetros › Parâmetros de projeto. Se vem da família, carregue a família com ele.");
+                return;
+            }
+            DB.Category cat = doc.Settings.Categories.Cast<DB.Category>().FirstOrDefault(c => string.Equals(c.Name, categoria, StringComparison.OrdinalIgnoreCase));
+            if (cat == null || !cat.AllowsBoundParameters)
+            {
+                TaskDialog.Show("MetroSP", $"A categoria {categoria} não aceita parâmetros de projeto.");
+                return;
+            }
+            if (vinculo.Categories.Contains(cat))
+            {
+                TaskDialog.Show("MetroSP", $"\"{parametro}\" já está vinculado a {categoria}. Os elementos sem ele devem vir de famílias que têm um parâmetro de família com o mesmo nome.");
+                return;
+            }
+            using (var t = new DB.Transaction(doc, $"MetroSP - Vincular {parametro} a {categoria}"))
+            {
+                t.Start();
+                vinculo.Categories.Insert(cat);
+                if (!doc.ParameterBindings.ReInsert(def, vinculo))
+                {
+                    t.RollBack();
+                    TaskDialog.Show("MetroSP", $"O Revit não aceitou vincular \"{parametro}\" a {categoria}.");
+                    return;
+                }
+                t.Commit();
+            }
+            Conferir(app);
+        }
+
+        private void EditarPropertySets(UIApplication app)
+        {
+            Ids.EditarPsetsWindow editor;
+            try
+            {
+                var modelo = new Ids.ModeloIfc(_doc);
+                editor = new Ids.EditarPsetsWindow(_pacote.PropertySets, modelo.Parametros, _pacote.PropertySets, podeRestaurar: false, modelo: modelo);
+            }
+            catch (Exception ex) { TaskDialog.Show("MetroSP", "Não deu para abrir o .txt de property sets:\n" + ex.Message); return; }
+            new WindowInteropHelper(editor).Owner = app.MainWindowHandle;
+            if (editor.ShowDialog() == true) Conferir(app);
+        }
+
+        /// <summary>Escolher a classe IFC dos elementos da pendência e gravar no "Exportar para IFC como" (tipo, ou instância se já tiver valor). Contexto da API.</summary>
+        private void EscolherClasse(UIApplication app, Pendencia p)
+        {
+            var doPadrao = _res.ClassesDoPadrao.Select(c => Ids.EsquemaIfc.ClasseComTipo(_res.Esquema, c)).Where(c => c != null).Distinct().ToList();
+            var lista = doPadrao.Concat(Ids.EsquemaIfc.ClassesComTipo(_res.Esquema).Except(doPadrao)).ToList();
+            var caixa = Ui.SeletorLista.Criar(lista, 320);
+            var ok = new Button { Content = "Gravar", Style = Theme.PrimaryButton, IsDefault = true, Margin = new Thickness(8, 0, 0, 0) };
+            var cancelar = new Button { Content = "Cancelar", IsCancel = true, Margin = new Thickness(8, 0, 0, 0) };
+            var corpo = new StackPanel { Margin = new Thickness(16) };
+            corpo.Children.Add(new TextBlock { Text = $"{p.Categoria}: {p.Elementos.Count} elemento(s) hoje em {p.Assunto}.", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
+            corpo.Children.Add(Theme.Detalhe($"Primeiro as classes dos padrões ({doPadrao.Count}), depois todas as do {Ids.EsquemaIfc.Nome(_res.Esquema)}. Digite parte do nome para filtrar."));
+            var linha = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+            linha.Children.Add(caixa);
+            linha.Children.Add(ok);
+            linha.Children.Add(cancelar);
+            corpo.Children.Add(linha);
+            var janela = new Window
+            {
+                Title = "MetroSP - Classe IFC", Content = corpo, SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.CanResizeWithGrip,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brushes.White,
+            };
+            Theme.Estilos(janela);
+            ok.Click += (s, e) => janela.DialogResult = true;
+            new WindowInteropHelper(janela).Owner = app.MainWindowHandle;
+            if (janela.ShowDialog() != true) return;
+            string classe = Ids.EsquemaIfc.ClasseComTipo(_res.Esquema, (caixa.SelectedItem as string ?? caixa.Text ?? "").Trim());
+            if (classe == null)
+            {
+                TaskDialog.Show("MetroSP", "Escolha uma classe IFC da lista.");
+                return;
+            }
+
+            int tipos = 0, instancias = 0, falhas = 0;
+            var feitos = new HashSet<DB.ElementId>();
+            using (var t = new DB.Transaction(_doc, "MetroSP - Definir classe IFC"))
+            {
+                t.Start();
+                foreach (DB.ElementId id in p.Elementos)
+                {
+                    DB.Element e = _doc.GetElement(id);
+                    if (e == null) continue;
+                    DB.Parameter inst = Compat.ExportarComo(e, false);
+                    DB.Element tipo = _doc.GetElement(e.GetTypeId());
+                    DB.Parameter doTipo = Compat.ExportarComo(tipo, true);
+                    bool instanciaTemValor = inst != null && !string.IsNullOrWhiteSpace(inst.AsString());
+                    if (!instanciaTemValor && doTipo != null && !doTipo.IsReadOnly)
+                    {
+                        if (!feitos.Add(tipo.Id)) continue;
+                        if (doTipo.Set(classe)) tipos++; else falhas++;
+                    }
+                    else if (inst != null && !inst.IsReadOnly)
+                    {
+                        if (inst.Set(classe)) instancias++; else falhas++;
+                    }
+                    else falhas++;
+                }
+                if (tipos + instancias > 0) t.Commit(); else t.RollBack();
+            }
+            Conferir(app);
+            if (falhas > 0)
+                TaskDialog.Show("MetroSP", $"Classe gravada em {tipos} tipo(s) e {instancias} instância(s).\n{falhas} elemento(s) não aceitam o \"Exportar para IFC como\" (use Categorias IFC para a categoria inteira).");
         }
 
         private UIElement PassoAcao(int numero, string titulo, string texto, string botao, Action<UIApplication> acao, Sinal sinal, bool primario = false)

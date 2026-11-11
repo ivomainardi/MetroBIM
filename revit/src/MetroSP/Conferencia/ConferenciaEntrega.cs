@@ -323,7 +323,7 @@ namespace MetroSP.Conferencia
                         ? $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida): ficam fora da conferência."
                         : $"{g.Key.Entidade} não faz parte dos padrões: {g.Count()} elemento(s) ficam fora da conferência.",
                     OQueFazer = proxy
-                        ? "Escolha a classe abaixo e clique em Definir classe (grava o \"Exportar para IFC como\" do tipo)."
+                        ? "Defina a classe certa (grava o \"Exportar para IFC como\" do tipo) ou mude a categoria inteira em Categorias IFC."
                         : "Normal se o Metrô não pede dados desse elemento; senão, defina a classe certa abaixo.",
                     Elementos = g.Select(x => x.E.Id).ToList(),
                 });

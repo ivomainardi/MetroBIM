@@ -1,5 +1,19 @@
 # MetroSP 0.3.3 (em teste)
 
+## Painel MetroSP: o que fazer e botões de decisão em cada pendência
+
+- Cada pendência aberta mostra, embaixo, o que fazer, e os botões que já resolvem dali:
+  - **Vincular à categoria**: o parâmetro de projeto não está vinculado à categoria. Acrescenta a categoria no vínculo
+    e confere de novo (Ctrl+Z desfaz). Se o nome não é um parâmetro de projeto (por exemplo, um parâmetro interno do Revit),
+    explica o caminho.
+  - **Ajustar o .txt**: tipo do parâmetro diferente do .txt; abre o editor de property sets.
+  - **Escolher classe...**: proxy ou classe fora dos padrões; escolhe a classe e grava no "Exportar para IFC como" dos tipos.
+  - **Preencher...**: campo vazio ou fora do exigido; seleciona os elementos e abre o Editar em massa.
+  - **Ver em Compartilhados**: GUID diferente do MetroShared.
+- Correção: um parâmetro do tipo Section Area (perfis) ligado a um campo "Area" do .txt não é mais acusado como tipo
+  diferente, porque o exportador converte igual. Vale também para as medidas de seção, armadura e tubulações em campos "Length".
+- Testar no Revit: abrir o passo 2, clicar em Vincular à categoria e ver a pendência sumir; Escolher classe nos proxies do passo 3.
+
 ## Categorias IFC: IFC4 e IFC 4.3 lado a lado
 
 - Sai a troca de IFC schema no topo. A grade tem uma linha por categoria e, para cada IFC schema, as colunas Exportar,
