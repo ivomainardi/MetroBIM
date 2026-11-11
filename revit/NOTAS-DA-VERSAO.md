@@ -1,9 +1,27 @@
 # MetroSP 0.3.3 (em teste)
 
+## Painel MetroSP (ao lado do modelo)
+
+- O botão **1 Conferir Entrega** virou **1 Painel MetroSP**. Ele abre um painel encaixado à direita do modelo (como
+  o Navegador de projeto), que fica aberto enquanto se trabalha:
+  - no topo, os **padrões** em uso (com "trocar") e uma barra de progresso;
+  - os **passos** da entrega com semáforo: Arquivos, Parâmetros e mapeamento, Classe IFC, Dados, Classificação, e
+    depois Projeto e Local e Exportar IFC (com botão para abrir cada um);
+  - clicar num passo abre as pendências (categoria, assunto, problema e quantidade). Cada linha tem **selecionar**;
+    o passo tem **Selecionar (n)**, **Pintar na vista** e o botão da ferramenta que corrige (Aplicar classificação,
+    Parâmetros, Categorias IFC, Editar em massa...). Ao fechar a ferramenta, o painel confere de novo;
+  - embaixo: **Conferir**, **Pintar pendências / Limpar pintura**, **Só a vista ativa** e **Conferência completa**
+    (a janela do Conferir Entrega, com a matriz, o IDS e o .csv).
+- A conferência é a mesma do Conferir Entrega. Ao trocar de modelo, o painel avisa que o resultado é do outro modelo.
+- Falta testar no Revit (2022, 2025, 2026 e 2027): o painel aparece à direita na primeira vez (e, se for fechado, volta pelo
+  botão); Conferir num modelo com e sem padrões escolhidos; abrir cada passo, selecionar, pintar e limpar; abrir
+  cada ferramenta pelo passo e ver o painel conferir de novo; Projeto e Local e Exportar IFC pelo painel; trocar de
+  modelo com o painel aberto; Conferência completa; Revit com tema escuro (2024+).
+
 ## Ribbon reorganizada (mais simples)
 
 - A aba MetroSP fica com 5 painéis na ordem do trabalho e sem menus que escondem botões:
-  - **Entrega Metrô**: os 3 passos, numerados no ícone: **1 Conferir Entrega**, **2 Projeto e Local**, **3 Exportar IFC**.
+  - **Entrega Metrô**: os 3 passos, numerados no ícone: **1 Painel MetroSP** (ver acima), **2 Projeto e Local**, **3 Exportar IFC**.
   - **Classificação**: Aplicar e Verificar.
   - **Dados do modelo**: igual (Planilha de Dados, Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e
     Colorir, Copiar Valores).
@@ -11,7 +29,8 @@
   - **Coordenador BIM** (novo, no fim, botões pequenos): Padrões e planilhas, Arquivos IFC e Categorias IFC (antes no
     menu Configurar, no meio da entrega).
 - Saíram da Ribbon, sem perder a função:
-  - **Verificar Padrões**: a verificação do IDS já roda dentro do Conferir Entrega (botão "Detalhes dos padrões (IDS)...").
+  - **Verificar Padrões**: a verificação do IDS já roda dentro da conferência (Painel MetroSP › Conferência completa ›
+    "Detalhes dos padrões (IDS)...").
   - **Consistência**: abre pelo botão **Códigos × descrições...** na janela Verificar classificação.
   - **Renomear compartilhado**: fica no botão **Renomear...** da aba Compartilhados, em Parâmetros.
 - Falta testar no Revit (2022, 2025, 2026 e 2027): abrir a aba e conferir os 5 painéis e os ícones 1, 2 e 3; abrir cada

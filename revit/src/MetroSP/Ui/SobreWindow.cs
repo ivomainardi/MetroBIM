@@ -42,7 +42,7 @@ namespace MetroSP.Ui
 
         private static readonly (string Painel, string Ferramentas)[] Ferramentas =
         {
-            ("Entrega Metrô", "Os 3 passos da entrega: 1 Conferir Entrega (semáforo do que o Metrô pede, padrões .metrosp e verificação do IDS), 2 Projeto e Local (IfcProject, IfcSite, IfcBuilding e localização), 3 Exportar IFC"),
+            ("Entrega Metrô", "Os 3 passos da entrega: 1 Painel MetroSP (ao lado do modelo, com o semáforo do que o Metrô pede, pendências para selecionar e pintar e a conferência completa com o IDS), 2 Projeto e Local (IfcProject, IfcSite, IfcBuilding e localização), 3 Exportar IFC"),
             ("Classificação", "Aplicar e Verificar (com a conferência códigos × descrições)"),
             ("Dados do modelo", "Planilha de Dados (Excel ida e volta), Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e Colorir, Copiar Valores"),
             ("Parâmetros e famílias", "Parâmetros (compartilhados com renomear mantendo o GUID e troca instância ↔ tipo, comparar com .txt, parâmetros de projeto, criar pela planilha, adicionar em famílias) e Renomear Famílias e tipos"),

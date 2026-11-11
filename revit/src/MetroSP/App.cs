@@ -46,6 +46,20 @@ namespace MetroSP
             CreateParametrosPanel(application);
             CreateCoordenadorPanel(application);
 
+            // Painel MetroSP: encaixado ao lado do modelo (DockablePane). Registrado aqui, no início do Revit.
+            try
+            {
+                application.RegisterDockablePane(Painel.PainelMetroSP.Id, Painel.PainelMetroSP.Titulo, new Painel.PainelMetroSP());
+                application.ViewActivated += (s, e) =>
+                {
+                    try { Painel.PainelMetroSP.Instancia?.ModeloAtivo(e.Document); } catch { }
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("MetroSP: Painel MetroSP não registrado: " + ex.Message);
+            }
+
             // As logos entram depois que a Ribbon do Revit está pronta (fica à direita, depois dos painéis).
             application.ControlledApplication.ApplicationInitialized += (s, e) => Ui.MarcaRibbon.Adicionar(TabName);
 #if !REVIT_ANTES_2024
@@ -74,10 +88,10 @@ namespace MetroSP
         {
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega Metrô");
 
-            AddButton<ConferirEntregaCommand>(panel, "Conferir\nEntrega",
-                "Passo 1, por onde começar. Mostra num semáforo o que o Metrô pede e o que falta no modelo (arquivos, parâmetros, " +
-                "classe IFC, dados e classificação), seleciona e pinta as pendências e abre a ferramenta que corrige. " +
-                "Também mostra os detalhes da verificação dos padrões do Metrô (arquivo .ids).",
+            AddButton<PainelMetroSPCommand>(panel, "Painel\nMetroSP",
+                "Passo 1, por onde começar. Abre ao lado do modelo o painel com os passos da entrega e o semáforo de cada um " +
+                "(arquivos, parâmetros, classe IFC, dados e classificação). Abra um passo para ver as pendências, selecionar e " +
+                "pintar os elementos e abrir a ferramenta que corrige. A conferência completa (matriz, IDS) abre pelo painel.",
                 "Passo1");
 
             AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
