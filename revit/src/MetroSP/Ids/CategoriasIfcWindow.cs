@@ -168,10 +168,13 @@ namespace MetroSP.Ids
             exportar.Click += (s, e) => Menu(exportar,
                 ("Tabela do IFC4...", () => ExportarTxt(CategoriasIfc.Ifc4)),
                 ("Tabela do IFC 4.3...", () => ExportarTxt(CategoriasIfc.Ifc4x3)));
-            var padrao = new Button { Content = "Voltar ao padrão ▾" };
+            var padrao = new Button { Content = "Voltar ao padrão ▾", ToolTip = "Padrão recomendado pelo MetroSP (classes do IFC4 e do IFC 4.3 conforme a ISO 16739), ou apagar a sua tabela." };
             padrao.Click += (s, e) => Menu(padrao,
-                ("Do IFC4", () => VoltarAoPadrao(CategoriasIfc.Ifc4)),
-                ("Do IFC 4.3", () => VoltarAoPadrao(CategoriasIfc.Ifc4x3)));
+                ("Recomendado MetroSP (ISO 16739) nas duas colunas", () => Recomendado(Esquemas)),
+                ("Recomendado só no IFC4", () => Recomendado(new[] { CategoriasIfc.Ifc4 })),
+                ("Recomendado só no IFC 4.3", () => Recomendado(new[] { CategoriasIfc.Ifc4x3 })),
+                ("Apagar a minha tabela do IFC4...", () => VoltarAoPadrao(CategoriasIfc.Ifc4)),
+                ("Apagar a minha tabela do IFC 4.3...", () => VoltarAoPadrao(CategoriasIfc.Ifc4x3)));
             var salvar = new Button { Content = "Salvar", Style = Theme.PrimaryButton, IsDefault = true, ToolTip = "Grava as tabelas alteradas e fecha." };
             salvar.Click += (s, e) => { if (Salvar()) Close(); };
             var fechar = new Button { Content = "Fechar", IsCancel = true };
@@ -416,6 +419,51 @@ namespace MetroSP.Ids
             if (d.ShowDialog(this) != true) return;
             try { CategoriasIfc.Gravar(d.FileName, _tabelas[esquema], esquema); _resumo.Text = "Exportado para " + d.FileName; }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, Title); }
+        }
+
+        /// <summary>
+        /// Aplica a tabela recomendada (CategoriasRecomendadas) nas categorias principais: classe, tipo e Exportar = sim.
+        /// Subcategorias e categorias fora da tabela (anotações, por exemplo) ficam como estão. Salvar grava.
+        /// </summary>
+        private void Recomendado(IEnumerable<string> esquemas)
+        {
+            _grade.CommitEdit(DataGridEditingUnit.Row, true);
+            List<string> lista = esquemas.ToList();
+            string nomes = string.Join(" e ", lista.Select(NomeEsquema));
+            if (MessageBox.Show(this, $"Aplicar a tabela recomendada pelo MetroSP no {nomes}?\n\n" +
+                    "Cada categoria de modelo vai para a classe IFC própria dela, conforme o IFC4 (ISO 16739-1:2018) e o IFC 4.3 " +
+                    "(ISO 16739-1:2024), sem proxy quando existe classe adequada (ex.: Structural Framing → IfcBeam, " +
+                    "Structural Trusses → IfcElementAssembly TRUSS). Subcategorias e categorias de anotação ficam como estão.\n\n" +
+                    "Nada é gravado até você clicar em Salvar.", Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
+                return;
+            int mudou = 0, novas = 0;
+            foreach (string e in lista)
+            {
+                Dictionary<string, CategoriasRecomendadas.Item> rec = CategoriasRecomendadas.Para(e);
+                var feitas = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
+                foreach (CategoriasIfc.Linha l in _tabelas[e].Where(l => string.IsNullOrEmpty(l.Subcategoria)))
+                {
+                    if (!rec.TryGetValue(l.Categoria, out CategoriasRecomendadas.Item r)) continue;
+                    feitas.Add(l.Categoria);
+                    if (l.Exportar && string.Equals(l.Classe ?? "", r.Classe, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(l.Tipo ?? "", r.Tipo, StringComparison.OrdinalIgnoreCase)) continue;
+                    l.Classe = r.Classe;
+                    l.Tipo = r.Tipo;
+                    l.Exportar = true;
+                    mudou++;
+                }
+                // Categorias recomendadas que a tabela ainda não tem (ex.: Revit 2022 a 2024, sem o mapeamento do modelo).
+                foreach (CategoriasRecomendadas.Item r in rec.Values.Where(r => !feitas.Contains(r.Categoria)))
+                {
+                    _tabelas[e].Add(new CategoriasIfc.Linha { Categoria = r.Categoria, Subcategoria = "", Classe = r.Classe, Tipo = r.Tipo, Exportar = true, Esquema = e });
+                    novas++;
+                }
+                _alteradas.Add(e);
+            }
+            if (novas > 0) MontarPares();
+            Atualizar();
+            _resumo.Text = $"Recomendado aplicado no {nomes}: {mudou} linha(s) mudaram" + (novas > 0 ? $", {novas} categoria(s) acrescentadas" : "") + ". Salve para valer.";
+            _resumo.Foreground = Theme.Solid(Theme.LaranjaTexto);
         }
 
         private void VoltarAoPadrao(string esquema)

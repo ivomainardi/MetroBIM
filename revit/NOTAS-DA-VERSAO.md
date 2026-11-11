@@ -6,6 +6,13 @@
   Classe e Tipo. A linha fica laranja quando os dois são diferentes, e "Só as diferentes entre IFC4 e IFC 4.3" filtra.
 - Copiar entre IFC schemas, Importar .txt, Exportar .txt e Voltar ao padrão abrem um menu para escolher o IFC4 ou o IFC 4.3.
 - **Salvar** grava os IFC schemas alterados e fecha a janela (antes ficava aberta).
+- **Voltar ao padrão › Recomendado MetroSP (ISO 16739)**: aplica uma tabela com a classe IFC própria de cada categoria de
+  modelo (cerca de 95), só com classes e tipos que existem no IFC4 (ISO 16739-1:2018) e no IFC 4.3 (ISO 16739-1:2024).
+  Proxy só onde não há classe adequada (Modelo genérico, Equipamento especializado). Exemplos: Structural Framing →
+  IfcBeam, Structural Foundations → IfcFooting, Structural Trusses → IfcElementAssembly TRUSS, Pipe Accessories →
+  IfcValve, Cable Trays → IfcCableCarrierSegment CABLETRAYSEGMENT. No 4.3 usa o que só existe nele (IfcSign, IfcPavement,
+  IfcBeam EDGEBEAM). Pode ser só numa coluna. Subcategorias e anotações ficam como estão, e nada grava até Salvar.
+  O "Exportar para IFC como" de uma família continua valendo antes da tabela.
 - Testar no Revit: editar uma classe em cada coluna, salvar (deve fechar), reabrir e conferir as duas colunas.
 
 ## Painel MetroSP: o passo Projeto e Local mostra se está pronto
