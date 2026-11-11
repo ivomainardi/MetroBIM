@@ -5,165 +5,230 @@ using DB = Autodesk.Revit.DB;
 namespace MetroSP.Ids
 {
     /// <summary>
-    /// Tabela recomendada pelo MetroSP: classe IFC de cada categoria de modelo do Revit, só com classes e tipos que existem
-    /// no IFC4 ADD2 TC1 (ISO 16739-1:2018) e no IFC 4.3 ADD2 (ISO 16739-1:2024). Usa a classe específica sempre que o
-    /// esquema tem uma; IfcBuildingElementProxy só onde não há classe adequada (Modelo genérico, Equipamento especializado...).
-    /// A categoria vem pelo BuiltInCategory (o nome sai no idioma do Revit); categorias que a versão do Revit não tem são puladas.
-    /// Uma família pode ir para outra classe pelo "Exportar para IFC como" do tipo, que vale antes da tabela.
+    /// Tabela recomendada pelo MetroSP: classe IFC de cada categoria (e subcategoria) de modelo do Revit, com base nas
+    /// categorias do Revit 2027, só com classes e tipos que existem no IFC4 ADD2 TC1 (ISO 16739-1:2018) e no IFC 4.3 ADD2
+    /// (ISO 16739-1:2024). Usa a classe específica sempre que o esquema tem uma; IfcBuildingElementProxy só onde a categoria
+    /// junta coisas de classes diferentes ou o IFC4 não tem classe (pontes, por exemplo, que só o 4.3 cobre).
+    /// A categoria vem pelo BuiltInCategory (nome no idioma do Revit; subcategoria resolvida pela categoria-mãe);
+    /// as que a versão do Revit não tem são puladas. O "Exportar para IFC como" de uma família vale antes da tabela.
+    /// A mesma tabela gera a planilha de revisão (docs/categorias-ifc-recomendadas.xlsx).
     /// </summary>
     public static class CategoriasRecomendadas
     {
-        /// <summary>BuiltInCategory, classe IFC4 ("Classe" ou "Classe.TIPO") e classe IFC 4.3 (null = a mesma do IFC4).</summary>
-        private static readonly (string Bic, string Ifc4, string Ifc43)[] Tabela =
+        /// <summary>
+        /// BuiltInCategory, nome em inglês (só para a planilha), classe IFC4 ("Classe" ou "Classe.TIPO"),
+        /// classe IFC 4.3 (null = a mesma do IFC4), exportar e observação.
+        /// </summary>
+        internal static readonly (string Bic, string Nome, string Ifc4, string Ifc43, bool Exportar, string Nota)[] Tabela =
         {
-            // Arquitetura
-            ("OST_Walls", "IfcWall", null),
-            ("OST_Floors", "IfcSlab.FLOOR", null),
-            ("OST_Roofs", "IfcRoof", null),
-            ("OST_Ceilings", "IfcCovering.CEILING", null),
-            ("OST_Doors", "IfcDoor", null),
-            ("OST_Windows", "IfcWindow", null),
-            ("OST_Columns", "IfcColumn", null),
-            ("OST_Stairs", "IfcStair", null),
-            ("OST_StairsRuns", "IfcStairFlight", null),
-            ("OST_StairsLandings", "IfcSlab.LANDING", null),
-            ("OST_StairsSupports", "IfcMember.STRINGER", null),
-            ("OST_StairsRailing", "IfcRailing", null),
-            ("OST_Railings", "IfcRailing", null),
-            ("OST_RailingTopRail", "IfcRailing.HANDRAIL", null),
-            ("OST_RailingHandRail", "IfcRailing.HANDRAIL", null),
-            ("OST_RailingSupport", "IfcMember.POST", null),
-            ("OST_Ramps", "IfcRamp", null),
-            ("OST_CurtaSystem", "IfcCurtainWall", null),
-            ("OST_CurtainWallPanels", "IfcPlate.CURTAIN_PANEL", null),
-            ("OST_CurtainWallMullions", "IfcMember.MULLION", null),
-            ("OST_Cornices", "IfcCovering.MOLDING", null),
-            ("OST_Fascia", "IfcCovering.CLADDING", null),
-            ("OST_RoofSoffit", "IfcCovering.CEILING", null),
-            ("OST_Gutter", "IfcPipeSegment.GUTTER", null),
-            ("OST_EdgeSlab", "IfcBeam", "IfcBeam.EDGEBEAM"),
-            ("OST_Furniture", "IfcFurniture", null),
-            ("OST_FurnitureSystems", "IfcSystemFurnitureElement", null),
-            ("OST_Casework", "IfcFurniture", null),
-            ("OST_Rooms", "IfcSpace", null),
-            ("OST_MEPSpaces", "IfcSpace", null),
-            ("OST_GenericModel", "IfcBuildingElementProxy", null),
-            ("OST_SpecialityEquipment", "IfcBuildingElementProxy", null),
-            ("OST_Parts", "IfcBuildingElementPart", null),
-            ("OST_Assemblies", "IfcElementAssembly", null),
-            ("OST_Signage", "IfcBuildingElementProxy", "IfcSign"),
-            ("OST_VerticalCirculation", "IfcTransportElement", null),
-            ("OST_Hardscape", "IfcSlab", "IfcPavement"),
-            ("OST_TemporaryStructure", "IfcBuildingElementProxy", null),
+            // ---------------------------------------------------------------- Arquitetura
+            ("OST_Walls", "Walls", "IfcWall", null, true, "O exportador usa IfcWall e o tipo pela função da parede."),
+            ("OST_Floors", "Floors", "IfcSlab.FLOOR", null, true, ""),
+            ("OST_Roofs", "Roofs", "IfcRoof", null, true, ""),
+            ("OST_Ceilings", "Ceilings", "IfcCovering.CEILING", null, true, ""),
+            ("OST_Doors", "Doors", "IfcDoor", null, true, ""),
+            ("OST_Windows", "Windows", "IfcWindow", null, true, ""),
+            ("OST_Columns", "Columns", "IfcColumn", null, true, "Pilar arquitetônico."),
+            ("OST_Stairs", "Stairs", "IfcStair", null, true, ""),
+            ("OST_StairsRuns", "Runs", "IfcStairFlight", null, true, "Subcategoria de Stairs."),
+            ("OST_StairsLandings", "Landings", "IfcSlab.LANDING", null, true, "Subcategoria de Stairs."),
+            ("OST_StairsSupports", "Supports", "IfcMember.STRINGER", null, true, "Subcategoria de Stairs."),
+            ("OST_MultistoryStairs", "Multistory Stairs", "IfcStair", null, true, ""),
+            ("OST_StairsRailing", "Railings (Stairs)", "IfcRailing", null, true, ""),
+            ("OST_Railings", "Railings", "IfcRailing", null, true, ""),
+            ("OST_RailingTopRail", "Top Rails", "IfcRailing.HANDRAIL", null, true, ""),
+            ("OST_RailingHandRail", "Handrails", "IfcRailing.HANDRAIL", null, true, ""),
+            ("OST_RailingSupport", "Supports (Railings)", "IfcMember.POST", null, true, ""),
+            ("OST_RailingTermination", "Terminations", "IfcMember", null, true, ""),
+            ("OST_Ramps", "Ramps", "IfcRamp", null, true, ""),
+            ("OST_CurtaSystem", "Curtain Systems", "IfcCurtainWall", null, true, ""),
+            ("OST_CurtainWallPanels", "Curtain Panels", "IfcPlate.CURTAIN_PANEL", null, true, ""),
+            ("OST_CurtainWallMullions", "Curtain Wall Mullions", "IfcMember.MULLION", null, true, ""),
+            ("OST_Cornices", "Wall Sweeps", "IfcCovering.MOLDING", null, true, ""),
+            ("OST_Fascia", "Fascias", "IfcCovering.CLADDING", null, true, ""),
+            ("OST_RoofSoffit", "Roof Soffits", "IfcCovering.CEILING", null, true, ""),
+            ("OST_Gutter", "Gutters", "IfcPipeSegment.GUTTER", null, true, ""),
+            ("OST_EdgeSlab", "Slab Edges", "IfcBeam", "IfcBeam.EDGEBEAM", true, "EDGEBEAM só existe no 4.3."),
+            ("OST_Furniture", "Furniture", "IfcFurniture", null, true, ""),
+            ("OST_FurnitureSystems", "Furniture Systems", "IfcSystemFurnitureElement", null, true, ""),
+            ("OST_Casework", "Casework", "IfcFurniture", null, true, ""),
+            ("OST_Rooms", "Rooms", "IfcSpace", null, true, ""),
+            ("OST_MEPSpaces", "Spaces", "IfcSpace", null, true, ""),
+            ("OST_GenericModel", "Generic Models", "IfcBuildingElementProxy", null, true, "Proxy: categoria genérica. Defina a classe por família."),
+            ("OST_SpecialityEquipment", "Specialty Equipment", "IfcBuildingElementProxy", null, true, "Proxy: junta coisas diferentes. Defina por família."),
+            ("OST_Parts", "Parts", "IfcBuildingElementPart", null, true, ""),
+            ("OST_Assemblies", "Assemblies", "IfcElementAssembly", null, true, ""),
+            ("OST_Signage", "Signage", "IfcBuildingElementProxy", "IfcSign", true, "IfcSign só existe no 4.3."),
+            ("OST_VerticalCirculation", "Vertical Circulation", "IfcTransportElement", null, true, "Elevadores e escadas rolantes: tipo por família."),
+            ("OST_Hardscape", "Hardscape", "IfcSlab", "IfcPavement", true, "IfcPavement só existe no 4.3."),
+            ("OST_TemporaryStructure", "Temporary Structures", "IfcBuildingElementProxy", null, true, "Proxy: não há classe para estrutura provisória."),
+            ("OST_Parking", "Parking", "IfcBuildingElementProxy", null, true, "Proxy: não há classe para vaga."),
+            ("OST_Mass", "Mass", "IfcBuildingElementProxy", null, false, "Estudo de massa: não exportar."),
+            ("OST_Entourage", "Entourage", "IfcBuildingElementProxy", null, false, "Entourage: não exportar."),
 
-            // Terreno
-            ("OST_Topography", "IfcSite", null),
-            ("OST_Toposolid", "IfcGeographicElement.TERRAIN", null),
-            ("OST_Planting", "IfcGeographicElement", "IfcGeographicElement.VEGETATION"),
-            ("OST_Site", "IfcBuildingElementProxy", null),
+            // ---------------------------------------------------------------- Terreno
+            ("OST_Topography", "Topography", "IfcSite", null, true, "O exportador põe o terreno no IfcSite."),
+            ("OST_Toposolid", "Toposolid", "IfcGeographicElement.TERRAIN", null, true, ""),
+            ("OST_BuildingPad", "Pads", "IfcSlab.BASESLAB", null, true, ""),
+            ("OST_Roads", "Roads", "IfcSlab", "IfcPavement", true, "IfcPavement só existe no 4.3."),
+            ("OST_Planting", "Planting", "IfcGeographicElement", "IfcGeographicElement.VEGETATION", true, "VEGETATION só existe no 4.3."),
+            ("OST_Site", "Site", "IfcBuildingElementProxy", null, true, "Proxy: mobiliário urbano e componentes variados. Defina por família."),
 
-            // Estrutura
-            ("OST_StructuralColumns", "IfcColumn", null),
-            ("OST_StructuralFraming", "IfcBeam", null),
-            ("OST_StructuralFoundation", "IfcFooting", null),
-            ("OST_StructuralTruss", "IfcElementAssembly.TRUSS", null),
-            ("OST_StructuralFramingSystem", "IfcElementAssembly.BEAM_GRID", null),
-            ("OST_StructConnections", "IfcElementAssembly.ACCESSORY_ASSEMBLY", null),
-            ("OST_StructConnectionPlates", "IfcPlate", null),
-            ("OST_StructConnectionBolts", "IfcMechanicalFastener.BOLT", null),
-            ("OST_StructConnectionAnchors", "IfcMechanicalFastener.ANCHORBOLT", null),
-            ("OST_StructConnectionShearStuds", "IfcMechanicalFastener.SHEARCONNECTOR", null),
-            ("OST_StructConnectionWelds", "IfcFastener", null),
-            ("OST_StructuralStiffener", "IfcPlate", "IfcPlate.STIFFENER_PLATE"),
-            ("OST_StructuralTendons", "IfcTendon", null),
-            ("OST_Rebar", "IfcReinforcingBar", null),
-            ("OST_AreaRein", "IfcReinforcingBar", null),
-            ("OST_PathRein", "IfcReinforcingBar", null),
-            ("OST_FabricReinforcement", "IfcReinforcingMesh", null),
-            ("OST_FabricAreas", "IfcGroup", null),
-            ("OST_Coupler", "IfcMechanicalFastener", "IfcMechanicalFastener.COUPLER"),
+            // ---------------------------------------------------------------- Estrutura
+            ("OST_StructuralColumns", "Structural Columns", "IfcColumn", null, true, ""),
+            ("OST_StructuralFraming", "Structural Framing", "IfcBeam", null, true, "Contraventamentos e terças vêm pelas subcategorias abaixo."),
+            ("OST_Girder", "Girder", "IfcBeam", null, true, "Subcategoria de Structural Framing."),
+            ("OST_Joist", "Joist", "IfcBeam.JOIST", null, true, "Subcategoria de Structural Framing."),
+            ("OST_Purlin", "Purlin", "IfcMember.PURLIN", null, true, "Subcategoria de Structural Framing."),
+            ("OST_HorizontalBracing", "Horizontal Bracing", "IfcMember.BRACE", null, true, "Subcategoria de Structural Framing."),
+            ("OST_VerticalBracing", "Vertical Bracing", "IfcMember.BRACE", null, true, "Subcategoria de Structural Framing."),
+            ("OST_KickerBracing", "Kicker Bracing", "IfcMember.BRACE", null, true, "Subcategoria de Structural Framing."),
+            ("OST_StructuralFramingOther", "Other", "IfcBeam", null, true, "Subcategoria de Structural Framing."),
+            ("OST_StructuralFoundation", "Structural Foundations", "IfcFooting", null, true, "Radier pode ir por família como IfcSlab.BASESLAB; estaca como IfcPile."),
+            ("OST_StructuralTruss", "Structural Trusses", "IfcElementAssembly.TRUSS", null, true, ""),
+            ("OST_StructuralFramingSystem", "Structural Beam Systems", "IfcElementAssembly.BEAM_GRID", null, true, ""),
+            ("OST_StructConnections", "Structural Connections", "IfcElementAssembly.ACCESSORY_ASSEMBLY", null, true, ""),
+            ("OST_StructConnectionPlates", "Plates", "IfcPlate", null, true, "Subcategoria de Structural Connections."),
+            ("OST_StructConnectionBolts", "Bolts", "IfcMechanicalFastener.BOLT", null, true, "Subcategoria de Structural Connections."),
+            ("OST_StructConnectionAnchors", "Anchors", "IfcMechanicalFastener.ANCHORBOLT", null, true, "Subcategoria de Structural Connections."),
+            ("OST_StructConnectionShearStuds", "Shear Studs", "IfcMechanicalFastener.SHEARCONNECTOR", null, true, "Subcategoria de Structural Connections."),
+            ("OST_StructConnectionWelds", "Welds", "IfcFastener.WELD", null, true, "Subcategoria de Structural Connections."),
+            ("OST_StructConnectionOthers", "Other (Connections)", "IfcDiscreteAccessory", null, true, "Subcategoria de Structural Connections."),
+            ("OST_StructuralStiffener", "Structural Stiffeners", "IfcPlate", "IfcPlate.STIFFENER_PLATE", true, "STIFFENER_PLATE só existe no 4.3."),
+            ("OST_StructuralTendons", "Structural Tendons", "IfcTendon", null, true, ""),
+            ("OST_Rebar", "Structural Rebar", "IfcReinforcingBar", null, true, ""),
+            ("OST_AreaRein", "Structural Area Reinforcement", "IfcReinforcingBar", null, true, ""),
+            ("OST_PathRein", "Structural Path Reinforcement", "IfcReinforcingBar", null, true, ""),
+            ("OST_FabricReinforcement", "Structural Fabric Reinforcement", "IfcReinforcingMesh", null, true, ""),
+            ("OST_FabricAreas", "Structural Fabric Areas", "IfcGroup", null, true, "Grupo das telas da área."),
+            ("OST_Coupler", "Structural Rebar Couplers", "IfcMechanicalFastener", "IfcMechanicalFastener.COUPLER", true, "COUPLER só existe no 4.3."),
+            ("OST_VibrationManagement", "Vibration Management", "IfcVibrationIsolator", null, true, ""),
+            ("OST_VibrationIsolators", "Vibration Isolators", "IfcVibrationIsolator", null, true, ""),
+            ("OST_VibrationDampers", "Vibration Dampers", "IfcBuildingElementProxy", "IfcVibrationDamper", true, "IfcVibrationDamper só existe no 4.3."),
 
-            // Mecânica (ar)
-            ("OST_DuctCurves", "IfcDuctSegment.RIGIDSEGMENT", null),
-            ("OST_FlexDuctCurves", "IfcDuctSegment.FLEXIBLESEGMENT", null),
-            ("OST_DuctFitting", "IfcDuctFitting", null),
-            ("OST_DuctAccessory", "IfcDamper", null),
-            ("OST_DuctTerminal", "IfcAirTerminal", null),
-            ("OST_DuctInsulations", "IfcCovering.INSULATION", null),
-            ("OST_DuctLinings", "IfcCovering.INSULATION", null),
-            ("OST_MechanicalEquipment", "IfcUnitaryEquipment", null),
-            ("OST_HVAC_Zones", "IfcZone", null),
+            // ---------------------------------------------------------------- Pontes (IFC4 não tem classes de ponte)
+            ("OST_BridgeAbutments", "Abutments", "IfcBuildingElementProxy", "IfcElementAssembly.ABUTMENT", true, "Só o 4.3 tem classes de ponte."),
+            ("OST_AbutmentFoundations", "Abutment Foundations", "IfcFooting", null, true, ""),
+            ("OST_AbutmentPiles", "Abutment Piles", "IfcPile", null, true, ""),
+            ("OST_AbutmentWalls", "Abutment Walls", "IfcWall", null, true, ""),
+            ("OST_ApproachSlabs", "Approach Slabs", "IfcSlab", "IfcSlab.APPROACH_SLAB", true, ""),
+            ("OST_BridgePiers", "Piers", "IfcBuildingElementProxy", "IfcElementAssembly.PIER", true, "Só o 4.3 tem classes de ponte."),
+            ("OST_PierCaps", "Pier Caps", "IfcBeam", "IfcBeam.PIERCAP", true, ""),
+            ("OST_PierColumns", "Pier Columns", "IfcColumn", "IfcColumn.PIERSTEM", true, ""),
+            ("OST_PierPiles", "Pier Piles", "IfcPile", null, true, ""),
+            ("OST_PierWalls", "Pier Walls", "IfcWall", null, true, ""),
+            ("OST_BridgeTowers", "Towers", "IfcBuildingElementProxy", "IfcElementAssembly.PYLON", true, "Só o 4.3 tem classes de ponte."),
+            ("OST_BridgeCables", "Bridge Cables", "IfcMember", "IfcMember.STAY_CABLE", true, ""),
+            ("OST_BridgeArches", "Bridge Arches", "IfcElementAssembly.ARCH", null, true, ""),
+            ("OST_BridgeDecks", "Bridge Decks", "IfcSlab", "IfcElementAssembly.DECK", true, ""),
+            ("OST_BridgeFoundations", "Bridge Foundations", "IfcFooting", null, true, ""),
+            ("OST_BridgeGirders", "Bridge Girders", "IfcBeam", "IfcBeam.GIRDER_SEGMENT", true, ""),
+            ("OST_BridgeBearings", "Bridge Bearings", "IfcBuildingElementProxy", "IfcBearing", true, "IfcBearing só existe no 4.3."),
+            ("OST_BridgeFraming", "Bridge Framing", "IfcBeam", null, true, ""),
+            ("OST_BridgeFramingCrossBracing", "Cross Bracing", "IfcMember.BRACE", null, true, ""),
+            ("OST_BridgeFramingDiaphragms", "Diaphragms", "IfcBeam", "IfcBeam.DIAPHRAGM", true, ""),
+            ("OST_BridgeFramingTrusses", "Trusses (Bridge)", "IfcElementAssembly.TRUSS", null, true, ""),
+            ("OST_ExpansionJoints", "Expansion Joints", "IfcBuildingElementProxy", "IfcDiscreteAccessory.EXPANSION_JOINT_DEVICE", true, ""),
 
-            // Hidráulica
-            ("OST_PipeCurves", "IfcPipeSegment.RIGIDSEGMENT", null),
-            ("OST_FlexPipeCurves", "IfcPipeSegment.FLEXIBLESEGMENT", null),
-            ("OST_PipeFitting", "IfcPipeFitting", null),
-            ("OST_PipeAccessory", "IfcValve", null),
-            ("OST_PipeInsulations", "IfcCovering.INSULATION", null),
-            ("OST_PlumbingFixtures", "IfcSanitaryTerminal", null),
-            ("OST_PlumbingEquipment", "IfcPump", null),
-            ("OST_Sprinklers", "IfcFireSuppressionTerminal.SPRINKLER", null),
-            ("OST_FireProtection", "IfcFireSuppressionTerminal", null),
+            // ---------------------------------------------------------------- Mecânica (ar)
+            ("OST_DuctCurves", "Ducts", "IfcDuctSegment.RIGIDSEGMENT", null, true, ""),
+            ("OST_FlexDuctCurves", "Flex Ducts", "IfcDuctSegment.FLEXIBLESEGMENT", null, true, ""),
+            ("OST_DuctFitting", "Duct Fittings", "IfcDuctFitting", null, true, ""),
+            ("OST_DuctAccessory", "Duct Accessories", "IfcDamper", null, true, "Maioria são dampers; atenuador por família como IfcDuctSilencer."),
+            ("OST_DuctTerminal", "Air Terminals", "IfcAirTerminal", null, true, ""),
+            ("OST_DuctInsulations", "Duct Insulations", "IfcCovering.INSULATION", null, true, ""),
+            ("OST_DuctLinings", "Duct Linings", "IfcCovering.INSULATION", null, true, ""),
+            ("OST_MechanicalEquipment", "Mechanical Equipment", "IfcUnitaryEquipment", null, true, "Junta coisas diferentes: ventilador como IfcFan, chiller como IfcChiller, por família."),
+            ("OST_MechanicalControlDevices", "Mechanical Control Devices", "IfcUnitaryControlElement", null, true, ""),
+            ("OST_HVAC_Zones", "HVAC Zones", "IfcZone", null, true, "Grupo de espaços."),
+            ("OST_FabricationDuctwork", "MEP Fabrication Ductwork", "IfcDuctSegment", null, true, ""),
+            ("OST_FabricationDuctworkInsulation", "MEP Fabrication Ductwork Insulation", "IfcCovering.INSULATION", null, true, ""),
+            ("OST_FabricationDuctworkLining", "MEP Fabrication Ductwork Lining", "IfcCovering.INSULATION", null, true, ""),
+            ("OST_FabricationDuctworkStiffeners", "MEP Fabrication Ductwork Stiffeners", "IfcDiscreteAccessory", null, true, ""),
 
-            // Elétrica e sistemas
-            ("OST_ElectricalEquipment", "IfcElectricDistributionBoard", null),
-            ("OST_ElectricalFixtures", "IfcOutlet", null),
-            ("OST_LightingFixtures", "IfcLightFixture", null),
-            ("OST_LightingDevices", "IfcSwitchingDevice", null),
-            ("OST_CableTray", "IfcCableCarrierSegment.CABLETRAYSEGMENT", null),
-            ("OST_CableTrayFitting", "IfcCableCarrierFitting", null),
-            ("OST_Conduit", "IfcCableCarrierSegment.CONDUITSEGMENT", null),
-            ("OST_ConduitFitting", "IfcCableCarrierFitting", null),
-            ("OST_CommunicationDevices", "IfcCommunicationsAppliance", null),
-            ("OST_DataDevices", "IfcCommunicationsAppliance", null),
-            ("OST_TelephoneDevices", "IfcAudioVisualAppliance.TELEPHONE", null),
-            ("OST_NurseCallDevices", "IfcCommunicationsAppliance", null),
-            ("OST_FireAlarmDevices", "IfcAlarm", null),
-            ("OST_SecurityDevices", "IfcSensor", null),
-            ("OST_AudioVisualDevices", "IfcAudioVisualAppliance", null),
-            ("OST_MedicalEquipment", "IfcMedicalDevice", null),
-            ("OST_FoodServiceEquipment", "IfcElectricAppliance", null),
+            // ---------------------------------------------------------------- Hidráulica
+            ("OST_PipeCurves", "Pipes", "IfcPipeSegment.RIGIDSEGMENT", null, true, ""),
+            ("OST_FlexPipeCurves", "Flex Pipes", "IfcPipeSegment.FLEXIBLESEGMENT", null, true, ""),
+            ("OST_PipeFitting", "Pipe Fittings", "IfcPipeFitting", null, true, ""),
+            ("OST_PipeAccessory", "Pipe Accessories", "IfcValve", null, true, "Maioria são válvulas; filtro, medidor por família."),
+            ("OST_PipeInsulations", "Pipe Insulations", "IfcCovering.INSULATION", null, true, ""),
+            ("OST_PlumbingFixtures", "Plumbing Fixtures", "IfcSanitaryTerminal", null, true, ""),
+            ("OST_PlumbingEquipment", "Plumbing Equipment", "IfcBuildingElementProxy", null, true, "Proxy: bomba (IfcPump), reservatório (IfcTank), aquecedor... defina por família."),
+            ("OST_Sprinklers", "Sprinklers", "IfcFireSuppressionTerminal.SPRINKLER", null, true, ""),
+            ("OST_FireProtection", "Fire Protection", "IfcFireSuppressionTerminal", null, true, "Hidrante, mangotinho: tipo por família."),
+            ("OST_FabricationPipework", "MEP Fabrication Pipework", "IfcPipeSegment", null, true, ""),
+            ("OST_FabricationPipeworkInsulation", "MEP Fabrication Pipework Insulation", "IfcCovering.INSULATION", null, true, ""),
+            ("OST_FabricationHangers", "MEP Fabrication Hangers", "IfcDiscreteAccessory.BRACKET", null, true, ""),
+            ("OST_MEPAncillaryFraming", "MEP Ancillary Framing", "IfcMember", null, true, ""),
+
+            // ---------------------------------------------------------------- Elétrica e sistemas
+            ("OST_ElectricalEquipment", "Electrical Equipment", "IfcElectricDistributionBoard", null, true, "Quadros; transformador por família como IfcTransformer."),
+            ("OST_ElectricalFixtures", "Electrical Fixtures", "IfcOutlet", null, true, ""),
+            ("OST_LightingFixtures", "Lighting Fixtures", "IfcLightFixture", null, true, ""),
+            ("OST_LightingDevices", "Lighting Devices", "IfcSwitchingDevice", null, true, ""),
+            ("OST_CableTray", "Cable Trays", "IfcCableCarrierSegment.CABLETRAYSEGMENT", null, true, ""),
+            ("OST_CableTrayFitting", "Cable Tray Fittings", "IfcCableCarrierFitting", null, true, ""),
+            ("OST_Conduit", "Conduits", "IfcCableCarrierSegment.CONDUITSEGMENT", null, true, ""),
+            ("OST_ConduitFitting", "Conduit Fittings", "IfcCableCarrierFitting", null, true, ""),
+            ("OST_Cable", "Cables", "IfcCableSegment.CABLESEGMENT", null, true, ""),
+            ("OST_FabricationContainment", "MEP Fabrication Containment", "IfcCableCarrierSegment", null, true, ""),
+            ("OST_CommunicationDevices", "Communication Devices", "IfcCommunicationsAppliance", null, true, ""),
+            ("OST_DataDevices", "Data Devices", "IfcCommunicationsAppliance", null, true, ""),
+            ("OST_TelephoneDevices", "Telephone Devices", "IfcAudioVisualAppliance.TELEPHONE", null, true, ""),
+            ("OST_NurseCallDevices", "Nurse Call Devices", "IfcCommunicationsAppliance", null, true, ""),
+            ("OST_FireAlarmDevices", "Fire Alarm Devices", "IfcAlarm", null, true, "Detector por família como IfcSensor."),
+            ("OST_SecurityDevices", "Security Devices", "IfcSensor", null, true, "Câmera por família como IfcAudioVisualAppliance.CAMERA."),
+            ("OST_AudioVisualDevices", "Audio Visual Devices", "IfcAudioVisualAppliance", null, true, ""),
+            ("OST_MedicalEquipment", "Medical Equipment", "IfcMedicalDevice", null, true, ""),
+            ("OST_FoodServiceEquipment", "Food Service Equipment", "IfcElectricAppliance", null, true, ""),
         };
 
-        /// <summary>Uma linha da tabela recomendada, já com o nome da categoria no idioma do Revit.</summary>
+        /// <summary>Uma linha da tabela recomendada, já com os nomes no idioma do Revit.</summary>
         public class Item
         {
             public string Categoria;
+            public string Subcategoria = "";
             public string Classe;
             public string Tipo;
+            public bool Exportar;
+            public string Chave => Categoria + "|" + Subcategoria;
         }
 
-        /// <summary>Classe e tipo recomendados do IFC schema, por nome de categoria (sem diferenciar maiúsculas).</summary>
-        public static Dictionary<string, Item> Para(string esquema)
+        /// <summary>
+        /// Classe e tipo recomendados do IFC schema, por "Categoria|Subcategoria". Com o modelo, a subcategoria é resolvida
+        /// pela categoria-mãe; sem ele, vale o nome da categoria (sem subcategoria).
+        /// </summary>
+        public static Dictionary<string, Item> Para(string esquema, DB.Document doc)
         {
             var r = new Dictionary<string, Item>(StringComparer.CurrentCultureIgnoreCase);
-            foreach ((string bic, string ifc4, string ifc43) in Tabela)
+            foreach (var t in Tabela)
             {
-                if (!Enum.TryParse(bic, out DB.BuiltInCategory cat)) continue;   // categoria que esta versão do Revit não tem
-                string nome;
-                try { nome = DB.LabelUtils.GetLabelFor(cat); } catch { continue; }
-                if (string.IsNullOrWhiteSpace(nome) || r.ContainsKey(nome)) continue;
-                string valor = esquema == CategoriasIfc.Ifc4x3 ? ifc43 ?? ifc4 : ifc4;
-                int ponto = valor.IndexOf('.');
-                r[nome] = new Item
+                if (!Enum.TryParse(t.Bic, out DB.BuiltInCategory bic)) continue;   // categoria que esta versão do Revit não tem
+                string categoria, sub = "";
+                try
                 {
-                    Categoria = nome,
+                    DB.Category c = doc != null ? DB.Category.GetCategory(doc, bic) : null;
+                    if (c != null)
+                    {
+                        if (c.Parent != null) { categoria = c.Parent.Name; sub = c.Name; }
+                        else categoria = c.Name;
+                    }
+                    else if (doc != null) continue;  // o modelo não tem esta categoria
+                    else categoria = DB.LabelUtils.GetLabelFor(bic);
+                }
+                catch { continue; }
+                if (string.IsNullOrWhiteSpace(categoria)) continue;
+                string valor = esquema == CategoriasIfc.Ifc4x3 ? t.Ifc43 ?? t.Ifc4 : t.Ifc4;
+                int ponto = valor.IndexOf('.');
+                var item = new Item
+                {
+                    Categoria = categoria, Subcategoria = sub, Exportar = t.Exportar,
                     Classe = ponto < 0 ? valor : valor.Substring(0, ponto),
                     Tipo = ponto < 0 ? "" : valor.Substring(ponto + 1),
                 };
+                if (!r.ContainsKey(item.Chave)) r[item.Chave] = item;
             }
             return r;
-        }
-
-        /// <summary>Para o teste: cada valor da tabela (BuiltInCategory, esquema, classe, tipo).</summary>
-        internal static IEnumerable<(string Bic, string Esquema, string Classe, string Tipo)> Valores()
-        {
-            foreach ((string bic, string ifc4, string ifc43) in Tabela)
-                foreach ((string e, string v) in new[] { (CategoriasIfc.Ifc4, ifc4), (CategoriasIfc.Ifc4x3, ifc43 ?? ifc4) })
-                {
-                    int p = v.IndexOf('.');
-                    yield return (bic, e, p < 0 ? v : v.Substring(0, p), p < 0 ? "" : v.Substring(p + 1));
-                }
         }
     }
 }

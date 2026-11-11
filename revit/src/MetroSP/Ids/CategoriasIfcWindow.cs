@@ -422,8 +422,8 @@ namespace MetroSP.Ids
         }
 
         /// <summary>
-        /// Aplica a tabela recomendada (CategoriasRecomendadas) nas categorias principais: classe, tipo e Exportar = sim.
-        /// Subcategorias e categorias fora da tabela (anotações, por exemplo) ficam como estão. Salvar grava.
+        /// Aplica a tabela recomendada (CategoriasRecomendadas, base Revit 2027) nas categorias e subcategorias que ela cobre:
+        /// classe, tipo e Exportar. As outras linhas (anotações, por exemplo) ficam como estão. Salvar grava.
         /// </summary>
         private void Recomendado(IEnumerable<string> esquemas)
         {
@@ -431,38 +431,41 @@ namespace MetroSP.Ids
             List<string> lista = esquemas.ToList();
             string nomes = string.Join(" e ", lista.Select(NomeEsquema));
             if (MessageBox.Show(this, $"Aplicar a tabela recomendada pelo MetroSP no {nomes}?\n\n" +
-                    "Cada categoria de modelo vai para a classe IFC própria dela, conforme o IFC4 (ISO 16739-1:2018) e o IFC 4.3 " +
-                    "(ISO 16739-1:2024), sem proxy quando existe classe adequada (ex.: Structural Framing → IfcBeam, " +
-                    "Structural Trusses → IfcElementAssembly TRUSS). Subcategorias e categorias de anotação ficam como estão.\n\n" +
+                    "Cada categoria de modelo (e subcategorias como Joist, Purlin, Bracing, Bolts) vai para a classe IFC própria dela, " +
+                    "conforme o IFC4 (ISO 16739-1:2018) e o IFC 4.3 (ISO 16739-1:2024), sem proxy quando existe classe adequada " +
+                    "(ex.: Structural Framing → IfcBeam, Structural Trusses → IfcElementAssembly TRUSS). Categorias de anotação ficam como estão.\n\n" +
                     "Nada é gravado até você clicar em Salvar.", Title, MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK)
                 return;
             int mudou = 0, novas = 0;
             foreach (string e in lista)
             {
-                Dictionary<string, CategoriasRecomendadas.Item> rec = CategoriasRecomendadas.Para(e);
+                Dictionary<string, CategoriasRecomendadas.Item> rec = CategoriasRecomendadas.Para(e, _doc);
                 var feitas = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
-                foreach (CategoriasIfc.Linha l in _tabelas[e].Where(l => string.IsNullOrEmpty(l.Subcategoria)))
+                foreach (CategoriasIfc.Linha l in _tabelas[e])
                 {
-                    if (!rec.TryGetValue(l.Categoria, out CategoriasRecomendadas.Item r)) continue;
-                    feitas.Add(l.Categoria);
-                    if (l.Exportar && string.Equals(l.Classe ?? "", r.Classe, StringComparison.OrdinalIgnoreCase) &&
+                    string chave = l.Categoria + "|" + (l.Subcategoria ?? "");
+                    if (!rec.TryGetValue(chave, out CategoriasRecomendadas.Item r)) continue;
+                    feitas.Add(chave);
+                    if (l.Exportar == r.Exportar && string.Equals(l.Classe ?? "", r.Classe, StringComparison.OrdinalIgnoreCase) &&
                         string.Equals(l.Tipo ?? "", r.Tipo, StringComparison.OrdinalIgnoreCase)) continue;
                     l.Classe = r.Classe;
                     l.Tipo = r.Tipo;
-                    l.Exportar = true;
+                    l.Exportar = r.Exportar;
                     mudou++;
                 }
                 // Categorias recomendadas que a tabela ainda não tem (ex.: Revit 2022 a 2024, sem o mapeamento do modelo).
-                foreach (CategoriasRecomendadas.Item r in rec.Values.Where(r => !feitas.Contains(r.Categoria)))
-                {
-                    _tabelas[e].Add(new CategoriasIfc.Linha { Categoria = r.Categoria, Subcategoria = "", Classe = r.Classe, Tipo = r.Tipo, Exportar = true, Esquema = e });
-                    novas++;
-                }
+                // Só com o modelo aberto, que confirma que a categoria existe nesta versão do Revit.
+                if (_doc != null)
+                    foreach (CategoriasRecomendadas.Item r in rec.Values.Where(r => !feitas.Contains(r.Chave)))
+                    {
+                        _tabelas[e].Add(new CategoriasIfc.Linha { Categoria = r.Categoria, Subcategoria = r.Subcategoria, Classe = r.Classe, Tipo = r.Tipo, Exportar = r.Exportar, Esquema = e });
+                        novas++;
+                    }
                 _alteradas.Add(e);
             }
             if (novas > 0) MontarPares();
             Atualizar();
-            _resumo.Text = $"Recomendado aplicado no {nomes}: {mudou} linha(s) mudaram" + (novas > 0 ? $", {novas} categoria(s) acrescentadas" : "") + ". Salve para valer.";
+            _resumo.Text = $"Recomendado aplicado no {nomes}: {mudou} linha(s) mudaram" + (novas > 0 ? $", {novas} acrescentadas" : "") + ". Salve para valer.";
             _resumo.Foreground = Theme.Solid(Theme.LaranjaTexto);
         }
 

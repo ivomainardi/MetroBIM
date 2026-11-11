@@ -36,7 +36,8 @@
 - Copiar entre IFC schemas, Importar .txt, Exportar .txt e Voltar ao padrão abrem um menu para escolher o IFC4 ou o IFC 4.3.
 - **Salvar** grava os IFC schemas alterados e fecha a janela (antes ficava aberta).
 - **Voltar ao padrão › Recomendado MetroSP (ISO 16739)**: aplica uma tabela com a classe IFC própria de cada categoria de
-  modelo (cerca de 95), só com classes e tipos que existem no IFC4 (ISO 16739-1:2018) e no IFC 4.3 (ISO 16739-1:2024).
+  modelo do Revit 2027 (147 linhas, com subcategorias como Joist, Purlin, Bracing, Bolts e as categorias de ponte; revisão em
+  docs/categorias-ifc-recomendadas.xlsx), só com classes e tipos que existem no IFC4 (ISO 16739-1:2018) e no IFC 4.3 (ISO 16739-1:2024).
   Proxy só onde não há classe adequada (Modelo genérico, Equipamento especializado). Exemplos: Structural Framing →
   IfcBeam, Structural Foundations → IfcFooting, Structural Trusses → IfcElementAssembly TRUSS, Pipe Accessories →
   IfcValve, Cable Trays → IfcCableCarrierSegment CABLETRAYSEGMENT. No 4.3 usa o que só existe nele (IfcSign, IfcPavement,
