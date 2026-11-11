@@ -321,7 +321,7 @@ namespace MetroSP.Ids
             _setup = o;
             var painel = new StackPanel();
             Border seloVersao = Theme.Selo();
-            void AtualizarVersao() => Theme.MudarSelo(seloVersao, o.EhVersaoAceita ? "pronto para exportar" : "a exportação MetroSP exige IFC4 ou IFC 4.3",
+            void AtualizarVersao() => Theme.MudarSelo(seloVersao, o.EhVersaoAceita ? "pronto para exportar" : "a exportação MetroSP exige " + OpcoesSetup.VersoesAceitas,
                 o.EhVersaoAceita ? Theme.Estado.Ok : Theme.Estado.Aviso);
             AtualizarVersao();
             painel.Children.Add(Cabecalho(a, seloVersao));
@@ -427,7 +427,7 @@ namespace MetroSP.Ids
         {
             if (_setup == null) return;
             if (!_setup.EhVersaoAceita &&
-                MessageBox.Show(this, "A exportação MetroSP exige IFC4 ou IFC 4.3. Salvar assim mesmo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                MessageBox.Show(this, "A exportação MetroSP exige " + OpcoesSetup.VersoesAceitas + ". Salvar assim mesmo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
                 return;
             string destino = ArquivosIfc.Destino(ArquivosIfc.Tipo.Setup, a.Classe);
             try

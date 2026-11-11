@@ -52,7 +52,7 @@ namespace MetroSP.Ids
         public bool SoVisiveisNaVista { get; }
 
         /// <summary>Id da fase escolhida no setup (-1 = padrão do exportador).</summary>
-        public long Fase => _props.TryGetValue("ActivePhaseId", out JsonElement f) && f.TryGetInt64(out long n) ? n : -1;
+        public long Fase => _props.TryGetValue("ActivePhaseId", out JsonElement f) && Inteiro(f, out long n) ? n : -1;
         public bool GravaGuid { get; }
         public ArquivoResolvido PropertySets { get; }
         public ArquivoResolvido MapeamentoParametros { get; }
@@ -149,8 +149,8 @@ namespace MetroSP.Ids
             o.FilterViewId = filtrarVista ? vista : ElementId.InvalidElementId;
             o.AddOption("VisibleElementsOfCurrentView", filtrarVista.ToString());
 
-            if (_props.TryGetValue("SpaceBoundaries", out JsonElement sb) && sb.TryGetInt32(out int nivel))
-                o.SpaceBoundaryLevel = nivel;
+            if (_props.TryGetValue("SpaceBoundaries", out JsonElement sb) && Inteiro(sb, out long nivel))
+                o.SpaceBoundaryLevel = (int)nivel;
             o.WallAndColumnSplitting = Bool("SplitWallsAndColumns");
 
             bool quantidades = Bool("ExportBaseQuantities");
@@ -158,7 +158,7 @@ namespace MetroSP.Ids
             o.AddOption("ExportBaseQuantities", quantidades.ToString());
 
             // A fase só vale para o modelo inteiro, e só se existir neste arquivo
-            if (!filtrarVista && _props.TryGetValue("ActivePhaseId", out JsonElement fase) && fase.TryGetInt64(out long faseId)
+            if (!filtrarVista && _props.TryGetValue("ActivePhaseId", out JsonElement fase) && Inteiro(fase, out long faseId)
                 && doc.GetElement(Compat.NovoId(faseId)) is Phase)
                 o.AddOption("ActivePhaseId", faseId.ToString(CultureInfo.InvariantCulture));
 
@@ -236,12 +236,36 @@ namespace MetroSP.Ids
             // Ex.: setup em IFC 4.3 aberto no Revit 2022, cujo exportador vai só até o IFC4.
             if (v.ValueKind == JsonValueKind.Number || v.ValueKind == JsonValueKind.String)
                 throw new InvalidDataException("Este setup usa uma versão IFC que este Revit não exporta (" + v.ToString() +
-                                               "). Escolha um setup em IFC4 Reference View ou IFC 4.3.");
+                                               "). Escolha um setup " + OpcoesSetup.VersoesAceitas + " (por exemplo IFC4 Reference View).");
             throw new InvalidDataException("Versão IFC não reconhecida: " + v.GetRawText());
         }
 
         private string Texto(string nome) =>
             _props.TryGetValue(nome, out JsonElement v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
+
+        /// <summary>
+        /// Número inteiro gravado como número, texto ou ElementId serializado como objeto
+        /// ({"IntegerValue": n} nos exportadores mais antigos, como o do Revit 2022; {"Value": n} nos novos).
+        /// </summary>
+        private static bool Inteiro(JsonElement v, out long n)
+        {
+            n = 0;
+            switch (v.ValueKind)
+            {
+                case JsonValueKind.Number:
+                    return v.TryGetInt64(out n);
+                case JsonValueKind.String:
+                    return long.TryParse(v.GetString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out n);
+                case JsonValueKind.Object:
+                    foreach (string nome in new[] { "Value", "IntegerValue" })
+                        foreach (JsonProperty p in v.EnumerateObject())
+                            if (string.Equals(p.Name, nome, StringComparison.OrdinalIgnoreCase) && Inteiro(p.Value, out n))
+                                return true;
+                    return false;
+                default:
+                    return false;
+            }
+        }
 
         private bool Bool(string nome) =>
             _props.TryGetValue(nome, out JsonElement v) && v.ValueKind == JsonValueKind.True;

@@ -225,8 +225,8 @@ namespace MetroSP.Ids
 
             Match schema = RxSchema.Match(texto);
             string esquema = schema.Success ? schema.Groups[1].Value : "?";
-            bool ifc4 = esquema.Equals("IFC4", StringComparison.OrdinalIgnoreCase);
-            c.Linhas.Add("Esquema: " + esquema + (ifc4 ? "" : " (esperado IFC4)"));
+            bool ifc4 = OpcoesSetup.VersaoAceita(esquema);
+            c.Linhas.Add("Esquema: " + esquema + (ifc4 ? "" : " (esperado " + OpcoesSetup.VersoesAceitas + ")"));
             if (!ifc4) c.TemProblema = true;
 
             Match site = RxSite.Match(texto);

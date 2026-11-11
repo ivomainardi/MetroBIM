@@ -1,3 +1,35 @@
+# MetroSP 0.3.3 (em teste)
+
+## Revit 2023 e 2024
+
+- O MetroSP passa a ter versão para o **Revit 2023 e 2024**, no mesmo instalador do Revit 2022:
+  `MetroSP-Revit2022-2024-Setup-<versão>.exe` (e `MetroSP-Revit2022-2024-<versão>-instalador.zip`). Cada versão do
+  Revit recebe a sua DLL, compilada contra a API dela. O instalador de 2025-2027 continua igual, e quem já tem o do
+  2022 instalado é atualizado.
+- Diferenças em relação ao 2025+: como no 2022, o Revit 2023 e 2024 não deixam o add-in gravar a tabela de
+  **Categorias IFC** no modelo; vale o mapeamento do próprio Revit (Opções IFC). No 2023 também não há troca
+  automática de tema nas logos da Ribbon. O resto funciona como no 2025+ (parâmetro "Exportar para IFC", seleção
+  em Aplicar classificação, tema escuro no 2024).
+- Falta testar no Revit 2023 e 2024: instalar, carregar a aba ("Sempre carregar"), abrir cada janela, exportar um IFC
+  (IFC4 Reference View e, se o exportador aceitar, IFC 4.3) e conferir Psets, classificação, IfcSite/IfcProject e a
+  Conferir entrega; no 2024, trocar o tema claro/escuro.
+
+## Revit 2022: Exportar IFC aceita IFC 2x3
+
+- No Revit 2022, o Exportar IFC e o Arquivos IFC deixam de bloquear setups em **IFC 2x3** (o exportador do 2022 vai
+  só até o IFC4). Nas versões 2025+ continua valendo IFC4 ou IFC 4.3. COBie segue de fora.
+- Em IFC 2x3 a classificação (IfcClassificationReference) não é gravada no pós-processamento: o log avisa.
+- Falta testar no Revit 2022: exportar com um setup IFC 2x3 e conferir Psets, IfcSite/IfcProject e a Localização.
+
+## Correção: Conferir Entrega no Revit 2022
+
+- O **Conferir Entrega** parava com "Command Failure for External Command" ao ler um setup IFC salvo pelo exportador
+  do Revit 2022. Esse exportador grava a fase (`ActivePhaseId`) como objeto (`{"IntegerValue": n}`) e não como número.
+  Agora a fase e o nível de Space Boundaries são lidos nos dois formatos, e em Arquivos IFC a fase é salva mantendo o
+  formato original do setup.
+- Falta testar no Revit 2022: Conferir Entrega e Exportar IFC com um setup salvo no 2022 (com e sem fase escolhida),
+  e mudar a fase em Arquivos IFC e reabrir o setup no exportador do Revit.
+
 # MetroSP 0.3.2 (em teste)
 
 ## Exportar IFC: aceita setup em IFC 4.3

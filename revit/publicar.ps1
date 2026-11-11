@@ -24,16 +24,16 @@ if (git tag -l "v$v") { throw "A tag v$v já existe: suba a <Version> no MetroSP
 
 ./build.ps1   # a versão do instalador vem do csproj
 
-# Dois pacotes: 2025-2027 e, separado, o Revit 2022.
+# Dois pacotes: 2025-2027 e, separado, o Revit 2022 a 2024.
 $arquivos = @()
-foreach ($nome in 'MetroSP', 'MetroSP-Revit2022') {
+foreach ($nome in 'MetroSP', 'MetroSP-Revit2022-2024') {
     if (-not (Test-Path "$nome-instalador.zip")) { continue }
     $zip = "$nome-$v-instalador.zip"
     if (Test-Path $zip) { Remove-Item $zip }
     Rename-Item "$nome-instalador.zip" $zip
     $arquivos += $zip
 }
-$arquivos += @(Get-ChildItem "MetroSP-Setup-$v.exe", "MetroSP-Revit2022-Setup-$v.exe" -ErrorAction SilentlyContinue | ForEach-Object Name)
+$arquivos += @(Get-ChildItem "MetroSP-Setup-$v.exe", "MetroSP-Revit2022-2024-Setup-$v.exe" -ErrorAction SilentlyContinue | ForEach-Object Name)
 
 gh release create "v$v" @arquivos --target $sha --title "MetroSP $v" --notes-file NOTAS-DA-VERSAO.md
 if ($LASTEXITCODE -ne 0) { throw 'Falha ao criar a release no GitHub' }
