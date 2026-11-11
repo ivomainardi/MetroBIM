@@ -44,7 +44,7 @@ namespace MetroSP.Ui
         {
             ("Entrega Metrô", "Conferir Entrega (semáforo do que o Metrô pede, arquivo de padrões .metrosp) e os 4 passos da entrega IFC: 1 Projeto e Local (IfcProject, IfcSite, IfcBuilding e localização), 2 Configurar (Arquivos IFC e Categorias IFC), 3 Verificar Padrões (IDS), 4 Exportar IFC"),
             ("Classificação", "Aplicar Classificação, Verificar Classificação, Consistência Código×Descrição"),
-            ("Dados do modelo", "Planilha de Dados (Excel ida e volta), Editar em Massa, Filtrar e Colorir, Copiar Valores, Contar Elementos"),
+            ("Dados do modelo", "Planilha de Dados (Excel ida e volta), Editar em Massa, Filtrar e Colorir, Copiar Valores"),
             ("Parâmetros e famílias", "Menu Parâmetros (Gerenciar, Listar Compartilhados com troca instância ↔ tipo, Renomear Compartilhado) e Renomear Famílias e tipos"),
         };
 

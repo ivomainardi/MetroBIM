@@ -14,7 +14,6 @@ Aba **MetroSP** na Ribbon do Revit.
 | Classificação | Consistência Código×Descrição | Agrupa por código e mostra os que têm mais de uma descrição; escolhe-se a correta (a da planilha vem marcada) e unifica. Lista também descrições usadas com códigos diferentes |
 | IFC | Verificar Padrões Metrô | Antes de exportar, verifica se parâmetros e mapeamento IFC atendem aos padrões do Metrô (arquivo .ids). Só conta os elementos que vão para o IFC |
 | IFC | Exportar IFC | Exporta o IFC escolhendo uma classe instalada com o MetroSP ou indicando o setup .json e o .txt de property sets (computador, rede ou Autodesk Forma pelo Desktop Connector). Edita o .txt em tabela e mostra os parâmetros que não existem no modelo |
-| Modelagem | Contar Elementos | Exemplo: conta elementos por categoria |
 
 ## Estrutura
 

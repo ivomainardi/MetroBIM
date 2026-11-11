@@ -14,6 +14,12 @@
   (IFC4 Reference View e, se o exportador aceitar, IFC 4.3) e conferir Psets, classificação, IfcSite/IfcProject e a
   Conferir entrega; no 2024, trocar o tema claro/escuro.
 
+## Ribbon: sai o botão Contar
+
+- O botão **Contar** (Contar Elementos) saiu do painel **Dados do modelo**, em todas as versões (2022 a 2027). O
+  **Copiar Valores** passa a ser um botão grande no lugar da pilha.
+- Falta testar no Revit (2022 a 2024 e 2025+): abrir a aba MetroSP, conferir o painel Dados do modelo e abrir o Copiar Valores.
+
 ## Revit 2022: Exportar IFC aceita IFC 2x3
 
 - No Revit 2022, o Exportar IFC e o Arquivos IFC deixam de bloquear setups em **IFC 2x3** (o exportador do 2022 vai
