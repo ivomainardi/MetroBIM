@@ -38,6 +38,23 @@ namespace MetroSP.Ui
 
         public static Style PrimaryButton { get; } = CreateButtonStyle(primary: true);
 
+        /// <summary>Fonte e estilos padrão (botões, campos, tabelas, abas) nos recursos de uma janela ou painel.</summary>
+        public static void Estilos(FrameworkElement el)
+        {
+            if (el is Control c)
+            {
+                c.FontFamily = new FontFamily("Segoe UI");
+                c.FontSize = 12;
+            }
+            else System.Windows.Documents.TextElement.SetFontFamily(el, new FontFamily("Segoe UI"));
+            el.Resources[typeof(Button)] = CreateButtonStyle(primary: false);
+            el.Resources[typeof(TextBox)] = CreateTextBoxStyle();
+            el.Resources[typeof(DataGrid)] = CreateDataGridStyle();
+            el.Resources[typeof(DataGridColumnHeader)] = CreateHeaderStyle();
+            el.Resources[typeof(TabControl)] = CreateTabControlStyle();
+            el.Resources[typeof(TabItem)] = CreateTabItemStyle();
+        }
+
         /// <summary>
         /// Monta a janela no padrão: cabeçalho (logo, título, subtítulo), corpo e rodapé de botões,
         /// e registra os estilos padrão nos recursos da janela.
@@ -45,14 +62,7 @@ namespace MetroSP.Ui
         public static void Apply(Window w, string titulo, string subtitulo, UIElement corpo, UIElement rodape)
         {
             w.Background = Brushes.White;
-            w.FontFamily = new FontFamily("Segoe UI");
-            w.FontSize = 12;
-            w.Resources[typeof(Button)] = CreateButtonStyle(primary: false);
-            w.Resources[typeof(TextBox)] = CreateTextBoxStyle();
-            w.Resources[typeof(DataGrid)] = CreateDataGridStyle();
-            w.Resources[typeof(DataGridColumnHeader)] = CreateHeaderStyle();
-            w.Resources[typeof(TabControl)] = CreateTabControlStyle();
-            w.Resources[typeof(TabItem)] = CreateTabItemStyle();
+            Estilos(w);
 
             var raiz = new DockPanel();
 

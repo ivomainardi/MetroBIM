@@ -60,7 +60,7 @@ namespace MetroSP.Commands
     public class GerenciarParametrosCommand : IExternalCommand
     {
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
-            JanelaDados.Abrir(commandData, u => new Dados.GerenciarParametrosWindow(u));
+            ListarCompartilhadosCommand.Abrir(commandData.Application, ListarCompartilhadosCommand.Modelo); // botão Parâmetros, aba Parâmetros de projeto
     }
 }
 

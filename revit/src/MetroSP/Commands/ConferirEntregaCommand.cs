@@ -16,9 +16,12 @@ namespace MetroSP.Commands
         private static ConferirEntregaWindow _janela;
         private static Document _docJanela;
 
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Abrir(commandData.Application);
+
+        /// <summary>Abre a conferência completa (janela). Chamar no contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Abrir(UIApplication uiapp)
         {
-            UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null || doc.IsFamilyDocument)
             {

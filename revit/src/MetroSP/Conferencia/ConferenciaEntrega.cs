@@ -535,7 +535,7 @@ namespace MetroSP.Conferencia
                 {
                     Sinal = Sinal.Amarelo, Assunto = x.Parametro,
                     Problema = $"GUID diferente do MetroShared ({prm.GUID} no modelo, {def.Guid} na base). O IFC sai pelo nome, mas o parâmetro não é o do padrão.",
-                    OQueFazer = "Veja em Listar Compartilhados (coluna Padrão) e troque pelo parâmetro do MetroShared.",
+                    OQueFazer = "Veja em Parâmetros › Compartilhados (coluna Padrão) e troque pelo parâmetro do MetroShared.",
                     Correcao = Correcao.ListarCompartilhados,
                 });
             }

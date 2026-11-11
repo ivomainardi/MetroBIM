@@ -38,12 +38,27 @@ namespace MetroSP
                 // A aba já existe (outro add-in MetroSP carregado). Seguimos usando ela.
             }
 
-            // Painéis na ordem do trabalho: entregar, classificar, cuidar dos dados e, por último, manutenção.
-            // O Sobre abre pela logo, à direita da aba.
+            // Painéis na ordem do trabalho: entregar (passos 1, 2 e 3), classificar, cuidar dos dados, manutenção e,
+            // por último, o que o coordenador BIM prepara uma vez. O Sobre abre pela logo, à direita da aba.
             CreateEntregaPanel(application);
             CreateClassificacaoPanel(application);
             CreateDadosPanel(application);
             CreateParametrosPanel(application);
+            CreateCoordenadorPanel(application);
+
+            // Painel MetroSP: encaixado ao lado do modelo (DockablePane). Registrado aqui, no início do Revit.
+            try
+            {
+                application.RegisterDockablePane(Painel.PainelMetroSP.Id, Painel.PainelMetroSP.Titulo, new Painel.PainelMetroSP());
+                application.ViewActivated += (s, e) =>
+                {
+                    try { Painel.PainelMetroSP.Instancia?.ModeloAtivo(e.Document); } catch { }
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("MetroSP: Painel MetroSP não registrado: " + ex.Message);
+            }
 
             // As logos entram depois que a Ribbon do Revit está pronta (fica à direita, depois dos painéis).
             application.ControlledApplication.ApplicationInitialized += (s, e) => Ui.MarcaRibbon.Adicionar(TabName);
@@ -73,44 +88,22 @@ namespace MetroSP
         {
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega Metrô");
 
-            AddButton<ConferirEntregaCommand>(panel, "Conferir\nEntrega",
-                "Por onde começar: mostra num semáforo o que o Metrô pede e o que falta no modelo (arquivos, parâmetros, classe IFC, " +
-                "dados e classificação), seleciona e pinta as pendências e abre a ferramenta que corrige.",
-                "Conferir");
-
-            panel.AddSeparator();
+            AddButton<PainelMetroSPCommand>(panel, "Painel\nMetroSP",
+                "Passo 1, por onde começar. Abre ao lado do modelo o painel com os passos da entrega e o semáforo de cada um " +
+                "(arquivos, parâmetros, classe IFC, dados e classificação). Abra um passo para ver as pendências, selecionar e " +
+                "pintar os elementos e abrir a ferramenta que corrige. A conferência completa (matriz, IDS) abre pelo painel.",
+                "Passo1");
 
             AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
-                "Passo 1 da entrega IFC. Preenche o IfcProject, o IfcSite e o IfcBuilding (nome, nome longo, descrição, fase, endereço) " +
+                "Passo 2. Preenche o IfcProject, o IfcSite e o IfcBuilding (nome, nome longo, descrição, fase, endereço) " +
                 "e o Pset MetroSP_Projeto, e calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô). " +
                 "Os dados podem ser salvos como padrão e usados em outros modelos, também no Civil 3D.",
-                "Etapa1");
-
-            PulldownButton configurar = AddPulldown(panel, "Configurar", "Configurar",
-                "Passo 2 da entrega IFC. Os arquivos da classe (setup, property sets e mapeamentos) e em que classe IFC cada categoria do Revit sai.",
-                "Etapa2");
-            AddToPulldown<PadroesCommand>(configurar, "Padrões e planilhas",
-                "Todos os padrões salvos (classificação, confronto, dados do projeto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
-                "editar, trocar a planilha de todos de uma vez e levar para a equipe num .zip.",
-                "Padroes");
-            AddToPulldown<ArquivosIfcCommand>(configurar, "Arquivos IFC",
-                "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
-                "principais do setup e confira os property sets no modelo aberto.",
-                "ArquivosIfc");
-            AddToPulldown<CategoriasIfcCommand>(configurar, "Categorias IFC",
-                "Em que classe IFC cada categoria do Revit é exportada: uma tabela para IFC4 e outra para IFC 4.3. " +
-                "Na exportação, vale a tabela do IFC schema do setup.",
-                "CategoriasIfc");
-
-            AddButton<VerificarIdsCommand>(panel, "Verificar\nPadrões",
-                "Passo 3 da entrega IFC. Confere, antes de exportar, se os parâmetros e o mapeamento IFC atendem aos padrões de " +
-                "informação do Metrô (arquivo .ids).",
-                "Etapa3");
+                "Passo2");
 
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
-                "Passo 4 da entrega IFC. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
+                "Passo 3. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
                 "computador ou no Autodesk Forma.",
-                "Etapa4");
+                "Passo3");
         }
 
         private static void CreateClassificacaoPanel(UIControlledApplication application)
@@ -122,13 +115,10 @@ namespace MetroSP
                 "A janela fica aberta enquanto você seleciona no Revit.",
                 "ClassAplicar");
 
-            panel.AddStackedItems(
-                Dados<VerificarClassificacaoCommand>("Verificar",
-                    "Confere se a classificação preenchida está na planilha, com a descrição e a categoria certas, e propõe correções.",
-                    "ClassVerificar"),
-                Dados<ConsistenciaClassificacaoCommand>("Consistência",
-                    "Encontra códigos usados com descrições diferentes no modelo e unifica pela descrição escolhida.",
-                    "ClassConsistencia"));
+            AddButton<VerificarClassificacaoCommand>(panel, "Verificar",
+                "Confere se a classificação preenchida está na planilha, com a descrição e a categoria certas, e propõe correções. " +
+                "Em \"Códigos × descrições...\", encontra códigos usados com descrições diferentes e unifica.",
+                "ClassVerificar");
         }
 
         private static void CreateDadosPanel(UIControlledApplication application)
@@ -169,24 +159,35 @@ namespace MetroSP
         {
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Parâmetros e famílias");
 
-            PulldownButton parametros = AddPulldown(panel, "Parametros", "Parâmetros",
-                "Parâmetros de projeto e compartilhados: ver, exportar, criar pela planilha, pôr em famílias, listar e renomear.",
+            AddButton<ListarCompartilhadosCommand>(panel, "Parâmetros",
+                "Uma janela para os parâmetros: compartilhados do arquivo (GUID, tipo, categorias, renomear mantendo o GUID, " +
+                "instância ↔ tipo, deletar os sem uso), comparação com o .txt do MetroShared, parâmetros de projeto, " +
+                "criar vários pela planilha e adicionar em famílias.",
                 "GerenciarParametros");
-            AddToPulldown<GerenciarParametrosCommand>(parametros, "Gerenciar parâmetros",
-                "Veja e exporte os parâmetros de projeto, crie vários de uma vez a partir de uma planilha (com as categorias) " +
-                "e acrescente parâmetros compartilhados em várias famílias.",
-                "GerenciarParametros");
-            AddToPulldown<ListarCompartilhadosCommand>(parametros, "Listar compartilhados",
-                "Todos os parâmetros compartilhados do arquivo aberto, com GUID, tipo, categorias e comparação com o .txt. " +
-                "Também troca um parâmetro entre instância e tipo.",
-                "Listar");
-            AddToPulldown<RenomearParametroCommand>(parametros, "Renomear compartilhado",
-                "Renomeia um parâmetro compartilhado (projeto ou família) mantendo o mesmo GUID.",
-                "Renomear");
 
             AddButton<RenomearFamiliasCommand>(panel, "Renomear\nFamílias",
                 "Renomeia famílias e tipos por regra (prefixo, sufixo, substituir, modelo com {Nome}), com prévia e conferência de nomes repetidos.",
                 "RenomearFamilias");
+        }
+
+        /// <summary>O que o coordenador BIM prepara uma vez e distribui para a equipe: botões pequenos, no fim da aba.</summary>
+        private static void CreateCoordenadorPanel(UIControlledApplication application)
+        {
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Coordenador BIM");
+
+            panel.AddStackedItems(
+                Dados<PadroesCommand>("Padrões e planilhas",
+                    "Todos os padrões salvos (classificação, confronto, dados do projeto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
+                    "editar, trocar a planilha de todos de uma vez e levar para a equipe num .zip.",
+                    "Padroes"),
+                Dados<ArquivosIfcCommand>("Arquivos IFC",
+                    "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
+                    "principais do setup e confira os property sets no modelo aberto.",
+                    "ArquivosIfc"),
+                Dados<CategoriasIfcCommand>("Categorias IFC",
+                    "Em que classe IFC cada categoria do Revit é exportada: uma tabela para IFC4 e outra para IFC 4.3. " +
+                    "Na exportação, vale a tabela do IFC schema do setup.",
+                    "CategoriasIfc"));
         }
 
         private static PushButtonData Dados<TCommand>(string text, string tooltip, string icon) where TCommand : IExternalCommand
@@ -199,20 +200,6 @@ namespace MetroSP
                 Image = LoadIcon($"{icon}16.png"),
             };
         }
-
-        private static PulldownButton AddPulldown(RibbonPanel panel, string name, string text, string tooltip, string icon)
-        {
-            var data = new PulldownButtonData("MetroSP." + name, text)
-            {
-                ToolTip = tooltip,
-                LargeImage = LoadIcon($"{icon}32.png"),
-                Image = LoadIcon($"{icon}16.png"),
-            };
-            return (PulldownButton)panel.AddItem(data);
-        }
-
-        private static void AddToPulldown<TCommand>(PulldownButton menu, string text, string tooltip, string icon) where TCommand : IExternalCommand =>
-            menu.AddPushButton(Dados<TCommand>(text, tooltip, icon));
 
         private static PushButton AddButton<TCommand>(RibbonPanel panel, string text, string tooltip, string icon)
             where TCommand : IExternalCommand

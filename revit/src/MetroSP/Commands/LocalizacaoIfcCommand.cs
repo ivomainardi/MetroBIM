@@ -14,9 +14,12 @@ namespace MetroSP.Commands
     [Transaction(TransactionMode.Manual)]
     public class LocalizacaoIfcCommand : IExternalCommand
     {
-        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Abrir(commandData.Application);
+
+        /// <summary>Abre a janela e grava. Chamar no contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Abrir(UIApplication uiapp)
         {
-            UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc == null || doc.IsFamilyDocument)
             {

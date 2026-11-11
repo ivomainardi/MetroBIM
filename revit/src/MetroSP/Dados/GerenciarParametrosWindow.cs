@@ -67,12 +67,18 @@ namespace MetroSP.Dados
         private List<Family> _todasFamilias = new List<Family>();
         private List<ExternalDefinition> _todasDefinicoes = new List<ExternalDefinition>();
 
+        /// <summary>Abas da janela: o comando Parâmetros acrescenta as abas dos compartilhados (ver AbasEntreJanelas).</summary>
+        internal TabControl Abas { get; }
+        internal TabItem AbaModelo { get; }
+        internal TabItem AbaCriar { get; }
+        internal TabItem AbaFamilias { get; }
+
         public GerenciarParametrosWindow(Autodesk.Revit.UI.UIDocument uidoc)
         {
             _doc = uidoc.Document;
             _app = _doc.Application;
             _compartilhado = _app.SharedParametersFilename;
-            Title = "MetroSP - Gerenciar parâmetros";
+            Title = "MetroSP - Parâmetros";
             Width = 1120;
             Height = 720;
             MinWidth = 820;
@@ -175,9 +181,13 @@ namespace MetroSP.Dados
             abaFamilias.Children.Add(colunas);
 
             var abas = new TabControl();
-            abas.Items.Add(new TabItem { Header = "Parâmetros do modelo", Content = abaModelo });
-            abas.Items.Add(new TabItem { Header = "Criar pela planilha", Content = abaCriar });
-            abas.Items.Add(new TabItem { Header = "Adicionar em famílias", Content = abaFamilias });
+            AbaModelo = new TabItem { Header = "Parâmetros de projeto", Content = abaModelo, ToolTip = "Todos os parâmetros de projeto do modelo (compartilhados ou não), para ver e exportar." };
+            AbaCriar = new TabItem { Header = "Criar pela planilha", Content = abaCriar, ToolTip = "Cria vários parâmetros de uma vez a partir de uma planilha, já com as categorias." };
+            AbaFamilias = new TabItem { Header = "Adicionar em famílias", Content = abaFamilias, ToolTip = "Acrescenta parâmetros compartilhados em várias famílias carregadas." };
+            abas.Items.Add(AbaModelo);
+            abas.Items.Add(AbaCriar);
+            abas.Items.Add(AbaFamilias);
+            Abas = abas;
 
             var corpo = new DockPanel();
             DockPanel.SetDock(topo, Dock.Top);
@@ -187,7 +197,7 @@ namespace MetroSP.Dados
             _resumo = Theme.Detalhe();
             var fechar = new Button { Content = "Fechar", IsCancel = true };
             fechar.Click += (s, e) => Close();
-            Theme.Apply(this, "Gerenciar parâmetros", _doc.Title + " · parâmetros de projeto, criação em lote e famílias", corpo, Theme.Rodape(_resumo, fechar));
+            Theme.Apply(this, "Parâmetros", _doc.Title + " · compartilhados, parâmetros de projeto, criação em lote e famílias", corpo, Theme.Rodape(_resumo, fechar));
 
             _buscaFamilia.TextChanged += (s, e) => ListarFamilias();
             _buscaDefinicao.TextChanged += (s, e) => ListarDefinicoes();
