@@ -1,5 +1,14 @@
 # MetroSP 0.3.3 (em teste)
 
+## Parâmetros de projeto: Só os erros
+
+- A aba Parâmetros de projeto mostra os problemas da última conferência (painel MetroSP ou Conferência completa) numa
+  coluna Problema, com o nome e o problema em vermelho, e os parâmetros com problema vêm primeiro.
+- **Só os erros (n)** mostra só esses. Entram também os parâmetros que o .txt pede e não são de projeto (internos do Revit
+  ou de família), para ficar claro por que não dá para vincular.
+- Sem conferência neste modelo, o filtro fica desligado e o rodapé lembra de clicar em Conferir no painel.
+- Testar no Revit: Conferir no painel, abrir Parâmetros › Parâmetros de projeto e marcar Só os erros.
+
 ## Painel MetroSP: o que fazer e botões de decisão em cada pendência
 
 - Cada pendência aberta mostra, embaixo, o que fazer, e os botões que já resolvem dali:

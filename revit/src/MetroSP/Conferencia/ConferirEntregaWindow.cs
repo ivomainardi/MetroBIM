@@ -786,6 +786,7 @@ namespace MetroSP.Conferencia
             using (Progresso.Abrir("Conferir Entrega Metrô"))
                 r = new ConferenciaEntrega(doc, pacote, vista).Executar();
             if (aviso != null) r.Escopo = aviso;
+            UltimaConferencia.Guardar(doc, r);
             return r;
         }
 

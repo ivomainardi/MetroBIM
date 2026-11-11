@@ -25,6 +25,9 @@ namespace MetroSP.Dados
         public string Guid { get; set; }
         public string Compartilhado { get; set; }
         public string Motivo { get; set; }
+        /// <summary>Problema apontado pela última conferência (painel ou Conferência completa), ou vazio.</summary>
+        public string Problema { get; set; }
+        public bool TemProblema => !string.IsNullOrEmpty(Problema);
         internal ForgeTypeId Spec { get; set; }
         internal ForgeTypeId GrupoId { get; set; }
         internal List<Category> Cats { get; set; }
@@ -49,6 +52,9 @@ namespace MetroSP.Dados
         private readonly TextBlock _resumo;
         private readonly TextBlock _arquivoTxt;
         private readonly DockPanel _areaModelo;
+        private readonly CheckBox _soErros;
+        private readonly TextBlock _notaModelo;
+        private FilterableGrid _gradeModelo;
         private readonly DockPanel _areaCriar;
         private readonly WrapPanel _chipsCriar;
         private readonly Button _criar;
@@ -101,10 +107,17 @@ namespace MetroSP.Dados
             exportar.Click += (s, e) => ExportarModelo();
             var barraModelo = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
             barraModelo.Children.Add(exportar);
-            var notaModelo = Theme.Detalhe("A planilha exportada tem as mesmas colunas da criação: serve de modelo para levar parâmetros a outro projeto.");
-            notaModelo.Margin = new Thickness(12, 0, 0, 0);
-            notaModelo.VerticalAlignment = VerticalAlignment.Center;
-            barraModelo.Children.Add(notaModelo);
+            _soErros = new CheckBox
+            {
+                Content = "Só os erros", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14, 0, 0, 0),
+                ToolTip = "Só os parâmetros com problema na última conferência (painel MetroSP ou Conferência completa).",
+            };
+            _soErros.Click += (s, e) => _gradeModelo?.Refresh();
+            barraModelo.Children.Add(_soErros);
+            _notaModelo = Theme.Detalhe("A planilha exportada tem as mesmas colunas da criação: serve de modelo para levar parâmetros a outro projeto.");
+            _notaModelo.Margin = new Thickness(12, 0, 0, 0);
+            _notaModelo.VerticalAlignment = VerticalAlignment.Center;
+            barraModelo.Children.Add(_notaModelo);
             var abaModelo = new DockPanel();
             DockPanel.SetDock(barraModelo, Dock.Top);
             abaModelo.Children.Add(barraModelo);
@@ -344,9 +357,37 @@ namespace MetroSP.Dados
         private void MostrarModelo()
         {
             List<LinhaParametro> l = DoModelo();
+            // Problemas da última conferência: marca os parâmetros e acrescenta os que o .txt pede e não são de projeto.
+            bool conferido = Conferencia.UltimaConferencia.De(_doc) != null;
+            Dictionary<string, string> problemas = Conferencia.UltimaConferencia.ProblemasDeParametro(_doc);
+            foreach (LinhaParametro p in l)
+                if (problemas.TryGetValue(p.Nome, out string pr)) p.Problema = pr;
+            foreach (var kv in problemas.Where(kv => !l.Any(p => string.Equals(p.Nome, kv.Key, StringComparison.OrdinalIgnoreCase))))
+                l.Add(new LinhaParametro { Nome = kv.Key, Compartilhado = "", Problema = "Não é parâmetro de projeto (interno do Revit ou de família). " + kv.Value });
+            l = l.OrderBy(p => p.TemProblema ? 0 : 1).ThenBy(p => p.Nome, StringComparer.CurrentCultureIgnoreCase).ToList();
+            int comProblema = l.Count(p => p.TemProblema);
+            _soErros.IsEnabled = comProblema > 0;
+            if (comProblema == 0) _soErros.IsChecked = false;
+            _soErros.Content = comProblema > 0 ? $"Só os erros ({comProblema})" : "Só os erros";
+            _soErros.ToolTip = conferido
+                ? "Só os parâmetros com problema na última conferência (painel MetroSP ou Conferência completa)."
+                : "Clique em Conferir no painel MetroSP para ver aqui os parâmetros com problema.";
+
             _areaModelo.Children.Clear();
             var t = new FilterableGrid(l, typeof(LinhaParametro));
-            t.AddColumn("Nome", nameof(LinhaParametro.Nome), 220);
+            t.ExtraFilter = o => _soErros.IsChecked != true || ((LinhaParametro)o).TemProblema;
+            _gradeModelo = t;
+            DataGridTextColumn nome = t.AddColumn("Nome", nameof(LinhaParametro.Nome), 220);
+            DataGridTextColumn problema = t.AddColumn("Problema", nameof(LinhaParametro.Problema), 260);
+            // Problema em vermelho: fundo na célula do nome e do problema.
+            var vermelho = new Style(typeof(DataGridCell));
+            var gatilho = new DataTrigger { Binding = new System.Windows.Data.Binding(nameof(LinhaParametro.TemProblema)), Value = true };
+            gatilho.Setters.Add(new Setter(System.Windows.Controls.Control.BackgroundProperty, new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xF8, 0xD4, 0xD4))));
+            gatilho.Setters.Add(new Setter(System.Windows.Controls.Control.ForegroundProperty, System.Windows.Media.Brushes.Firebrick));
+            gatilho.Setters.Add(new Setter(System.Windows.Controls.Control.BorderBrushProperty, System.Windows.Media.Brushes.Transparent));
+            vermelho.Triggers.Add(gatilho);
+            nome.CellStyle = vermelho;
+            problema.CellStyle = vermelho;
             t.AddColumn("Tipo de dado", nameof(LinhaParametro.TipoDeDado), 120);
             t.AddColumn("Instância ou tipo", nameof(LinhaParametro.Vinculo), 100);
             t.AddColumn("Grupo", nameof(LinhaParametro.Grupo), 140);
@@ -355,7 +396,9 @@ namespace MetroSP.Dados
             t.AddColumn("Categorias", nameof(LinhaParametro.Categorias), 200, fill: true);
             Theme.StyleSelection(t.Grid);
             _areaModelo.Children.Add(t);
-            _resumo.Text = $"{l.Count} parâmetros de projeto no modelo ({l.Count(x => x.Compartilhado == "Sim")} compartilhados).";
+            int doProjeto = l.Count(x => x.Existente != null);
+            _resumo.Text = $"{doProjeto} parâmetros de projeto no modelo ({l.Count(x => x.Compartilhado == "Sim")} compartilhados)" +
+                           (conferido ? $" · {comProblema} com problema na última conferência." : " · confira no painel MetroSP para ver os problemas aqui.");
         }
 
         private void ExportarModelo()
