@@ -92,7 +92,7 @@
   - **Dados do modelo**: igual (Planilha de Dados, Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e
     Colorir, Copiar Valores).
   - **Parâmetros e famílias**: **Parâmetros** e Renomear Famílias (o menu Parâmetros saiu; ver abaixo).
-  - **Configurar padrões** (novo, no fim, botões pequenos; antes chamado Coordenador BIM): Padrões e planilhas, Arquivos IFC e Categorias IFC (antes no
+  - **Configurar padrões** (novo, no fim, botões pequenos): Padrões e planilhas, Arquivos IFC e Categorias IFC (antes no
     menu Configurar, no meio da entrega).
 - Saíram da Ribbon, sem perder a função:
   - **Verificar Padrões**: a verificação do IDS já roda dentro da conferência (Painel MetroSP › Conferência completa ›
