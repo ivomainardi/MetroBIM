@@ -130,6 +130,27 @@ namespace MetroSP.Ids
 #endif
         }
 
+        /// <summary>
+        /// Tabela padrão quando não há tabela salva: o mapeamento atual do modelo com a tabela recomendada do MetroSP
+        /// (CategoriasRecomendadas, ISO 16739) por cima. Com o modelo, entram também as categorias recomendadas que faltam.
+        /// </summary>
+        public static List<Linha> Padrao(Document doc, string esquema, IList<Linha> doModelo = null)
+        {
+            List<Linha> r = (doModelo ?? new List<Linha>()).Select(l => l.Copia()).ToList();
+            Dictionary<string, CategoriasRecomendadas.Item> rec = CategoriasRecomendadas.Para(esquema, doc);
+            var feitas = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
+            foreach (Linha l in r)
+            {
+                if (!rec.TryGetValue(l.Chave, out CategoriasRecomendadas.Item i)) continue;
+                feitas.Add(l.Chave);
+                l.Classe = i.Classe; l.Tipo = i.Tipo; l.Exportar = i.Exportar;
+            }
+            if (doc != null)
+                foreach (CategoriasRecomendadas.Item i in rec.Values.Where(i => !feitas.Contains(i.Chave)))
+                    r.Add(new Linha { Categoria = i.Categoria, Subcategoria = i.Subcategoria, Classe = i.Classe, Tipo = i.Tipo, Exportar = i.Exportar });
+            return r.OrderBy(l => l.Categoria, StringComparer.CurrentCultureIgnoreCase).ThenBy(l => l.Subcategoria, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
         /// <summary>Elementos de modelo por nome de categoria.</summary>
         public static Dictionary<string, int> Contagem(Document doc)
         {
@@ -182,17 +203,22 @@ namespace MetroSP.Ids
             "Nesta versão do Revit o add-in não consegue gravar a tabela de categorias no modelo. " +
             "Vale o mapeamento do próprio Revit (Arquivo > Exportar > Opções > Opções IFC).";
 
-        /// <summary>Na exportação: aplica a tabela do esquema do setup, se houver. Retorna a linha para o resumo (ou null).</summary>
+        /// <summary>Na exportação: aplica a tabela do esquema do setup (a salva ou, sem ela, o padrão MetroSP). Retorna a linha para o resumo (ou null).</summary>
         public static string AplicarNaExportacao(Document doc, string versao)
         {
             string esquema = EsquemaDaVersao(versao);
-            string arquivo = esquema == null ? null : Arquivo(esquema);
-            if (arquivo == null) return null;
+            if (esquema == null) return null;
+            string arquivo = Arquivo(esquema);
 #if REVIT_ANTES_2025
             return "Categorias IFC: nesta versão do Revit vale o mapeamento do próprio Revit (Opções IFC).";
 #else
             try
             {
+                if (arquivo == null)
+                {
+                    int p = Aplicar(doc, esquema, Padrao(doc, esquema));
+                    return $"Categorias IFC: padrão MetroSP {esquema} (ISO 16739), {p} categorias.";
+                }
                 int n = Aplicar(doc, esquema, Ler(arquivo));
                 return $"Categorias IFC: tabela {esquema} ({ArquivosIfc.Origem(arquivo)}), {n} categorias.";
             }

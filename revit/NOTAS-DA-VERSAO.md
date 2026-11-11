@@ -1,5 +1,15 @@
 # MetroSP 0.3.3 (em teste)
 
+## Categorias IFC: o padrão MetroSP passa a ser o padrão
+
+- Sem tabela salva, a janela Categorias IFC já abre com o padrão MetroSP (ISO 16739) nas duas colunas, por cima do
+  mapeamento do modelo, e a exportação IFC aplica esse padrão (Revit 2025 a 2027).
+- Quem salvou uma tabela própria continua com a sua. **Voltar ao padrão › Padrão MetroSP** aplica o padrão na janela, e
+  **Apagar a minha tabela** volta de vez ao padrão MetroSP.
+- Revit 2022 a 2024: a janela mostra o padrão, mas na exportação continua valendo o mapeamento do próprio Revit (limite da API).
+- Testar no Revit: num modelo sem tabela salva, abrir Categorias IFC (origem "padrão MetroSP") e exportar um IFC; o resumo
+  diz "Categorias IFC: padrão MetroSP".
+
 ## Parâmetros de projeto: Só os erros
 
 - A aba Parâmetros de projeto mostra os problemas da última conferência (painel MetroSP ou Conferência completa) numa

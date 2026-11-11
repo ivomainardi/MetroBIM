@@ -87,8 +87,8 @@ namespace MetroSP.Ids
                 {
                     if (doModelo == null && doc != null)
                         try { doModelo = CategoriasIfc.DoModelo(doc); } catch { doModelo = new List<CategoriasIfc.Linha>(); }
-                    linhas = (doModelo ?? new List<CategoriasIfc.Linha>()).Select(l => l.Copia()).ToList();
-                    _origens[e] = "sem tabela salva (mapeamento atual do modelo)";
+                    linhas = CategoriasIfc.Padrao(doc, e, doModelo);
+                    _origens[e] = "padrão MetroSP (ISO 16739), sem tabela salva";
                 }
                 // Categorias do modelo que a tabela salva não traz (o Revit acrescenta as novas).
                 if (doModelo != null && arq != null)
@@ -170,11 +170,11 @@ namespace MetroSP.Ids
                 ("Tabela do IFC 4.3...", () => ExportarTxt(CategoriasIfc.Ifc4x3)));
             var padrao = new Button { Content = "Voltar ao padrão ▾", ToolTip = "Padrão recomendado pelo MetroSP (classes do IFC4 e do IFC 4.3 conforme a ISO 16739), ou apagar a sua tabela." };
             padrao.Click += (s, e) => Menu(padrao,
-                ("Recomendado MetroSP (ISO 16739) nas duas colunas", () => Recomendado(Esquemas)),
-                ("Recomendado só no IFC4", () => Recomendado(new[] { CategoriasIfc.Ifc4 })),
-                ("Recomendado só no IFC 4.3", () => Recomendado(new[] { CategoriasIfc.Ifc4x3 })),
-                ("Apagar a minha tabela do IFC4...", () => VoltarAoPadrao(CategoriasIfc.Ifc4)),
-                ("Apagar a minha tabela do IFC 4.3...", () => VoltarAoPadrao(CategoriasIfc.Ifc4x3)));
+                ("Padrão MetroSP (ISO 16739) nas duas colunas", () => Recomendado(Esquemas)),
+                ("Padrão MetroSP só no IFC4", () => Recomendado(new[] { CategoriasIfc.Ifc4 })),
+                ("Padrão MetroSP só no IFC 4.3", () => Recomendado(new[] { CategoriasIfc.Ifc4x3 })),
+                ("Apagar a minha tabela do IFC4 (volta ao padrão MetroSP)...", () => VoltarAoPadrao(CategoriasIfc.Ifc4)),
+                ("Apagar a minha tabela do IFC 4.3 (volta ao padrão MetroSP)...", () => VoltarAoPadrao(CategoriasIfc.Ifc4x3)));
             var salvar = new Button { Content = "Salvar", Style = Theme.PrimaryButton, IsDefault = true, ToolTip = "Grava as tabelas alteradas e fecha." };
             salvar.Click += (s, e) => { if (Salvar()) Close(); };
             var fechar = new Button { Content = "Fechar", IsCancel = true };
@@ -430,7 +430,7 @@ namespace MetroSP.Ids
             _grade.CommitEdit(DataGridEditingUnit.Row, true);
             List<string> lista = esquemas.ToList();
             string nomes = string.Join(" e ", lista.Select(NomeEsquema));
-            if (MessageBox.Show(this, $"Aplicar a tabela recomendada pelo MetroSP no {nomes}?\n\n" +
+            if (MessageBox.Show(this, $"Aplicar o padrão MetroSP no {nomes}?\n\n" +
                     "Cada categoria de modelo (e subcategorias como Joist, Purlin, Bracing, Bolts) vai para a classe IFC própria dela, " +
                     "conforme o IFC4 (ISO 16739-1:2018) e o IFC 4.3 (ISO 16739-1:2024), sem proxy quando existe classe adequada " +
                     "(ex.: Structural Framing → IfcBeam, Structural Trusses → IfcElementAssembly TRUSS). Categorias de anotação ficam como estão.\n\n" +
@@ -465,7 +465,7 @@ namespace MetroSP.Ids
             }
             if (novas > 0) MontarPares();
             Atualizar();
-            _resumo.Text = $"Recomendado aplicado no {nomes}: {mudou} linha(s) mudaram" + (novas > 0 ? $", {novas} acrescentadas" : "") + ". Salve para valer.";
+            _resumo.Text = $"Padrão MetroSP aplicado no {nomes}: {mudou} linha(s) mudaram" + (novas > 0 ? $", {novas} acrescentadas" : "") + ". Salve para valer.";
             _resumo.Foreground = Theme.Solid(Theme.LaranjaTexto);
         }
 
@@ -476,7 +476,7 @@ namespace MetroSP.Ids
             if (MessageBox.Show(this, $"Apagar a sua tabela do {NomeEsquema(esquema)}? (ela fica guardada em Anteriores)", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             try { ArquivosIfc.GuardarAnterior(seu); File.Delete(seu); }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, Title); return; }
-            MessageBox.Show(this, "Pronto. Abra a janela de novo para ver a tabela padrão.", Title);
+            MessageBox.Show(this, "Pronto. Vale o padrão MetroSP; abra a janela de novo para vê-lo.", Title);
             _alteradas.Remove(esquema);
             Close();
         }
