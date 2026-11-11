@@ -381,6 +381,7 @@ namespace MetroSP.Conferencia
             {
                 Numero = 4, Titulo = "Dados preenchidos",
                 Descricao = "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelos padrões." : "."),
+                Correcao = Correcao.EditarEmMassa,
             };
 
             // Parâmetros conferidos uma vez: tipo de dado e GUID.

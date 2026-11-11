@@ -363,6 +363,15 @@ namespace MetroSP.Painel
                 DockPanel.SetDock(selecionar, Dock.Right);
                 cabecalho.Children.Add(selecionar);
             }
+            // Passo sem pendência (verde): a ferramenta continua à mão, para conferir ou ajustar.
+            string ferramentaOk = pendencias.Count == 0 ? NomeFerramenta(etapa.Correcao) : null;
+            if (ferramentaOk != null)
+            {
+                var abrir = new Button { Content = ferramentaOk, MinWidth = 0, Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+                abrir.Click += (s, e) => { e.Handled = true; AbrirFerramenta(etapa.Correcao, new List<DB.ElementId>()); };
+                DockPanel.SetDock(abrir, Dock.Right);
+                cabecalho.Children.Add(abrir);
+            }
             Bolinha(etapa.Numero, etapa.Sinal).With(b => { DockPanel.SetDock(b, Dock.Left); cabecalho.Children.Add(b); });
             var textos = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             textos.Children.Add(new TextBlock { Text = etapa.Titulo, FontWeight = FontWeights.SemiBold, ToolTip = etapa.Descricao });

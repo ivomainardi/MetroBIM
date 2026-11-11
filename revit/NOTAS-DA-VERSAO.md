@@ -25,6 +25,8 @@
   - **Ver em Compartilhados**: GUID diferente do MetroShared.
 - Correção: um parâmetro do tipo Section Area (perfis) ligado a um campo "Area" do .txt não é mais acusado como tipo
   diferente, porque o exportador converte igual. Vale também para as medidas de seção, armadura e tubulações em campos "Length".
+- Passo sem pendência (verde) continua com o botão da ferramenta dele (Categorias IFC, Abrir Parâmetros, Editar em massa,
+  Verificar classificação), para conferir ou ajustar sem ir à Ribbon.
 - Testar no Revit: abrir o passo 2, clicar em Vincular à categoria e ver a pendência sumir; Escolher classe nos proxies do passo 3.
 
 ## Categorias IFC: IFC4 e IFC 4.3 lado a lado
