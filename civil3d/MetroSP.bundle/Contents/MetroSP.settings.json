@@ -30,7 +30,7 @@
 
   // Botão "Exportador": caminho oficial (conta Autodesk) e caminho GitHub (versões do plugin MetroSP).
   "ExtensaoAutodeskUrl": "https://manage.autodesk.com/products/updates",
-  "VersoesMetroSpUrl": "https://github.com/ivomainardi/MetroSP_Civil3D/releases",
+  "VersoesMetroSpUrl": "https://github.com/ivomainardi/MetroBIM/releases",
 
   // De onde vem o pacote de configuração IFC: "Automatico" (Forma se preenchido acima), "Forma" ou "Local".
   // O pacote local fica em %APPDATA%\MetroSP\Config e é editado no botão "Configurar IFC".

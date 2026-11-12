@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Bundle do plugin "Exportar para o Iris" para o Navisworks Manage e Simulate, por usuário
+     (%AppData%\Autodesk\ApplicationPlugins\MetroSP-Navisworks.bundle). Séries: 2025 = Nw22, 2026 = Nw23, 2027 = Nw24.
+     Cada versão carrega a DLL compilada contra a API dela (Contents\<ano>\IrisExport.dll, com os ícones ao lado). -->
+<ApplicationPackage SchemaVersion="1.0"
+                    AutodeskProduct="Navisworks"
+                    ProductType="Application"
+                    Name="MetroSP Navisworks"
+                    Description="Exportar para o Iris: cronograma do TimeLiner com os objetos ligados pelo GlobalId do IFC"
+                    Author="Ação BIM"
+                    ProductCode="{B1E4A7C2-5D93-4F6E-8A21-3C7D9E0F4B58}"
+                    UpgradeCode="{E6C2F9A4-1B7D-4E83-9F50-2A8C6D3B7E19}">
+  <CompanyDetails Name="Ação BIM" />
+  <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw22" SeriesMax="Nw24" />
+
+  <Components Description="Navisworks 2025">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw22" SeriesMax="Nw22" />
+    <ComponentEntry AppName="IrisExport" ModuleName="./Contents/2025/IrisExport.dll" AppType="ManagedPlugin" />
+  </Components>
+  <Components Description="Navisworks 2026">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw23" SeriesMax="Nw23" />
+    <ComponentEntry AppName="IrisExport" ModuleName="./Contents/2026/IrisExport.dll" AppType="ManagedPlugin" />
+  </Components>
+  <Components Description="Navisworks 2027">
+    <RuntimeRequirements OS="Win64" Platform="NAVMAN|NAVSIM" SeriesMin="Nw24" SeriesMax="Nw24" />
+    <ComponentEntry AppName="IrisExport" ModuleName="./Contents/2027/IrisExport.dll" AppType="ManagedPlugin" />
+  </Components>
+</ApplicationPackage>

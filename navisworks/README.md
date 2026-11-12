@@ -8,6 +8,9 @@ O plugin só lê o documento: não muda nada no Navisworks.
 
 ## Instalar
 
+O jeito mais simples é o instalador único do MetroSP (`MetroSP-Setup-<versão>.exe`, na página Releases do repositório),
+que instala só para o seu usuário. O passo a passo abaixo é para compilar e instalar direto do código.
+
 1. Instale o .NET SDK 8 ou mais novo, uma vez só: `winget install Microsoft.DotNet.SDK.8`.
 2. Feche o Navisworks.
 3. No PowerShell, dentro desta pasta, rode `.\instalar.ps1`.
@@ -68,6 +71,6 @@ O formato é aberto: outro programa (ou um script) que grave esse JSON também e
 O código do plugin fica só neste repositório. O Iris (`ivomainardi/Iris`) lê o `.iris4d.json` em `web/src/js/85-cron.js` (`parseIris4D`). O contrato entre os dois é o exemplo `exemplo/cronograma.iris4d.json`, igual ao `samples/cronograma-navisworks.iris4d.json` do Iris:
 
 - aqui, `python tests/teste_formato-iris4d.py` confere que o `IrisExport.cs` grava todos os campos do exemplo (roda antes de cada versão, fora do GitHub; no GitHub só à mão, em Actions › Testes › Run workflow);
-- no Iris, `tests/teste_formato-iris4d.py` confere que o leitor só usa campos do exemplo e, com este repositório clonado ao lado (`../MetroSP_Navisworks`), que o plugin grava cada um.
+- no Iris, `tests/teste_formato-iris4d.py` confere que o leitor só usa campos do exemplo e, com este repositório clonado ao lado (`../MetroBIM`, pasta `navisworks/`), que o plugin grava cada um.
 
 Campo novo no formato: gravar no plugin, pôr no exemplo aqui e no Iris, e só então ler no Iris.

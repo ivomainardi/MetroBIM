@@ -52,7 +52,7 @@ namespace MetroSP
         public string ExtensaoAutodeskUrl { get; set; } = "https://manage.autodesk.com/products/updates";
 
         /// <summary>Caminho GitHub: versões publicadas do plugin MetroSP.</summary>
-        public string VersoesMetroSpUrl { get; set; } = "https://github.com/ivomainardi/MetroSP_Civil3D/releases";
+        public string VersoesMetroSpUrl { get; set; } = "https://github.com/ivomainardi/MetroBIM/releases";
 
         /// <summary>
         /// De onde vem o pacote de configuração IFC antes de exportar:

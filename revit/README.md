@@ -53,13 +53,8 @@ As diferenças entre versões (API do Revit e do .NET) ficam em `src/MetroSP/Com
 
 ## Publicar uma versão
 
-1. Suba a `<Version>` no `src/MetroSP/MetroSP.csproj` e descreva a versão no `NOTAS-DA-VERSAO.md`.
-2. Faça o merge na `main`. O GitHub Actions (`.github/workflows/release.yml`) compila para cada versão de 2022 a 2027,
-   gera os instaladores e cria a release `v<versão>` com os `.exe` e os `.zip`. Revit 2022, 2023 e 2024 têm sempre um
-   instalador separado (`MetroSP-Revit2022-2024-Setup-<versão>.exe`). Ele só roda quando o csproj muda.
-
-Sem o Actions, dá para publicar pelo PC com `.\publicar.ps1` (precisa do [GitHub CLI](https://cli.github.com/)
-logado e de um clone da `main`).
+O MetroSP para Revit sai no instalador único do MetroSP, com os outros plugins. Veja "Publicar uma versão" no
+[README da raiz](../README.md). Suba a `<Version>` do `src/MetroSP/MetroSP.csproj` quando o plugin mudar.
 
 ## Renomear parâmetro compartilhado (mantendo GUID)
 

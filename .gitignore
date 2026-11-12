@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+*.user
+dist/
+*.zip
+MetroSP-Setup-*.exe
+civil3d/MetroSP.bundle/Contents/R25/
+civil3d/MetroSP.bundle/Contents/R26/
