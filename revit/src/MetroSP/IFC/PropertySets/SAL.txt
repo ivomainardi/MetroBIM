@@ -1,0 +1,51 @@
+#
+# Property sets do sistema SAL (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Potência Ativa	Text	ActivePower[Type]
+	Ângulo de Inclinação Horizontal	PlaneAngle	AnguloInclinacaoHor[Type]
+	Ângulo de Inclinação Norte	PlaneAngle	AnguloInclinacaoNorte[Type]
+	Classe de Exatidão	Text	ClasseExatidao[Type]
+	Classe de Isolamento	Text	InsulationClass[Type]
+	Índice de Proteção	Text	IP_Code[Type]
+	Massa	Text	Massa[Type]
+	Massa Linear	Text	MassPerLength[Type]
+	Material	Text	Material[Type]
+	Corrente Nominal	Real	NominalCurrent[Type]
+	Frequência Nominal	Real	NominalFrequency[Type]
+	Tensão Nominal	Text	NominalVoltage[Type]
+	Regime Funcionamento	Text	RegimeFuncionamento[Type]
+	Relação Transformação	Text	RelacaoTransformacao[Type]
+	Resistência Nominal	Text	ResistenciaNominal[Type]
+	Resistividade	Text	Resistividade[Type]
+	Corrente Curto-Circuito	ElectricCurrent	ShortCircuitCurrent[Type]
+	Tipo de Conexão	Text	ConnectionType[Type]
+	Peso	Text	Peso[Type]
+	Potencia Nominal	Text	NominalPower[Type]
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length
+	Largura	Length
+	Profundidade	Length
+	Comprimento	Length
+	Diâmetro	Length
+	Diametro	Text	Size
+	Width	Length
+	Height	Length
+	Length	Length
+	Seção Nominal	Area	CrossSectionArea[Type]
+	Seção	Area	Secao[Type]

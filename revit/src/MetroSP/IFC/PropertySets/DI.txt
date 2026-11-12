@@ -1,0 +1,39 @@
+#
+# Property sets do sistema DI (MetroSP)
+#
+# Format:
+#    PropertySet:	<Pset Name>	I[nstance]/T[ype]	<element list separated by ','>
+#	<Property Name>	<Data type>	<[opt] Revit parameter name, if different from IFC>
+#
+# Revision	Data		Description
+# 00	05/11/2026	Recebido por sistema; correção de tipos e formato conforme o exportador IFC da Autodesk
+#
+# Aba MetroClassificacao
+PropertySet:	MetroClassificacao	I	IfcElement
+	CodigoMetro	Text	ClassificationCode[Type]
+	Subsistema	Text	ClassificationCode(2)
+
+# Aba Metro
+PropertySet:	Metro	I	IfcElement
+	Aplicação do Equipamento	Text	AplicacaoEquip[Type]
+	Tipo de sensor	Text	SensorType[Type]
+	Capacidade	Text	Capacity[Type]
+	Locais Atendidos	Text	Location[Type]
+	Pressão máx. de Trabalho	Text	MaximumWorkingPressure[Type]
+	Potência	Text	Power[Type]
+	Tipo do Equipamento	Text	TipoEquipamento[Type]
+	Tipo de Conexão	Text	ConnectionType[Type]
+	Material	Text	Material[Type]
+	Seção	Area	Secao[Type]
+
+# Aba MetroQto
+PropertySet:	MetroQto	I	IfcElement
+	Altura	Length
+	Largura	Length
+	Profundidade	Length
+	Comprimento	Length
+	Diâmetro	Length
+	Diametro	Text	Size
+	Width	Length
+	Height	Length
+	Length	Length

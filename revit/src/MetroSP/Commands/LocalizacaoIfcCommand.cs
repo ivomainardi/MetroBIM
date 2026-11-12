@@ -1,0 +1,46 @@
+using System;
+using System.Collections.Generic;
+using Autodesk.Revit.Attributes;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+using MetroSP.Ids;
+
+namespace MetroSP.Commands
+{
+    /// <summary>
+    /// Etapa 1 da exportação IFC (Projeto e Local): dados do IfcProject, IfcSite e IfcBuilding e lat/long pelo
+    /// Project Base Point (PTL do Metrô), gravados nos campos do Revit que o exportador lê. Não exporta.
+    /// </summary>
+    [Transaction(TransactionMode.Manual)]
+    public class LocalizacaoIfcCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements) =>
+            Abrir(commandData.Application);
+
+        /// <summary>Abre a janela e grava. Chamar no contexto da API (comando ou ExternalEvent).</summary>
+        public static Result Abrir(UIApplication uiapp)
+        {
+            Document doc = uiapp.ActiveUIDocument?.Document;
+            if (doc == null || doc.IsFamilyDocument)
+            {
+                TaskDialog.Show("MetroSP", "Abra um projeto (.rvt) para preencher os dados do projeto e a localização.");
+                return Result.Cancelled;
+            }
+
+            List<string> mudou;
+            try { mudou = LocalizacaoWindow.Executar(doc, LocalizacaoIfc.Calcular(doc), null, uiapp.MainWindowHandle); }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("MetroSP", "Não foi possível gravar no Revit:\n" + ex.Message);
+                return Result.Failed;
+            }
+            if (mudou == null) return Result.Cancelled;
+
+            bool recusado = mudou.Exists(m => m.StartsWith("ATENÇÃO", StringComparison.Ordinal));
+            TaskDialog.Show("MetroSP", mudou.Count == 0
+                ? "Os campos do Revit já estavam como confirmado. Nada foi alterado."
+                : "Gravado no Revit:\n- " + string.Join("\n- ", mudou) + (recusado ? "" : "\n\nAgora é só usar o Exportar IFC."));
+            return Result.Succeeded;
+        }
+    }
+}

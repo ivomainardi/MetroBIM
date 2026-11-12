@@ -1,0 +1,92 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Versão do Revit alvo. Troque aqui ou passe na linha de comando:
+      dotnet build -c Release -p:RevitVersion=2024
+    Revit 2025-2026 rodam em .NET 8, 2027 em .NET 10; 2024 e anteriores em .NET Framework 4.8.
+  -->
+  <PropertyGroup>
+    <RevitVersion Condition="'$(RevitVersion)' == ''">2025</RevitVersion>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <AssemblyName>MetroSP</AssemblyName>
+    <Version>0.3.4</Version>
+    <RootNamespace>MetroSP</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <UseWPF>true</UseWPF>
+    <PlatformTarget>x64</PlatformTarget>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DefineConstants>$(DefineConstants);REVIT$(RevitVersion)</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(RevitVersion)' &gt;= '2025' And '$(RevitVersion)' &lt; '2027'">
+    <TargetFramework>net8.0-windows</TargetFramework>
+  </PropertyGroup>
+  <!-- Revit 2027 roda em .NET 10 (exigido pelo pacote Nice3point.Revit.Api 2027). -->
+  <PropertyGroup Condition="'$(RevitVersion)' &gt;= '2027'">
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <!-- 2027+: property sets do usuário ficam no modelo (IFCUserDefinedPropertySet), não mais só no .txt. -->
+    <DefineConstants>$(DefineConstants);REVIT2027_OR_GREATER</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RevitVersion)' &lt; '2025'">
+    <TargetFramework>net48</TargetFramework>
+  </PropertyGroup>
+  <!-- APIs que o Revit ganhou depois do 2022 (ver Compat.cs). -->
+  <PropertyGroup Condition="'$(RevitVersion)' &lt; '2025'">
+    <DefineConstants>$(DefineConstants);REVIT_ANTES_2025</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RevitVersion)' &lt; '2024'">
+    <DefineConstants>$(DefineConstants);REVIT_ANTES_2024</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(RevitVersion)' &lt; '2023'">
+    <DefineConstants>$(DefineConstants);REVIT_ANTES_2023</DefineConstants>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Referências da API do Revit via NuGet (não copiadas para a saída). -->
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPI" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <PackageReference Include="Nice3point.Revit.Api.RevitAPIUI" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+    <!-- Biblioteca de interface do Revit (Ribbon), usada só para o painel com as logos. -->
+    <PackageReference Include="Nice3point.Revit.Api.AdWindows" Version="$(RevitVersion).*" PrivateAssets="all" ExcludeAssets="runtime" />
+  </ItemGroup>
+
+  <!-- Revit 2022-2024 (.NET Framework 4.8): o que o .NET 8 já traz e o 4.8 não tem. Essas DLLs vão junto na pasta do add-in. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Web" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Data da compilação, mostrada na janela Sobre. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>DataCompilacao</_Parameter1>
+      <_Parameter2>$([System.DateTime]::Now.ToString("yyyy-MM-dd HH:mm"))</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Ícones 32x32 e 16x16 embutidos na DLL. -->
+    <EmbeddedResource Include="Resources\**\*.png" />
+    <None Include="MetroSP.addin" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Configurações de IFC por classe (setup, property sets, mapeamento), instaladas ao lado da DLL. -->
+    <None Include="IFC\**\*" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!-- Em Debug, copia DLL + .addin para a pasta de add-ins do usuário. -->
+  <Target Name="DeployToRevit" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug' And '$(OS)' == 'Windows_NT'">
+    <PropertyGroup>
+      <AddinDir>$(AppData)\Autodesk\Revit\Addins\$(RevitVersion)</AddinDir>
+    </PropertyGroup>
+    <Copy SourceFiles="MetroSP.addin" DestinationFolder="$(AddinDir)" />
+    <Copy SourceFiles="$(TargetDir)$(AssemblyName).dll;$(TargetDir)$(AssemblyName).pdb" DestinationFolder="$(AddinDir)\MetroSP" />
+  </Target>
+
+</Project>

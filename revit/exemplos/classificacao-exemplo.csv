@@ -1,0 +1,14 @@
+Código;Descrição;Código pai;Categorias
+EST;Estrutura;;
+EST.01;Fundações;EST;Fundações estruturais
+EST.01.01;Estaca;EST.01;Fundações estruturais
+EST.01.02;Bloco de coroamento;EST.01;Fundações estruturais
+EST.02;Superestrutura;EST;
+EST.02.01;Pilar de concreto;EST.02;Pilares estruturais
+EST.02.02;Viga de concreto;EST.02;Quadro estrutural
+EST.02.03;Laje maciça;EST.02;Pisos
+ARQ;Arquitetura;;
+ARQ.01;Vedações;ARQ;Paredes
+ARQ.01.01;Parede de alvenaria;ARQ.01;Paredes
+ARQ.01.02;Parede de drywall;ARQ.01;Paredes
+ARQ.02;Esquadrias;ARQ;"Portas, Janelas"
