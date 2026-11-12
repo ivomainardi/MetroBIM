@@ -4,6 +4,8 @@
 
 - Novo botão **Entrega passo a passo**, que passa a ser o passo 1 do grupo Entrega Metrô (e "Abrir em janela" no rodapé
   do Painel MetroSP). O **Painel MetroSP** saiu da Entrega e foi para um grupo próprio, **Acompanhar**, sem número.
+- Botão **Sobre** (grupo Ação BIM · Metrô SP): ícone quadrado com o símbolo do Metrô e o texto "Sobre", no lugar da faixa de
+  logos que a Ribbon cortava ("AC").
 - Em cima, as etapas numa linha com setinhas: verde com ✓ quando está pronta, contorno laranja com o número de
   pendências quando falta algo, e a etapa aberta em laranja e sublinhada. Clique numa etapa para abri-la.
 - Embaixo, à esquerda, o que falta na etapa, em cartões com os botões que resolvem (Vincular à categoria, Ajustar o .txt,
