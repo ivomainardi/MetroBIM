@@ -1,0 +1,74 @@
+# Publica uma versão do MetroSP: monta o instalador único MetroSP-Setup-<versão>.exe e cria a release v<versão>.
+# Só roda à mão (Actions › Release › Run workflow). Nada roda a cada push, sem cache e sem artefato guardado no Actions:
+# o único arquivo que fica é o .exe anexado à release.
+# A versão é o primeiro "## x.y.z" do NOTAS-DA-VERSAO.md, e a seção dela vira o texto da release.
+# Navisworks: o runner não tem o Navisworks para compilar o plugin. O workflow usa o navisworks-<versão>.zip
+# (gerado por .\build.ps1 -SoNavisworks) anexado à release v<versão> em rascunho ou, se não houver,
+# o da release publicada mais recente, desde que seja da mesma versão do plugin.
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ler versões
+        id: versao
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $notas = Get-Content NOTAS-DA-VERSAO.md -Raw -Encoding UTF8
+          $v = [regex]::Match($notas, '(?m)^## (\d+\.\d+\.\d+)').Groups[1].Value
+          if (-not $v) { throw 'NOTAS-DA-VERSAO.md sem uma seção "## x.y.z"' }
+          $m = [regex]::Match($notas, "(?ms)^## $([regex]::Escape($v))\b.*?(?=^## |\z)")
+          Set-Content notas-release.md $m.Value -Encoding UTF8
+          $publicada = gh release view "v$v" --json isDraft --jq '.isDraft' 2>$null
+          if ($publicada -eq 'false') { throw "A release v$v já está publicada. Suba a versão no NOTAS-DA-VERSAO.md." }
+          [xml]$n = Get-Content navisworks/IrisExport/IrisExport.csproj
+          $nv = ($n.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          "versao=$v" >> $env:GITHUB_OUTPUT
+          "navis=$nv" >> $env:GITHUB_OUTPUT
+          "rascunho=$([bool]$publicada)".ToLower() >> $env:GITHUB_OUTPUT
+
+      - name: Baixar as DLLs do Navisworks
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.versao.outputs.versao }}'; $nv = '${{ steps.versao.outputs.navis }}'
+          $zip = "navisworks-$nv.zip"
+          gh release download "v$v" --pattern $zip 2>$null
+          if (-not (Test-Path $zip)) { gh release download --pattern $zip 2>$null }
+          if (-not (Test-Path $zip)) { throw "Não achei $zip: rode .\build.ps1 -SoNavisworks num PC com o Navisworks e anexe o zip à release v$v em rascunho." }
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Compilar e montar o instalador
+        shell: pwsh
+        run: ./build.ps1 -Navisworks "navisworks-${{ steps.versao.outputs.navis }}.zip"
+
+      - name: Publicar a release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = '${{ steps.versao.outputs.versao }}'; $nv = '${{ steps.versao.outputs.navis }}'
+          $exe = "MetroSP-Setup-$v.exe"
+          if ('${{ steps.versao.outputs.rascunho }}' -eq 'true') {
+            gh release upload "v$v" $exe "navisworks-$nv.zip" --clobber
+            gh release edit "v$v" --draft=false --target $env:GITHUB_SHA --title "MetroSP $v" --notes-file notas-release.md --latest
+          } else {
+            gh release create "v$v" $exe "navisworks-$nv.zip" --target $env:GITHUB_SHA --title "MetroSP $v" --notes-file notas-release.md --latest
+          }

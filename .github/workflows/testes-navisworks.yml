@@ -1,7 +1,7 @@
 # Confere o formato .iris4d.json (o plugin só compila no Windows com o Navisworks instalado).
 # Só roda à mão (Actions › Testes › Run workflow): o teste roda no ambiente do Claude antes de cada versão,
 # como no Iris, para poupar o orçamento do GitHub Actions.
-name: Testes
+name: Testes Navisworks
 on:
   workflow_dispatch:
 jobs:
@@ -11,4 +11,4 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
-      - run: python tests/teste_formato-iris4d.py
+      - run: python navisworks/tests/teste_formato-iris4d.py

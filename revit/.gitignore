@@ -1,8 +1,0 @@
-bin/
-obj/
-.vs/
-*.user
-dist/
-*.zip
-MetroSP-Setup-*.exe
-MetroSP-Revit2022-2024-Setup-*.exe
