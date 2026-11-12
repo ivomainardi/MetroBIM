@@ -1,0 +1,1053 @@
+{
+  "PropertySetTemplates": [
+    {
+      "Name": "Summary",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcProject",
+      "PropertyTemplates": [
+        {
+          "Name": "Title",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Subject",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Author",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Keywords",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Comments",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "HyperlinkBase",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "Custom_Properties",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcProject",
+      "PropertyTemplates": [
+        {
+          "Name": "IfcFacility_GlobalId",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "IfcFacility_Name",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "IfcProject_GlobalId",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "IfcProject_ShortName",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "Properties",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Convergence",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "DescriptionFormat",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Easting",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "Elevation",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "ElevationOverride",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "FullDescription",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "FullDescriptionOverride",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "GridEasting",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "GridNorthing",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "IsCheckedOut",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsLabelDragged",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsLabelPinned",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsLabelVisible",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsLocked",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsMovable",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsProjectPoint",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsSurveyPoint",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "LabelRotation",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "Latitude",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "Longitude",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "MarkerRotation",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "Northing",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "PointName",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "PointNumber",
+          "Description": "",
+          "PrimaryMeasureType": "IfcInteger"
+        },
+        {
+          "Name": "RawDescription",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "RawDescriptionOverride",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Scale",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "ScaleXY",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "ScaleZ",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "ShowToolTip",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "CloneMeForDragging",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "ForceAnnoAllVisible",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "HasSaveVersionOverride",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsCancelling",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsErased",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsEraseStatusToggled",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsModified",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsModifiedGraphics",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsModifiedXData",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsNewObject",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsNotifyEnabled",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsNotifying",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsObjectIdsInFlux",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsPersistent",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsReadEnabled",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsReallyClosing",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsTransactionResident",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsUndoing",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsWriteEnabled",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "Bounds",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "AutoDelete",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsDisposed",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "AutoRebuild",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "HasSnapshot",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsLevelOfDetailEnabled",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsOutOfDate",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsSnapshotOutOfDate",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsVolumeSurface",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "Lock",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "Description",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "DisplayName",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "FingerPrint",
+          "Description": "",
+          "PrimaryMeasureType": "IfcInteger"
+        },
+        {
+          "Name": "IsCWSReferenceObject",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsCWSSourceObject",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsReadOnlyReferenceObject",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsReferenceObject",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsReferenceStale",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsReferenceSubObject",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsReferenceValid",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsUsed",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "Name",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "StyleName",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "Misc",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "BlockName",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "ClassID",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "HasFields",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsAProxy",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "3D Visualization",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "CastShadows",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "Material",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "ReceiveShadows",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "General",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "ColorIndex",
+          "Description": "",
+          "PrimaryMeasureType": "IfcInteger"
+        },
+        {
+          "Name": "Layer",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Linetype",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "LinetypeScale",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "PlotStyleName",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Visible",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "LayerKey",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "Geometry",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "IsPlanar",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "Closed",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsPeriodic",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "Miscellaneous",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "IsHighlighting",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "NeedsPromoting",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "SupportsBaseCurveCommands",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "SupportsProfileCommands",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "SwappingReferences",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "TypeIcon",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "Dados adicionais",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Nome da Estação",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "PONTOS",
+      "Description": "",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "PONTOS",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "Corridor Property Data – User Defined",
+      "Description": "Reference template : C:\\Template\\C3d_2024_Template\\TEMPLATE_VP v1.4 r5.dwg",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "HorizontalBaseline",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "VerticalBaseline",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "CorridorName",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "AssemblyName",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "RegionName",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "StartStation",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "EndStation",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "Lenght",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "ShapeCodeName",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "Volume",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "RegionID",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    },
+    {
+      "Name": "IfcObject Properties",
+      "Description": "IfcObject Properties\r\nReference template : C:\\Template\\C3d_2024_Template\\TEMPLATE_VP v1.4 r5.dwg",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "IFC::GlobalId",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "IFC::IfcExportAs",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    },
+    {
+      "Name": "Imported LandXML File [AeccDbAlignment]",
+      "Description": "Properties of imported file\r\nReference template : C:\\Template\\C3d_2024_Template\\TEMPLATE_VP v1.4 r5.dwg",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "[LandXML::Creation date]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::File name]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::File path]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::Import date event]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::Version]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    },
+    {
+      "Name": "Imported LandXML File [AeccDbCogoPoint]",
+      "Description": "Properties of imported file\r\nReference template : C:\\Template\\C3d_2024_Template\\TEMPLATE_VP v1.4 r5.dwg",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "[LandXML::Creation date]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::File name]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::File path]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::Import date event]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[LandXML::Version]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    },
+    {
+      "Name": "LandXML Attributes [AeccDbAlignment]",
+      "Description": "Attributes of imported LandXML element\r\nReference template : C:\\Template\\C3d_2024_Template\\TEMPLATE_VP v1.4 r5.dwg",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "[Alignments::desc]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignments::name]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignments::state]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignment::desc]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignment::length]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignment::name]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignment::oID]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignment::staStart]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignment::state]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    },
+    {
+      "Name": "LandXML Attributes [AeccDbCogoPoint]",
+      "Description": "Attributes of imported LandXML element\r\nReference template : C:\\Template\\C3d_2024_Template\\TEMPLATE_VP v1.4 r5.dwg",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "[CgPoints::DTMAttribute]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoints::code]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoints::desc]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoints::name]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoints::state]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoints::zoneNumber]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::DTMAttribute]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::code]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::desc]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::determinedTimeStamp]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::eastingStdError]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::elevationStdError]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::ellipsoidHeight]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::featureRef]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::latitude]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::localUncertainity]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::longitude]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::name]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::northingStdError]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::oID]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::pntRef]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::pntSurv]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::pointGeometry]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::positionalUncertainity]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::role]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::state]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::surveyHorizontalOrder]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::surveyOrder]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::surveyVerticalOrder]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::timeStamp]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::zone]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[CgPoint::zoneNumber]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    },
+    {
+      "Name": "LandXML Features [AeccDbAlignment]",
+      "Description": "Featured <Property,Value> of imported LandXML element\r\nReference template : C:\\Template\\C3d_2024_Template\\TEMPLATE_VP v1.4 r5.dwg",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "[Alignment::speed]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "[Alignment::station]",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    },
+    {
+      "Name": "U_pset_via permanente",
+      "Description": "Conjunto de propriedades de elementos de via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Descrição",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "Via",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "Unidade",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "Quantidade",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "pk Final",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "pk Inicial",
+          "Description": "",
+          "PrimaryMeasureType": "IfcReal"
+        },
+        {
+          "Name": "Preço MAN",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        },
+        {
+          "Name": "Cod. Insumo",
+          "Description": "",
+          "PrimaryMeasureType": ""
+        }
+      ]
+    }
+  ]
+}

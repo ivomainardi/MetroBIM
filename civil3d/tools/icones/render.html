@@ -1,0 +1,5 @@
+<!doctype html><html><body style="margin:0;background:transparent"><div id="c"></div>
+<script src="icons.js"></script><script>
+const q=new URLSearchParams(location.search);const k=q.get('k'),s=+q.get('s');
+document.getElementById('c').innerHTML=`<svg xmlns="http://www.w3.org/2000/svg" width="${s}" height="${s}" viewBox="0 0 32 32" style="display:block">${ICONS[k](s==16?2.8:2)}</svg>`;
+</script></body></html>
