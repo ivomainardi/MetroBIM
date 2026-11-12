@@ -50,6 +50,9 @@ namespace MetroSP.PropertySets
         private readonly HashSet<string> _escolhidos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         private readonly TabControl _abas;
+
+        /// <summary>Abas Montar e Anexar (a Entrega passo a passo abre direto em Anexar quando falta anexar).</summary>
+        internal TabControl Abas => _abas;
         private readonly Button _criar, _anexar;
         private readonly CheckBox _anexarAoCriar;
 

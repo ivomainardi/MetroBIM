@@ -47,30 +47,27 @@ namespace MetroSP
             var tab = new RibbonTab { Title = "MetroSP", Id = TabId };
             ribbon.Tabs.Add(tab);
 
-            tab.Panels.Add(Panel("IFC 4.3",
-                Button("Exportar\nIFC", "IfcExportar", "MSP_IFCEXPORT",
-                    "Exporta o desenho em IFC 4.3, já com o alinhamento 3D."),
-                Button("Exportar\nseleção", "IfcSelecao", "MSP_IFCEXPORTSEL",
-                    "Exporta só os objetos selecionados."),
-                Button("Projeto\nIFC", "ProjetoIfc", "MSP_IFCPROJETO",
-                    "Preenche o IfcProject, o IfcSite, as instalações (a linha como IfcRailway e cada estação como IfcBuilding) e o Pset MetroSP_Projeto. " +
-                    "Os dados podem ser salvos como padrão e usados em outros desenhos, também no Revit."),
-                Button("Configurar\nIFC", "IfcConfigurar", "MSP_IFCCONFIG",
-                    "Classes, propriedades, projeto, terreno, edificações e alinhamento.")));
+            // Só a Entrega Metrô é numerada: são os passos 1-2-3. O resto fica sem número, como no plugin do Revit.
+            tab.Panels.Add(Panel("Entrega Metrô",
+                Button("Entrega\npasso a passo", "Passo1", "MSP_ENTREGA",
+                    "Passo 1, por onde começar. Janela única da entrega: as etapas em cima, com setinhas (verde = pronta, laranja = pendências), " +
+                    "e embaixo o que falta em cada etapa, com os botões que resolvem e a ferramenta da etapa (Exportador, Property sets, " +
+                    "Classes IFC, Dados, Classificação, Alinhamentos, Local e exportar)."),
+                Button("Projeto e\nLocal", "Passo2", "MSP_IFCPROJETO",
+                    "Passo 2. Preenche o IfcProject, o IfcSite, as instalações (a linha como IfcRailway e cada estação como IfcBuilding) " +
+                    "e o Pset MetroSP_Projeto. Os dados podem ser salvos como padrão e usados em outros desenhos, também no Revit."),
+                ExportSplit()));
 
-            tab.Panels.Add(Panel("Forma",
-                Stack(
-                    Small("Sincronizar", "IfcSincronizar", "MSP_IFCSYNC", "Baixa a configuração IFC do Forma, sem exportar."),
-                    Small("Entrar", "Entrar", "MSP_FORMALOGIN", "Entra na conta Autodesk."),
-                    Small("Sair", "Sair", "MSP_FORMALOGOUT", "Encerra a sessão neste computador.")),
-                Stack(
-                    Small("Conta", "Conta", "MSP_CONFIG", "Client ID, projeto e pasta do Forma."))));
+            tab.Panels.Add(Panel("Acompanhar",
+                Button("Painel\nMetroSP", "Conferir", "MSP_PAINEL",
+                    "Abre ao lado do desenho o painel com as etapas da entrega e o semáforo de cada uma. " +
+                    "Clique numa etapa para abrir a Entrega passo a passo nela.")));
 
             tab.Panels.Add(Panel("Classificação",
-                Button("Verificar\nclassificação", "ClassVerificar", "MSP_CLASSVERIFICAR",
+                Button("Verificar", "ClassVerificar", "MSP_CLASSVERIFICAR",
                     "Confere as classificações dos objetos com as planilhas do padrão. Cada linha tem a ação para corrigir.")));
 
-            tab.Panels.Add(Panel("Dados",
+            tab.Panels.Add(Panel("Dados do modelo",
                 Button("Property\nsets", "PropertySets", "MSP_PSETS",
                     "Monta os property sets do Civil 3D (nome, propriedades, tipos e objetos), importa de planilha, leva ao IFC e anexa aos objetos."),
                 Button("Confrontar\nplanilha", "ConfrontarPlanilha", "MSP_CONFRONTAR",
@@ -79,20 +76,54 @@ namespace MetroSP
                     "Procura em property sets, nome e descrição espaços sobrando ou errados (duplos, nas pontas, na pontuação, entre número " +
                     "e unidade), acentuação e caracteres estranhos. Mostra o valor atual e a sugestão para corrigir ou ignorar.")));
 
-            tab.Panels.Add(Panel("Padrões",
-                Button("Padrões e\nplanilhas", "Padroes", "MSP_PADROES",
-                    "Todos os padrões salvos (classificação, confronto, dados do projeto, exportação IFC) e as planilhas que eles usam: editar, trocar planilha e levar para a equipe num .zip.")));
-
-            tab.Panels.Add(Panel("Ferramentas",
+            // O que o coordenador BIM prepara uma vez e distribui: botões pequenos, no fim da aba.
+            tab.Panels.Add(Panel("Configurar padrões",
                 Stack(
-                    Small("Só alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D."),
-                    Small("Pasta", "ArquivosIfc", "MSP_IFCPASTA", "Abre a pasta do desenho com os JSON aplicados."),
-                    Small("Sobre", "Sobre", "MSP_SOBRE", "Versão e configuração em uso.")),
+                    Small("Padrões e planilhas", "Padroes", "MSP_PADROES",
+                        "Todos os padrões salvos (classificação, confronto, dados do projeto, exportação IFC) e as planilhas que eles usam: editar, trocar planilha e levar para a equipe num .zip."),
+                    Small("Configurar IFC", "IfcConfigurar", "MSP_IFCCONFIG", "Classes IFC, propriedades, projeto, alinhamento e opções avançadas do pacote de configuração."),
+                    Small("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da IFC 4.3 Extension da Autodesk, atualizações e a pasta dos arquivos de configuração do desenho.")),
                 Stack(
-                    Small("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da extensão IFC 4.3 da Autodesk e atualizações."))));
+                    Small("Forma", "IfcSincronizar", "MSP_FORMA", "Autodesk Forma: entrar, sair, sincronizar a configuração IFC e a conta (Client ID, projeto e pasta)."))));
 
             // Marca sempre por último, no lado direito da aba.
             tab.Panels.Add(BrandPanel());
+        }
+
+        /// <summary>Passo 3: Exportar IFC, com a setinha para exportar só a seleção ou só os alinhamentos.</summary>
+        static RibbonSplitButton ExportSplit()
+        {
+            var tudo = Button("Exportar\nIFC", "Passo3", "MSP_IFCEXPORT",
+                "Passo 3. Exporta o desenho em IFC 4.3 com o exportador da Autodesk e completa o arquivo: alinhamento 3D, projeto, local e instalações.");
+            var selecao = Button("Só a seleção", "IfcSelecao", "MSP_IFCEXPORTSEL", "Exporta só os objetos selecionados.");
+            var alinhamentos = Button("Só os alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D.");
+            foreach (var b in new[] { selecao, alinhamentos })
+            {
+                b.Size = RibbonItemSize.Standard;
+                b.Orientation = System.Windows.Controls.Orientation.Horizontal;
+                b.LargeImage = null;
+            }
+            var split = new RibbonSplitButton
+            {
+                Text = "Exportar\nIFC",
+                ShowText = true,
+                ShowImage = true,
+                Size = RibbonItemSize.Large,
+                Orientation = System.Windows.Controls.Orientation.Vertical,
+                LargeImage = tudo.LargeImage,
+                Image = tudo.Image,
+                IsSplit = true,
+                IsSynchronizedWithCurrentItem = false,
+                ListButtonStyle = Autodesk.Private.Windows.RibbonListButtonStyle.SplitButton,
+                ToolTip = tudo.ToolTip,
+                // Clique na parte de cima: exporta o desenho todo (o mesmo comando do primeiro item).
+                CommandParameter = tudo.CommandParameter,
+                CommandHandler = new MacroHandler(),
+            };
+            split.Items.Add(tudo);
+            split.Items.Add(selecao);
+            split.Items.Add(alinhamentos);
+            return split;
         }
 
         static RibbonPanel Panel(string title, params RibbonItem[] items)

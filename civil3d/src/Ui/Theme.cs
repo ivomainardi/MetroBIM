@@ -42,7 +42,8 @@ namespace MetroSP.Ui
         /// Monta a janela no padrão: cabeçalho (logo, título, subtítulo), corpo e rodapé de botões,
         /// e registra os estilos padrão nos recursos da janela.
         /// </summary>
-        public static void Apply(Window w, string titulo, string subtitulo, UIElement corpo, UIElement rodape)
+        /// <summary>Fonte e estilos MetroSP (botões, campos, tabelas, abas) numa janela montada à mão.</summary>
+        public static void Estilos(Window w)
         {
             w.Background = Brushes.White;
             w.FontFamily = new FontFamily("Segoe UI");
@@ -53,10 +54,19 @@ namespace MetroSP.Ui
             w.Resources[typeof(DataGridColumnHeader)] = CreateHeaderStyle();
             w.Resources[typeof(TabControl)] = CreateTabControlStyle();
             w.Resources[typeof(TabItem)] = CreateTabItemStyle();
+        }
+
+        /// <summary>Marca do cabeçalho preto: a Entrega passo a passo esconde o cabeçalho da ferramenta embutida.</summary>
+        public const string TagCabecalho = "MetroSP.Cabecalho";
+
+        public static void Apply(Window w, string titulo, string subtitulo, UIElement corpo, UIElement rodape)
+        {
+            Estilos(w);
 
             var raiz = new DockPanel();
 
             UIElement cabecalho = CreateHeader(titulo, subtitulo);
+            if (cabecalho is FrameworkElement fe) fe.Tag = TagCabecalho;
             DockPanel.SetDock(cabecalho, Dock.Top);
             raiz.Children.Add(cabecalho);
 

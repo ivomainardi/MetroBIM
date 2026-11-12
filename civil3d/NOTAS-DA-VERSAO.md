@@ -1,6 +1,34 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## Próxima versão (em desenvolvimento)
+## 0.12.0 (12/11/2026)
+
+- **Ferramentas reorganizadas como no plugin do Revit** (proposta aprovada em 12/11):
+  - **Ribbon** com 5 painéis e 11 entradas. Só a **Entrega Metrô** é numerada: **1 Entrega passo a passo**, **2 Projeto e
+    Local** (o antigo Projeto IFC) e **3 Exportar IFC**, com a setinha para exportar **só a seleção** ou **só os
+    alinhamentos** (IFC separado). Depois vêm **Acompanhar** (Painel MetroSP), **Classificação** (Verificar), **Dados do
+    modelo** (Property sets, Confrontar planilha, Corrigir escrita) e **Configurar padrões**, com botões pequenos
+    (Padrões e planilhas, Configurar IFC, Exportador e Forma). O painel Forma virou uma janela só (Entrar, Sair,
+    Sincronizar e Conta), o Sobre fica no clique do selo e a Pasta foi para dentro do Exportador. Os comandos antigos
+    continuam valendo.
+  - **Entrega passo a passo** (`MSP_ENTREGA`): janela única, redimensionável, com as 7 etapas em cima numa linha fina
+    com setinhas (verde = pronta, laranja com o número de pendências, a aberta sublinhada): **1 Exportador**,
+    **2 Property sets**, **3 Classe IFC**, **4 Dados**, **5 Classificação**, **6 Alinhamentos** e **7 Local e
+    exportar**. Embaixo, à esquerda, os cartões de pendência com os botões que resolvem (Criar no desenho, Anexar,
+    Usar o perfil, Sincronizar, Selecionar...) e, à direita, a ferramenta da etapa embutida (Property sets, Classes
+    IFC, Corrigir escrita · Confrontar planilha em abas, Verificar classificação, Projeto e Local). Rodapé com
+    Passo anterior · Salvar e conferir · Próximo passo. Abre na primeira etapa com pendência.
+  - O que cada etapa confere, só nos objetos que vão para o IFC: extensão IFC 4.3 instalada, desenho salvo e
+    configuração do Forma em dia (1); property sets que o mapeamento IFC pede, no desenho e anexados (2); classes fora
+    do esquema IFC (3); erros de escrita (4); classificação pela planilha do padrão (5); alinhamento com mais de um
+    perfil sem escolha guardada ou sem perfil (6); nome do IfcProject e do IfcSite e as instalações (7).
+  - **Alinhamentos** (só no Civil 3D): tabela com o perfil de cada alinhamento; o que for escolhido ali fica guardado
+    para o desenho e a exportação não pergunta mais.
+  - **Painel MetroSP** (`MSP_PAINEL`): painel encaixável com as 7 etapas e o semáforo da última conferência do desenho
+    ativo; clique numa etapa para abrir a entrega nela.
+- Falta testar no Civil 3D (2025, 2026 e 2027): a Ribbon nova (inclusive a setinha do Exportar IFC), abrir a Entrega
+  num desenho real (MB-20) e conferir as 7 etapas, cada ferramenta embutida (salvar por dentro e pelo Salvar e
+  conferir), os botões Anexar, Criar no desenho e Usar o perfil, exportar pela etapa 7 e o Painel MetroSP encaixado.
+  Compilado aqui (R25 e R26), sem teste visual: o Civil 3D não roda neste ambiente.
 
 - **Exportar IFC**: o arquivo registra o plugin e a versão nos dois lugares que as normas preveem:
   - **cabeçalho** (ISO 10303-21): `MetroSP Civil 3D 0.11.0` no fim do `preprocessor_version` do `FILE_NAME`. O texto da
