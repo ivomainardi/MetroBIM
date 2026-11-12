@@ -1,5 +1,6 @@
 # Instalador único (Revit 2025-2027 + Civil 3D 2025-2027). Só roda à mão (Actions › Instalador único › Run workflow).
-# Usa o pacote do Revit da release v<revit> deste repositório e compila o MetroSP_Civil3D (público) na tag v<civil3d>,
+# Usa o pacote do Revit da release v<revit> deste repositório e compila o MetroSP_Civil3D (público) da main, que tem de
+# estar na versão <civil3d>,
 # com o installer\MetroSP-Unico.iss de lá. Anexa MetroSP-Setup-Revit<r>-Civil3D<c>.exe à release do Revit.
 # Nada fica guardado no Actions.
 name: Instalador único
@@ -24,7 +25,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: ivomainardi/MetroSP_Civil3D
-          ref: v${{ inputs.civil3d }}
+          ref: main
           path: civil3d
 
       - uses: actions/setup-dotnet@v4
@@ -39,6 +40,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $r = '${{ inputs.revit }}'
+          [xml]$proj = Get-Content civil3d/src/MetroSP.csproj
+          $c = ($proj.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1).Version
+          if ($c -ne '${{ inputs.civil3d }}') { throw "A main do MetroSP_Civil3D está na versão $c, não ${{ inputs.civil3d }}" }
           dotnet build civil3d/src/MetroSP.csproj -c Release --no-incremental
           if ($LASTEXITCODE -ne 0) { throw 'Falha ao compilar o Civil 3D' }
           gh release download "v$r" --repo $env:GITHUB_REPOSITORY --pattern "MetroSP-$r-instalador.zip" --dir revit-zip
