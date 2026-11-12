@@ -2,7 +2,7 @@
 
 Aba **MetroSP** na Ribbon do Revit.
 
-Painéis, na ordem do trabalho: **Entrega Metrô** (1 Painel MetroSP, encaixado ao lado do modelo; 2 Projeto e Local; 3 Exportar IFC),
+Painéis, na ordem do trabalho: **Entrega Metrô** (1 Entrega passo a passo, janela única; 2 Projeto e Local; 3 Exportar IFC), **Acompanhar** (Painel MetroSP, encaixado ao lado do modelo),
 **Classificação** (Aplicar, Verificar), **Dados do modelo**, **Parâmetros e famílias** (Parâmetros, Renomear Famílias)
 e **Configurar padrões** (Padrões e planilhas, Arquivos IFC, Categorias IFC). Verificar Padrões, Consistência e Renomear
 Compartilhado não têm mais botão próprio: abrem pela conferência do Painel MetroSP, pelo Verificar classificação e pela aba
