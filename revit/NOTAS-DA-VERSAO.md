@@ -1,5 +1,20 @@
 # MetroSP 0.3.3 (em teste)
 
+## Entrega passo a passo: janela única
+
+- Novo botão **Entrega passo a passo** (Ribbon › Entrega Metrô, e "Abrir em janela" no rodapé do Painel MetroSP).
+- Em cima, as etapas numa linha com setinhas: verde com ✓ quando está pronta, contorno laranja com o número de
+  pendências quando falta algo, e a etapa aberta em laranja e sublinhada. Clique numa etapa para abri-la.
+- Embaixo, à esquerda, o que falta na etapa, em cartões com os botões que resolvem (Vincular à categoria, Ajustar o .txt,
+  Escolher classe, Preencher, Selecionar). À direita, a ferramenta da etapa, dentro da própria janela:
+  1 Arquivos (padrões em uso), 2 Parâmetros de projeto, 3 Categorias IFC, 4 Editar em massa, 5 Verificar classificação,
+  6 Projeto e local + Exportar IFC.
+- Rodapé: Passo anterior, **Salvar e conferir** (usa o Salvar da ferramenta e confere de novo) e Próximo passo.
+- A janela é modal (o Revit fica parado enquanto ela está aberta), para que as ferramentas possam gravar no modelo.
+  O que for selecionado aparece no Revit ao fechar. O Painel MetroSP continua ao lado, como resumo.
+- Testar no Revit: abrir a janela, passar por todas as etapas, salvar uma alteração em Categorias IFC e ver a etapa
+  conferir de novo; usar Vincular à categoria; fechar com alterações pendentes (deve perguntar se salva).
+
 ## Categorias IFC: o padrão MetroSP passa a ser o padrão
 
 - Sem tabela salva, a janela Categorias IFC já abre com o padrão MetroSP (ISO 16739) nas duas colunas, por cima do

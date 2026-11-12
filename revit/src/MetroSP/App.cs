@@ -94,6 +94,11 @@ namespace MetroSP
                 "pintar os elementos e abrir a ferramenta que corrige. A conferência completa (matriz, IDS) abre pelo painel.",
                 "Passo1");
 
+            AddButton<EntregaCommand>(panel, "Entrega\npasso a passo",
+                "Janela única da entrega: as etapas em cima, com setinhas, e embaixo o que falta em cada etapa, com os botões " +
+                "que resolvem e a ferramenta da etapa (Parâmetros, Categorias IFC, Editar em massa, Classificação, Local e Exportar IFC).",
+                "Passo1");
+
             AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
                 "Passo 2. Preenche o IfcProject, o IfcSite e o IfcBuilding (nome, nome longo, descrição, fase, endereço) " +
                 "e o Pset MetroSP_Projeto, e calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô). " +
