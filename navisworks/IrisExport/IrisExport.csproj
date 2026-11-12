@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Plugin "Exportar para o Iris" para o Navisworks Manage/Simulate 2025, 2026 e 2027.
+       Compilar: dotnet build -c Release -p:NavisVersion=2026   (ou use ..\instalar.ps1)
+       As DLLs da API vêm do Navisworks instalado (NavisDir); não são copiadas para a saída. -->
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>IrisExport</AssemblyName>
+    <RootNamespace>IrisExport</RootNamespace>
+    <NavisVersion Condition="'$(NavisVersion)' == ''">2026</NavisVersion>
+    <NavisProduct Condition="'$(NavisProduct)' == ''">Manage</NavisProduct>
+    <NavisDir Condition="'$(NavisDir)' == ''">$(ProgramW6432)\Autodesk\Navisworks $(NavisProduct) $(NavisVersion)</NavisDir>
+    <OutputPath>bin\$(NavisVersion)\</OutputPath>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Version>1.0.0</Version>
+    <Product>Iris</Product>
+    <Description>Exporta o TimeLiner com os objetos (GlobalId do IFC) para o cronograma do Iris</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Autodesk.Navisworks.Api"><HintPath>$(NavisDir)\Autodesk.Navisworks.Api.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Autodesk.Navisworks.Timeliner"><HintPath>$(NavisDir)\Autodesk.Navisworks.Timeliner.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="System.Windows.Forms" />
+    <None Include="iris_16.png;iris_32.png" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <!-- .NET Framework 4.8: no Windows sem o Developer Pack, compila com o próprio framework do sistema (sem baixar nada);
+       fora do Windows (só para conferir o código), pelo pacote de referência -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT' And !Exists('$(MSBuildProgramFiles32)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.8\mscorlib.dll')">
+    <FrameworkPathOverride>$(WINDIR)\Microsoft.NET\Framework64\v4.0.30319</FrameworkPathOverride>
+    <AutomaticallyUseReferenceAssemblyPackages>false</AutomaticallyUseReferenceAssemblyPackages>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(OS)' != 'Windows_NT'">
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+</Project>
