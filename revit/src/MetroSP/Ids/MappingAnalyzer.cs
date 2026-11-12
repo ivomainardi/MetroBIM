@@ -528,9 +528,13 @@ namespace MetroSP.Ids
                 case "logical": return t == SpecTypeId.Boolean.YesNo;
                 case "integer":
                 case "count": return p.StorageType == StorageType.Integer;
+                // Specs que também são comprimento ou área em pés: o exportador converte igual (ex.: Section Area de perfis).
                 case "length":
-                case "positivelength": return t == SpecTypeId.Length;
-                case "area": return t == SpecTypeId.Area;
+                case "positivelength":
+                    return t == SpecTypeId.Length || t == SpecTypeId.SectionDimension || t == SpecTypeId.BarDiameter ||
+                           t == SpecTypeId.ReinforcementCover || t == SpecTypeId.ReinforcementLength || t == SpecTypeId.ReinforcementSpacing ||
+                           t == SpecTypeId.CableTraySize || t == SpecTypeId.ConduitSize || t == SpecTypeId.DuctSize || t == SpecTypeId.PipeSize;
+                case "area": return t == SpecTypeId.Area || t == SpecTypeId.SectionArea || t == SpecTypeId.ReinforcementArea;
                 case "volume": return t == SpecTypeId.Volume;
                 case "real": return p.StorageType == StorageType.Double || p.StorageType == StorageType.Integer;
                 default: return true; // Text/Label/Identifier aceitam qualquer parâmetro (exportado como texto)

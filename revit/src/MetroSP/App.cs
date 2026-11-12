@@ -41,6 +41,7 @@ namespace MetroSP
             // Painéis na ordem do trabalho: entregar (passos 1, 2 e 3), classificar, cuidar dos dados, manutenção e,
             // por último, o que o coordenador BIM prepara uma vez. O Sobre abre pela logo, à direita da aba.
             CreateEntregaPanel(application);
+            CreateAcompanharPanel(application);
             CreateClassificacaoPanel(application);
             CreateDadosPanel(application);
             CreateParametrosPanel(application);
@@ -88,10 +89,9 @@ namespace MetroSP
         {
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega Metrô");
 
-            AddButton<PainelMetroSPCommand>(panel, "Painel\nMetroSP",
-                "Passo 1, por onde começar. Abre ao lado do modelo o painel com os passos da entrega e o semáforo de cada um " +
-                "(arquivos, parâmetros, classe IFC, dados e classificação). Abra um passo para ver as pendências, selecionar e " +
-                "pintar os elementos e abrir a ferramenta que corrige. A conferência completa (matriz, IDS) abre pelo painel.",
+            AddButton<EntregaCommand>(panel, "Entrega\npasso a passo",
+                "Passo 1, por onde começar. Janela única da entrega: as etapas em cima, com setinhas, e embaixo o que falta em cada etapa, com os botões " +
+                "que resolvem e a ferramenta da etapa (Parâmetros, Categorias IFC, Editar em massa, Classificação, Local e Exportar IFC).",
                 "Passo1");
 
             AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
@@ -104,6 +104,17 @@ namespace MetroSP
                 "Passo 3. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
                 "computador ou no Autodesk Forma.",
                 "Passo3");
+        }
+
+        private static void CreateAcompanharPanel(UIControlledApplication application)
+        {
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Acompanhar");
+
+            AddButton<PainelMetroSPCommand>(panel, "Painel\nMetroSP",
+                "Acompanhamento da entrega. Abre ao lado do modelo o painel com os passos da entrega e o semáforo de cada um " +
+                "(arquivos, parâmetros, classe IFC, dados e classificação). Abra um passo para ver as pendências, selecionar e " +
+                "pintar os elementos e abrir a ferramenta que corrige. A conferência completa (matriz, IDS) abre pelo painel.",
+                "Conferir");
         }
 
         private static void CreateClassificacaoPanel(UIControlledApplication application)
@@ -173,7 +184,7 @@ namespace MetroSP
         /// <summary>O que o coordenador BIM prepara uma vez e distribui para a equipe: botões pequenos, no fim da aba.</summary>
         private static void CreateCoordenadorPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Coordenador BIM");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Configurar padrões");
 
             panel.AddStackedItems(
                 Dados<PadroesCommand>("Padrões e planilhas",

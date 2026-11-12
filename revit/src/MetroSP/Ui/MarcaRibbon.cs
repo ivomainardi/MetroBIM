@@ -27,10 +27,10 @@ namespace MetroSP.Ui
         private static AW.RibbonButton _logo;
 
         /// <summary>
-        /// Selo azul (Metrô) com as logos claras, que aparece igual nos temas claro e escuro do Revit.
-        /// A imagem tem 32 px de altura e margem interna, para caber inteira no botão grande.
+        /// Ícone quadrado (símbolo do Metrô sobre o azul), 32 px como os outros botões: o botão grande da Ribbon
+        /// corta imagens mais largas. Aparece igual nos temas claro e escuro do Revit.
         /// </summary>
-        private static System.Windows.Media.ImageSource Imagem() => App.LoadIcon("marca_ribbon_botao.png");
+        private static System.Windows.Media.ImageSource Imagem() => App.LoadIcon("MarcaSobre32.png");
 
         /// <summary>Chamado quando o usuário troca o tema do Revit.</summary>
         public static void AtualizarTema()
@@ -40,18 +40,8 @@ namespace MetroSP.Ui
                 if (_logo == null) return;
                 System.Windows.Media.ImageSource img = Imagem();
                 _logo.LargeImage = img;
-                Dimensionar(_logo, img);
             }
             catch { }
-        }
-
-        /// <summary>O botão grande corta a imagem em 32 px; com a largura e a altura da imagem o selo aparece inteiro.</summary>
-        private static void Dimensionar(AW.RibbonButton b, System.Windows.Media.ImageSource img)
-        {
-            if (img == null) return;
-            b.Width = img.Width + 6;
-            b.MinWidth = img.Width + 6;
-            b.MinHeight = img.Height + 6;
         }
 
         public static void Adicionar(string nomeAba)
@@ -68,13 +58,13 @@ namespace MetroSP.Ui
                     LargeImage = Imagem(),
                     Size = AW.RibbonItemSize.Large,
                     ShowImage = true,
-                    ShowText = false,
+                    ShowText = true,
+                    Text = "Sobre",
                     Orientation = Orientation.Vertical,
                     ToolTip = "MetroSP · desenvolvido pela Ação BIM para o Metrô de São Paulo. Clique para ver a versão e as informações do add-in.",
                     IsCheckable = false,
                     CommandHandler = new AbrirSobre(),
                 };
-                Dimensionar(logo, logo.LargeImage);
                 _logo = logo;
                 var fonte = new AW.RibbonPanelSource { Id = Id, Title = "Ação BIM · Metrô SP" };
                 fonte.Items.Add(logo);

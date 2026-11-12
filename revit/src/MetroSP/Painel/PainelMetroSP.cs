@@ -43,6 +43,9 @@ namespace MetroSP.Painel
         private DB.Document _doc;
         private PacoteMetro _pacote;
         private ResultadoConferencia _res;
+        /// <summary>Situação do passo Projeto e Local, lida no contexto da API junto com a conferência.</summary>
+        private (Sinal Sinal, string Texto) _local = (Sinal.Cinza, TextoLocal);
+        private const string TextoLocal = "IfcProject, IfcSite, IfcBuilding e a localização pelo Project Base Point.";
         private readonly HashSet<int> _abertos = new HashSet<int>();
 
         /// <summary>Criar no OnStartup (contexto da API, para o ExternalEvent).</summary>
@@ -103,10 +106,15 @@ namespace MetroSP.Painel
             completa.ToolTip = "Abre a janela do Conferir Entrega, com a matriz categoria × campo, a exportação das pendências e as correções de classe IFC.";
             completa.Margin = new Thickness(10, 0, 0, 0);
             completa.Click += (s, e) => Revit(app => ConferirEntregaCommand.Abrir(app), conferirDoc: false);
-            var botoes = new StackPanel { Orientation = Orientation.Horizontal };
+            var janela = Theme.Link("Abrir em janela");
+            janela.ToolTip = "Abre a entrega numa janela única: etapas em cima, pendências e a ferramenta da etapa embaixo.";
+            janela.Margin = new Thickness(10, 0, 0, 0);
+            janela.Click += (s, e) => Revit(app => EntregaWindow.Abrir(app), conferirDoc: false);
+            var botoes = new WrapPanel();
             botoes.Children.Add(conferir);
             botoes.Children.Add(_pintar);
             botoes.Children.Add(completa);
+            botoes.Children.Add(janela);
             var rodapeConteudo = new StackPanel();
             rodapeConteudo.Children.Add(_soVista);
             rodapeConteudo.Children.Add(botoes);
@@ -209,6 +217,7 @@ namespace MetroSP.Painel
             }
             _doc = doc;
             _res = r;
+            _local = AcoesPendencia.SituacaoLocal(doc);
             Avisar(null);
             MostrarPassos();
         }
@@ -266,9 +275,13 @@ namespace MetroSP.Painel
             foreach (EtapaConferencia etapa in _res.Etapas) _passos.Children.Add(Passo(etapa));
 
             // Passos que não são conferências: abrir a ferramenta.
-            _passos.Children.Add(PassoAcao(_res.Etapas.Count + 1, "Projeto e Local",
-                "IfcProject, IfcSite, IfcBuilding e a localização pelo Project Base Point.", "Abrir",
-                app => LocalizacaoIfcCommand.Abrir(app), Sinal.Cinza));
+            // Ao fechar a janela do Projeto e Local, relê só este passo (sem reconferir o modelo todo).
+            _passos.Children.Add(PassoAcao(_res.Etapas.Count + 1, "Projeto e Local", _local.Texto, "Abrir",
+                app =>
+                {
+                    LocalizacaoIfcCommand.Abrir(app);
+                    if (_doc != null && _doc.IsValidObject) { _local = AcoesPendencia.SituacaoLocal(_doc); MostrarPassos(); }
+                }, _local.Sinal));
             Sinal sinalExportar = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Cinza;
             string textoExportar = _res.ProntoParaExportar
                 ? (_res.Amarelas > 0 ? "Pronto, com avisos." : "Tudo certo para exportar.")
@@ -334,6 +347,15 @@ namespace MetroSP.Painel
                 DockPanel.SetDock(selecionar, Dock.Right);
                 cabecalho.Children.Add(selecionar);
             }
+            // Passo sem pendência (verde): a ferramenta continua à mão, para conferir ou ajustar.
+            string ferramentaOk = pendencias.Count == 0 ? NomeFerramenta(etapa.Correcao) : null;
+            if (ferramentaOk != null)
+            {
+                var abrir = new Button { Content = ferramentaOk, MinWidth = 0, Padding = new Thickness(8, 2, 8, 2), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 0, 0) };
+                abrir.Click += (s, e) => { e.Handled = true; AbrirFerramenta(etapa.Correcao, new List<DB.ElementId>()); };
+                DockPanel.SetDock(abrir, Dock.Right);
+                cabecalho.Children.Add(abrir);
+            }
             Bolinha(etapa.Numero, etapa.Sinal).With(b => { DockPanel.SetDock(b, Dock.Left); cabecalho.Children.Add(b); });
             var textos = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             textos.Children.Add(new TextBlock { Text = etapa.Titulo, FontWeight = FontWeights.SemiBold, ToolTip = etapa.Descricao });
@@ -390,14 +412,30 @@ namespace MetroSP.Painel
                 DockPanel.SetDock(ponto, Dock.Left);
                 linha.Children.Add(ponto);
                 string onde = string.IsNullOrEmpty(p.Categoria) ? p.Assunto : string.IsNullOrEmpty(p.Assunto) ? p.Categoria : p.Categoria + " · " + p.Assunto;
+                if (!string.IsNullOrEmpty(p.Campo)) onde += $" → {p.Campo}" + (string.IsNullOrEmpty(p.Origem) ? "" : $" ({p.Origem})");
                 linha.Children.Add(new TextBlock
                 {
                     Text = string.IsNullOrEmpty(p.Problema) ? onde : $"{onde}: {p.Problema}",
                     TextTrimming = TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center,
-                    ToolTip = string.IsNullOrEmpty(p.OQueFazer) ? null : p.OQueFazer,
+                    ToolTip = string.IsNullOrEmpty(p.Problema) ? onde : $"{onde}: {p.Problema}",
                 });
                 painel.Children.Add(linha);
+
+                // O que fazer e, quando dá, o botão que já faz.
+                var fazer = new DockPanel { Margin = new Thickness(13, 0, 0, 6) };
+                var botoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+                foreach ((string texto, string dica, Action acao) in Decisoes(etapa, p))
+                {
+                    var b = new Button { Content = texto, ToolTip = dica, MinWidth = 0, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(6, 0, 0, 0), FontSize = 11 };
+                    b.Click += (s, e) => acao();
+                    botoes.Children.Add(b);
+                }
+                DockPanel.SetDock(botoes, Dock.Right);
+                fazer.Children.Add(botoes);
+                if (!string.IsNullOrEmpty(p.OQueFazer))
+                    fazer.Children.Add(new TextBlock { Text = "→ " + p.OQueFazer, FontSize = 11, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Color.FromRgb(0x55, 0x55, 0x55)), VerticalAlignment = VerticalAlignment.Center });
+                if (fazer.Children.Count > 1 || botoes.Children.Count > 0) painel.Children.Add(fazer);
             }
             if (pendencias.Count > Maximo)
                 painel.Children.Add(Theme.Detalhe($"e mais {pendencias.Count - Maximo}. Veja todas na Conferência completa."));
@@ -417,6 +455,42 @@ namespace MetroSP.Painel
             acoes.Children.Add(pintar);
             painel.Children.Add(acoes);
             return painel;
+        }
+
+        /// <summary>Botões de decisão de uma pendência: o que dá para resolver dali mesmo, ou a ferramenta já no ponto certo.</summary>
+        private IEnumerable<(string Texto, string Dica, Action Acao)> Decisoes(EtapaConferencia etapa, Pendencia p)
+        {
+            bool faltaNaCategoria = p.Correcao == Correcao.ParametrosDeProjeto && !string.IsNullOrEmpty(p.Categoria) && !string.IsNullOrEmpty(p.Assunto);
+            if (faltaNaCategoria)
+                yield return ("Vincular à categoria", $"Acrescenta {p.Categoria} nas categorias do parâmetro de projeto \"{p.Assunto}\" e confere de novo. Ctrl+Z desfaz.",
+                    () => Revit(app => VincularCategoria(app, p.Assunto, p.Categoria)));
+            if (p.Correcao == Correcao.EditarPropertySets)
+                yield return ("Ajustar o .txt", "Abre o .txt de property sets dos padrões para trocar o tipo ou o parâmetro; ao salvar, confere de novo.",
+                    () => Revit(EditarPropertySets));
+            if (p.Correcao == Correcao.ListarCompartilhados)
+                yield return ("Ver em Compartilhados", "Abre Parâmetros › Compartilhados, onde a coluna Padrão mostra o parâmetro do MetroShared.",
+                    () => AbrirFerramenta(Correcao.ListarCompartilhados, p.Elementos));
+            if (etapa.Numero == 3 && p.Elementos.Count > 0)
+                yield return ("Escolher classe...", "Escolhe a classe IFC desses elementos e grava no \"Exportar para IFC como\" dos tipos.",
+                    () => Revit(app => EscolherClasse(app, p)));
+            if (p.Correcao == Correcao.EditarEmMassa && p.Elementos.Count > 0)
+                yield return ("Preencher...", $"Seleciona os {p.Elementos.Count} elemento(s) e abre o Editar em massa.",
+                    () => AbrirFerramenta(Correcao.EditarEmMassa, p.Elementos));
+        }
+
+        private void VincularCategoria(UIApplication app, string parametro, string categoria)
+        {
+            if (AcoesPendencia.VincularCategoria(_doc, parametro, categoria)) Conferir(app);
+        }
+
+        private void EditarPropertySets(UIApplication app)
+        {
+            if (AcoesPendencia.EditarPropertySets(_doc, _pacote, null, app.MainWindowHandle)) Conferir(app);
+        }
+
+        private void EscolherClasse(UIApplication app, Pendencia p)
+        {
+            AcoesPendencia.EscolherClasse(_doc, _res, p, null, app.MainWindowHandle, () => Conferir(app));
         }
 
         private UIElement PassoAcao(int numero, string titulo, string texto, string botao, Action<UIApplication> acao, Sinal sinal, bool primario = false)

@@ -60,15 +60,61 @@ namespace MetroSP.Ids
         public static IReadOnlyList<string> Classes(string esquema) => De(esquema).Classes;
 
         /// <summary>Valores do PredefinedType da classe (sem NOTDEFINED); vazio se a classe não tem ou não existe.</summary>
-        public static IReadOnlyList<string> Tipos(string esquema, string classe) =>
-            classe != null && De(esquema).Tipos.TryGetValue(classe.Trim(), out List<string> t) ? t : (IReadOnlyList<string>)Array.Empty<string>();
+        public static IReadOnlyList<string> Tipos(string esquema, string classe)
+        {
+            string b = Base(esquema, classe);
+            return b != null && De(esquema).Tipos.TryGetValue(b, out List<string> t) ? t : (IReadOnlyList<string>)Array.Empty<string>();
+        }
+
+        /// <summary>
+        /// Classe de elemento que o valor da tabela de categorias representa. O exportador do Revit aceita também o nome do
+        /// tipo (IfcAlarmType vale como IfcAlarm, e a tabela padrão do Revit vem assim), então "IfcXxxType" vale como IfcXxx.
+        /// </summary>
+        private static string Base(string esquema, string classe)
+        {
+            if (string.IsNullOrWhiteSpace(classe)) return null;
+            string c = classe.Trim();
+            Esquema e = De(esquema);
+            if (e.Tipos.ContainsKey(c)) return c;
+            if (c.Length > 4 && c.EndsWith("Type", StringComparison.OrdinalIgnoreCase) && e.Tipos.ContainsKey(c.Substring(0, c.Length - 4)))
+                return c.Substring(0, c.Length - 4);
+            return null;
+        }
+
+        /// <summary>
+        /// Valores aceitos na tabela de categorias além das classes de elemento: os tipos (IfcDoorType, IfcValveType...) e os
+        /// grupos que o exportador do Revit cria para algumas categorias (zonas de HVAC como IfcZone, áreas de tela como IfcGroup).
+        /// </summary>
+        private static readonly string[] Grupos =
+            { "IfcGroup", "IfcZone", "IfcSystem", "IfcDistributionSystem", "IfcDistributionCircuit", "IfcBuildingSystem", "IfcBuiltSystem" };
+
+        private static bool ExisteNoEsquema(string esquema, string nome) =>
+            (esquema == CategoriasIfc.Ifc4x3 ? Entidades4x3 : Entidades4).Contains(nome, StringComparer.OrdinalIgnoreCase);
 
         /// <summary>Cada classe e cada Classe.TIPO, para o "Exportar para IFC como".</summary>
         public static IReadOnlyList<string> ClassesComTipo(string esquema) => De(esquema).ClassesComTipo;
 
-        /// <summary>Vazio vale (não muda nada). Senão, a classe tem de existir no esquema.</summary>
-        public static bool ClasseValida(string esquema, string classe) =>
-            string.IsNullOrWhiteSpace(classe) || De(esquema).Tipos.ContainsKey(classe.Trim());
+        /// <summary>Vazio vale (não muda nada). Senão, a classe (ou o seu tipo, ou um grupo como IfcZone) tem de existir no esquema.</summary>
+        public static bool ClasseValida(string esquema, string classe)
+        {
+            if (string.IsNullOrWhiteSpace(classe) || Base(esquema, classe) != null) return true;
+            string c = classe.Trim();
+            if (!ExisteNoEsquema(esquema, c)) return false;
+            return c.EndsWith("Type", StringComparison.OrdinalIgnoreCase) || Grupos.Contains(c, StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Nomes que não existem no IFC4/4.3 mas aparecem em tabelas antigas do Revit, com a classe certa.</summary>
+        private static readonly Dictionary<string, string> Trocas = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["IfcAssembly"] = "IfcElementAssembly",
+        };
+
+        /// <summary>Classe certa para um nome que não existe no esquema (ex.: IfcAssembly → IfcElementAssembly), ou null.</summary>
+        public static string Sugestao(string esquema, string classe)
+        {
+            if (string.IsNullOrWhiteSpace(classe) || ClasseValida(esquema, classe)) return null;
+            return Trocas.TryGetValue(classe.Trim(), out string certa) && ClasseValida(esquema, certa) ? certa : null;
+        }
 
         /// <summary>Vazio vale. Senão, o tipo tem de ser um PredefinedType da classe.</summary>
         public static bool TipoValido(string esquema, string classe, string tipo) =>

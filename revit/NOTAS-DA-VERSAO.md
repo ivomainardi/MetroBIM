@@ -1,4 +1,108 @@
-# MetroSP 0.3.3 (em teste)
+# MetroSP 0.3.4
+
+Revit 2022 a 2027. Resumo: Ribbon reorganizada (Entrega passo a passo, Acompanhar, Configurar padrões), janela única
+da entrega com as etapas em setinhas, Painel MetroSP com botões de decisão, Categorias IFC com IFC4 e IFC 4.3 lado a
+lado e o padrão MetroSP (ISO 16739) como padrão, e Parâmetros de projeto com "Só os erros".
+
+## Entrega passo a passo: janela única
+
+- Novo botão **Entrega passo a passo**, que passa a ser o passo 1 do grupo Entrega Metrô (e "Abrir em janela" no rodapé
+  do Painel MetroSP). O **Painel MetroSP** saiu da Entrega e foi para um grupo próprio, **Acompanhar**, sem número.
+- Botão **Sobre** (grupo Ação BIM · Metrô SP): ícone quadrado com o símbolo do Metrô e o texto "Sobre", no lugar da faixa de
+  logos que a Ribbon cortava ("AC").
+- Em cima, as etapas numa linha com setinhas: verde com ✓ quando está pronta, contorno laranja com o número de
+  pendências quando falta algo, e a etapa aberta em laranja e sublinhada. Clique numa etapa para abri-la.
+- Embaixo, à esquerda, o que falta na etapa, em cartões com os botões que resolvem (Vincular à categoria, Ajustar o .txt,
+  Escolher classe, Preencher, Selecionar). À direita, a ferramenta da etapa, dentro da própria janela:
+  1 Arquivos (padrões em uso), 2 Parâmetros de projeto, 3 Categorias IFC, 4 Editar em massa, 5 Verificar classificação,
+  6 Projeto e local + Exportar IFC.
+- Rodapé: Passo anterior, **Salvar e conferir** (usa o Salvar da ferramenta e confere de novo) e Próximo passo.
+- A janela é modal (o Revit fica parado enquanto ela está aberta), para que as ferramentas possam gravar no modelo.
+  O que for selecionado aparece no Revit ao fechar. O Painel MetroSP continua ao lado, como resumo.
+- Correção: Exportar IFC dava "The referenced object is not valid" ao aplicar o padrão de categorias (o modelo de mapeamento
+  criado numa exportação anterior e desfeito voltava inválido). Agora é recriado, a aplicação roda numa subtransação (se
+  falhar, a exportação segue com o mapeamento do modelo) e a mensagem de erro diz em que etapa da exportação parou.
+- Testar no Revit: abrir a janela, passar por todas as etapas, salvar uma alteração em Categorias IFC e ver a etapa
+  conferir de novo; usar Vincular à categoria; fechar com alterações pendentes (deve perguntar se salva).
+
+## Categorias IFC: o padrão MetroSP passa a ser o padrão
+
+- Sem tabela salva, a janela Categorias IFC já abre com o padrão MetroSP (ISO 16739) nas duas colunas, por cima do
+  mapeamento do modelo, e a exportação IFC aplica esse padrão (Revit 2025 a 2027).
+- Quem salvou uma tabela própria continua com a sua. **Voltar ao padrão › Padrão MetroSP** aplica o padrão na janela, e
+  **Apagar a minha tabela** volta de vez ao padrão MetroSP.
+- Como no MetroDATA: Signage no IFC4 vai como IfcBuildingElementProxy.USERDEFINED (ObjectType SIGN; no 4.3, IfcSign), e o
+  bloqueio (família de Specialty Equipment) como IfcCommunicationsAppliance.USERDEFINED, ObjectType BLOQUEIO.
+- Revit 2022 a 2024: a janela mostra o padrão, mas na exportação continua valendo o mapeamento do próprio Revit (limite da API).
+- Testar no Revit: num modelo sem tabela salva, abrir Categorias IFC (origem "padrão MetroSP") e exportar um IFC; o resumo
+  diz "Categorias IFC: padrão MetroSP".
+
+## Parâmetros de projeto: Só os erros
+
+- A aba Parâmetros de projeto mostra os problemas da última conferência (painel MetroSP ou Conferência completa) numa
+  coluna Problema, com o nome e o problema em vermelho, e os parâmetros com problema vêm primeiro.
+- **Só os erros (n)** mostra só esses.
+- Os problemas que vêm do .txt de property sets (o .txt manda ler um parâmetro pelo nome, como "Length", e os elementos não
+  o têm) ficam numa caixa à parte, "Do mapeamento", com o campo (ex.: MetroQto.ComprimentoAnalitico ← "Length"), a
+  categoria, o .txt, o motivo e o que fazer, e os botões **Ajustar o .txt** e **Selecionar**.
+- A conferência diz quantos desses elementos são DirectShape (geometria importada), que não têm os parâmetros das famílias,
+  e só oferece "Vincular à categoria" quando o parâmetro é mesmo de projeto.
+- Sem conferência neste modelo, o filtro fica desligado e o rodapé lembra de clicar em Conferir no painel.
+- Testar no Revit: Conferir no painel, abrir Parâmetros › Parâmetros de projeto e marcar Só os erros.
+
+## Painel MetroSP: o que fazer e botões de decisão em cada pendência
+
+- Cada pendência aberta mostra, embaixo, o que fazer, e os botões que já resolvem dali:
+  - **Vincular à categoria**: o parâmetro de projeto não está vinculado à categoria. Acrescenta a categoria no vínculo
+    e confere de novo (Ctrl+Z desfaz). Se o nome não é um parâmetro de projeto (por exemplo, um parâmetro interno do Revit),
+    explica o caminho.
+  - **Ajustar o .txt**: tipo do parâmetro diferente do .txt; abre o editor de property sets.
+  - **Escolher classe...**: proxy ou classe fora dos padrões; escolhe a classe e grava no "Exportar para IFC como" dos tipos.
+  - **Preencher...**: campo vazio ou fora do exigido; seleciona os elementos e abre o Editar em massa.
+  - **Ver em Compartilhados**: GUID diferente do MetroShared.
+- Correção: um parâmetro do tipo Section Area (perfis) ligado a um campo "Area" do .txt não é mais acusado como tipo
+  diferente, porque o exportador converte igual. Vale também para as medidas de seção, armadura e tubulações em campos "Length".
+- Passo sem pendência (verde) continua com o botão da ferramenta dele (Categorias IFC, Abrir Parâmetros, Editar em massa,
+  Verificar classificação), para conferir ou ajustar sem ir à Ribbon.
+- Testar no Revit: abrir o passo 2, clicar em Vincular à categoria e ver a pendência sumir; Escolher classe nos proxies do passo 3.
+
+## Categorias IFC: IFC4 e IFC 4.3 lado a lado
+
+- Sai a troca de IFC schema no topo. A grade tem uma linha por categoria e, para cada IFC schema, as colunas Exportar,
+  Classe e Tipo. A linha fica laranja quando os dois são diferentes, e "Só as diferentes entre IFC4 e IFC 4.3" filtra.
+- Copiar entre IFC schemas, Importar .txt, Exportar .txt e Voltar ao padrão abrem um menu para escolher o IFC4 ou o IFC 4.3.
+- **Salvar** grava os IFC schemas alterados e fecha a janela (antes ficava aberta).
+- **Voltar ao padrão › Recomendado MetroSP (ISO 16739)**: aplica uma tabela com a classe IFC própria de cada categoria de
+  modelo do Revit 2027 (148 linhas, com subcategorias como Joist, Purlin, Bracing, Bolts e as categorias de ponte; revisão em
+  docs/categorias-ifc-recomendadas.xlsx), só com classes e tipos que existem no IFC4 (ISO 16739-1:2018) e no IFC 4.3 (ISO 16739-1:2024).
+  Nenhuma categoria vai para IfcBuildingElementProxy (exceto Signage no IFC4, proxy USERDEFINED com ObjectType SIGN, como no MetroDATA) nem para classe depreciada (IfcFurnishingElement; no 4.3, IfcCivilElement e IfcElectricDistributionBoard): as genéricas vão para IfcCivilElement no IFC4 e IfcBuiltElement no 4.3. Quando o 4.3 tem classe ou tipo que o IFC4 não tem, o IFC4 usa Classe.USERDEFINED (regra do MetroDATA). Exemplos: Structural Framing →
+  IfcBeam, Structural Foundations → IfcFooting, Structural Trusses → IfcElementAssembly TRUSS, Pipe Accessories →
+  IfcValve, Cable Trays → IfcCableCarrierSegment CABLETRAYSEGMENT. No 4.3 usa o que só existe nele (IfcSign, IfcPavement,
+  IfcBeam EDGEBEAM). Pode ser só numa coluna. Subcategorias e anotações ficam como estão, e nada grava até Salvar.
+  O "Exportar para IFC como" de uma família continua valendo antes da tabela.
+- Testar no Revit: editar uma classe em cada coluna, salvar (deve fechar), reabrir e conferir as duas colunas.
+
+## Painel MetroSP: o passo Projeto e Local mostra se está pronto
+
+- O passo 6 ficava sempre cinza, mesmo depois de aplicar. Agora ele fica verde quando o Location do Revit está no
+  Project Base Point e o IfcProject, o IfcSite e o IfcBuilding têm nome; amarelo dizendo o que falta; vermelho quando a
+  localização não pode ser calculada (por exemplo, Project Base Point fora da área do PTL).
+- Ao fechar a janela do Projeto e Local, o painel atualiza este passo na hora, sem precisar clicar em Conferir.
+- Testar no Revit: abrir pelo painel, aplicar e ver o passo ficar verde ao fechar.
+
+## Correção: Categorias IFC acusava classes válidas como fora do IFC schema
+
+- Ao salvar, a janela dizia que linhas como "Cable Tray Fittings: IfcCableCarrierFittingType" ou "HVAC Zones: IfcZone"
+  tinham classe fora do IFC4. A conferência só conhecia o nome das classes de elemento (IfcCableCarrierFitting), e a tabela
+  padrão do Revit usa o nome do tipo (IfcCableCarrierFittingType), que o exportador aceita.
+- Agora valem também o nome do tipo (IfcValveType vale como IfcValve, com os mesmos tipos predefinidos) e os grupos que o
+  exportador cria para algumas categorias (IfcZone, IfcGroup e os sistemas), desde que existam no IFC schema escolhido.
+- Continua barrando o que não existe no IFC schema, como IfcAssembly (no IFC4 o certo é IfcElementAssembly).
+- Célula com classe ou tipo errado agora tem fundo vermelho, e o filtro **Só os erros** mostra só essas linhas.
+- Quando o nome errado tem uma classe certa conhecida, aparece o botão **Trocar IfcAssembly → IfcElementAssembly (n)**,
+  que troca todas de uma vez e mantém o tipo predefinido (TRUSS continua valendo).
+- Testar no Revit: abrir Categorias IFC num modelo sem tabela salva, marcar Só os erros, usar o botão de troca e
+  conferir que Salvar grava sem aviso.
 
 ## Painel MetroSP (ao lado do modelo)
 
@@ -26,7 +130,7 @@
   - **Dados do modelo**: igual (Planilha de Dados, Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e
     Colorir, Copiar Valores).
   - **Parâmetros e famílias**: **Parâmetros** e Renomear Famílias (o menu Parâmetros saiu; ver abaixo).
-  - **Coordenador BIM** (novo, no fim, botões pequenos): Padrões e planilhas, Arquivos IFC e Categorias IFC (antes no
+  - **Configurar padrões** (novo, no fim, botões pequenos): Padrões e planilhas, Arquivos IFC e Categorias IFC (antes no
     menu Configurar, no meio da entrega).
 - Saíram da Ribbon, sem perder a função:
   - **Verificar Padrões**: a verificação do IDS já roda dentro da conferência (Painel MetroSP › Conferência completa ›
@@ -48,6 +152,8 @@
 - Falta testar no Revit (2022 a 2027): abrir Parâmetros num projeto e passar por todas as abas (a janela
   deve reabrir no mesmo lugar, também maximizada); renomear, Instância ↔ Tipo e Deletar sem uso na aba Compartilhados;
   criar pela planilha e adicionar em famílias; abrir Parâmetros numa família; abrir pelo Conferir Entrega.
+
+# MetroSP 0.3.3
 
 ## Revit 2023 e 2024
 
