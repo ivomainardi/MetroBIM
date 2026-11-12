@@ -1,6 +1,6 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## Próxima versão (em desenvolvimento)
+## 0.12.0 (12/11/2026)
 
 - **Ferramentas reorganizadas como no plugin do Revit** (proposta aprovada em 12/11):
   - **Ribbon** com 5 painéis e 11 entradas. Só a **Entrega Metrô** é numerada: **1 Entrega passo a passo**, **2 Projeto e
