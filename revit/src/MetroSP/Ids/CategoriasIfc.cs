@@ -207,6 +207,35 @@ namespace MetroSP.Ids
 #endif
         }
 
+        /// <summary>
+        /// Garante que a categoria Grids sai como IfcGrid no modelo de mapeamento ativo. Precisa de transação aberta.
+        /// Retorna se precisou mudar. Sem modelo ativo vale o mapeamento padrão do Revit, que já exporta os eixos.
+        /// </summary>
+        public static bool GarantirEixos(Document doc)
+        {
+#if REVIT_ANTES_2025
+            return false;
+#else
+            IFCCategoryTemplate t = IFCCategoryTemplate.GetActiveTemplate(doc);
+            if (t == null) return false;
+            string nome = Category.GetCategory(doc, BuiltInCategory.OST_Grids)?.Name;
+            if (string.IsNullOrEmpty(nome)) return false;
+            var mudar = new Dictionary<ExportIFCCategoryKey, ExportIFCCategoryInfo>();
+            foreach (KeyValuePair<ExportIFCCategoryKey, ExportIFCCategoryInfo> p in t.GetCategoryMappingTable(doc))
+            {
+                if (!string.Equals(p.Key.CategoryName, nome, StringComparison.OrdinalIgnoreCase) || !string.IsNullOrEmpty(p.Key.SubCategoryName)) continue;
+                ExportIFCCategoryInfo info = p.Value;
+                bool semClasse = string.IsNullOrEmpty(info.IFCEntityName) || info.IFCEntityName.IndexOf("Proxy", StringComparison.OrdinalIgnoreCase) >= 0;
+                if (info.IFCExportFlag && !semClasse) continue;
+                info.IFCExportFlag = true;
+                if (semClasse) info.IFCEntityName = "IfcGrid";
+                mudar[p.Key] = info;
+            }
+            if (mudar.Count > 0) t.SetMappingInfo(mudar);
+            return mudar.Count > 0;
+#endif
+        }
+
         /// <summary>Aviso do Revit 2022 a 2024, que não deixam o add-in gravar o mapeamento de categorias.</summary>
         public const string SemApiNoRevit =
             "Nesta versão do Revit o add-in não consegue gravar a tabela de categorias no modelo. " +

@@ -20,6 +20,8 @@ namespace MetroSP.Ids
         /// <summary>Último .txt de mapeamento de parâmetros escolhido (opcional).</summary>
         public string Mapeamento { get; set; }
         public string PastaSaida { get; set; }
+        /// <summary>Sempre exportar os eixos (Grids), mesmo exportando só o visível numa vista 3D.</summary>
+        public bool SempreEixos { get; set; } = true;
 
         public static IfcExportSettings Load()
         {
@@ -37,6 +39,7 @@ namespace MetroSP.Ids
                 d.TryGetValue("psets", out string psets); s.PropertySets = psets;
                 d.TryGetValue("mapeamento", out string mapeamento); s.Mapeamento = mapeamento;
                 d.TryGetValue("saida", out string saida); s.PastaSaida = saida;
+                if (d.TryGetValue("eixos", out string eixos)) s.SempreEixos = eixos != "0";
             }
             catch { /* configuração corrompida: usa padrão */ }
             return s;
@@ -54,6 +57,7 @@ namespace MetroSP.Ids
                     "psets=" + PropertySets,
                     "mapeamento=" + Mapeamento,
                     "saida=" + PastaSaida,
+                    "eixos=" + (SempreEixos ? "1" : "0"),
                 });
             }
             catch { /* não é crítico */ }

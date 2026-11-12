@@ -66,6 +66,9 @@ namespace MetroSP.Ids
         /// sistema GIS no Location, e a falta de dado GIS não é cobrada. Desligado, vale o EPSG do setup ou do exportador.
         /// </summary>
         public bool EpsgEmBranco => _epsgEmBranco.IsChecked == true;
+        /// <summary>Sempre exportar os eixos (Grids) como IfcGrid.</summary>
+        public bool SempreEixos => _eixos.IsChecked == true;
+        private readonly CheckBox _eixos;
         private readonly CheckBox _epsgEmBranco;
 
         private class Opcao
@@ -156,6 +159,15 @@ namespace MetroSP.Ids
             corpo.Children.Add(Theme.Secao("Saída"));
             _vista = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(0, 0, 0, 6) };
             corpo.Children.Add(_vista);
+            _eixos = new CheckBox
+            {
+                Content = "Sempre exportar os eixos (Grids)",
+                IsChecked = settings.SempreEixos,
+                ToolTip = "Os eixos do Revit saem no IFC como IfcGrid mesmo exportando só o visível numa vista 3D, " +
+                          "e mesmo que a tabela de categorias diga para não exportar a categoria Grids.",
+                Margin = new Thickness(0, 0, 0, 6),
+            };
+            corpo.Children.Add(_eixos);
             var linhaArquivo = new DockPanel();
             var procurarSaida = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
             DockPanel.SetDock(procurarSaida, Dock.Right);
@@ -775,6 +787,7 @@ namespace MetroSP.Ids
             _settings.PropertySets = psets;
             _settings.Mapeamento = mapeamento;
             _settings.PastaSaida = saida;
+            _settings.SempreEixos = SempreEixos;
             DialogResult = true;
         }
 
