@@ -412,11 +412,17 @@ namespace MetroSP.Ui
         }
 
         /// <summary>Regras com classe fora do esquema, em todas as seções do mapeamento.</summary>
-        List<string> InvalidClasses()
+        /// <summary>Abas da janela (a Entrega passo a passo abre direto em Classes IFC).</summary>
+        internal TabControl Abas => _tabs;
+
+        List<string> InvalidClasses() => ClassesInvalidas(_mapping, IfcVersion);
+
+        /// <summary>Linhas do mapeamento com classe fora do esquema IFC escolhido (usado também na conferência da entrega).</summary>
+        internal static List<string> ClassesInvalidas(JsonObject mapping, string ifcVersion)
         {
-            var list = IfcClasses;
+            var list = IfcCatalog.For(ifcVersion);
             var bad = new List<string>();
-            foreach (var kv in _mapping)
+            foreach (var kv in mapping)
                 if (kv.Value is JsonArray arr)
                     foreach (var o in arr.OfType<JsonObject>())
                     {

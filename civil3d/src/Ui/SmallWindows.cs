@@ -68,6 +68,14 @@ namespace MetroSP.Ui
                 gh.Click += (s, e) => Open(github);
                 buttons.Add(gh);
             }
+            var pasta = new Button { Content = "Pasta", ToolTip = "Abre a pasta do desenho com os JSON de configuração aplicados na última exportação." };
+            pasta.Click += (s, e) =>
+            {
+                var doc = AcApp.DocumentManager.MdiActiveDocument;
+                var dir = (doc != null ? Commands.DrawingFolder(doc) : null) ?? Commands.ProgramDataDir;
+                try { Process.Start(new ProcessStartInfo("explorer.exe", "\"" + dir + "\"") { UseShellExecute = true }); } catch { }
+            };
+            buttons.Add(pasta);
             var close = new Button { Content = "Fechar", IsCancel = true };
             close.Click += (s, e) => w.Close();
             buttons.Add(close);

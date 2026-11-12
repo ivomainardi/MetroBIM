@@ -194,6 +194,76 @@ namespace MetroSP.Alinhamento
             return result;
         }
 
+        /// <summary>Perfil de cada alinhamento, sem perguntar nada: base da etapa Alinhamentos da Entrega passo a passo.</summary>
+        public class SituacaoPerfil
+        {
+            public string Handle { get; set; }
+            public ObjectId Id { get; set; }
+            public string Alinhamento { get; set; }
+            public List<string> Perfis { get; set; } = new List<string>();
+            public string Escolhido { get; set; }
+            /// <summary>Único, Guardado, Preferido, Sugerido (a exportação perguntaria) ou Nenhum.</summary>
+            public string Origem { get; set; }
+            public string Estacas { get; set; }
+            public bool Pendente => Origem == "Sugerido" || Origem == "Nenhum";
+        }
+
+        public static List<SituacaoPerfil> Situacao(AcDocument doc, AlignmentOptions opts)
+        {
+            var r = new List<SituacaoPerfil>();
+            var saved = ProfileMemory.Load(doc.Name);
+            var preferred = opts?.PerfisPreferidos ?? new List<string>();
+            using (var tr = doc.Database.TransactionManager.StartOpenCloseTransaction())
+            {
+                foreach (ObjectId id in CivilApplication.ActiveDocument.GetAlignmentIds())
+                {
+                    Alignment al;
+                    try { al = (Alignment)tr.GetObject(id, OpenMode.ForRead); } catch { continue; }
+                    var s = new SituacaoPerfil { Id = id, Handle = al.Handle.ToString(), Alinhamento = al.Name };
+                    try { s.Estacas = $"{al.StartingStation:0.000} a {al.EndingStation:0.000}"; } catch { }
+                    var candidates = new List<Profile>();
+                    foreach (ObjectId pid in al.GetProfileIds())
+                    {
+                        try
+                        {
+                            var p = (Profile)tr.GetObject(pid, OpenMode.ForRead);
+                            if (p.ProfileType == ProfileType.FG || p.ProfileType == ProfileType.File) candidates.Add(p);
+                        }
+                        catch { }
+                    }
+                    candidates = candidates.OrderBy(p => p.Name).ToList();
+                    s.Perfis = candidates.Select(p => p.Name).ToList();
+                    if (candidates.Count == 0) s.Origem = "Nenhum";
+                    else if (candidates.Count == 1) { s.Origem = "Único"; s.Escolhido = candidates[0].Name; }
+                    else
+                    {
+                        Profile hit = saved.TryGetValue(s.Handle, out var savedName) ? candidates.FirstOrDefault(p => p.Name == savedName) : null;
+                        if (hit != null) s.Origem = "Guardado";
+                        foreach (var pattern in preferred.Where(x => !string.IsNullOrWhiteSpace(x)))
+                        {
+                            if (hit != null) break;
+                            try { hit = candidates.FirstOrDefault(p => Regex.IsMatch(p.Name, pattern, RegexOptions.IgnoreCase)); } catch { }
+                            if (hit != null) s.Origem = "Preferido";
+                        }
+                        if (hit == null) { hit = Suggest(al, candidates); s.Origem = "Sugerido"; }
+                        s.Escolhido = hit.Name;
+                    }
+                    r.Add(s);
+                }
+                tr.Commit();
+            }
+            return r.OrderBy(x => x.Alinhamento, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>Guarda a escolha de perfil deste desenho (a exportação não pergunta mais por esses alinhamentos).</summary>
+        public static void GuardarPerfis(AcDocument doc, IEnumerable<(string Handle, string Perfil)> escolhas)
+        {
+            var saved = ProfileMemory.Load(doc.Name);
+            foreach (var (h, p) in escolhas)
+                if (!string.IsNullOrEmpty(h) && !string.IsNullOrEmpty(p)) saved[h] = p;
+            ProfileMemory.Save(doc.Name, saved);
+        }
+
         /// <summary>Sugestão: o perfil com o nome do alinhamento e que não seja cópia; senão o primeiro que não seja cópia.</summary>
         static Profile Suggest(Alignment al, List<Profile> candidates)
         {

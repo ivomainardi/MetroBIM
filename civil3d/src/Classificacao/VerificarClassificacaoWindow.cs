@@ -42,7 +42,7 @@ namespace MetroSP.Classificacao
         private string _situacao;
         private bool _ocultarOk;
 
-        private static string _ultimoPadrao;
+        internal static string _ultimoPadrao;
 
         public VerificarClassificacaoWindow(AcDocument doc, List<ObjectId> selecao)
         {
