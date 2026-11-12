@@ -49,7 +49,7 @@ jobs:
           $zip = "navisworks-$nv.zip"
           gh release download "v$v" --pattern $zip 2>$null
           if (-not (Test-Path $zip)) { gh release download --pattern $zip 2>$null }
-          if (Test-Path $zip) { "navzip=$zip" >> $env:GITHUB_OUTPUT } else { Write-Host "Sem $zip: o instalador sai sem o Navisworks." }
+          if (Test-Path $zip) { "navzip=$zip" >> $env:GITHUB_OUTPUT } else { Write-Host "Sem ${zip}: o instalador sai sem o Navisworks." }
           $global:LASTEXITCODE = 0   # "gh release download" falha quando não há o zip: não é erro
 
       - uses: actions/setup-dotnet@v4
