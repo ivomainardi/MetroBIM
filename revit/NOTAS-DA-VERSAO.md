@@ -1,4 +1,8 @@
-# MetroSP 0.3.3 (em teste)
+# MetroSP 0.3.4
+
+Revit 2022 a 2027. Resumo: Ribbon reorganizada (Entrega passo a passo, Acompanhar, Configurar padrões), janela única
+da entrega com as etapas em setinhas, Painel MetroSP com botões de decisão, Categorias IFC com IFC4 e IFC 4.3 lado a
+lado e o padrão MetroSP (ISO 16739) como padrão, e Parâmetros de projeto com "Só os erros".
 
 ## Entrega passo a passo: janela única
 
@@ -148,6 +152,8 @@
 - Falta testar no Revit (2022 a 2027): abrir Parâmetros num projeto e passar por todas as abas (a janela
   deve reabrir no mesmo lugar, também maximizada); renomear, Instância ↔ Tipo e Deletar sem uso na aba Compartilhados;
   criar pela planilha e adicionar em famílias; abrir Parâmetros numa família; abrir pelo Conferir Entrega.
+
+# MetroSP 0.3.3
 
 ## Revit 2023 e 2024
 
