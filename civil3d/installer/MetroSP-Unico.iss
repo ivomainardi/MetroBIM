@@ -2,7 +2,7 @@
 ; Instala por usuário, sem precisar de administrador:
 ;   Revit em %AppData%\Autodesk\Revit\Addins\<versão> (pastas 2025, 2026 e 2027 do pacote da release do MetroSP_Revit);
 ;   Civil 3D em %AppData%\Autodesk\ApplicationPlugins\MetroSP.bundle (bundle deste repositório, R25 e R26).
-; Gerado pelo workflow "Instalador único" (.github/workflows/instalador-unico.yml), que passa:
+; Gerado pelo workflow "Instalador único" do MetroSP_Revit (o token do Actions daqui não enxerga a release privada do Revit), que passa:
 ;   /DRevitVersion=0.3.4 /DCivil3DVersion=0.12.0 /DRevitDist=<pasta com 2025, 2026, 2027> /DCivil3D=<MetroSP.bundle>
 ; Revit 2022 a 2024 continuam com o instalador separado da release do MetroSP_Revit.
 
