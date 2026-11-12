@@ -13,7 +13,7 @@ com interface em português pensada para projetistas.
 ## Instalar
 
 Baixe o `MetroSP-Setup-<versão>.exe` da última versão em [Releases](../../releases/latest) e rode.
-O instalador é um só para todos os plugins: ele mostra só os programas encontrados no computador
+O instalador é um só para o Revit e o Civil 3D (o Navisworks entra depois): ele mostra só os programas encontrados no computador
 e instala só para o seu usuário, sem precisar de administrador. As novidades ficam em [NOTAS-DA-VERSAO.md](NOTAS-DA-VERSAO.md).
 
 ## Pastas
@@ -25,8 +25,8 @@ e instala só para o seu usuário, sem precisar de administrador. As novidades f
 ## Publicar uma versão
 
 1. Escreva a nova seção `## x.y.z` no topo do `NOTAS-DA-VERSAO.md` (é ela que define a versão do instalador).
-2. Se o código do Navisworks mudou: num PC com o Navisworks, rode `.\build.ps1 -SoNavisworks` e anexe o
-   `navisworks-<versão>.zip` a uma release `vx.y.z` em rascunho. Se não mudou, o workflow usa o da última release.
+2. Navisworks (por enquanto fora do instalador): para incluir, rode `.\build.ps1 -SoNavisworks` num PC com o
+   Navisworks e anexe o `navisworks-<versão>.zip` a uma release `vx.y.z` em rascunho.
 3. Em **Actions › Release › Run workflow**. Ele compila, monta o `MetroSP-Setup-x.y.z.exe` e publica a release.
 
 Para compilar no PC: `.\build.ps1` (precisa do SDK .NET 8 e 10 e do Inno Setup 6).

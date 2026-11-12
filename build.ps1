@@ -1,12 +1,14 @@
 # Compila os plugins e monta o instalador único MetroSP-Setup-<versão>.exe.
 #   .\build.ps1                          -> tudo (o Navisworks só se ele estiver instalado neste PC ou se vier -Navisworks)
+#   .\build.ps1 -SemCompilarNavisworks   -> Revit e Civil 3D, sem o Navisworks
 #   .\build.ps1 -Navisworks navisworks-1.0.0.zip   -> usa as DLLs do Navisworks já compiladas (zip ou pasta com 2025, 2026, 2027)
 #   .\build.ps1 -SoNavisworks            -> só compila o Navisworks e gera navisworks-<versão>.zip (para anexar à release)
 # A versão do pacote é o primeiro "## x.y.z" do NOTAS-DA-VERSAO.md. Cada plugin mantém a versão dele no .csproj.
 # Requisitos: SDK .NET 8 e 10 e Inno Setup 6. O Navisworks precisa estar instalado para compilar o plugin dele.
 param(
     [string]$Navisworks = '',
-    [switch]$SoNavisworks
+    [switch]$SoNavisworks,
+    [switch]$SemCompilarNavisworks
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,7 +83,7 @@ $navisDist = Join-Path $dist 'navisworks'
 if ($Navisworks) {
     if ($Navisworks.EndsWith('.zip')) { Expand-Archive $Navisworks -DestinationPath $navisDist }
     else { Copy-Item $Navisworks $navisDist -Recurse }
-} elseif ((CompilarNavisworks $navisDist) -eq 0) {
+} elseif ($SemCompilarNavisworks -or (CompilarNavisworks $navisDist) -eq 0) {
     Write-Host 'Navisworks não encontrado e -Navisworks não informado: o instalador sai SEM o Navisworks.' -ForegroundColor Yellow
 }
 

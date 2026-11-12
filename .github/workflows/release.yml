@@ -2,9 +2,9 @@
 # Só roda à mão (Actions › Release › Run workflow). Nada roda a cada push, sem cache e sem artefato guardado no Actions:
 # o único arquivo que fica é o .exe anexado à release.
 # A versão é o primeiro "## x.y.z" do NOTAS-DA-VERSAO.md, e a seção dela vira o texto da release.
-# Navisworks: o runner não tem o Navisworks para compilar o plugin. O workflow usa o navisworks-<versão>.zip
-# (gerado por .\build.ps1 -SoNavisworks) anexado à release v<versão> em rascunho ou, se não houver,
-# o da release publicada mais recente, desde que seja da mesma versão do plugin.
+# Navisworks (opcional, por enquanto fora do instalador): o runner não tem o Navisworks para compilar o plugin.
+# Se houver um navisworks-<versão>.zip (gerado por .\build.ps1 -SoNavisworks) anexado à release v<versão> em rascunho
+# ou à última release, ele entra no instalador; senão, o instalador sai só com o Revit e o Civil 3D.
 name: Release
 
 on:
@@ -37,8 +37,10 @@ jobs:
           "versao=$v" >> $env:GITHUB_OUTPUT
           "navis=$nv" >> $env:GITHUB_OUTPUT
           "rascunho=$([bool]$publicada)".ToLower() >> $env:GITHUB_OUTPUT
+          $global:LASTEXITCODE = 0   # "gh release view" falha quando a release ainda não existe: não é erro
 
-      - name: Baixar as DLLs do Navisworks
+      - name: Baixar as DLLs do Navisworks (se houver)
+        id: navis
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -47,7 +49,8 @@ jobs:
           $zip = "navisworks-$nv.zip"
           gh release download "v$v" --pattern $zip 2>$null
           if (-not (Test-Path $zip)) { gh release download --pattern $zip 2>$null }
-          if (-not (Test-Path $zip)) { throw "Não achei $zip: rode .\build.ps1 -SoNavisworks num PC com o Navisworks e anexe o zip à release v$v em rascunho." }
+          if (Test-Path $zip) { "navzip=$zip" >> $env:GITHUB_OUTPUT } else { Write-Host "Sem $zip: o instalador sai sem o Navisworks." }
+          $global:LASTEXITCODE = 0   # "gh release download" falha quando não há o zip: não é erro
 
       - uses: actions/setup-dotnet@v4
         with:
@@ -57,7 +60,7 @@ jobs:
 
       - name: Compilar e montar o instalador
         shell: pwsh
-        run: ./build.ps1 -Navisworks "navisworks-${{ steps.versao.outputs.navis }}.zip"
+        run: ./build.ps1 -Navisworks '${{ steps.navis.outputs.navzip }}' -SemCompilarNavisworks
 
       - name: Publicar a release
         shell: pwsh
@@ -65,10 +68,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $v = '${{ steps.versao.outputs.versao }}'; $nv = '${{ steps.versao.outputs.navis }}'
-          $exe = "MetroSP-Setup-$v.exe"
+          $arquivos = @("MetroSP-Setup-$v.exe")
+          if ('${{ steps.navis.outputs.navzip }}') { $arquivos += '${{ steps.navis.outputs.navzip }}' }
           if ('${{ steps.versao.outputs.rascunho }}' -eq 'true') {
-            gh release upload "v$v" $exe "navisworks-$nv.zip" --clobber
+            gh release upload "v$v" @arquivos --clobber
             gh release edit "v$v" --draft=false --target $env:GITHUB_SHA --title "MetroSP $v" --notes-file notas-release.md --latest
           } else {
-            gh release create "v$v" $exe "navisworks-$nv.zip" --target $env:GITHUB_SHA --title "MetroSP $v" --notes-file notas-release.md --latest
+            gh release create "v$v" @arquivos --target $env:GITHUB_SHA --title "MetroSP $v" --notes-file notas-release.md --latest
           }
