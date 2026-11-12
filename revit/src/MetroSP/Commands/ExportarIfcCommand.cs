@@ -59,6 +59,7 @@ namespace MetroSP.Commands
             bool exportou;
             string avisoPsets = null, avisoCategorias = null;
             string passo = "montar as opções do setup";
+            EixosIfc eixos = null;
             try
             {
                 IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco);
@@ -81,6 +82,13 @@ namespace MetroSP.Commands
                     passo = "aplicar a tabela de categorias IFC";
                     avisoCategorias = CategoriasIfc.AplicarNaExportacao(doc, setup.Versao.ToString());
 
+                    // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
+                    if (janela.SempreEixos)
+                    {
+                        passo = "preparar os eixos (Grids)";
+                        eixos = EixosIfc.Preparar(doc, janela.Vista);
+                    }
+
                     using (var progresso = Ui.Progresso.Abrir("Exportar IFC"))
                     {
                         progresso.Etapa($"Exportando {janela.NomeArquivo}.ifc com o setup {setup.Nome}");
@@ -88,6 +96,7 @@ namespace MetroSP.Commands
                         passo = "exportar (exportador do Revit)";
                         exportou = doc.Export(janela.PastaSaida, janela.NomeArquivo + ".ifc", opcoes);
                     }
+                    eixos?.Restaurar();
 
                     if (exportou && setup.GravaGuid)
                     {
@@ -169,6 +178,7 @@ namespace MetroSP.Commands
                 MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · {(janela.EpsgEmBranco ? "EPSG em branco" : "EPSG do setup/exportador")}\n" +
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoCategorias == null ? "" : "\n" + avisoCategorias) +
+                    TextoEixos(eixos, arquivo) +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
                     "\n\nLocalização: " + (local.LocationCorreto ? "Location confere com o Project Base Point." :
@@ -186,6 +196,17 @@ namespace MetroSP.Commands
                 catch { /* sem Explorer: ignora */ }
             }
             return Result.Succeeded;
+        }
+
+        /// <summary>Linha do resumo sobre os eixos: quantos IfcGrid saíram e o que foi preciso mudar.</summary>
+        private static string TextoEixos(EixosIfc eixos, string arquivo)
+        {
+            if (eixos == null || eixos.Total == 0) return "";
+            int n = EixosIfc.ContarNoIfc(arquivo);
+            string linha = n > 0 ? $"\nEixos: {n} IfcGrid no IFC ({eixos.Total} eixos no modelo)."
+                : n == 0 ? $"\nATENÇÃO: nenhum IfcGrid no IFC, embora o modelo tenha {eixos.Total} eixos. Tente exportar o modelo inteiro (sem filtrar pela vista)."
+                : "";
+            return linha + (eixos.Aviso == null ? "" : "\n" + eixos.Aviso);
         }
     }
 }
