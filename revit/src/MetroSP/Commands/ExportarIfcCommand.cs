@@ -58,6 +58,7 @@ namespace MetroSP.Commands
 
             bool exportou;
             string avisoPsets = null, avisoCategorias = null;
+            string passo = "montar as opções do setup";
             try
             {
                 IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco);
@@ -72,16 +73,19 @@ namespace MetroSP.Commands
                     t.SetFailureHandlingOptions(falhas);
 
                     // Revit 2027+: o exportador lê os psets do modelo, não do .txt.
+                    passo = "carregar os property sets no modelo";
                     if (!string.IsNullOrEmpty(janela.PropertySetsEscolhido))
                         avisoPsets = PsetsNoModelo.Carregar(doc, janela.PropertySetsEscolhido);
 
                     // Tabela de categorias → classe IFC do esquema do setup (janela Categorias IFC), se houver.
+                    passo = "aplicar a tabela de categorias IFC";
                     avisoCategorias = CategoriasIfc.AplicarNaExportacao(doc, setup.Versao.ToString());
 
                     using (var progresso = Ui.Progresso.Abrir("Exportar IFC"))
                     {
                         progresso.Etapa($"Exportando {janela.NomeArquivo}.ifc com o setup {setup.Nome}");
                         progresso.Item("O exportador do Revit não informa o andamento; em modelos grandes pode levar alguns minutos.");
+                        passo = "exportar (exportador do Revit)";
                         exportou = doc.Export(janela.PastaSaida, janela.NomeArquivo + ".ifc", opcoes);
                     }
 
@@ -96,7 +100,8 @@ namespace MetroSP.Commands
             }
             catch (Exception ex)
             {
-                TaskDialog.Show("MetroSP", "Erro ao exportar o IFC:\n" + ex.Message);
+                TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message +
+                    (avisoCategorias != null ? "\n\n" + avisoCategorias : ""));
                 return Fim(Result.Failed);
             }
 

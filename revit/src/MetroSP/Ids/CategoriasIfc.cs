@@ -174,7 +174,16 @@ namespace MetroSP.Ids
             throw new InvalidOperationException(SemApiNoRevit);
 #else
             string nome = NomeNoModelo(esquema);
-            IFCCategoryTemplate t = IFCCategoryTemplate.FindByName(doc, nome) ?? IFCCategoryTemplate.Create(doc, nome);
+            // Um modelo criado numa exportação anterior e desfeito (rollback) pode voltar como objeto inválido: cria de novo.
+            IFCCategoryTemplate t = null;
+            try
+            {
+                t = IFCCategoryTemplate.FindByName(doc, nome);
+                if (t != null && !t.IsValidObject) t = null;
+                t?.GetCategoryMappingTable(doc);
+            }
+            catch (Autodesk.Revit.Exceptions.ApplicationException) { t = null; }
+            if (t == null) t = IFCCategoryTemplate.Create(doc, nome);
             try { t.UpdateCategoryList(doc); } catch { /* lista já atualizada */ }
             var porChave = new Dictionary<string, Linha>(StringComparer.OrdinalIgnoreCase);
             foreach (Linha l in linhas) porChave[l.Chave] = l;
@@ -212,19 +221,31 @@ namespace MetroSP.Ids
 #if REVIT_ANTES_2025
             return "Categorias IFC: nesta versão do Revit vale o mapeamento do próprio Revit (Opções IFC).";
 #else
-            try
+            // Numa subtransação: se algo falhar, o modelo volta como estava e a exportação segue com o mapeamento do modelo.
+            using (var sub = new SubTransaction(doc))
             {
-                if (arquivo == null)
+                try
                 {
-                    int p = Aplicar(doc, esquema, Padrao(doc, esquema));
-                    return $"Categorias IFC: padrão MetroSP {esquema} (ISO 16739), {p} categorias.";
+                    sub.Start();
+                    string r;
+                    if (arquivo == null)
+                    {
+                        int p = Aplicar(doc, esquema, Padrao(doc, esquema));
+                        r = $"Categorias IFC: padrão MetroSP {esquema} (ISO 16739), {p} categorias.";
+                    }
+                    else
+                    {
+                        int n = Aplicar(doc, esquema, Ler(arquivo));
+                        r = $"Categorias IFC: tabela {esquema} ({ArquivosIfc.Origem(arquivo)}), {n} categorias.";
+                    }
+                    sub.Commit();
+                    return r;
                 }
-                int n = Aplicar(doc, esquema, Ler(arquivo));
-                return $"Categorias IFC: tabela {esquema} ({ArquivosIfc.Origem(arquivo)}), {n} categorias.";
-            }
-            catch (Exception ex)
-            {
-                return $"Categorias IFC: não foi possível aplicar a tabela {esquema} ({ex.Message}); valeu o mapeamento do modelo.";
+                catch (Exception ex)
+                {
+                    try { if (sub.HasStarted() && !sub.HasEnded()) sub.RollBack(); } catch { /* já desfeita */ }
+                    return $"Categorias IFC: não foi possível aplicar a tabela {esquema} ({ex.Message}); valeu o mapeamento do modelo.";
+                }
             }
 #endif
         }

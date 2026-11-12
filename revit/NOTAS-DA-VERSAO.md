@@ -12,6 +12,9 @@
 - Rodapé: Passo anterior, **Salvar e conferir** (usa o Salvar da ferramenta e confere de novo) e Próximo passo.
 - A janela é modal (o Revit fica parado enquanto ela está aberta), para que as ferramentas possam gravar no modelo.
   O que for selecionado aparece no Revit ao fechar. O Painel MetroSP continua ao lado, como resumo.
+- Correção: Exportar IFC dava "The referenced object is not valid" ao aplicar o padrão de categorias (o modelo de mapeamento
+  criado numa exportação anterior e desfeito voltava inválido). Agora é recriado, a aplicação roda numa subtransação (se
+  falhar, a exportação segue com o mapeamento do modelo) e a mensagem de erro diz em que etapa da exportação parou.
 - Testar no Revit: abrir a janela, passar por todas as etapas, salvar uma alteração em Categorias IFC e ver a etapa
   conferir de novo; usar Vincular à categoria; fechar com alterações pendentes (deve perguntar se salva).
 
