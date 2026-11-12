@@ -1,0 +1,59 @@
+# Instalador único (Revit 2025-2027 + Civil 3D 2025-2027). Só roda à mão (Actions › Instalador único › Run workflow).
+# Usa o pacote do Revit da release v<revit> deste repositório e compila o MetroSP_Civil3D (público) na tag v<civil3d>,
+# com o installer\MetroSP-Unico.iss de lá. Anexa MetroSP-Setup-Revit<r>-Civil3D<c>.exe à release do Revit.
+# Nada fica guardado no Actions.
+name: Instalador único
+
+on:
+  workflow_dispatch:
+    inputs:
+      revit:
+        description: 'Versão do MetroSP para Revit (release deste repositório, sem o v)'
+        required: true
+      civil3d:
+        description: 'Versão do MetroSP para Civil 3D (tag do MetroSP_Civil3D, sem o v)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  instalador:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: ivomainardi/MetroSP_Civil3D
+          ref: v${{ inputs.civil3d }}
+          path: civil3d
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Compilar o Civil 3D e baixar o Revit
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $r = '${{ inputs.revit }}'
+          dotnet build civil3d/src/MetroSP.csproj -c Release --no-incremental
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao compilar o Civil 3D' }
+          gh release download "v$r" --repo $env:GITHUB_REPOSITORY --pattern "MetroSP-$r-instalador.zip" --dir revit-zip
+          if ($LASTEXITCODE -ne 0) { throw "Não achei MetroSP-$r-instalador.zip na release v$r" }
+          Expand-Archive "revit-zip/MetroSP-$r-instalador.zip" -DestinationPath revit-dist
+          foreach ($v in '2025', '2026', '2027') { if (-not (Test-Path "revit-dist/$v")) { throw "Pacote do Revit sem a pasta $v" } }
+
+      - name: Montar e anexar
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $r = '${{ inputs.revit }}'
+          $c = '${{ inputs.civil3d }}'
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          & $iscc "/DRevitVersion=$r" "/DCivil3DVersion=$c" "/DRevitDist=$PWD\revit-dist" "/DCivil3D=$PWD\civil3d\MetroSP.bundle" civil3d\installer\MetroSP-Unico.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Falha no Inno Setup' }
+          gh release upload "v$r" "civil3d\MetroSP-Setup-Revit$r-Civil3D$c.exe" --repo $env:GITHUB_REPOSITORY --clobber
