@@ -17,7 +17,7 @@ namespace MetroSP.Ids
     public class LocalizacaoIfc
     {
         /// <summary>Abaixo disso (m) o Location já é considerado correto e não é regravado.</summary>
-        public const double ToleranciaLocation = 0.01;
+        public const double ToleranciaLocation = 0.10;
 
         public string NomeLocalizacao { get; private set; }
         /// <summary>E/W, N/S e elevação do Project Base Point, em metros, nas coordenadas compartilhadas.</summary>
@@ -82,6 +82,20 @@ namespace MetroSP.Ids
             Longitude = LongitudeAtual,
             Dados = DadosAtuais.Copia(),
         };
+
+        /// <summary>
+        /// Explica a conferência do Location com os números: o que está no Revit, o que sai do Project Base Point e a
+        /// distância. Com erro, diz que não deu para conferir e por quê (não que o Location está errado).
+        /// </summary>
+        public string TextoConferencia()
+        {
+            if (Erro != null)
+                return "Não foi possível conferir o Location do Revit com o Project Base Point: " + Erro;
+            return $"O Location do Revit está a {Distancia(Diferenca)} do ponto calculado pelo Project Base Point " +
+                   $"(tolerância: {Distancia(ToleranciaLocation)}).\n\n" +
+                   $"Location do Revit: {Num(LatitudeAtual, 8)}, {Num(LongitudeAtual, 8)}\n" +
+                   $"Project Base Point (E {Num(Este, 3)}, N {Num(Norte, 3)}): {Num(Latitude, 8)}, {Num(Longitude, 8)}";
+        }
 
         /// <summary>O Location do Revit já está no ponto do Project Base Point.</summary>
         public bool LocationCorreto => Erro == null && Diferenca <= ToleranciaLocation;

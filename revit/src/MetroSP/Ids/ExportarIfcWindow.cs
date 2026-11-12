@@ -477,7 +477,7 @@ namespace MetroSP.Ids
                 avisos.Add("property sets: " + ((TextBlock)_seloPsets.Child).Text);
             if (_seloMapeamento.Visibility == Visibility.Visible && ((TextBlock)_seloMapeamento.Child).Foreground is System.Windows.Media.SolidColorBrush bm && bm.Color == Theme.LaranjaTexto)
                 avisos.Add("mapeamento não encontrado");
-            if (Localizacao != null && (Localizacao.Erro != null || !Localizacao.LocationCorreto)) avisos.Add("Location fora do Project Base Point");
+            if (Localizacao != null && (Localizacao.Erro != null || !Localizacao.LocationCorreto)) avisos.Add(Localizacao.Erro != null ? "Location não conferido" : "Location fora do Project Base Point");
             Theme.MudarResumo(_resumo, avisos, "Pronto para exportar");
         }
 
@@ -757,7 +757,7 @@ namespace MetroSP.Ids
             if (!Localizacao.LocationCorreto)
             {
                 MessageBoxResult r = MessageBox.Show(this,
-                    "O Location do Revit não está no ponto do Project Base Point.\n\n" +
+                    Localizacao.TextoConferencia() + "\n\n" +
                     "Sim: abrir a etapa Projeto e Local para corrigir.\nNão: exportar assim mesmo (a MetroSP grava no IfcSite a latitude/longitude do Project Base Point).\nCancelar: voltar.",
                     Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
                 if (r == MessageBoxResult.Cancel) return;
