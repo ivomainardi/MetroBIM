@@ -33,6 +33,14 @@ namespace MetroSP.Ifc
         }
 
         internal static bool Vazio(string s) => string.IsNullOrWhiteSpace(s);
+
+        /// <summary>Texto que o Revit põe no endereço de um modelo novo ("Enter address here", "Address Line 2"): conta como vazio.</summary>
+        internal static bool EnderecoPadraoRevit(string s) =>
+            s != null && (s.IndexOf("Enter address here", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                          s.IndexOf("Address Line 2", StringComparison.OrdinalIgnoreCase) >= 0);
+
+        /// <summary>O endereço sem o texto padrão do Revit (vazio se só tinha ele).</summary>
+        internal static string SemEnderecoPadrao(string s) => EnderecoPadraoRevit(s) ? "" : s;
     }
 
     /// <summary>
@@ -180,7 +188,7 @@ namespace MetroSP.Ifc
             if (inst != null)
             {
                 n = Texto(m, inst, 2, Edificio?.Nome) + Texto(m, inst, 3, Edificio?.Descricao) + Texto(m, inst, 7, Edificio?.NomeLongo) +
-                    (inst.Type == "IFCBUILDING" ? Endereco(m, inst, 11, Edificio?.Endereco) : 0);
+                    (inst.Type == "IFCBUILDING" ? TirarEnderecoPadrao(m, inst, 11) + Endereco(m, inst, 11, Edificio?.Endereco) : 0);
                 if (n > 0) alterou = true;
                 if (n > 0) log.Add($"{NomeTipo(inst.Type)}: {n} campo(s) gravado(s).");
             }
@@ -255,10 +263,42 @@ namespace MetroSP.Ifc
             return 1;
         }
 
+        /// <summary>
+        /// Tira o IfcPostalAddress que o exportador gravou com o texto padrão do Revit ("Enter address here",
+        /// "Address Line 2"): a entidade fica sem endereço, ou recebe o preenchido logo depois.
+        /// </summary>
+        private static int TirarEnderecoPadrao(StepModel m, StepEntity e, int i)
+        {
+            if (i >= e.Args.Count) return 0;
+            int id = StepModel.Ref(e.Args[i]);
+            StepEntity end = id == 0 ? null : m.Get(id);
+            if (end == null || end.Type != "IFCPOSTALADDRESS") return 0;
+            bool padrao = end.Args.Count > 4 && (DadosEntidadeIfc.EnderecoPadraoRevit(StepModel.Text(end.Args[4])) ||
+                StepModel.SplitArgs(end.Args[4].Trim().TrimStart('(').TrimEnd(')')).Any(l => DadosEntidadeIfc.EnderecoPadraoRevit(StepModel.Text(l))));
+            if (!padrao) return 0;
+            m.SetArg(e.Id, i, "$");
+            string refEnd = "#" + id;
+            bool usado = m.Ids.Any(x => x != e.Id && m.Get(x).Args.Any(a => ContemRef(a, refEnd)));
+            if (!usado) m.Remove(id);
+            return 1;
+        }
+
+        private static bool ContemRef(string arg, string r)
+        {
+            int p = arg.IndexOf(r, StringComparison.Ordinal);
+            while (p >= 0)
+            {
+                int fim = p + r.Length;
+                if (fim >= arg.Length || !char.IsDigit(arg[fim])) return true;
+                p = arg.IndexOf(r, fim, StringComparison.Ordinal);
+            }
+            return false;
+        }
+
         /// <summary>Cria o IfcPostalAddress só se a entidade ainda não tem endereço (o exportador pode já ter gravado um).</summary>
         private static int Endereco(StepModel m, StepEntity e, int i, string valor)
         {
-            if (DadosEntidadeIfc.Vazio(valor) || i >= e.Args.Count || e.Args[i] != "$") return 0;
+            if (DadosEntidadeIfc.Vazio(valor) || DadosEntidadeIfc.EnderecoPadraoRevit(valor) || i >= e.Args.Count || e.Args[i] != "$") return 0;
             int end = m.Add("IFCPOSTALADDRESS", "$", "$", "$", "$", "(" + S(valor.Trim()) + ")", "$", "$", "$", "$", "$");
             m.SetArg(e.Id, i, "#" + end);
             return 1;
