@@ -64,7 +64,15 @@ namespace MetroSP.Coordenacao
         {
             if (string.IsNullOrWhiteSpace(json)) throw new InvalidDataException("O arquivo de coordenação está vazio.");
             ArquivoCoordenacao a;
-            try { a = JsonSerializer.Deserialize<ArquivoCoordenacao>(json, Json); }
+            try
+            {
+                // O campo "formato" tem que estar no arquivo (o valor padrão da classe não conta).
+                using (JsonDocument d = JsonDocument.Parse(json, new JsonDocumentOptions { AllowTrailingCommas = true, CommentHandling = JsonCommentHandling.Skip }))
+                    if (d.RootElement.ValueKind != JsonValueKind.Object ||
+                        !d.RootElement.EnumerateObject().Any(x => string.Equals(x.Name, "formato", StringComparison.OrdinalIgnoreCase)))
+                        throw new InvalidDataException("O arquivo não é um arquivo de coordenação MetroSP.");
+                a = JsonSerializer.Deserialize<ArquivoCoordenacao>(json, Json);
+            }
             catch (JsonException ex) { throw new InvalidDataException("O arquivo não é um arquivo de coordenação MetroSP válido (" + ex.Message + ")."); }
             if (a == null || a.Formato == null || !a.Formato.StartsWith("MetroSP.Coordenacao/", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("O arquivo não é um arquivo de coordenação MetroSP.");
@@ -153,7 +161,9 @@ namespace MetroSP.Coordenacao
 
         internal void Normalizar()
         {
-            Categorias = Categorias ?? new Dictionary<string, List<LinhaCategoria>>();
+            Categorias = (Categorias ?? new Dictionary<string, List<LinhaCategoria>>())
+                .Where(k => k.Value != null && !string.IsNullOrWhiteSpace(k.Key))
+                .ToDictionary(k => k.Key, k => k.Value.Where(l => l != null && !string.IsNullOrWhiteSpace(l.Categoria)).ToList());
             Familias = (Familias ?? new List<AjusteFamilia>()).Where(f => f != null && !string.IsNullOrWhiteSpace(f.Familia)).ToList();
             Elementos = (Elementos ?? new List<AjusteElemento>()).Where(e => e != null && !string.IsNullOrWhiteSpace(e.UniqueId)).ToList();
         }

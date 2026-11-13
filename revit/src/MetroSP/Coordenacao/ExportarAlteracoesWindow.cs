@@ -168,7 +168,8 @@ namespace MetroSP.Coordenacao
             _nome.Text = ativo?.Nome ?? "Entrega Metrô";
             _montando = false;
             _classe.SelectionChanged += (s, e) => Capturar();
-            _nome.LostFocus += (s, e) => Capturar();
+            string ultimoNome = _nome.Text;
+            _nome.LostFocus += (s, e) => { if (_nome.Text != ultimoNome) { ultimoNome = _nome.Text; Capturar(); } };
             Capturar();
         }
 
