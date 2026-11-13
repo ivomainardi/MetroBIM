@@ -57,7 +57,7 @@ namespace MetroSP.Commands
             List<string> alteracoes = janela.AlteracoesLocalizacao;
 
             bool exportou;
-            string avisoPsets = null, avisoCategorias = null;
+            string avisoPsets = null, avisoCategorias = null, avisoCoordenacao = null;
             string passo = "montar as opções do setup";
             EixosIfc eixos = null;
             try
@@ -81,6 +81,10 @@ namespace MetroSP.Commands
                     // Tabela de categorias → classe IFC do esquema do setup (janela Categorias IFC), se houver.
                     passo = "aplicar a tabela de categorias IFC";
                     avisoCategorias = CategoriasIfc.AplicarNaExportacao(doc, setup.Versao.ToString());
+
+                    // Arquivo de coordenação: classes IFC por família e por elemento do perfil ativo, só nesta exportação.
+                    passo = "aplicar as classes por família do arquivo de coordenação";
+                    avisoCoordenacao = Coordenacao.CoordenacaoRevit.AplicarNaExportacao(doc);
 
                     // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
                     if (janela.SempreEixos)
@@ -192,6 +196,7 @@ namespace MetroSP.Commands
                 MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · {(janela.EpsgEmBranco ? "EPSG em branco" : "EPSG do setup/exportador")}\n" +
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoCategorias == null ? "" : "\n" + avisoCategorias) +
+                    (avisoCoordenacao == null ? "" : "\n" + avisoCoordenacao) +
                     TextoEixos(eixos, arquivo) +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +

@@ -41,6 +41,7 @@ namespace MetroSP.Painel
         private readonly Border _ferramenta;
         private readonly TextBlock _rodapeTexto;
         private readonly Button _anterior;
+        private readonly Button _perfil;
         private readonly Button _proximo;
         private readonly TextBlock _escopo;
 
@@ -87,7 +88,10 @@ namespace MetroSP.Painel
             trocar.Click += (s, e) => EscolherPacote(true);
             var conferir = BotaoEscuro("⟳ Conferir", "Confere o modelo de novo e atualiza as etapas.");
             conferir.Click += (s, e) => { if (FecharFerramenta()) Conferir(); };
+            _perfil = BotaoEscuro("", "Perfil do arquivo de coordenação em uso neste modelo. Clique para trocar (fica gravado no modelo).");
+            _perfil.Click += (s, e) => Coordenacao.MenuPerfis.Abrir(_perfil, _doc, CoordenacaoMudou);
             var direita = new StackPanel { Orientation = Orientation.Horizontal };
+            direita.Children.Add(_perfil);
             direita.Children.Add(_escopo);
             direita.Children.Add(trocar);
             direita.Children.Add(conferir);
@@ -131,10 +135,24 @@ namespace MetroSP.Painel
             var direitaRodape = new StackPanel { Orientation = Orientation.Horizontal };
             direitaRodape.Children.Add(salvar);
             direitaRodape.Children.Add(_proximo);
+            // Arquivo de coordenação: levar tudo como está para outra pessoa, ou usar o que alguém mandou.
+            var exportarAlteracoes = Pilula("⇪ Exportar alterações...");
+            exportarAlteracoes.ToolTip = "Grava tudo como está agora (setup e fase, categorias IFC, classes por família, property sets, mapeamento " +
+                                         "e Projeto e Local) num arquivo .coord-metrosp, com um ou mais perfis, para outra pessoa abrir e usar.";
+            exportarAlteracoes.Margin = new Thickness(8, 0, 0, 0);
+            exportarAlteracoes.Click += (s, e) => { if (FecharFerramenta() && Coordenacao.ExportarAlteracoesWindow.Abrir(this, _doc)) CoordenacaoMudou(); };
+            var abrirAlteracoes = Pilula("Abrir alterações...");
+            abrirAlteracoes.ToolTip = "Abre o arquivo .coord-metrosp que o coordenador BIM enviou e escolhe o perfil: o Exportar IFC passa a usar tudo o que veio nele.";
+            abrirAlteracoes.Margin = new Thickness(8, 0, 0, 0);
+            abrirAlteracoes.Click += (s, e) => { if (FecharFerramenta() && Coordenacao.AbrirAlteracoesWindow.Abrir(this, _doc)) CoordenacaoMudou(); };
+            var esquerdaRodape = new StackPanel { Orientation = Orientation.Horizontal };
+            esquerdaRodape.Children.Add(_anterior);
+            esquerdaRodape.Children.Add(exportarAlteracoes);
+            esquerdaRodape.Children.Add(abrirAlteracoes);
             var rodape = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
-            DockPanel.SetDock(_anterior, Dock.Left);
+            DockPanel.SetDock(esquerdaRodape, Dock.Left);
             DockPanel.SetDock(direitaRodape, Dock.Right);
-            rodape.Children.Add(_anterior);
+            rodape.Children.Add(esquerdaRodape);
             rodape.Children.Add(direitaRodape);
             rodape.Children.Add(_rodapeTexto);
             var rodapeBorda = new Border
@@ -167,6 +185,25 @@ namespace MetroSP.Painel
             Loaded += (s, e) => { if (_res != null) MostrarFerramenta(); };
         }
 
+        // ================================================================== arquivo de coordenação
+
+        /// <summary>Mostra o perfil em uso na faixa preta (só com arquivo de coordenação de mais de um perfil, ou para dizer a revisão).</summary>
+        private void MostrarPerfil()
+        {
+            Coordenacao.CoordenacaoRevit.Ativa c = Coordenacao.CoordenacaoRevit.De(_doc);
+            _perfil.Visibility = c == null ? Visibility.Collapsed : Visibility.Visible;
+            if (c == null) return;
+            _perfil.Content = $"Coordenação rev. {c.Arquivo.Revisao} · {c.Perfil.Nome}" + (c.Arquivo.Perfis.Count > 1 ? " ▾" : "");
+            _perfil.IsHitTestVisible = c.Arquivo.Perfis.Count > 1;
+        }
+
+        /// <summary>A coordenação mudou (abriu, exportou ou trocou o perfil): os arquivos da classe mudam, então confere de novo.</summary>
+        private void CoordenacaoMudou()
+        {
+            MostrarPerfil();
+            Conferir();
+        }
+
         // ================================================================== conferir
 
         private bool Conferir(bool primeira = false)
@@ -188,6 +225,7 @@ namespace MetroSP.Painel
             finally { Cursor = null; }
             _res = r;
             _local = AcoesPendencia.SituacaoLocal(_doc);
+            MostrarPerfil();
             if (primeira || _passo == 0)
             {
                 // Começa pela primeira etapa com pendência (ou pela última, se está tudo certo).
@@ -278,7 +316,7 @@ namespace MetroSP.Painel
             _etapas.Children.Clear();
             _etapas.ColumnDefinitions.Clear();
             var itens = _res.Etapas.Select(e => (e.Numero, Nome: NomeCurto(e.Numero, e.Titulo), e.Sinal, Qtd: Pendentes(e).Count, Dica: e.Titulo + ": " + (e.Resumo ?? ""))).ToList();
-            itens.Add((PassoLocal, "Local e exportar", _local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Cinza, 0, "Projeto e local, e Exportar IFC: " + _local.Texto));
+            itens.Add((PassoLocal, "Exportar", _local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Cinza, 0, "Exportar IFC (com projeto, local, fase e eixos): " + _local.Texto));
             for (int i = 0; i < itens.Count; i++)
             {
                 if (i > 0)
@@ -363,13 +401,15 @@ namespace MetroSP.Painel
             _pendencias.Children.Clear();
             if (_passo == PassoLocal)
             {
-                _tituloPendencias.Text = "Projeto, local e exportação";
-                _pendencias.Children.Add(Cartao(_local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Amarelo, "Projeto e local", _local.Texto, null, new List<(string, string, Action)>()));
+                _tituloPendencias.Text = "Exportação";
+                var abrirExportar = new List<(string, string, Action)> { ("Exportar IFC...", "Abre a janela Exportar IFC, com projeto e local, fase e eixos no grupo Extras.", AbrirExportar) };
+                _pendencias.Children.Add(Cartao(_local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Amarelo, "Projeto e local", _local.Texto,
+                    _local.Sinal == Sinal.Verde ? null : "Preencha no grupo Extras da janela Exportar IFC.", abrirExportar));
                 Sinal exp = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Vermelho;
                 string texto = _res.ProntoParaExportar
                     ? (_res.Amarelas > 0 ? "Pronto para exportar, com avisos nas etapas em laranja." : "Tudo certo para exportar.")
                     : $"Ainda há {_res.Vermelhas} etapa(s) com pendência. Dá para exportar, mas o IFC sai incompleto.";
-                _pendencias.Children.Add(Cartao(exp, "Exportar IFC", texto, null, new List<(string, string, Action)>()));
+                _pendencias.Children.Add(Cartao(exp, "Exportar IFC", texto, null, abrirExportar));
                 return;
             }
             EtapaConferencia etapa = _res.Etapas.FirstOrDefault(e => e.Numero == _passo);
@@ -595,20 +635,24 @@ namespace MetroSP.Painel
             return p;
         }
 
+        /// <summary>Abre a janela Exportar IFC (a mesma do botão da Ribbon) e, na volta, confere o projeto e o local de novo.</summary>
+        private void AbrirExportar()
+        {
+            ExportarIfcCommand.Exportar(_app);
+            _local = AcoesPendencia.SituacaoLocal(_doc);
+            Mostrar();
+        }
+
         private UIElement PainelLocal()
         {
             var p = new StackPanel { Margin = new Thickness(4) };
             p.Children.Add(new TextBlock { Text = "Projeto e local", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
             p.Children.Add(new TextBlock { Text = _local.Texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
-            var local = Pilula("Preencher projeto e local...", primario: _local.Sinal != Sinal.Verde);
-            local.HorizontalAlignment = HorizontalAlignment.Left;
-            local.Click += (s, e) =>
+            p.Children.Add(new TextBlock
             {
-                LocalizacaoIfcCommand.Abrir(_app);
-                _local = AcoesPendencia.SituacaoLocal(_doc);
-                Mostrar();
-            };
-            p.Children.Add(local);
+                Text = "O projeto e o local (IfcProject, IfcSite, IfcBuilding e a localização), a fase e os eixos ficam no grupo Extras da janela Exportar IFC.",
+                TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.Cinza), FontSize = 11, Margin = new Thickness(0, 0, 0, 0),
+            });
             p.Children.Add(new TextBlock { Text = "Exportar IFC", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 4) });
             p.Children.Add(new TextBlock
             {
@@ -616,9 +660,9 @@ namespace MetroSP.Painel
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 8),
             });
-            var exportar = Pilula("Exportar IFC...", primario: _local.Sinal == Sinal.Verde);
+            var exportar = Pilula("Exportar IFC...", primario: true);
             exportar.HorizontalAlignment = HorizontalAlignment.Left;
-            exportar.Click += (s, e) => ExportarIfcCommand.Exportar(_app);
+            exportar.Click += (s, e) => AbrirExportar();
             p.Children.Add(exportar);
             return p;
         }

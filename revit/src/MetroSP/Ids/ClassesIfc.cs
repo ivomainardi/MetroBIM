@@ -29,7 +29,9 @@ namespace MetroSP.Ids
             public bool Editada { get; set; }
             /// <summary>true quando os property sets vêm da pasta do Forma online.</summary>
             public bool DoForma { get; set; }
-            public override string ToString() => Editada ? Nome + "  (editada)" : DoForma ? Nome + "  (Forma)" : Nome;
+            /// <summary>true quando o setup ou os property sets vêm do arquivo de coordenação do modelo.</summary>
+            public bool DaCoordenacao { get; set; }
+            public override string ToString() => DaCoordenacao ? Nome + "  (coordenação)" : Editada ? Nome + "  (editada)" : DoForma ? Nome + "  (Forma)" : Nome;
         }
 
         /// <summary>Pasta IFC instalada junto com o add-in.</summary>
@@ -54,17 +56,19 @@ namespace MetroSP.Ids
 
         public static Classe Obter(string nome)
         {
-            string psetsUsuario = CaminhoUsuario(nome);
-            bool editada = File.Exists(psetsUsuario);
-            string psets = editada ? psetsUsuario : Achar(FormaPaths.SubPropertySets, nome + ".txt");
+            string psets = Achar(FormaPaths.SubPropertySets, nome + ".txt");
+            string setup = Achar(FormaPaths.SubSetups, nome + ".json");
+            string coord = Coordenacao.CoordenacaoRevit.PastaAtiva;
+            bool DaCoord(string f) => coord != null && f != null && f.StartsWith(coord, StringComparison.OrdinalIgnoreCase);
             return new Classe
             {
                 Nome = nome,
-                Setup = Achar(FormaPaths.SubSetups, nome + ".json"),
+                Setup = setup,
                 PropertySets = psets,
                 Mapeamento = Achar(FormaPaths.SubMapeamentos, nome + ".txt"),
-                Editada = editada,
+                Editada = psets != null && string.Equals(psets, CaminhoUsuario(nome), StringComparison.OrdinalIgnoreCase),
                 DoForma = psets != null && psets.StartsWith(FormaOnline.PastaCache, StringComparison.OrdinalIgnoreCase),
+                DaCoordenacao = DaCoord(psets) || DaCoord(setup),
             };
         }
 
@@ -83,22 +87,36 @@ namespace MetroSP.Ids
             if (File.Exists(f)) File.Delete(f);
         }
 
-        // Ordem de preferência: do usuário, do Forma online, instalado.
-        private static string[] Raizes => new[] { PastaUsuario, FormaOnline.PastaCache, PastaPadrao };
+        // Ordem de preferência: da coordenação do modelo, do usuário, do Forma online, instalado.
+        private static string[] Raizes =>
+            Coordenacao.CoordenacaoRevit.PastaAtiva is string coord
+                ? new[] { coord, PastaUsuario, FormaOnline.PastaCache, PastaPadrao }
+                : new[] { PastaUsuario, FormaOnline.PastaCache, PastaPadrao };
 
-        /// <summary>Raízes na ordem de preferência: do usuário, do Forma online, instalada.</summary>
+        /// <summary>Raízes na ordem de preferência: da coordenação do modelo, do usuário, do Forma online, instalada.</summary>
         internal static string[] RaizesEmUso => Raizes;
 
-        private static string Achar(string sub, string arquivo) =>
-            Raizes.Select(r => Path.Combine(r, sub, arquivo)).FirstOrDefault(File.Exists);
+        /// <summary>
+        /// O arquivo que vale, na ordem das raízes. Exceção: um arquivo que o usuário salvou depois de receber a
+        /// coordenação (mais novo que o dela) vale sobre o da coordenação.
+        /// </summary>
+        internal static string Achar(string sub, string arquivo)
+        {
+            string[] raizes = Raizes;
+            string achado = raizes.Select(r => Path.Combine(r, sub, arquivo)).FirstOrDefault(File.Exists);
+            string coord = Coordenacao.CoordenacaoRevit.PastaAtiva;
+            if (achado == null || coord == null || !achado.StartsWith(coord, StringComparison.OrdinalIgnoreCase)) return achado;
+            string doUsuario = Path.Combine(PastaUsuario, sub, arquivo);
+            try { return File.Exists(doUsuario) && File.GetLastWriteTimeUtc(doUsuario) > File.GetLastWriteTimeUtc(achado) ? doUsuario : achado; }
+            catch { return achado; }
+        }
 
         // ---------- nomenclatura ----------
 
         public const string ArquivoNomenclatura = "Nomenclatura.txt";
 
         /// <summary>Regras de nomenclatura em uso (do usuário, do Forma online ou instaladas), ou null.</summary>
-        public static string ArquivoDeRegras =>
-            Raizes.Select(r => Path.Combine(r, ArquivoNomenclatura)).FirstOrDefault(File.Exists);
+        public static string ArquivoDeRegras => Achar("", ArquivoNomenclatura);
 
         /// <summary>
         /// Classe indicada pelo nome do modelo, e o motivo (para mostrar). Regras em Nomenclatura.txt, uma por linha:

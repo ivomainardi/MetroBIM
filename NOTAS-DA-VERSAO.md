@@ -4,6 +4,44 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.4 (13/11/2026)
+
+Revit 0.3.7 · Civil 3D 0.12.0
+
+- Revit, **Exportar IFC** com a interface reorganizada: **Saída** traz os elementos (modelo inteiro ou vista 3D) e o
+  arquivo, e o novo grupo **Extras** reúne Localização, IfcProject, IfcSite, IfcBuilding, Coordenadas (EPSG em
+  branco), Fase e Eixos, cada um com o rótulo à esquerda e a explicação na dica.
+  - O botão Projeto e Local saiu. No lugar, **Gravar localização** grava no Location a latitude/longitude do Project
+    Base Point com um clique, e os nomes do **IfcProject, IfcSite e IfcBuilding** são preenchidos ali mesmo e gravados
+    nos campos do Revit ao exportar. O link **Mais dados...** abre os demais campos (nome longo, descrição, endereço,
+    Pset MetroSP_Projeto).
+  - Location fora do Project Base Point ao exportar: "Sim" grava a localização e exporta.
+  - **Entrega passo a passo**: o último passo passou a se chamar **Exportar**. O botão e os cartões abrem essa
+    mesma janela Exportar IFC (o antigo "Preencher projeto e local..." saiu, já que tudo está no grupo Extras).
+- Revit, **arquivo de coordenação** (.coord-metrosp): o coordenador BIM grava tudo o que ajustou para a exportação
+  IFC num arquivo só e envia ao projetista; o Exportar IFC do projetista passa a usar tudo o que veio nele.
+  - O que vai no arquivo: o setup do exportador (inteiro) e a fase, **pelo nome** (o número interno da fase muda de
+    um modelo para outro), as tabelas de Categorias IFC (IFC4 e IFC 4.3), as classes IFC dos tipos de família
+    ("Exportar para IFC como", tipo predefinido e "Exportar para IFC", por família e tipo), os property sets e o
+    mapeamento (.txt) e os dados de Projeto e Local. Por escolha, também as classes preenchidas em cada elemento,
+    que só valem no mesmo modelo.
+  - **Perfis**: um arquivo leva vários perfis com nome (ex.: "Entrega Metrô · IFC 4.3", "Compatibilização · IFC 4"),
+    cada um com a sua classe, setup, categorias e property sets, e um perfil padrão.
+  - **Entrega passo a passo**: no rodapé, **Exportar alterações...** (grava tudo como está agora, atualizando o
+    perfil escolhido e mantendo os outros) e **Abrir alterações...** (escolhe o arquivo e o perfil). A faixa preta
+    mostra a revisão e o perfil em uso, com troca de perfil.
+  - **Fica salvo com o arquivo**: o arquivo de coordenação e o perfil escolhido ficam guardados no próprio modelo
+    (.rvt). Quem abre o modelo de novo continua no mesmo perfil, mesmo sem o .coord-metrosp por perto.
+  - **Exportar IFC**: faixa laranja com a revisão, o autor e o perfil, e os links perfil, trocar e não usar. A classe
+    do perfil é escolhida sozinha e o setup, os .txt e a tabela de categorias vêm do arquivo (selo "da
+    coordenação"). Um arquivo que o projetista salvar depois de receber a coordenação (mais novo) vale sobre o dela.
+    As classes por família entram só no IFC, na hora de exportar, e o modelo não muda (a não ser que o setup grave o
+    GUID IFC, que já mantém as alterações da exportação, ou que o projetista marque "Gravar já no modelo" ao abrir).
+    O Exportar IFC também avisa quando há um .coord-metrosp na pasta do modelo ou na pasta do Forma, ou uma revisão
+    mais nova que a em uso.
+  - Ribbon: o painel "Configurar padrões" passa a se chamar **Coordenação BIM** e ganha o botão **Arquivo de
+    coordenação** (a mesma janela do Exportar alterações).
+
 ## 1.0.3 (13/11/2026)
 
 Revit 0.3.6 · Civil 3D 0.12.0

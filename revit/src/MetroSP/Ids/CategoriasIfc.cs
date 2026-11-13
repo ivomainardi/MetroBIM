@@ -65,7 +65,7 @@ namespace MetroSP.Ids
 
         /// <summary>A tabela que vale (sua, do Forma ou instalada), ou null.</summary>
         public static string Arquivo(string esquema) =>
-            ClassesIfc.RaizesEmUso.Select(r => Path.Combine(r, Sub, esquema + ".txt")).FirstOrDefault(File.Exists);
+            ClassesIfc.Achar(Sub, esquema + ".txt");
 
         /// <summary>
         /// Categorias marcadas "não exportar" na tabela que vale para o esquema (a salva ou, sem ela, o padrão MetroSP).
