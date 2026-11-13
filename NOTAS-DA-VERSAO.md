@@ -8,6 +8,9 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 
 Revit 0.3.7 · Civil 3D 0.12.0
 
+- Revit, **Exportar IFC** com a interface reorganizada: **Saída** traz os elementos (modelo inteiro ou vista 3D) e o
+  arquivo, e o novo grupo **Extras** reúne Projeto e local, Coordenadas (EPSG em branco), Fase e Eixos, cada um com
+  o rótulo à esquerda e a explicação na dica.
 - Revit, **arquivo de coordenação** (.coord-metrosp): o coordenador BIM grava tudo o que ajustou para a exportação
   IFC num arquivo só e envia ao projetista; o Exportar IFC do projetista passa a usar tudo o que veio nele.
   - O que vai no arquivo: o setup do exportador (inteiro) e a fase, **pelo nome** (o número interno da fase muda de

@@ -136,11 +136,35 @@ namespace MetroSP.Ids
             acoesPsets.Children.Insert(0, editarPsets);
             _mapeamento = ItemArquivo(arquivos, "Mapeamento", "Indicar...", primeiro: false, out _arqMapeamento, out _seloMapeamento, out _infoMapeamento, out Button procurarMapeamento, out _);
 
-            // ---------- Projeto e localização: a etapa 1 (botão Projeto e Local) grava no Revit; aqui só confere ----------
+            // ---------- Saída: o que exportar e para onde ----------
+            corpo.Children.Add(Theme.Secao("Saída"));
+            var saida = new Grid();
+            saida.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(LarguraRotulo) });
+            saida.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            _vista = new ComboBox { Padding = new Thickness(4, 3, 4, 3),
+                ToolTip = "Modelo inteiro, ou só o que está visível numa vista 3D (a vista também define a fase)." };
+            LinhaGrade(saida, "Elementos", _vista);
+            var linhaArquivo = new DockPanel();
+            var procurarSaida = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
+            DockPanel.SetDock(procurarSaida, Dock.Right);
+            linhaArquivo.Children.Add(procurarSaida);
+            _arquivo = new TextBox { VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Pasta e nome do arquivo .ifc" };
+            linhaArquivo.Children.Add(_arquivo);
+            LinhaGrade(saida, "Arquivo", linhaArquivo);
+            corpo.Children.Add(saida);
+
+            // ---------- Extras: projeto e localização (a etapa 1 grava no Revit; aqui só confere), fase e eixos ----------
             Localizacao = LocalizacaoIfc.Calcular(doc);
-            corpo.Children.Add(Theme.Secao("Projeto e localização"));
+            corpo.Children.Add(Theme.Secao("Extras"));
+            corpo.Children.Add(Theme.Grupo(out StackPanel extras));
+            var grade = new Grid { Margin = new Thickness(10, 6, 10, 6) };
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(LarguraRotulo) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            extras.Children.Add(grade);
+
             var linhaLocal = new DockPanel();
-            var abrirLocal = new Button { Content = "Projeto e Local...", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+            var abrirLocal = new Button { Content = "Projeto e Local...", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Dados do IfcProject, IfcSite e IfcBuilding e o Location do Revit (gravados no modelo)." };
             abrirLocal.Click += (s, e) => AbrirLocalizacao();
             DockPanel.SetDock(abrirLocal, Dock.Right);
             linhaLocal.Children.Add(abrirLocal);
@@ -149,46 +173,33 @@ namespace MetroSP.Ids
             DockPanel.SetDock(_seloProjeto, Dock.Left);
             linhaLocal.Children.Add(_seloProjeto);
             _seloLocalizacao = Theme.Selo();
+            _seloLocalizacao.HorizontalAlignment = HorizontalAlignment.Left;
             linhaLocal.Children.Add(_seloLocalizacao);
-            corpo.Children.Add(linhaLocal);
+            LinhaGrade(grade, "Projeto e local", linhaLocal);
+
             _epsgEmBranco = new CheckBox
             {
-                Content = "Exportar com o EPSG em branco",
+                Content = "EPSG em branco",
                 IsChecked = true,
+                VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "Ligado: o IFC sai sem código EPSG, IfcProjectedCRS e IfcMapConversion (coordenadas no PTL), mesmo que o Location tenha sistema GIS" +
                           (Localizacao.SistemaGis != null ? $" (\"{Localizacao.SistemaGis}\")" : "") +
                           ".\nDesligado: vale o EPSG do setup ou o que o exportador gravar pelo sistema GIS.",
-                Margin = new Thickness(0, 6, 0, 0),
             };
-            corpo.Children.Add(_epsgEmBranco);
+            LinhaGrade(grade, "Coordenadas", _epsgEmBranco);
 
-            // ---------- Saída ----------
-            corpo.Children.Add(Theme.Secao("Saída"));
-            _vista = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(0, 0, 0, 6) };
-            corpo.Children.Add(_vista);
-            var linhaFase = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var rotuloFase = new TextBlock { Text = "Fase", Width = 40, VerticalAlignment = VerticalAlignment.Center };
-            DockPanel.SetDock(rotuloFase, Dock.Left);
-            linhaFase.Children.Add(rotuloFase);
             _fase = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
-            linhaFase.Children.Add(_fase);
-            corpo.Children.Add(linhaFase);
+            LinhaGrade(grade, "Fase", _fase);
+
             _eixos = new CheckBox
             {
                 Content = "Sempre exportar os eixos (Grids)",
                 IsChecked = settings.SempreEixos,
+                VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "Os eixos do Revit saem no IFC como IfcGrid mesmo exportando só o visível numa vista 3D, " +
                           "e mesmo que a tabela de categorias diga para não exportar a categoria Grids.",
-                Margin = new Thickness(0, 0, 0, 6),
             };
-            corpo.Children.Add(_eixos);
-            var linhaArquivo = new DockPanel();
-            var procurarSaida = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
-            DockPanel.SetDock(procurarSaida, Dock.Right);
-            linhaArquivo.Children.Add(procurarSaida);
-            _arquivo = new TextBox { VerticalContentAlignment = VerticalAlignment.Center, ToolTip = "Pasta e nome do arquivo .ifc" };
-            linhaArquivo.Children.Add(_arquivo);
-            corpo.Children.Add(linhaArquivo);
+            LinhaGrade(grade, "Eixos", _eixos);
 
             PreencherVistas();
             _vista.SelectionChanged += (s, e) => MostrarFase();
@@ -886,6 +897,22 @@ namespace MetroSP.Ids
         }
 
         private string TextoPsets() => (_psets.Text ?? string.Empty).Trim();
+
+        private const double LarguraRotulo = 110;
+
+        /// <summary>Linha de uma grade de duas colunas: rótulo à esquerda (largura fixa) e o campo à direita.</summary>
+        private static void LinhaGrade(Grid g, string rotulo, FrameworkElement campo)
+        {
+            int r = g.RowDefinitions.Count;
+            g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            var t = new TextBlock { Text = rotulo, VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Solid(Theme.Preto), Margin = new Thickness(0, 3, 8, 3) };
+            Grid.SetRow(t, r);
+            g.Children.Add(t);
+            campo.Margin = new Thickness(0, 3, 0, 3);
+            Grid.SetRow(campo, r);
+            Grid.SetColumn(campo, 1);
+            g.Children.Add(campo);
+        }
 
         /// <summary>Fase gravada no setup, se existir neste modelo; senão -1 (padrão do exportador).</summary>
         private long FaseDoSetup =>
