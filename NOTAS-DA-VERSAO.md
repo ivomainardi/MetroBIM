@@ -16,6 +16,8 @@ Revit 0.3.7 · Civil 3D 0.12.0
     nos campos do Revit ao exportar. O link **Mais dados...** abre os demais campos (nome longo, descrição, endereço,
     Pset MetroSP_Projeto).
   - Location fora do Project Base Point ao exportar: "Sim" grava a localização e exporta.
+  - **Entrega passo a passo**: o último passo passou a se chamar **Exportar**. O botão e os cartões abrem essa
+    mesma janela Exportar IFC (o antigo "Preencher projeto e local..." saiu, já que tudo está no grupo Extras).
 - Revit, **arquivo de coordenação** (.coord-metrosp): o coordenador BIM grava tudo o que ajustou para a exportação
   IFC num arquivo só e envia ao projetista; o Exportar IFC do projetista passa a usar tudo o que veio nele.
   - O que vai no arquivo: o setup do exportador (inteiro) e a fase, **pelo nome** (o número interno da fase muda de

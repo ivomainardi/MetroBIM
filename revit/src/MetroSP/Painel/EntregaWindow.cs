@@ -316,7 +316,7 @@ namespace MetroSP.Painel
             _etapas.Children.Clear();
             _etapas.ColumnDefinitions.Clear();
             var itens = _res.Etapas.Select(e => (e.Numero, Nome: NomeCurto(e.Numero, e.Titulo), e.Sinal, Qtd: Pendentes(e).Count, Dica: e.Titulo + ": " + (e.Resumo ?? ""))).ToList();
-            itens.Add((PassoLocal, "Local e exportar", _local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Cinza, 0, "Projeto e local, e Exportar IFC: " + _local.Texto));
+            itens.Add((PassoLocal, "Exportar", _local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Cinza, 0, "Exportar IFC (com projeto, local, fase e eixos): " + _local.Texto));
             for (int i = 0; i < itens.Count; i++)
             {
                 if (i > 0)
@@ -401,13 +401,15 @@ namespace MetroSP.Painel
             _pendencias.Children.Clear();
             if (_passo == PassoLocal)
             {
-                _tituloPendencias.Text = "Projeto, local e exportação";
-                _pendencias.Children.Add(Cartao(_local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Amarelo, "Projeto e local", _local.Texto, null, new List<(string, string, Action)>()));
+                _tituloPendencias.Text = "Exportação";
+                var abrirExportar = new List<(string, string, Action)> { ("Exportar IFC...", "Abre a janela Exportar IFC, com projeto e local, fase e eixos no grupo Extras.", AbrirExportar) };
+                _pendencias.Children.Add(Cartao(_local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Amarelo, "Projeto e local", _local.Texto,
+                    _local.Sinal == Sinal.Verde ? null : "Preencha no grupo Extras da janela Exportar IFC.", abrirExportar));
                 Sinal exp = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Vermelho;
                 string texto = _res.ProntoParaExportar
                     ? (_res.Amarelas > 0 ? "Pronto para exportar, com avisos nas etapas em laranja." : "Tudo certo para exportar.")
                     : $"Ainda há {_res.Vermelhas} etapa(s) com pendência. Dá para exportar, mas o IFC sai incompleto.";
-                _pendencias.Children.Add(Cartao(exp, "Exportar IFC", texto, null, new List<(string, string, Action)>()));
+                _pendencias.Children.Add(Cartao(exp, "Exportar IFC", texto, null, abrirExportar));
                 return;
             }
             EtapaConferencia etapa = _res.Etapas.FirstOrDefault(e => e.Numero == _passo);
@@ -633,20 +635,24 @@ namespace MetroSP.Painel
             return p;
         }
 
+        /// <summary>Abre a janela Exportar IFC (a mesma do botão da Ribbon) e, na volta, confere o projeto e o local de novo.</summary>
+        private void AbrirExportar()
+        {
+            ExportarIfcCommand.Exportar(_app);
+            _local = AcoesPendencia.SituacaoLocal(_doc);
+            Mostrar();
+        }
+
         private UIElement PainelLocal()
         {
             var p = new StackPanel { Margin = new Thickness(4) };
             p.Children.Add(new TextBlock { Text = "Projeto e local", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
             p.Children.Add(new TextBlock { Text = _local.Texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
-            var local = Pilula("Preencher projeto e local...", primario: _local.Sinal != Sinal.Verde);
-            local.HorizontalAlignment = HorizontalAlignment.Left;
-            local.Click += (s, e) =>
+            p.Children.Add(new TextBlock
             {
-                LocalizacaoIfcCommand.Abrir(_app);
-                _local = AcoesPendencia.SituacaoLocal(_doc);
-                Mostrar();
-            };
-            p.Children.Add(local);
+                Text = "O projeto e o local (IfcProject, IfcSite, IfcBuilding e a localização), a fase e os eixos ficam no grupo Extras da janela Exportar IFC.",
+                TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.Cinza), FontSize = 11, Margin = new Thickness(0, 0, 0, 0),
+            });
             p.Children.Add(new TextBlock { Text = "Exportar IFC", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 4) });
             p.Children.Add(new TextBlock
             {
@@ -654,9 +660,9 @@ namespace MetroSP.Painel
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 8),
             });
-            var exportar = Pilula("Exportar IFC...", primario: _local.Sinal == Sinal.Verde);
+            var exportar = Pilula("Exportar IFC...", primario: true);
             exportar.HorizontalAlignment = HorizontalAlignment.Left;
-            exportar.Click += (s, e) => ExportarIfcCommand.Exportar(_app);
+            exportar.Click += (s, e) => AbrirExportar();
             p.Children.Add(exportar);
             return p;
         }
