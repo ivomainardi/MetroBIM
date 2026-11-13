@@ -12,6 +12,11 @@ Revit 0.3.6 · Civil 3D 0.12.0
   padrão do exportador, a última fase). Ao exportar, a fase escolhida fica gravada no setup (.json), em
   `ActivePhaseId`, e volta na próxima vez. Setup de uma classe instalada ou do Forma: grava a sua cópia, como em
   Gerenciar arquivos. Exportando só o visível numa vista, o campo mostra a fase da vista, que é a que vale.
+- Revit, Categorias IFC: categoria marcada para não exportar não é mais erro. A classe e o tipo dela não ficam em
+  vermelho nem impedem salvar, e o selo "usadas sem classe" conta só as que exportam (as não exportadas aparecem num
+  selo neutro).
+- Revit, Conferir entrega (etapa Classe IFC): elementos de categorias marcadas para não exportar ficam de fora, em vez
+  de aparecer como proxy. Um elemento com "Exportar para IFC como" preenchido continua contando.
 
 ## 1.0.2 (12/11/2026)
 

@@ -43,10 +43,10 @@ namespace MetroSP.Ids
             public string OutroEsquemaTexto => Mostrar(OutroEsquema);
             /// <summary>Esquema da tabela da linha (CategoriasIfc.Ifc4 ou Ifc4x3), para conferir a classe e o tipo.</summary>
             public string Esquema { get; set; }
-            /// <summary>Classe que não existe no esquema da tabela (aparece em vermelho e impede salvar).</summary>
-            public bool ClasseInvalida => Esquema != null && !EsquemaIfc.ClasseValida(Esquema, Classe);
-            /// <summary>Tipo predefinido que a classe não tem no esquema da tabela.</summary>
-            public bool TipoInvalido => Esquema != null && !ClasseInvalida && !EsquemaIfc.TipoValido(Esquema, Classe, Tipo);
+            /// <summary>Classe que não existe no esquema da tabela (aparece em vermelho e impede salvar). Categoria não exportada nunca é erro.</summary>
+            public bool ClasseInvalida => Exportar && Esquema != null && !EsquemaIfc.ClasseValida(Esquema, Classe);
+            /// <summary>Tipo predefinido que a classe não tem no esquema da tabela. Categoria não exportada nunca é erro.</summary>
+            public bool TipoInvalido => Exportar && Esquema != null && !ClasseInvalida && !EsquemaIfc.TipoValido(Esquema, Classe, Tipo);
             public Linha Copia() => (Linha)MemberwiseClone();
         }
 
@@ -66,6 +66,25 @@ namespace MetroSP.Ids
         /// <summary>A tabela que vale (sua, do Forma ou instalada), ou null.</summary>
         public static string Arquivo(string esquema) =>
             ClassesIfc.RaizesEmUso.Select(r => Path.Combine(r, Sub, esquema + ".txt")).FirstOrDefault(File.Exists);
+
+        /// <summary>
+        /// Categorias marcadas "não exportar" na tabela que vale para o esquema (a salva ou, sem ela, o padrão MetroSP).
+        /// Só as linhas da categoria inteira (sem subcategoria).
+        /// </summary>
+        public static HashSet<string> NaoExportadas(Document doc, string esquema)
+        {
+            var r = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (esquema == null) return r;
+            try
+            {
+                string arquivo = Arquivo(esquema);
+                IEnumerable<Linha> linhas = arquivo != null ? Ler(arquivo) : Padrao(doc, esquema, DoModelo(doc));
+                foreach (Linha l in linhas)
+                    if (!l.Exportar && string.IsNullOrWhiteSpace(l.Subcategoria) && !string.IsNullOrWhiteSpace(l.Categoria)) r.Add(l.Categoria.Trim());
+            }
+            catch { /* sem tabela legível: ninguém fica de fora por categoria */ }
+            return r;
+        }
 
         public static List<Linha> Ler(string arquivo)
         {

@@ -295,8 +295,11 @@ namespace MetroSP.Ids
             _selos.Children.Add(Theme.Chip($"{diferentes} diferentes entre IFC4 e IFC 4.3", destaque: diferentes > 0));
             foreach (string e in Esquemas)
             {
-                int semClasse = _pares.Count(p => p.NoModelo > 0 && (!p.De(e).Exportar || string.IsNullOrWhiteSpace(p.De(e).Classe)));
-                if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {semClasse} usadas sem classe ou não exportadas", destaque: true));
+                // Não exportar é uma escolha, não um erro: só conta a categoria usada que exporta sem classe.
+                int semClasse = _pares.Count(p => p.NoModelo > 0 && p.De(e).Exportar && string.IsNullOrWhiteSpace(p.De(e).Classe));
+                if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {semClasse} usadas sem classe", destaque: true));
+                int naoExportadas = _pares.Count(p => p.NoModelo > 0 && !p.De(e).Exportar);
+                if (naoExportadas > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {naoExportadas} usadas e não exportadas"));
                 int erros = _pares.Count(p => p.Erro(e));
                 if (erros > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {erros} com classe ou tipo fora do IFC schema", destaque: true));
             }

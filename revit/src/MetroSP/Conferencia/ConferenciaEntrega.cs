@@ -291,14 +291,26 @@ namespace MetroSP.Conferencia
         {
             var lista = new List<(Element, string)>();
             ElementId fase = FiltroIfc.Fase(_doc, _setup?.Fase ?? -1, _vista);
+            // Categorias marcadas "não exportar" em Categorias IFC não vão para o IFC: não entram como proxy nem como erro.
+            HashSet<string> naoExportadas = CategoriasIfc.NaoExportadas(_doc,
+                CategoriasIfc.EsquemaDaVersao(_setup?.Versao.ToString()) ?? (_setup == null ? CategoriasIfc.Ifc4x3 : CategoriasIfc.Ifc4));
             foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista, soIfc: false))
             {
                 if (!FiltroIfc.VaiParaIfc(_doc, e, fase)) continue;
+                if (naoExportadas.Contains(e.Category.Name) && !TemClasseNoElemento(e)) continue;
                 string entidade = _analisador.ResolveEntity(e);
                 if (entidade == null) continue;
                 lista.Add((e, entidade));
             }
             return lista;
+        }
+
+        /// <summary>"Exportar para IFC como" preenchido na instância ou no tipo: vale mais que a tabela de categorias.</summary>
+        private bool TemClasseNoElemento(Element e)
+        {
+            string valor = Compat.ExportarComo(e, false)?.AsString();
+            if (string.IsNullOrWhiteSpace(valor)) valor = Compat.ExportarComo(_doc.GetElement(e.GetTypeId()), true)?.AsString();
+            return !string.IsNullOrWhiteSpace(valor) && !valor.Trim().StartsWith("DontExport", StringComparison.OrdinalIgnoreCase);
         }
 
         // ================================================================== 3. classes IFC
