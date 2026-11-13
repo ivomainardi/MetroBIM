@@ -19,7 +19,7 @@ namespace MetroSP.Ids
     {
         public enum Tipo { Setup, PropertySets, Mapeamento }
 
-        public const string Seu = "seu", DoForma = "Forma online", Instalado = "instalado";
+        public const string Seu = "seu", DoForma = "Forma online", Instalado = "instalado", DaCoordenacao = "coordenação";
 
         public class Arquivo
         {
@@ -70,12 +70,13 @@ namespace MetroSP.Ids
         {
             List<string> existentes = ClassesIfc.RaizesEmUso.Select(r => Path.Combine(r, Sub(t), classe + Extensao(t))).Where(File.Exists).ToList();
             if (existentes.Count == 0) return null;
-            string origem = Origem(existentes[0]);
+            string vale = ClassesIfc.Achar(Sub(t), classe + Extensao(t)) ?? existentes[0];
+            string origem = Origem(vale);
             return new Arquivo
             {
                 Classe = classe,
                 Tipo = t,
-                Caminho = existentes[0],
+                Caminho = vale,
                 Origem = origem,
                 TemPadrao = origem == Seu ? existentes.Count > 1 : false,
             };
@@ -84,6 +85,8 @@ namespace MetroSP.Ids
         public static string Origem(string caminho)
         {
             if (caminho == null) return null;
+            string coord = Coordenacao.CoordenacaoRevit.PastaAtiva;
+            if (coord != null && caminho.StartsWith(coord, StringComparison.OrdinalIgnoreCase)) return DaCoordenacao;
             if (caminho.StartsWith(ClassesIfc.PastaUsuario, StringComparison.OrdinalIgnoreCase)) return Seu;
             if (caminho.StartsWith(FormaOnline.PastaCache, StringComparison.OrdinalIgnoreCase)) return DoForma;
             return Instalado;

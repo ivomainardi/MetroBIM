@@ -97,6 +97,9 @@ namespace MetroSP.Ids
 
             var corpo = new StackPanel();
 
+            // ---------- Arquivo de coordenação (antes das classes: a pasta dele entra na frente das outras) ----------
+            corpo.Children.Add(new Coordenacao.FaixaCoordenacao(doc, CoordenacaoMudou));
+
             // ---------- Classe ----------
             var secaoClasse = Theme.Secao("Classe");
             secaoClasse.Margin = new Thickness(0, 0, 0, 5);
@@ -201,6 +204,7 @@ namespace MetroSP.Ids
             // Classe: aplicada de novo ao abrir, para pegar os arquivos instalados mais recentes.
             PreencherClasses(settings.Classe);
             ClasseDoNome();
+            ClasseDaCoordenacao();
             _classe.SelectionChanged += (s, e) => { _motivoClasse = null; AplicarClasse(); };
             MostrarForma(resultadoForma);
             if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
@@ -286,6 +290,29 @@ namespace MetroSP.Ids
         }
 
         private ClassesIfc.Classe ClasseEscolhida => _classe.SelectedItem as ClassesIfc.Classe;
+
+        /// <summary>Com arquivo de coordenação no modelo, vale a classe do perfil ativo.</summary>
+        private void ClasseDaCoordenacao()
+        {
+            string nome = Coordenacao.CoordenacaoRevit.ClasseAtiva(_doc);
+            ClassesIfc.Classe c = nome == null ? null : _classe.Items.OfType<ClassesIfc.Classe>()
+                .FirstOrDefault(x => string.Equals(x.Nome, nome, StringComparison.CurrentCultureIgnoreCase));
+            if (c == null) return;
+            _aplicandoClasse = true;
+            _classe.SelectedItem = c;
+            _aplicandoClasse = false;
+            _motivoClasse = null;
+        }
+
+        /// <summary>Abriu, trocou o perfil ou tirou o arquivo de coordenação: lista as classes de novo e recarrega os arquivos.</summary>
+        private void CoordenacaoMudou()
+        {
+            PreencherClasses(ClasseEscolhida?.Nome);
+            ClasseDaCoordenacao();
+            if (ClasseEscolhida != null) AplicarClasse();
+            else MostrarCaminhos();
+            AtualizarResumo();
+        }
 
         /// <summary>Se o nome do modelo indica uma classe (Nomenclatura.txt ou trecho do nome), ela é escolhida.</summary>
         private void ClasseDoNome()
@@ -440,10 +467,11 @@ namespace MetroSP.Ids
             var faltam = new List<string>();
             if (c.Setup == null) faltam.Add("setup (vale o último escolhido)");
             if (c.PropertySets == null) faltam.Add("property sets");
-            string origem = c.Editada ? "editada por você" : c.DoForma ? "do Forma online" : "instalada";
+            string origem = c.DaCoordenacao ? "da coordenação" : c.Editada ? "editada por você" : c.DoForma ? "do Forma online" : "instalada";
             string selo = _motivoClasse != null ? "pelo nome do modelo" : origem;
             string dica = (_motivoClasse != null ? $"Classe indicada {_motivoClasse}.\n" : "") +
-                          (c.Editada ? "Property sets editados por você (o padrão não foi alterado)."
+                          (c.DaCoordenacao ? "Setup e property sets do arquivo de coordenação do modelo." :
+                           c.Editada ? "Property sets editados por você (o padrão não foi alterado)."
                            : c.DoForma ? "Property sets da pasta do Forma online." : "Configuração instalada com o MetroSP.") +
                           (faltam.Count > 0 ? "\nA classe não traz: " + string.Join(", ", faltam) + "." : "");
             if (_motivoClasse != null && origem != "instalada") selo += " · " + origem;

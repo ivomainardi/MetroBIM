@@ -41,6 +41,7 @@ namespace MetroSP.Painel
         private readonly Border _ferramenta;
         private readonly TextBlock _rodapeTexto;
         private readonly Button _anterior;
+        private readonly Button _perfil;
         private readonly Button _proximo;
         private readonly TextBlock _escopo;
 
@@ -87,7 +88,10 @@ namespace MetroSP.Painel
             trocar.Click += (s, e) => EscolherPacote(true);
             var conferir = BotaoEscuro("⟳ Conferir", "Confere o modelo de novo e atualiza as etapas.");
             conferir.Click += (s, e) => { if (FecharFerramenta()) Conferir(); };
+            _perfil = BotaoEscuro("", "Perfil do arquivo de coordenação em uso neste modelo. Clique para trocar (fica gravado no modelo).");
+            _perfil.Click += (s, e) => Coordenacao.MenuPerfis.Abrir(_perfil, _doc, CoordenacaoMudou);
             var direita = new StackPanel { Orientation = Orientation.Horizontal };
+            direita.Children.Add(_perfil);
             direita.Children.Add(_escopo);
             direita.Children.Add(trocar);
             direita.Children.Add(conferir);
@@ -131,10 +135,24 @@ namespace MetroSP.Painel
             var direitaRodape = new StackPanel { Orientation = Orientation.Horizontal };
             direitaRodape.Children.Add(salvar);
             direitaRodape.Children.Add(_proximo);
+            // Arquivo de coordenação: levar tudo como está para outra pessoa, ou usar o que alguém mandou.
+            var exportarAlteracoes = Pilula("⇪ Exportar alterações...");
+            exportarAlteracoes.ToolTip = "Grava tudo como está agora (setup e fase, categorias IFC, classes por família, property sets, mapeamento " +
+                                         "e Projeto e Local) num arquivo .coord-metrosp, com um ou mais perfis, para outra pessoa abrir e usar.";
+            exportarAlteracoes.Margin = new Thickness(8, 0, 0, 0);
+            exportarAlteracoes.Click += (s, e) => { if (FecharFerramenta() && Coordenacao.ExportarAlteracoesWindow.Abrir(this, _doc)) CoordenacaoMudou(); };
+            var abrirAlteracoes = Pilula("Abrir alterações...");
+            abrirAlteracoes.ToolTip = "Abre o arquivo .coord-metrosp que o coordenador BIM enviou e escolhe o perfil: o Exportar IFC passa a usar tudo o que veio nele.";
+            abrirAlteracoes.Margin = new Thickness(8, 0, 0, 0);
+            abrirAlteracoes.Click += (s, e) => { if (FecharFerramenta() && Coordenacao.AbrirAlteracoesWindow.Abrir(this, _doc)) CoordenacaoMudou(); };
+            var esquerdaRodape = new StackPanel { Orientation = Orientation.Horizontal };
+            esquerdaRodape.Children.Add(_anterior);
+            esquerdaRodape.Children.Add(exportarAlteracoes);
+            esquerdaRodape.Children.Add(abrirAlteracoes);
             var rodape = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
-            DockPanel.SetDock(_anterior, Dock.Left);
+            DockPanel.SetDock(esquerdaRodape, Dock.Left);
             DockPanel.SetDock(direitaRodape, Dock.Right);
-            rodape.Children.Add(_anterior);
+            rodape.Children.Add(esquerdaRodape);
             rodape.Children.Add(direitaRodape);
             rodape.Children.Add(_rodapeTexto);
             var rodapeBorda = new Border
@@ -167,6 +185,25 @@ namespace MetroSP.Painel
             Loaded += (s, e) => { if (_res != null) MostrarFerramenta(); };
         }
 
+        // ================================================================== arquivo de coordenação
+
+        /// <summary>Mostra o perfil em uso na faixa preta (só com arquivo de coordenação de mais de um perfil, ou para dizer a revisão).</summary>
+        private void MostrarPerfil()
+        {
+            Coordenacao.CoordenacaoRevit.Ativa c = Coordenacao.CoordenacaoRevit.De(_doc);
+            _perfil.Visibility = c == null ? Visibility.Collapsed : Visibility.Visible;
+            if (c == null) return;
+            _perfil.Content = $"Coordenação rev. {c.Arquivo.Revisao} · {c.Perfil.Nome}" + (c.Arquivo.Perfis.Count > 1 ? " ▾" : "");
+            _perfil.IsHitTestVisible = c.Arquivo.Perfis.Count > 1;
+        }
+
+        /// <summary>A coordenação mudou (abriu, exportou ou trocou o perfil): os arquivos da classe mudam, então confere de novo.</summary>
+        private void CoordenacaoMudou()
+        {
+            MostrarPerfil();
+            Conferir();
+        }
+
         // ================================================================== conferir
 
         private bool Conferir(bool primeira = false)
@@ -188,6 +225,7 @@ namespace MetroSP.Painel
             finally { Cursor = null; }
             _res = r;
             _local = AcoesPendencia.SituacaoLocal(_doc);
+            MostrarPerfil();
             if (primeira || _passo == 0)
             {
                 // Começa pela primeira etapa com pendência (ou pela última, se está tudo certo).

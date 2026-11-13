@@ -47,6 +47,12 @@ namespace MetroSP
             CreateParametrosPanel(application);
             CreateCoordenadorPanel(application);
 
+            // Arquivo de coordenação do modelo ativo: a pasta do perfil entra na frente das outras configurações IFC.
+            application.ViewActivated += (s, e) =>
+            {
+                try { if (e.Document != e.PreviousActiveView?.Document) Coordenacao.CoordenacaoRevit.Ativar(e.Document); } catch { }
+            };
+
             // Painel MetroSP: encaixado ao lado do modelo (DockablePane). Registrado aqui, no início do Revit.
             try
             {
@@ -181,10 +187,16 @@ namespace MetroSP
                 "RenomearFamilias");
         }
 
-        /// <summary>O que o coordenador BIM prepara uma vez e distribui para a equipe: botões pequenos, no fim da aba.</summary>
+        /// <summary>O que o coordenador BIM prepara e distribui para a equipe, no fim da aba.</summary>
         private static void CreateCoordenadorPanel(UIControlledApplication application)
         {
-            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Configurar padrões");
+            RibbonPanel panel = application.CreateRibbonPanel(TabName, "Coordenação BIM");
+
+            AddButton<CoordenacaoCommand>(panel, "Arquivo de\ncoordenação",
+                "Grava tudo o que você ajustou (setup e fase, categorias IFC, classes por família, property sets, mapeamento e Projeto e Local) " +
+                "num arquivo .coord-metrosp, com um ou mais perfis, para enviar ao projetista. Ele abre o arquivo em Entrega passo a passo › " +
+                "Abrir alterações (ou no Exportar IFC), e o Exportar IFC passa a usar tudo o que veio nele.",
+                "Coordenacao");
 
             panel.AddStackedItems(
                 Dados<PadroesCommand>("Padrões e planilhas",
