@@ -4,6 +4,13 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.5 (em preparação)
+
+Revit 0.3.8 · Civil 3D 0.12.0
+
+- Revit, Ribbon, painel Entrega Metrô: os ícones de Entrega passo a passo, Projeto e Local e Exportar IFC não têm mais
+  os números 1, 2 e 3.
+
 ## 1.0.4 (13/11/2026)
 
 Revit 0.3.7 · Civil 3D 0.12.0
