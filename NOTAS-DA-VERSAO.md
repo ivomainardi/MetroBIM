@@ -4,6 +4,15 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.3 (em preparação)
+
+Revit 0.3.6 · Civil 3D 0.12.0
+
+- Revit, Exportar IFC: novo campo **Fase** em Saída. Exportando o modelo inteiro, dá para escolher a fase (ou deixar o
+  padrão do exportador, a última fase). Ao exportar, a fase escolhida fica gravada no setup (.json), em
+  `ActivePhaseId`, e volta na próxima vez. Setup de uma classe instalada ou do Forma: grava a sua cópia, como em
+  Gerenciar arquivos. Exportando só o visível numa vista, o campo mostra a fase da vista, que é a que vale.
+
 ## 1.0.2 (12/11/2026)
 
 Revit 0.3.5 · Civil 3D 0.12.0

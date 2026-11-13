@@ -62,7 +62,7 @@ namespace MetroSP.Commands
             EixosIfc eixos = null;
             try
             {
-                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco);
+                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco, janela.Fase);
 
                 // O exportador precisa de uma transação aberta; ela é desfeita no fim,
                 // a não ser que o setup grave o GUID IFC nos elementos (como faz a janela do Revit).

@@ -43,6 +43,8 @@ namespace MetroSP.Ids
         private readonly TextBlock _infoMapeamento;
         private readonly List<FrameworkElement> _caminhos = new List<FrameworkElement>();
         private readonly ComboBox _vista;
+        private readonly ComboBox _fase;
+        private string _setupGravado;
         private readonly TextBox _arquivo;
         private readonly TextBlock _resumo;
         private readonly Border _seloLocalizacao;
@@ -55,6 +57,8 @@ namespace MetroSP.Ids
         public string PropertySetsEscolhido { get; private set; }
         public string MapeamentoEscolhido { get; private set; }
         public DB.ElementId Vista { get; private set; } = DB.ElementId.InvalidElementId;
+        /// <summary>Fase escolhida (-1 = padrão do exportador: a última fase). Só vale para o modelo inteiro.</summary>
+        public long Fase { get; private set; } = -1;
         public string PastaSaida { get; private set; }
         public string NomeArquivo { get; private set; }
         /// <summary>Lat/long do Project Base Point e campos atuais do Revit (recalculado depois da etapa Localização).</summary>
@@ -159,6 +163,13 @@ namespace MetroSP.Ids
             corpo.Children.Add(Theme.Secao("Saída"));
             _vista = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(0, 0, 0, 6) };
             corpo.Children.Add(_vista);
+            var linhaFase = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var rotuloFase = new TextBlock { Text = "Fase", Width = 40, VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(rotuloFase, Dock.Left);
+            linhaFase.Children.Add(rotuloFase);
+            _fase = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
+            linhaFase.Children.Add(_fase);
+            corpo.Children.Add(linhaFase);
             _eixos = new CheckBox
             {
                 Content = "Sempre exportar os eixos (Grids)",
@@ -177,6 +188,7 @@ namespace MetroSP.Ids
             corpo.Children.Add(linhaArquivo);
 
             PreencherVistas();
+            _vista.SelectionChanged += (s, e) => MostrarFase();
             string pastaSaida = settings.PastaSaida ?? string.Empty;
             _arquivo.Text = pastaSaida.Length > 0 ? Path.Combine(pastaSaida, NomePadrao(doc) + ".ifc") : NomePadrao(doc) + ".ifc";
 
@@ -577,6 +589,12 @@ namespace MetroSP.Ids
         /// </summary>
         private void CarregarSetup(bool preencherTxt)
         {
+            try { CarregarSetupArquivo(preencherTxt); }
+            finally { MostrarFase(); }
+        }
+
+        private void CarregarSetupArquivo(bool preencherTxt)
+        {
             Setup = null;
             string arquivo = _setup.Text.Trim();
             if (arquivo.Length == 0)
@@ -779,11 +797,16 @@ namespace MetroSP.Ids
             PropertySetsEscolhido = psets.Length > 0 ? psets : null;
             MapeamentoEscolhido = mapeamento.Length > 0 ? mapeamento : null;
             Vista = (_vista.SelectedItem as Opcao)?.Id ?? DB.ElementId.InvalidElementId;
+            if (Vista == DB.ElementId.InvalidElementId)
+            {
+                Fase = FaseEscolhida;
+                if (Fase != FaseDoSetup && !SalvarFaseNoSetup(Fase)) return;
+            }
             PastaSaida = saida;
             NomeArquivo = nome;
 
             _settings.Classe = ClasseEscolhida?.Nome;
-            _settings.Setup = Setup.Arquivo;
+            _settings.Setup = _setupGravado ?? Setup.Arquivo;
             _settings.PropertySets = psets;
             _settings.Mapeamento = mapeamento;
             _settings.PastaSaida = saida;
@@ -835,6 +858,70 @@ namespace MetroSP.Ids
         }
 
         private string TextoPsets() => (_psets.Text ?? string.Empty).Trim();
+
+        /// <summary>Fase gravada no setup, se existir neste modelo; senão -1 (padrão do exportador).</summary>
+        private long FaseDoSetup =>
+            Setup != null && Setup.Fase > 0 && _doc.GetElement(Compat.NovoId(Setup.Fase)) is DB.Phase ? Setup.Fase : -1;
+
+        private long FaseEscolhida => (_fase.SelectedItem as ComboBoxItem)?.Tag is long n ? n : -1;
+
+        /// <summary>
+        /// Lista de fases. Modelo inteiro: a do setup (ou a última, padrão do exportador), e dá para trocar.
+        /// Com uma vista: vale a fase da vista, só para conferir.
+        /// </summary>
+        private void MostrarFase()
+        {
+            if (_fase == null) return;
+            _fase.Items.Clear();
+            var fases = _doc.Phases.Cast<DB.Phase>().ToList();
+            string ultima = fases.Count > 0 ? fases[fases.Count - 1].Name : "nenhuma";
+            DB.ElementId vista = (_vista.SelectedItem as Opcao)?.Id ?? DB.ElementId.InvalidElementId;
+            if (vista != DB.ElementId.InvalidElementId)
+            {
+                DB.ElementId daVista = (_doc.GetElement(vista) as DB.View)?.get_Parameter(DB.BuiltInParameter.VIEW_PHASE)?.AsElementId();
+                string nome = daVista != null ? _doc.GetElement(daVista)?.Name : null;
+                _fase.Items.Add(new ComboBoxItem { Content = "Fase da vista: " + (nome ?? ultima), Tag = -1L });
+                _fase.SelectedIndex = 0;
+                _fase.IsEnabled = false;
+                _fase.ToolTip = "Exportando só o visível numa vista, vale a fase da vista (troque nas propriedades da vista no Revit).";
+                return;
+            }
+            _fase.IsEnabled = true;
+            _fase.Items.Add(new ComboBoxItem { Content = $"Padrão do exportador (última: {ultima})", Tag = -1L });
+            foreach (DB.Phase ph in fases) _fase.Items.Add(new ComboBoxItem { Content = ph.Name, Tag = Compat.Numero(ph.Id) });
+            long atual = FaseDoSetup;
+            _fase.SelectedItem = _fase.Items.Cast<ComboBoxItem>().FirstOrDefault(i => (long)i.Tag == atual) ?? _fase.Items[0];
+            _fase.ToolTip = "Fase exportada (modelo inteiro). Entra o que existe nela; demolidos e de fases posteriores ficam de fora.\n" +
+                            "Ao exportar, a fase escolhida fica gravada no setup (.json)" +
+                            (Setup != null && Setup.Fase > 0 && atual < 0 ? $".\nO setup tem a fase de id {Setup.Fase}, que não existe neste modelo." : ".");
+        }
+
+        /// <summary>
+        /// Grava a fase no setup (.json). Setup de uma classe instalada ou do Forma: grava a sua cópia (como em
+        /// Gerenciar arquivos), que passa a valer no lugar dele. Setup indicado à mão: grava no próprio arquivo.
+        /// </summary>
+        private bool SalvarFaseNoSetup(long fase)
+        {
+            if (Setup == null) return true;
+            try
+            {
+                string origem = Setup.Arquivo;
+                ClassesIfc.Classe c = ClasseEscolhida != null ? ClassesIfc.Obter(ClasseEscolhida.Nome) : null;
+                bool daClasse = c != null && string.Equals(c.Setup, origem, StringComparison.OrdinalIgnoreCase);
+                string destino = daClasse ? ArquivosIfc.Destino(ArquivosIfc.Tipo.Setup, c.Nome) : origem;
+                OpcoesSetup o = OpcoesSetup.Ler(origem);
+                o.Fase = fase;
+                if (daClasse) ArquivosIfc.GuardarAnterior(destino);
+                o.Salvar(destino);
+                _setupGravado = destino;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                return MessageBox.Show(this, "Não foi possível gravar a fase no setup: " + ex.Message + "\n\nExportar assim mesmo (com a fase escolhida)?",
+                    Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+            }
+        }
 
         private void PreencherVistas()
         {

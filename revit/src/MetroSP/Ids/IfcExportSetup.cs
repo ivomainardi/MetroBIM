@@ -138,8 +138,9 @@ namespace MetroSP.Ids
         /// <summary>
         /// Monta as opções do exportador. psets/mapeamento: arquivos escolhidos (null = não usar).
         /// vista: vista que filtra os elementos (InvalidElementId = modelo inteiro).
+        /// fase: fase escolhida na janela (null = a do setup; -1 = padrão do exportador).
         /// </summary>
-        public IFCExportOptions CriarOpcoes(Document doc, string psets, string mapeamento, ElementId vista, bool epsgEmBranco = true)
+        public IFCExportOptions CriarOpcoes(Document doc, string psets, string mapeamento, ElementId vista, bool epsgEmBranco = true, long? fase = null)
         {
             var o = new IFCExportOptions();
             o.FileVersion = Versao;
@@ -158,8 +159,8 @@ namespace MetroSP.Ids
             o.AddOption("ExportBaseQuantities", quantidades.ToString());
 
             // A fase só vale para o modelo inteiro, e só se existir neste arquivo
-            if (!filtrarVista && _props.TryGetValue("ActivePhaseId", out JsonElement fase) && Inteiro(fase, out long faseId)
-                && doc.GetElement(Compat.NovoId(faseId)) is Phase)
+            long faseId = fase ?? Fase;
+            if (!filtrarVista && faseId > 0 && doc.GetElement(Compat.NovoId(faseId)) is Phase)
                 o.AddOption("ActivePhaseId", faseId.ToString(CultureInfo.InvariantCulture));
 
             // Aço estrutural só no IFC 2x3
