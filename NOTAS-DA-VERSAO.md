@@ -4,7 +4,7 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## 1.0.3 (em preparação)
+## 1.0.3 (13/11/2026)
 
 Revit 0.3.6 · Civil 3D 0.12.0
 
