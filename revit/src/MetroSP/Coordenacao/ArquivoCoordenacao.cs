@@ -144,6 +144,8 @@ namespace MetroSP.Coordenacao
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string PropertySets { get; set; }
         /// <summary>Conteúdo do .txt de mapeamento de parâmetros.</summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string Mapeamento { get; set; }
+        /// <summary>As outras escolhas da janela Exportar IFC (elementos, nome do arquivo, EPSG, eixos).</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public OpcoesExportacao Exportacao { get; set; }
 
         /// <summary>Esquema do setup (IFCVersion), para mostrar.</summary>
         [JsonIgnore] public string Esquema
@@ -157,7 +159,8 @@ namespace MetroSP.Coordenacao
 
         [JsonIgnore] public int Alteracoes =>
             (Exportador != null ? 1 : 0) + (Fase != null ? 1 : 0) + Categorias.Values.Sum(l => l.Count > 0 ? 1 : 0) +
-            Familias.Count + Elementos.Count + (PropertySets != null ? 1 : 0) + (Mapeamento != null ? 1 : 0);
+            Familias.Count + Elementos.Count + (PropertySets != null ? 1 : 0) + (Mapeamento != null ? 1 : 0) +
+            (Exportacao?.Alteracoes ?? 0);
 
         internal void Normalizar()
         {
@@ -171,6 +174,7 @@ namespace MetroSP.Coordenacao
         public PerfilCoordenacao Copia() => new PerfilCoordenacao
         {
             Nome = Nome, Classe = Classe, Fase = Fase, PropertySets = PropertySets, Mapeamento = Mapeamento,
+            Exportacao = Exportacao?.Copia(),
             Exportador = Exportador == null ? null : (JsonObject)JsonNode.Parse(Exportador.ToJsonString()),
             Categorias = Categorias.ToDictionary(k => k.Key, k => k.Value.Select(l => (LinhaCategoria)l.MemberwiseCopy()).ToList()),
             Familias = Familias.Select(f => (AjusteFamilia)f.MemberwiseCopy()).ToList(),
@@ -178,6 +182,31 @@ namespace MetroSP.Coordenacao
         };
 
         public override string ToString() => Nome;
+    }
+
+    /// <summary>Escolhas da janela Exportar IFC que não estão no setup. Campo null = vale a escolha de quem exporta.</summary>
+    public class OpcoesExportacao
+    {
+        public const string ModeloInteiro = "Modelo inteiro";
+        public const string NomeDoModelo = "{modelo}";
+
+        /// <summary>"Modelo inteiro" ou o nome da vista 3D cujo visível é exportado.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string Elementos { get; set; }
+        /// <summary>Nome do .ifc, sem a extensão; "{modelo}" é trocado pelo nome do modelo.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string NomeArquivo { get; set; }
+        /// <summary>IFC sem EPSG, IfcProjectedCRS e IfcMapConversion.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? EpsgEmBranco { get; set; }
+        /// <summary>Sempre exportar os eixos (Grids).</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public bool? SempreEixos { get; set; }
+
+        [JsonIgnore] public int Alteracoes => (Elementos != null ? 1 : 0) + (NomeArquivo != null ? 1 : 0) + (EpsgEmBranco != null ? 1 : 0) + (SempreEixos != null ? 1 : 0);
+        [JsonIgnore] public bool SoVista => Elementos != null && !string.Equals(Elementos.Trim(), ModeloInteiro, StringComparison.CurrentCultureIgnoreCase);
+
+        /// <summary>Nome do .ifc para o modelo (null = não define).</summary>
+        public string NomePara(string modelo) =>
+            string.IsNullOrWhiteSpace(NomeArquivo) ? null : NomeArquivo.Replace(NomeDoModelo, modelo ?? "").Trim();
+
+        public OpcoesExportacao Copia() => (OpcoesExportacao)MemberwiseClone();
     }
 
     public class LinhaCategoria
@@ -236,6 +265,8 @@ namespace MetroSP.Coordenacao
     {
         /// <summary>IfcProject, IfcSite, IfcBuilding e Pset MetroSP_Projeto (mesmo formato dos dados salvos em Projeto e Local).</summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public JsonObject DadosProjeto { get; set; }
-        [JsonIgnore] public int Alteracoes => DadosProjeto != null ? 1 : 0;
+        /// <summary>Conteúdo do Nomenclatura.txt (regras "padrão do nome do modelo → classe").</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string Nomenclatura { get; set; }
+        [JsonIgnore] public int Alteracoes => (DadosProjeto != null ? 1 : 0) + (Nomenclatura != null ? 1 : 0);
     }
 }

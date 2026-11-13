@@ -211,6 +211,15 @@ namespace MetroSP.Coordenacao
             if (p.Elementos.Count > 0) l.Add($"• Classe IFC em {p.Elementos.Count} elemento(s) (só valem no modelo de origem)");
             if (p.PropertySets != null) l.Add("• Property sets (.txt)");
             if (p.Mapeamento != null) l.Add("• Mapeamento de parâmetros (.txt)");
+            if (p.Exportacao is OpcoesExportacao o)
+            {
+                var x = new List<string>();
+                if (o.Elementos != null) x.Add(o.SoVista ? $"só o visível na vista 3D \"{o.Elementos}\"" : "modelo inteiro");
+                if (o.NomeArquivo != null) x.Add(o.NomeArquivo == OpcoesExportacao.NomeDoModelo ? "arquivo com o nome do modelo" : $"arquivo \"{o.NomeArquivo}.ifc\"");
+                if (o.EpsgEmBranco.HasValue) x.Add(o.EpsgEmBranco.Value ? "EPSG em branco" : "EPSG do setup");
+                if (o.SempreEixos.HasValue) x.Add(o.SempreEixos.Value ? "sempre exportar os eixos" : "eixos pela vista e pela tabela");
+                if (x.Count > 0) l.Add("• Exportar IFC: " + string.Join(", ", x));
+            }
             if (l.Count == 0) l.Add("O perfil não traz ajustes.");
             return l;
         }

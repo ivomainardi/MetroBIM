@@ -200,7 +200,7 @@ namespace MetroSP.Ids
             _epsgEmBranco = new CheckBox
             {
                 Content = "EPSG em branco",
-                IsChecked = true,
+                IsChecked = settings.EpsgEmBranco,
                 VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "Ligado: o IFC sai sem código EPSG, IfcProjectedCRS e IfcMapConversion (coordenadas no PTL), mesmo que o Location tenha sistema GIS" +
                           (Localizacao.SistemaGis != null ? $" (\"{Localizacao.SistemaGis}\")" : "") +
@@ -222,6 +222,7 @@ namespace MetroSP.Ids
             LinhaGrade(grade, "Eixos", _eixos);
 
             PreencherVistas();
+            SelecionarVista(settings.Vista);
             _vista.SelectionChanged += (s, e) => MostrarFase();
             string pastaSaida = settings.PastaSaida ?? string.Empty;
             _arquivo.Text = pastaSaida.Length > 0 ? Path.Combine(pastaSaida, NomePadrao(doc) + ".ifc") : NomePadrao(doc) + ".ifc";
@@ -236,6 +237,7 @@ namespace MetroSP.Ids
             PreencherClasses(settings.Classe);
             ClasseDoNome();
             ClasseDaCoordenacao();
+            OpcoesDaCoordenacao();
             _classe.SelectionChanged += (s, e) => { _motivoClasse = null; AplicarClasse(); };
             MostrarForma(resultadoForma);
             if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
@@ -342,7 +344,41 @@ namespace MetroSP.Ids
             ClasseDaCoordenacao();
             if (ClasseEscolhida != null) AplicarClasse();
             else MostrarCaminhos();
+            OpcoesDaCoordenacao();
             AtualizarResumo();
+        }
+
+        /// <summary>Elementos, nome do arquivo, EPSG e eixos do perfil do arquivo de coordenação (o que ele não define fica como está).</summary>
+        private void OpcoesDaCoordenacao()
+        {
+            Coordenacao.OpcoesExportacao o = Coordenacao.CoordenacaoRevit.ClasseAtiva(_doc) == null ? null : Coordenacao.CoordenacaoRevit.Atual?.Perfil?.Exportacao;
+            if (o == null) return;
+            const string dica = "\n\nEscolha do arquivo de coordenação.";
+            if (o.Elementos != null && SelecionarVista(o.Elementos)) _vista.ToolTip = "Elementos exportados." + dica;
+            if (o.EpsgEmBranco.HasValue) { _epsgEmBranco.IsChecked = o.EpsgEmBranco.Value; _epsgEmBranco.ToolTip += dica; }
+            if (o.SempreEixos.HasValue) { _eixos.IsChecked = o.SempreEixos.Value; _eixos.ToolTip += dica; }
+            string nome = o.NomePara(NomePadrao(_doc));
+            if (!string.IsNullOrEmpty(nome) && nome.IndexOfAny(Path.GetInvalidFileNameChars()) < 0)
+            {
+                string pasta = "";
+                try { pasta = Path.GetDirectoryName(_arquivo.Text.Trim()) ?? ""; } catch { }
+                _arquivo.Text = pasta.Length > 0 ? Path.Combine(pasta, nome + ".ifc") : nome + ".ifc";
+                _arquivo.ToolTip = "Pasta e nome do arquivo .ifc (nome do arquivo de coordenação).";
+            }
+        }
+
+        /// <summary>Escolhe "Modelo inteiro" ou a vista 3D pelo nome. Retorna se achou.</summary>
+        private bool SelecionarVista(string nome)
+        {
+            if (string.IsNullOrWhiteSpace(nome)) return false;
+            foreach (Opcao o in _vista.Items.OfType<Opcao>())
+            {
+                string n = o.Id == DB.ElementId.InvalidElementId ? Coordenacao.OpcoesExportacao.ModeloInteiro : _doc.GetElement(o.Id)?.Name;
+                if (!string.Equals(n, nome.Trim(), StringComparison.CurrentCultureIgnoreCase)) continue;
+                _vista.SelectedItem = o;
+                return true;
+            }
+            return false;
         }
 
         /// <summary>Se o nome do modelo indica uma classe (Nomenclatura.txt ou trecho do nome), ela é escolhida.</summary>
@@ -878,6 +914,9 @@ namespace MetroSP.Ids
             _settings.Mapeamento = mapeamento;
             _settings.PastaSaida = saida;
             _settings.SempreEixos = SempreEixos;
+            _settings.EpsgEmBranco = EpsgEmBranco;
+            _settings.Vista = Vista == DB.ElementId.InvalidElementId ? Coordenacao.OpcoesExportacao.ModeloInteiro : _doc.GetElement(Vista)?.Name;
+            _settings.NomeArquivo = string.Equals(nome, NomePadrao(_doc), StringComparison.CurrentCultureIgnoreCase) ? Coordenacao.OpcoesExportacao.NomeDoModelo : nome;
             DialogResult = true;
         }
 

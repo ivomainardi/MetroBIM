@@ -295,6 +295,7 @@ namespace MetroSP.Coordenacao
                 PerfilPadrao = perfis.Any(p => p.Nome == _padrao) ? _padrao : perfis[0].Nome,
             };
             if (_dadosProjeto.IsChecked == true) a.Comum.DadosProjeto = CoordenacaoRevit.CapturarDadosProjeto(_doc);
+            a.Comum.Nomenclatura = CoordenacaoRevit.CapturarNomenclatura();
 
             var d = new SaveFileDialog { Title = "Salvar arquivo de coordenação", Filter = ArquivoCoordenacao.Filtro, FileName = a.NomeSugerido(), DefaultExt = ArquivoCoordenacao.Extensao };
             try
