@@ -297,7 +297,7 @@ namespace MetroSP.Conferencia
             foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista, soIfc: false))
             {
                 if (!FiltroIfc.VaiParaIfc(_doc, e, fase)) continue;
-                if (naoExportadas.Contains(e.Category.Name) && !TemClasseNoElemento(e)) continue;
+                if (naoExportadas.Contains(e.Category.Name) && !CategoriasIfc.TemClasseNoElemento(_doc, e, _tipoComClasse)) continue;
                 string entidade = _analisador.ResolveEntity(e);
                 if (entidade == null) continue;
                 lista.Add((e, entidade));
@@ -305,13 +305,7 @@ namespace MetroSP.Conferencia
             return lista;
         }
 
-        /// <summary>"Exportar para IFC como" preenchido na instância ou no tipo: vale mais que a tabela de categorias.</summary>
-        private bool TemClasseNoElemento(Element e)
-        {
-            string valor = Compat.ExportarComo(e, false)?.AsString();
-            if (string.IsNullOrWhiteSpace(valor)) valor = Compat.ExportarComo(_doc.GetElement(e.GetTypeId()), true)?.AsString();
-            return !string.IsNullOrWhiteSpace(valor) && !valor.Trim().StartsWith("DontExport", StringComparison.OrdinalIgnoreCase);
-        }
+        private readonly Dictionary<ElementId, bool> _tipoComClasse = new Dictionary<ElementId, bool>();
 
         // ================================================================== 3. classes IFC
 
@@ -325,14 +319,18 @@ namespace MetroSP.Conferencia
                 Correcao = Correcao.CategoriasIfc,
             };
 
-            foreach (var g in foraDoPadrao.GroupBy(x => (Cat: x.E.Category.Name, x.Entidade)).OrderByDescending(g => g.Count()))
+            // Classe escolhida no tipo ou na instância ("Exportar para IFC como") é decisão do projetista: não é erro.
+            foreach (var g in foraDoPadrao.GroupBy(x => (Cat: x.E.Category.Name, x.Entidade, NoElemento: CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse)))
+                         .OrderByDescending(g => g.Count()))
             {
-                bool proxy = g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
+                bool proxy = !g.Key.NoElemento && g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
                 etapa.Pendencias.Add(new Pendencia
                 {
                     Sinal = proxy ? Sinal.Amarelo : Sinal.Cinza, Categoria = g.Key.Cat, Assunto = g.Key.Entidade,
                     Problema = proxy
                         ? $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida): ficam fora da conferência."
+                        : g.Key.NoElemento
+                        ? $"{g.Count()} elemento(s) com a classe {g.Key.Entidade} definida no tipo ou na instância; fora dos padrões, ficam fora da conferência."
                         : $"{g.Key.Entidade} não faz parte dos padrões: {g.Count()} elemento(s) ficam fora da conferência.",
                     OQueFazer = proxy
                         ? "Defina a classe certa (grava o \"Exportar para IFC como\" do tipo) ou mude a categoria inteira em Categorias IFC."

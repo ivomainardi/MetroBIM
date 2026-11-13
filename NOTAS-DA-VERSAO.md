@@ -17,6 +17,10 @@ Revit 0.3.6 · Civil 3D 0.12.0
   selo neutro).
 - Revit, Conferir entrega (etapa Classe IFC): elementos de categorias marcadas para não exportar ficam de fora, em vez
   de aparecer como proxy. Um elemento com "Exportar para IFC como" preenchido continua contando.
+- Revit, classe IFC no tipo ou na instância: quando o elemento tem a classe no "Exportar para IFC como" (do tipo ou da
+  instância), não é erro. Em Categorias IFC, a categoria sem classe na tabela só conta como "usada sem classe" se
+  algum elemento dela não tiver a classe no tipo nem na instância. No Conferir entrega, quem sai como proxy por
+  escolha no tipo ou na instância aparece só como informação, não como atenção.
 
 ## 1.0.2 (12/11/2026)
 

@@ -171,17 +171,41 @@ namespace MetroSP.Ids
         }
 
         /// <summary>Elementos de modelo por nome de categoria.</summary>
-        public static Dictionary<string, int> Contagem(Document doc)
+        public static Dictionary<string, int> Contagem(Document doc) => Contagem(doc, out _);
+
+        /// <summary>Elementos de modelo por nome de categoria; semClasse: quantos deles não têm a classe IFC no tipo nem na instância.</summary>
+        public static Dictionary<string, int> Contagem(Document doc, out Dictionary<string, int> semClasse)
         {
             var r = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            semClasse = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var tipoComClasse = new Dictionary<ElementId, bool>();
             foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType())
             {
                 Category c = e.Category;
                 if (c == null || c.CategoryType != CategoryType.Model || e.ViewSpecific) continue;
                 r[c.Name] = r.TryGetValue(c.Name, out int n) ? n + 1 : 1;
+                if (!TemClasseNoElemento(doc, e, tipoComClasse)) semClasse[c.Name] = semClasse.TryGetValue(c.Name, out int s) ? s + 1 : 1;
             }
             return r;
         }
+
+        /// <summary>
+        /// "Exportar para IFC como" (IfcExportAs) preenchido na instância ou no tipo com uma classe: vale mais que a
+        /// tabela de categorias, então o elemento já tem classe. tipoComClasse: cache opcional por tipo.
+        /// </summary>
+        public static bool TemClasseNoElemento(Document doc, Element e, Dictionary<ElementId, bool> tipoComClasse = null)
+        {
+            if (EhClasse(Compat.ExportarComo(e, false)?.AsString())) return true;
+            ElementId t = e.GetTypeId();
+            if (t == null || t == ElementId.InvalidElementId) return false;
+            if (tipoComClasse != null && tipoComClasse.TryGetValue(t, out bool tem)) return tem;
+            tem = EhClasse(Compat.ExportarComo(doc.GetElement(t), true)?.AsString());
+            if (tipoComClasse != null) tipoComClasse[t] = tem;
+            return tem;
+        }
+
+        private static bool EhClasse(string valor) =>
+            !string.IsNullOrWhiteSpace(valor) && valor.Trim().StartsWith("Ifc", StringComparison.OrdinalIgnoreCase);
 
         /// <summary>
         /// Grava a tabela no modelo de mapeamento "MetroSP &lt;esquema&gt;" e o torna ativo. Precisa de transação aberta.
