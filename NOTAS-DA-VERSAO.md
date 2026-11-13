@@ -8,6 +8,16 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 
 Revit 0.3.7 · Civil 3D 0.12.0
 
+- Revit, **Exportar IFC** com a interface reorganizada: **Saída** traz os elementos (modelo inteiro ou vista 3D) e o
+  arquivo, e o novo grupo **Extras** reúne Localização, IfcProject, IfcSite, IfcBuilding, Coordenadas (EPSG em
+  branco), Fase e Eixos, cada um com o rótulo à esquerda e a explicação na dica.
+  - O botão Projeto e Local saiu. No lugar, **Gravar localização** grava no Location a latitude/longitude do Project
+    Base Point com um clique, e os nomes do **IfcProject, IfcSite e IfcBuilding** são preenchidos ali mesmo e gravados
+    nos campos do Revit ao exportar. O link **Mais dados...** abre os demais campos (nome longo, descrição, endereço,
+    Pset MetroSP_Projeto).
+  - Location fora do Project Base Point ao exportar: "Sim" grava a localização e exporta.
+  - **Entrega passo a passo**: o último passo passou a se chamar **Exportar**. O botão e os cartões abrem essa
+    mesma janela Exportar IFC (o antigo "Preencher projeto e local..." saiu, já que tudo está no grupo Extras).
 - Revit, **arquivo de coordenação** (.coord-metrosp): o coordenador BIM grava tudo o que ajustou para a exportação
   IFC num arquivo só e envia ao projetista; o Exportar IFC do projetista passa a usar tudo o que veio nele.
   - O que vai no arquivo: o setup do exportador (inteiro) e a fase, **pelo nome** (o número interno da fase muda de
