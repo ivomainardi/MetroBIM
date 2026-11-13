@@ -62,7 +62,7 @@ namespace MetroSP.Commands
             EixosIfc eixos = null;
             try
             {
-                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco);
+                IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco, janela.Fase);
 
                 // O exportador precisa de uma transação aberta; ela é desfeita no fim,
                 // a não ser que o setup grave o GUID IFC nos elementos (como faz a janela do Revit).
@@ -142,6 +142,20 @@ namespace MetroSP.Commands
                 bool salvar = false;
                 try { salvar = Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0; }
                 catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
+                // Status de fase (Pset_*Common.Status e Estado do Pset Metro) na fase exportada.
+                try
+                {
+                    ElementId faseIfc = FiltroIfc.Fase(doc, janela.Fase, janela.Vista);
+                    string nomeFase = doc.GetElement(faseIfc)?.Name ?? "?";
+                    var (comStatus, comEstado) = Ifc.StatusFaseIfc.Aplicar(modelo, id => StatusNaFase(doc, id, faseIfc),
+                        Ifc.StatusFaseIfc.ClassesComPsetMetro(janela.PropertySetsEscolhido), avisosClassificacao.Add);
+                    if (comStatus + comEstado > 0)
+                    {
+                        salvar = true;
+                        avisosClassificacao.Add($"Fase {nomeFase}: Status em {comStatus} elemento(s) (Pset_*Common) e Estado em {comEstado} (Pset Metro).");
+                    }
+                }
+                catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar o status da fase: " + ex.Message); }
                 try
                 {
                     escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);
@@ -207,6 +221,26 @@ namespace MetroSP.Commands
                 : n == 0 ? $"\nATENÇÃO: nenhum IfcGrid no IFC, embora o modelo tenha {eixos.Total} eixos. Tente exportar o modelo inteiro (sem filtrar pela vista)."
                 : "";
             return linha + (eixos.Aviso == null ? "" : "\n" + eixos.Aviso);
+        }
+
+        /// <summary>Status de fase do elemento na fase exportada, como no IFC (PEnum_ElementStatus), ou null.</summary>
+        private static string StatusNaFase(Document doc, long id, ElementId fase)
+        {
+            if (fase == null || fase == ElementId.InvalidElementId) return null;
+            try
+            {
+                Element e = doc.GetElement(Compat.NovoId(id));
+                if (e == null) return null;
+                switch (e.GetPhaseStatus(fase))
+                {
+                    case ElementOnPhaseStatus.New: return "NEW";
+                    case ElementOnPhaseStatus.Existing: return "EXISTING";
+                    case ElementOnPhaseStatus.Demolished: return "DEMOLISH";
+                    case ElementOnPhaseStatus.Temporary: return "TEMPORARY";
+                    default: return null;
+                }
+            }
+            catch { return null; }   // elemento sem fase
         }
     }
 }

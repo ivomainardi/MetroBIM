@@ -18,6 +18,14 @@ namespace MetroSP
             new ElementId(valor);
 #endif
 
+        /// <summary>Número do ElementId (no Revit 2022/2023 ainda é IntegerValue).</summary>
+        public static long Numero(ElementId id) =>
+#if REVIT_ANTES_2024
+            id.IntegerValue;
+#else
+            id.Value;
+#endif
+
         /// <summary>
         /// Parâmetro "Exportar para IFC como" da instância ou do tipo. No Revit 2022 ainda não é parâmetro interno:
         /// é o parâmetro compartilhado IfcExportAs (no tipo também IfcExportAs[Type]).

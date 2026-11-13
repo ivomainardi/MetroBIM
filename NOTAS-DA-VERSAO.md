@@ -4,6 +4,29 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.3 (13/11/2026)
+
+Revit 0.3.6 · Civil 3D 0.12.0
+
+- Revit, Exportar IFC: novo campo **Fase** em Saída. Exportando o modelo inteiro, dá para escolher a fase (ou deixar o
+  padrão do exportador, a última fase). Ao exportar, a fase escolhida fica gravada no setup (.json), em
+  `ActivePhaseId`, e volta na próxima vez. Setup de uma classe instalada ou do Forma: grava a sua cópia, como em
+  Gerenciar arquivos. Exportando só o visível numa vista, o campo mostra a fase da vista, que é a que vale.
+- Revit, Categorias IFC: categoria marcada para não exportar não é mais erro. A classe e o tipo dela não ficam em
+  vermelho nem impedem salvar, e o selo "usadas sem classe" conta só as que exportam (as não exportadas aparecem num
+  selo neutro).
+- Revit, Conferir entrega (etapa Classe IFC): elementos de categorias marcadas para não exportar ficam de fora, em vez
+  de aparecer como proxy. Um elemento com "Exportar para IFC como" preenchido continua contando.
+- Revit, classe IFC no tipo ou na instância: quando o elemento tem a classe no "Exportar para IFC como" (do tipo ou da
+  instância), não é erro. Em Categorias IFC, a categoria sem classe na tabela só conta como "usada sem classe" se
+  algum elemento dela não tiver a classe no tipo nem na instância. No Conferir entrega, quem sai como proxy por
+  escolha no tipo ou na instância aparece só como informação, não como atenção.
+- Revit, Exportar IFC: o status de fase de cada elemento, na fase exportada, vai para o IFC em dois lugares: no
+  **Status** do Pset_&lt;Classe&gt;Common (NEW, EXISTING, DEMOLISH, TEMPORARY, nas classes que têm Status no IFC: paredes,
+  lajes, vigas, pilares, portas, janelas, escadas, rampas, coberturas, guarda-corpos, revestimentos, fundações e
+  proxies) e no **Estado** do Pset Metro (Novo, Existente, A demolir, Temporário), nas classes que têm o Pset Metro
+  no .txt de property sets. Só IFC4 e IFC 4.3. O resumo da exportação diz quantos elementos receberam cada um.
+
 ## 1.0.2 (12/11/2026)
 
 Revit 0.3.5 · Civil 3D 0.12.0

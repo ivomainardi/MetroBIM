@@ -55,6 +55,7 @@ namespace MetroSP.Ids
         private readonly Dictionary<DataGridColumn, string> _esquemaDaColuna = new Dictionary<DataGridColumn, string>();
         private readonly ObservableCollection<Par> _pares = new ObservableCollection<Par>();
         private readonly Dictionary<string, int> _contagem;
+        private readonly Dictionary<string, int> _semClasse;
         private readonly DataGrid _grade;
         private readonly CheckBox _soUsadas, _soDiferentes, _soErros;
         private readonly Button _trocar;
@@ -72,7 +73,8 @@ namespace MetroSP.Ids
             MinHeight = 440;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-            _contagem = doc != null ? CategoriasIfc.Contagem(doc) : new Dictionary<string, int>();
+            _semClasse = new Dictionary<string, int>();
+            _contagem = doc != null ? CategoriasIfc.Contagem(doc, out _semClasse) : new Dictionary<string, int>();
             List<CategoriasIfc.Linha> doModelo = null;
             foreach (string e in Esquemas)
             {
@@ -295,8 +297,13 @@ namespace MetroSP.Ids
             _selos.Children.Add(Theme.Chip($"{diferentes} diferentes entre IFC4 e IFC 4.3", destaque: diferentes > 0));
             foreach (string e in Esquemas)
             {
-                int semClasse = _pares.Count(p => p.NoModelo > 0 && (!p.De(e).Exportar || string.IsNullOrWhiteSpace(p.De(e).Classe)));
-                if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {semClasse} usadas sem classe ou não exportadas", destaque: true));
+                // Não exportar é uma escolha, não um erro: só conta a categoria usada que exporta sem classe, e só se
+                // algum elemento dela não tem a classe no tipo ou na instância ("Exportar para IFC como").
+                int semClasse = _pares.Count(p => p.NoModelo > 0 && p.De(e).Exportar && string.IsNullOrWhiteSpace(p.De(e).Classe)
+                                                  && _semClasse.TryGetValue(p.Categoria, out int s) && s > 0);
+                if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {semClasse} usadas sem classe", destaque: true));
+                int naoExportadas = _pares.Count(p => p.NoModelo > 0 && !p.De(e).Exportar);
+                if (naoExportadas > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {naoExportadas} usadas e não exportadas"));
                 int erros = _pares.Count(p => p.Erro(e));
                 if (erros > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {erros} com classe ou tipo fora do IFC schema", destaque: true));
             }

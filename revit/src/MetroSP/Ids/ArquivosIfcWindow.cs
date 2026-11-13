@@ -369,7 +369,7 @@ namespace MetroSP.Ids
             var fase = new ComboBox();
             fase.Items.Add(new ComboBoxItem { Content = "Fase da vista / do modelo", Tag = -1L });
             if (_doc != null)
-                foreach (DB.Phase ph in _doc.Phases) fase.Items.Add(new ComboBoxItem { Content = ph.Name, Tag = ph.Id.Value });
+                foreach (DB.Phase ph in _doc.Phases) fase.Items.Add(new ComboBoxItem { Content = ph.Name, Tag = Compat.Numero(ph.Id) });
             if (!fase.Items.Cast<ComboBoxItem>().Any(i => (long)i.Tag == o.Fase))
                 fase.Items.Add(new ComboBoxItem { Content = $"Fase gravada no arquivo (id {o.Fase}, não existe neste modelo)", Tag = o.Fase });
             fase.SelectedItem = fase.Items.Cast<ComboBoxItem>().First(i => (long)i.Tag == o.Fase);
