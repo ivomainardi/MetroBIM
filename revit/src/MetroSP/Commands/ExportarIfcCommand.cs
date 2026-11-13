@@ -139,11 +139,19 @@ namespace MetroSP.Commands
             // Dados do IfcProject, IfcSite e IfcBuilding (etapa 1) e Pset MetroSP_Projeto: completa o que o exportador não grava.
             var avisosClassificacao = new List<string>();
             var linhasDados = new List<string>();
-            bool dadosComProblema = false;
+            var linhasElementos = new List<string>();
+            bool dadosComProblema = false, semElementos = false;
             try
             {
                 var modelo = Ifc.StepModel.Load(arquivo);
                 bool salvar = false;
+                // O que saiu: elementos por classe e, se o IFC saiu só com ambientes, a causa provável (fase ou vista).
+                try
+                {
+                    linhasElementos = ElementosNoIfc.Conferir(doc, ElementosNoIfc.Contar(modelo), janela.Vista,
+                        FiltroIfc.Fase(doc, janela.Fase, janela.Vista), out semElementos);
+                }
+                catch (Exception ex) { linhasElementos.Add("Não foi possível contar os elementos do IFC: " + ex.Message); }
                 try { salvar = Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0; }
                 catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
                 // Status de fase (Pset_*Common.Status e Estado do Pset Metro) na fase exportada.
@@ -180,6 +188,8 @@ namespace MetroSP.Commands
             }
             LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha, janela.EpsgEmBranco);
             if (latLong != null) conferencia.Linhas.Insert(0, latLong);
+            conferencia.Linhas.InsertRange(0, linhasElementos);
+            if (semElementos) conferencia.TemProblema = true;
             conferencia.Linhas.AddRange(linhasDados);
             if (dadosComProblema) conferencia.TemProblema = true;
             foreach (string a in avisosClassificacao) conferencia.Linhas.Add(char.ToUpper(a[0]) + a.Substring(1));
@@ -192,7 +202,8 @@ namespace MetroSP.Commands
 
             var fim = new TaskDialog("MetroSP")
             {
-                MainInstruction = conferencia.TemProblema ? "IFC exportado, com pendências na conferência" : "IFC exportado",
+                MainInstruction = semElementos ? "IFC exportado SEM elementos: só pavimentos e ambientes"
+                    : conferencia.TemProblema ? "IFC exportado, com pendências na conferência" : "IFC exportado",
                 MainContent = $"{arquivo}\n\nSetup: {setup.Nome} ({setup.DescricaoVersao}) · Shared Coordinates · {(janela.EpsgEmBranco ? "EPSG em branco" : "EPSG do setup/exportador")}\n" +
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoCategorias == null ? "" : "\n" + avisoCategorias) +
