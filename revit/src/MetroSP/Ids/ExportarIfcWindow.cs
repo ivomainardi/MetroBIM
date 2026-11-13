@@ -48,7 +48,8 @@ namespace MetroSP.Ids
         private readonly TextBox _arquivo;
         private readonly TextBlock _resumo;
         private readonly Border _seloLocalizacao;
-        private readonly Border _seloProjeto;
+        private readonly Button _gravarLocal;
+        private readonly TextBox _ifcProject, _ifcSite, _ifcBuilding;
 
         private HashSet<string> _parametrosModelo;
         private List<string> _avisosPsets = new List<string>();
@@ -162,20 +163,39 @@ namespace MetroSP.Ids
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             extras.Children.Add(grade);
 
+            // Localização: o Location do Revit pela lat/long do Project Base Point, gravado com um clique.
             var linhaLocal = new DockPanel();
-            var abrirLocal = new Button { Content = "Projeto e Local...", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Dados do IfcProject, IfcSite e IfcBuilding e o Location do Revit (gravados no modelo)." };
-            abrirLocal.Click += (s, e) => AbrirLocalizacao();
-            DockPanel.SetDock(abrirLocal, Dock.Right);
-            linhaLocal.Children.Add(abrirLocal);
-            _seloProjeto = Theme.Selo();
-            _seloProjeto.Margin = new Thickness(0, 0, 8, 0);
-            DockPanel.SetDock(_seloProjeto, Dock.Left);
-            linhaLocal.Children.Add(_seloProjeto);
+            _gravarLocal = new Button { Content = "Gravar localização", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Grava no Location do Revit (Manage › Location) a latitude/longitude calculada pelo Project Base Point no PTL do Metrô.\n" +
+                          "Não altera o Survey Point, o Project Base Point nem as Shared Coordinates." };
+            _gravarLocal.Click += (s, e) => GravarLocalizacao();
+            DockPanel.SetDock(_gravarLocal, Dock.Right);
+            linhaLocal.Children.Add(_gravarLocal);
             _seloLocalizacao = Theme.Selo();
             _seloLocalizacao.HorizontalAlignment = HorizontalAlignment.Left;
+            _seloLocalizacao.VerticalAlignment = VerticalAlignment.Center;
             linhaLocal.Children.Add(_seloLocalizacao);
-            LinhaGrade(grade, "Projeto e local", linhaLocal);
+            LinhaGrade(grade, "Localização", linhaLocal);
+
+            // Nomes do IfcProject, IfcSite e IfcBuilding: gravados nos campos do Revit ao exportar, se mudarem.
+            Ifc.DadosProjetoIfc atuais = Localizacao.DadosAtuais;
+            TextBox Nome(string valor, string dica) => new TextBox { Text = valor ?? "", VerticalContentAlignment = VerticalAlignment.Center, Padding = new Thickness(3, 2, 3, 2), ToolTip = dica };
+            _ifcProject = Nome(atuais.Projeto?.Nome, "Nome do IfcProject (número do projeto).\nNo Revit: Informações do projeto › Número do projeto. Gravado ao exportar, se mudar.");
+            _ifcSite = Nome(atuais.Terreno?.Nome, "Nome do IfcSite (o terreno, ex.: a linha ou o trecho).\nNo Revit: Informações do projeto › SiteName. Gravado ao exportar, se mudar.");
+            _ifcBuilding = Nome(atuais.Edificio?.Nome, "Nome do IfcBuilding (ex.: a estação).\nNo Revit: Informações do projeto › Nome do edifício. Gravado ao exportar, se mudar.");
+            foreach (TextBox t in new[] { _ifcProject, _ifcSite, _ifcBuilding }) t.TextChanged += (s, e) => AtualizarResumo();
+            LinhaGrade(grade, "IfcProject", _ifcProject);
+            LinhaGrade(grade, "IfcSite", _ifcSite);
+            var linhaBuilding = new DockPanel();
+            var maisDados = Theme.Link("Mais dados...");
+            maisDados.Margin = new Thickness(10, 0, 0, 0);
+            maisDados.VerticalAlignment = VerticalAlignment.Center;
+            maisDados.ToolTip = "Nome longo, descrição, fase e endereço de cada um, e o Pset MetroSP_Projeto.";
+            maisDados.Click += (s, e) => AbrirLocalizacao();
+            DockPanel.SetDock(maisDados, Dock.Right);
+            linhaBuilding.Children.Add(maisDados);
+            linhaBuilding.Children.Add(_ifcBuilding);
+            LinhaGrade(grade, "IfcBuilding", linhaBuilding);
 
             _epsgEmBranco = new CheckBox
             {
@@ -541,6 +561,7 @@ namespace MetroSP.Ids
             if (_seloMapeamento.Visibility == Visibility.Visible && ((TextBlock)_seloMapeamento.Child).Foreground is System.Windows.Media.SolidColorBrush bm && bm.Color == Theme.LaranjaTexto)
                 avisos.Add("mapeamento não encontrado");
             if (Localizacao != null && (Localizacao.Erro != null || !Localizacao.LocationCorreto)) avisos.Add(Localizacao.Erro != null ? "Location não conferido" : "Location fora do Project Base Point");
+            if (_ifcProject != null && string.IsNullOrWhiteSpace(_ifcProject.Text)) avisos.Add("IfcProject sem nome");
             Theme.MudarResumo(_resumo, avisos, "Pronto para exportar");
         }
 
@@ -823,14 +844,21 @@ namespace MetroSP.Ids
                 MessageBox.Show(this, $"{nome}.ifc já existe na pasta. Substituir?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
 
+            if (string.IsNullOrWhiteSpace(_ifcProject.Text) &&
+                MessageBox.Show(this, "O IfcProject está sem nome. Exportar assim mesmo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+                return;
+            GravarNomes();
+
             if (!Localizacao.LocationCorreto)
             {
+                bool podeGravar = Localizacao.Erro == null;
                 MessageBoxResult r = MessageBox.Show(this,
                     Localizacao.TextoConferencia() + "\n\n" +
-                    "Sim: abrir a etapa Projeto e Local para corrigir.\nNão: exportar assim mesmo (a MetroSP grava no IfcSite a latitude/longitude do Project Base Point).\nCancelar: voltar.",
-                    Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Warning);
+                    (podeGravar ? "Sim: gravar a localização pelo Project Base Point e exportar.\n" : "") +
+                    (podeGravar ? "Não" : "OK") + ": exportar assim mesmo (a MetroSP grava no IfcSite a latitude/longitude do Project Base Point).\nCancelar: voltar.",
+                    Title, podeGravar ? MessageBoxButton.YesNoCancel : MessageBoxButton.OKCancel, MessageBoxImage.Warning);
                 if (r == MessageBoxResult.Cancel) return;
-                if (r == MessageBoxResult.Yes) { AbrirLocalizacao(); return; }
+                if (podeGravar && r == MessageBoxResult.Yes) GravarLocalizacao();
             }
 
             PropertySetsEscolhido = psets.Length > 0 ? psets : null;
@@ -864,23 +892,58 @@ namespace MetroSP.Ids
             else if (!l.LocationCorreto)
                 Theme.MudarSelo(_seloLocalizacao,
                     $"Location a {(l.Diferenca < 1000 ? l.Diferenca.ToString("0.00") + " m" : (l.Diferenca / 1000).ToString("0.0") + " km")} do Project Base Point",
-                    Theme.Estado.Aviso, $"Location atual: {ponto}. Use Projeto e Local... antes de exportar.");
+                    Theme.Estado.Aviso, $"Location atual: {ponto}. Clique em Gravar localização antes de exportar.");
             else
                 Theme.MudarSelo(_seloLocalizacao, $"Location conferido: {ponto}", Theme.Estado.Ok,
                     $"Confere com o Project Base Point.\nIfcSite: \"{l.SiteAtual}\"\nIfcBuilding: \"{l.EdificioAtual}\"");
-            Ifc.DadosEntidadeIfc pr = l.DadosAtuais.Projeto;
-            if (string.IsNullOrWhiteSpace(pr.Nome))
-                Theme.MudarSelo(_seloProjeto, "IfcProject sem nome", Theme.Estado.Aviso, "Preencha o IfcProject em Projeto e Local... (número do projeto nas Informações do projeto).");
-            else
-                Theme.MudarSelo(_seloProjeto, "IfcProject: " + pr.Nome, Theme.Estado.Ok,
-                    $"Nome longo: \"{pr.NomeLongo}\"\nFase: \"{pr.Fase}\"\nIfcSite: \"{l.SiteAtual}\" · IfcBuilding: \"{l.EdificioAtual}\"\n" +
-                    $"Pset {Ifc.DadosProjetoIfc.NomePset}: {l.DadosAtuais.Propriedades.Count} propriedade(s)");
+            _gravarLocal.IsEnabled = l.Erro == null && !l.LocationCorreto;
             AtualizarResumo();
         }
 
-        /// <summary>Abre a etapa Projeto e Local, grava no Revit e confere de novo.</summary>
+        /// <summary>Grava no Location a lat/long calculada pelo Project Base Point (os nomes ficam como estão no Revit) e confere de novo.</summary>
+        private void GravarLocalizacao()
+        {
+            LocalizacaoIfc l = LocalizacaoIfc.Calcular(_doc);
+            if (l.Erro != null) { MessageBox.Show(this, "Não foi possível calcular pelo Project Base Point: " + l.Erro, Title); return; }
+            LocalizacaoIfc.Escolha e = l.Atual();
+            e.Latitude = l.Latitude;
+            e.Longitude = l.Longitude;
+            Gravar(l, e);
+        }
+
+        /// <summary>Grava a escolha no Revit (com transação própria), guarda o que mudou e confere de novo.</summary>
+        private void Gravar(LocalizacaoIfc l, LocalizacaoIfc.Escolha e)
+        {
+            try
+            {
+                List<string> mudou = l.Aplicar(_doc, e);
+                AlteracoesLocalizacao.AddRange(mudou);
+                string aviso = mudou.FirstOrDefault(m => m.StartsWith("ATENÇÃO", StringComparison.Ordinal));
+                if (aviso != null) MessageBox.Show(this, aviso, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, "Não foi possível gravar no Revit:\n" + ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+            Localizacao = LocalizacaoIfc.Calcular(_doc);
+            MostrarLocalizacao();
+        }
+
+        /// <summary>Nomes digitados no IfcProject, IfcSite e IfcBuilding que diferem do Revit: grava antes de exportar.</summary>
+        private void GravarNomes()
+        {
+            LocalizacaoIfc l = LocalizacaoIfc.Calcular(_doc);
+            LocalizacaoIfc.Escolha e = l.Atual();
+            e.Dados.Projeto.Nome = _ifcProject.Text.Trim();
+            e.Dados.Terreno.Nome = _ifcSite.Text.Trim();
+            e.Dados.Edificio.Nome = _ifcBuilding.Text.Trim();
+            if (DadosProjetoRevit.Diferencas(l.DadosAtuais, e.Dados) > 0) Gravar(l, e);
+        }
+
+        /// <summary>"Mais dados...": abre a etapa completa (nome longo, descrição, endereço, Pset MetroSP_Projeto), grava e confere de novo.</summary>
         private void AbrirLocalizacao()
         {
+            GravarNomes();
             try
             {
                 List<string> mudou = LocalizacaoWindow.Executar(_doc, LocalizacaoIfc.Calcular(_doc), this, System.IntPtr.Zero);
@@ -894,6 +957,10 @@ namespace MetroSP.Ids
             }
             Localizacao = LocalizacaoIfc.Calcular(_doc);
             MostrarLocalizacao();
+            Ifc.DadosProjetoIfc d = Localizacao.DadosAtuais;
+            _ifcProject.Text = d.Projeto?.Nome ?? "";
+            _ifcSite.Text = d.Terreno?.Nome ?? "";
+            _ifcBuilding.Text = d.Edificio?.Nome ?? "";
         }
 
         private string TextoPsets() => (_psets.Text ?? string.Empty).Trim();
