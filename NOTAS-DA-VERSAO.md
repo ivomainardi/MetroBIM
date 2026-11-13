@@ -21,6 +21,11 @@ Revit 0.3.6 · Civil 3D 0.12.0
   instância), não é erro. Em Categorias IFC, a categoria sem classe na tabela só conta como "usada sem classe" se
   algum elemento dela não tiver a classe no tipo nem na instância. No Conferir entrega, quem sai como proxy por
   escolha no tipo ou na instância aparece só como informação, não como atenção.
+- Revit, Exportar IFC: o status de fase de cada elemento, na fase exportada, vai para o IFC em dois lugares: no
+  **Status** do Pset_&lt;Classe&gt;Common (NEW, EXISTING, DEMOLISH, TEMPORARY, nas classes que têm Status no IFC: paredes,
+  lajes, vigas, pilares, portas, janelas, escadas, rampas, coberturas, guarda-corpos, revestimentos, fundações e
+  proxies) e no **Estado** do Pset Metro (Novo, Existente, A demolir, Temporário), nas classes que têm o Pset Metro
+  no .txt de property sets. Só IFC4 e IFC 4.3. O resumo da exportação diz quantos elementos receberam cada um.
 
 ## 1.0.2 (12/11/2026)
 
