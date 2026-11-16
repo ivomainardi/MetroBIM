@@ -22,6 +22,8 @@ namespace MetroSP.Coordenacao
         private readonly TextBox _arquivo;
         private readonly TextBlock _info;
         private readonly StackPanel _perfis;
+        private readonly TextBlock _secaoPerfil;
+        private readonly Border _grupoPerfil;
         private readonly TextBlock _conteudo;
         private readonly CheckBox _gravarFamilias;
         private readonly CheckBox _dadosProjeto;
@@ -67,8 +69,10 @@ namespace MetroSP.Coordenacao
             _info.Margin = new Thickness(0, 4, 0, 0);
             corpo.Children.Add(_info);
 
-            corpo.Children.Add(Theme.Secao("Perfil"));
-            corpo.Children.Add(Theme.Grupo(out _perfis));
+            _secaoPerfil = Theme.Secao("Perfil");
+            corpo.Children.Add(_secaoPerfil);
+            _grupoPerfil = Theme.Grupo(out _perfis);
+            corpo.Children.Add(_grupoPerfil);
 
             corpo.Children.Add(Theme.Secao("O que entra"));
             _conteudo = new TextBlock { TextWrapping = TextWrapping.Wrap, LineHeight = 19 };
@@ -182,6 +186,10 @@ namespace MetroSP.Coordenacao
                 primeiro = false;
             }
             _perfilEscolhido = escolhido;
+            // Um perfil só: não há o que escolher.
+            Visibility vis = a.Perfis.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+            _secaoPerfil.Visibility = vis;
+            _grupoPerfil.Visibility = vis;
             _dadosProjeto.Visibility = a.Comum.DadosProjeto != null ? Visibility.Visible : Visibility.Collapsed;
             _entrega.Text = a.Comum.TemEntrega
                 ? "Para todos os perfis: " + string.Join(", ", new[] { a.Comum.Ids, a.Comum.PlanilhaClassificacao, a.Comum.MetroShared }.Where(x => x != null).Select(x => x.Nome))
@@ -220,6 +228,15 @@ namespace MetroSP.Coordenacao
             if (p.Elementos.Count > 0) l.Add($"• Classe IFC em {p.Elementos.Count} elemento(s) (só valem no modelo de origem)");
             if (p.PropertySets != null) l.Add("• Property sets (.txt)");
             if (p.Mapeamento != null) l.Add("• Mapeamento de parâmetros (.txt)");
+            if (p.Exportacao is OpcoesExportacao o)
+            {
+                var x = new List<string>();
+                if (o.Elementos != null) x.Add(o.SoVista ? $"só o visível na vista 3D \"{o.Elementos}\"" : "modelo inteiro");
+                if (o.NomeArquivo != null) x.Add(o.NomeArquivo == OpcoesExportacao.NomeDoModelo ? "arquivo com o nome do modelo" : $"arquivo \"{o.NomeArquivo}.ifc\"");
+                if (o.EpsgEmBranco.HasValue) x.Add(o.EpsgEmBranco.Value ? "EPSG em branco" : "EPSG do setup");
+                if (o.SempreEixos.HasValue) x.Add(o.SempreEixos.Value ? "sempre exportar os eixos" : "eixos pela vista e pela tabela");
+                if (x.Count > 0) l.Add("• Exportar IFC: " + string.Join(", ", x));
+            }
             if (l.Count == 0) l.Add("O perfil não traz ajustes.");
             return l;
         }

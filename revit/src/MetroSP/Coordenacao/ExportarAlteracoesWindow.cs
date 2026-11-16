@@ -12,35 +12,27 @@ using DB = Autodesk.Revit.DB;
 namespace MetroSP.Coordenacao
 {
     /// <summary>
-    /// Exportar alterações: grava tudo como está no modelo agora (setup e fase, categorias IFC, classes por família,
-    /// property sets, mapeamento e Projeto e Local) num arquivo .coord-metrosp, para outra pessoa abrir e usar.
-    /// O arquivo pode ter vários perfis; os que já estão no modelo continuam e o escolhido é atualizado com o estado atual.
-    /// Abre no contexto da API (grava no modelo).
+    /// Exportar alterações: salva tudo como está no modelo agora num arquivo .coord-metrosp para enviar ao projetista.
+    /// Um perfil escolhido de cada vez: ao salvar, ele fica igual ao modelo agora e os outros perfis do arquivo ficam
+    /// como estão. A lista mostra exatamente o que vai. Abre no contexto da API (o arquivo fica guardado no modelo).
     /// </summary>
     public class ExportarAlteracoesWindow : Window
     {
-        private class Entrada
-        {
-            public PerfilCoordenacao Perfil;
-            public bool Incluir = true;
-            /// <summary>true = montado agora, com o que está no modelo.</summary>
-            public bool Agora;
-        }
-
         private readonly DB.Document _doc;
         private readonly ArquivoCoordenacao _anterior;
-        private readonly List<Entrada> _entradas = new List<Entrada>();
+        /// <summary>Perfis do arquivo, na ordem (o primeiro é o padrão).</summary>
+        private readonly List<PerfilCoordenacao> _perfis = new List<PerfilCoordenacao>();
+        private readonly ComboBox _perfil;
         private readonly ComboBox _classe;
-        private readonly TextBox _nome;
+        private readonly Button _excluir;
+        private readonly TextBlock _frase;
         private readonly StackPanel _lista;
-        private readonly CheckBox _porElemento;
-        private readonly CheckBox _dadosProjeto;
-        private readonly CheckBox _entrega;
-        private readonly CheckBox _usarNoModelo;
+        private readonly CheckBox _porElemento = new CheckBox { VerticalAlignment = VerticalAlignment.Center };
         private readonly TextBox _revisao;
         private readonly TextBox _nota;
         private readonly TextBlock _resumo;
-        private string _padrao;
+        private readonly Conferencia.PacoteMetro _pacote = Conferencia.PacoteMetro.Abrir();
+        private PerfilCoordenacao _capturado;
         private string _erroCaptura;
         private bool _montando;
 
@@ -62,95 +54,49 @@ namespace MetroSP.Coordenacao
             _doc = doc;
             _anterior = CoordenacaoRevit.Ler(doc, out string perfilAtivo, out _);
             Title = "MetroSP - Exportar alterações";
-            Width = 720;
+            Width = 700;
             SizeToContent = SizeToContent.Height;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             ResizeMode = ResizeMode.CanResizeWithGrip;
 
             var corpo = new StackPanel();
 
-            // ---------- o que está no modelo agora ----------
-            corpo.Children.Add(Theme.Secao("Tudo como está agora"));
-            var linha = new Grid();
-            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            linha.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            var rotClasse = Theme.Rotulo("Classe");
-            linha.Children.Add(rotClasse);
-            _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3), ToolTip = "Classe MetroSP cujo setup e .txt entram no perfil (os mesmos que o Exportar IFC usa)." };
-            Grid.SetColumn(_classe, 1);
+            // ---------- perfil ----------
+            corpo.Children.Add(Theme.Secao("Perfil"));
+            var linha = new DockPanel();
+            var novo = new Button { Content = "+ Novo perfil", Margin = new Thickness(8, 0, 0, 0),
+                ToolTip = "Cria outro perfil no mesmo arquivo (ex.: \"Compatibilização · IFC 4\"), com o nome e a classe que você escolher." };
+            novo.Click += (s, e) => NovoPerfil();
+            DockPanel.SetDock(novo, Dock.Right);
+            linha.Children.Add(novo);
+            _classe = new ComboBox { Width = 110, Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(8, 0, 0, 0),
+                ToolTip = "Classe MetroSP do perfil: o setup e os .txt dela entram no arquivo (os mesmos que o Exportar IFC usa)." };
+            DockPanel.SetDock(_classe, Dock.Right);
             linha.Children.Add(_classe);
-            var rotNome = Theme.Rotulo("Perfil");
-            rotNome.Margin = new Thickness(16, 0, 10, 0);
-            Grid.SetColumn(rotNome, 2);
-            linha.Children.Add(rotNome);
-            _nome = new TextBox { VerticalContentAlignment = VerticalAlignment.Center,
-                ToolTip = "Nome do perfil (ex.: \"Entrega Metrô · IFC 4.3\"). Um perfil com o mesmo nome é substituído pelo estado atual." };
-            Grid.SetColumn(_nome, 3);
-            linha.Children.Add(_nome);
+            _perfil = new ComboBox { Padding = new Thickness(4, 3, 4, 3),
+                ToolTip = "Um arquivo pode ter vários perfis (jeitos de exportar). O escolhido aqui é o que recebe o estado atual do modelo." };
+            linha.Children.Add(_perfil);
             corpo.Children.Add(linha);
+            var linhaFrase = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+            _excluir = Theme.Link("Excluir perfil");
+            _excluir.ToolTip = "Tira este perfil do arquivo.";
+            _excluir.Click += (s, e) => ExcluirPerfil();
+            DockPanel.SetDock(_excluir, Dock.Right);
+            linhaFrase.Children.Add(_excluir);
+            _frase = Theme.Detalhe();
+            _frase.ToolTip = "O primeiro perfil é o que vale quando quem recebe não escolhe outro. " +
+                             "No Exportar IFC do projetista, a escolha de perfil só aparece quando o arquivo tem mais de um.";
+            linhaFrase.Children.Add(_frase);
+            corpo.Children.Add(linhaFrase);
 
-            // ---------- perfis ----------
-            corpo.Children.Add(Theme.Secao("Perfis que vão no arquivo"));
+            // ---------- o que vai ----------
+            corpo.Children.Add(Theme.Secao("O que vai no arquivo (lido do modelo agora)"));
             corpo.Children.Add(Theme.Grupo(out _lista));
-            var acoes = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-            var juntar = Theme.Link("Juntar perfis de outro arquivo...");
-            juntar.ToolTip = "Traz os perfis de outro .coord-metrosp para este arquivo (perfis com o mesmo nome são substituídos).";
-            juntar.Click += (s, e) => Juntar();
-            acoes.Children.Add(juntar);
-            corpo.Children.Add(acoes);
-
-            // ---------- o que vai junto ----------
-            corpo.Children.Add(Theme.Secao("O que vai junto"));
-            corpo.Children.Add(Theme.Detalhe("Setup do exportador e fase (pelo nome), categorias IFC, classes IFC dos tipos de família, property sets e mapeamento."));
-            _porElemento = new CheckBox
-            {
-                Content = "Classes IFC preenchidas em cada elemento (só valem neste modelo)",
-                Margin = new Thickness(0, 6, 0, 0),
-                ToolTip = "Leva também o \"Exportar para IFC como\", o tipo predefinido e o \"Exportar para IFC\" das instâncias, pelo UniqueId.\n" +
-                          "Só servem para quem exporta este mesmo modelo.",
-            };
-            _porElemento.Checked += (s, e) => Capturar();
-            _porElemento.Unchecked += (s, e) => Capturar();
-            corpo.Children.Add(_porElemento);
-            _dadosProjeto = new CheckBox
-            {
-                Content = "Projeto e Local (IfcProject, IfcSite, IfcBuilding e Pset MetroSP_Projeto)",
-                IsChecked = true,
-                Margin = new Thickness(0, 4, 0, 0),
-                ToolTip = "Os dados do botão Projeto e Local deste modelo. Quem abre o arquivo pode atualizar o modelo dele com eles.",
-            };
-            _dadosProjeto.Checked += (s, e) => AtualizarResumo();
-            _dadosProjeto.Unchecked += (s, e) => AtualizarResumo();
-            corpo.Children.Add(_dadosProjeto);
-            Conferencia.PacoteMetro pacote = Conferencia.PacoteMetro.Abrir();
-            var arquivosEntrega = new[] { pacote.Ids, pacote.Planilha, pacote.MetroShared }.Where(f => !string.IsNullOrWhiteSpace(f) && File.Exists(f)).ToList();
-            _entrega = new CheckBox
-            {
-                Content = "Arquivos da entrega: requisitos (.ids), planilha de classificação e MetroShared",
-                IsChecked = arquivosEntrega.Count > 0,
-                IsEnabled = arquivosEntrega.Count > 0,
-                Margin = new Thickness(0, 4, 0, 0),
-                ToolTip = arquivosEntrega.Count > 0
-                    ? "Vão dentro do arquivo (quem recebe não precisa de pasta compartilhada): " + string.Join(", ", arquivosEntrega.Select(Path.GetFileName)) + "."
-                    : "Nenhum arquivo da entrega em uso neste computador. Escolha em Painel MetroSP › Padrões do Metrô.",
-            };
-            ToolTipService.SetShowOnDisabled(_entrega, true);
-            _entrega.Checked += (s, e) => AtualizarResumo();
-            _entrega.Unchecked += (s, e) => AtualizarResumo();
-            corpo.Children.Add(_entrega);
-            _usarNoModelo = new CheckBox
-            {
-                Content = "Usar também neste modelo",
-                IsChecked = true,
-                Margin = new Thickness(0, 4, 0, 0),
-                ToolTip = "Guarda o arquivo neste modelo, como quem recebe faria. Assim o seu Exportar IFC usa o mesmo perfil.",
-            };
-            corpo.Children.Add(_usarNoModelo);
+            _porElemento.Checked += (s, e) => AtualizarResumo();
+            _porElemento.Unchecked += (s, e) => AtualizarResumo();
 
             // ---------- revisão ----------
-            corpo.Children.Add(Theme.Secao("Revisão e nota"));
+            corpo.Children.Add(Theme.Secao("Revisão"));
             var rev = new DockPanel();
             _revisao = new TextBox { Width = 50, Text = ((_anterior?.Revisao ?? 0) + 1).ToString(), VerticalContentAlignment = VerticalAlignment.Center,
                 ToolTip = "Número da revisão. Quem recebe vê a revisão em uso no Exportar IFC." };
@@ -168,139 +114,187 @@ namespace MetroSP.Coordenacao
             var salvar = new Button { Content = "Salvar arquivo...", IsDefault = true, Style = Theme.PrimaryButton };
             salvar.Click += (s, e) => Salvar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
-            Theme.Apply(this, "Exportar alterações", "Tudo como está no modelo agora, para outra pessoa abrir e usar", corpo, Theme.Rodape(_resumo, cancelar, salvar));
+            Theme.Apply(this, "Exportar alterações", "Salva tudo como está agora num arquivo para enviar ao projetista", corpo, Theme.Rodape(_resumo, cancelar, salvar));
 
-            // Perfis que já estão no modelo; o ativo é o que recebe o estado atual.
-            PerfilCoordenacao ativo = _anterior?.Perfil(perfilAtivo);
-            if (_anterior != null)
-                foreach (PerfilCoordenacao p in _anterior.Perfis) _entradas.Add(new Entrada { Perfil = p.Copia() });
-            _padrao = _anterior?.PerfilPadrao;
-            _porElemento.IsChecked = ativo?.Elementos.Count > 0;
-
-            _montando = true;
+            // Perfis que já estão no modelo (o ativo vem escolhido); sem nenhum, um perfil "Entrega Metrô" com a classe do modelo.
             List<ClassesIfc.Classe> classes = ClassesIfc.Listar();
             foreach (ClassesIfc.Classe c in classes) _classe.Items.Add(c.Nome);
-            string classe = ativo?.Classe ?? IfcExportSettings.Load().Classe ?? ClassesIfc.DoNomeDoModelo(doc.Title, classes).Classe?.Nome;
-            _classe.SelectedItem = _classe.Items.OfType<string>().FirstOrDefault(n => string.Equals(n, classe, StringComparison.CurrentCultureIgnoreCase));
-            _nome.Text = ativo?.Nome ?? "Entrega Metrô";
-            _montando = false;
-            _classe.SelectionChanged += (s, e) => Capturar();
-            string ultimoNome = _nome.Text;
-            _nome.LostFocus += (s, e) => { if (_nome.Text != ultimoNome) { ultimoNome = _nome.Text; Capturar(); } };
+            if (_anterior != null) _perfis.AddRange(_anterior.Perfil(null) is PerfilCoordenacao padrao
+                ? new[] { padrao }.Concat(_anterior.Perfis.Where(p => p != padrao)).Select(p => p.Copia()) : _anterior.Perfis.Select(p => p.Copia()));
+            if (_perfis.Count == 0)
+                _perfis.Add(new PerfilCoordenacao
+                {
+                    Nome = "Entrega Metrô",
+                    Classe = IfcExportSettings.Load().Classe ?? ClassesIfc.DoNomeDoModelo(doc.Title, classes).Classe?.Nome ?? classes.FirstOrDefault()?.Nome,
+                });
+            PerfilCoordenacao ativo = _perfis.FirstOrDefault(p => p.Nome == _anterior?.Perfil(perfilAtivo)?.Nome) ?? _perfis[0];
+            _porElemento.IsChecked = ativo.Elementos.Count > 0;
+            PreencherPerfis(ativo);
+            _perfil.SelectionChanged += (s, e) => { if (!_montando) Capturar(); };
+            _classe.SelectionChanged += (s, e) =>
+            {
+                if (_montando || !(_perfil.SelectedItem is PerfilCoordenacao p) || !(_classe.SelectedItem is string c)) return;
+                p.Classe = c;
+                Capturar();
+            };
             Capturar();
         }
 
-        /// <summary>Monta o perfil com o estado atual do modelo e põe na lista (no lugar do de mesmo nome).</summary>
+        private PerfilCoordenacao Escolhido => _perfil.SelectedItem as PerfilCoordenacao;
+
+        private void PreencherPerfis(PerfilCoordenacao escolher)
+        {
+            _montando = true;
+            _perfil.Items.Clear();
+            foreach (PerfilCoordenacao p in _perfis) _perfil.Items.Add(p);
+            _perfil.SelectedItem = escolher;
+            _montando = false;
+        }
+
+        /// <summary>Lê o modelo agora para o perfil escolhido (classe dele) e mostra o que vai.</summary>
         private void Capturar()
         {
-            if (_montando) return;
             _erroCaptura = null;
-            string nome = string.IsNullOrWhiteSpace(_nome.Text) ? "Entrega Metrô" : _nome.Text.Trim();
-            _entradas.RemoveAll(e => e.Agora);
-            if (_classe.SelectedItem is string classe)
+            _capturado = null;
+            PerfilCoordenacao p = Escolhido;
+            if (p == null) return;
+            _montando = true;
+            _classe.SelectedItem = _classe.Items.OfType<string>().FirstOrDefault(n => string.Equals(n, p.Classe, StringComparison.CurrentCultureIgnoreCase));
+            _montando = false;
+            if (p.Classe == null || !(_classe.SelectedItem is string))
+                _erroCaptura = "escolha a classe do perfil";
+            else
             {
                 try
                 {
                     Cursor = System.Windows.Input.Cursors.Wait;
-                    PerfilCoordenacao p = CoordenacaoRevit.Capturar(_doc, classe, nome, _porElemento.IsChecked == true);
-                    int i = _entradas.FindIndex(e => string.Equals(e.Perfil.Nome, nome, StringComparison.CurrentCultureIgnoreCase));
-                    var nova = new Entrada { Perfil = p, Agora = true };
-                    if (i >= 0) _entradas[i] = nova; else _entradas.Insert(0, nova);
+                    _capturado = CoordenacaoRevit.Capturar(_doc, p.Classe, p.Nome, porElemento: true);
                 }
                 catch (Exception ex) { _erroCaptura = ex.Message; }
                 finally { Cursor = null; }
             }
-            else _erroCaptura = "escolha a classe";
-            if (_padrao == null || !_entradas.Any(e => e.Perfil.Nome == _padrao)) _padrao = _entradas.FirstOrDefault()?.Perfil.Nome;
+            int outros = _perfis.Count - 1;
+            _frase.Text = "Ao salvar, este perfil fica igual ao modelo agora." +
+                          (outros == 1 ? " O outro perfil do arquivo fica como está." : outros > 1 ? $" Os outros {outros} perfis do arquivo ficam como estão." : "") +
+                          (_perfis.IndexOf(p) == 0 && outros > 0 ? " É o perfil padrão (o primeiro)." : "");
+            _excluir.Visibility = outros > 0 ? Visibility.Visible : Visibility.Collapsed;
             MostrarLista();
         }
 
         private void MostrarLista()
         {
             _lista.Children.Clear();
-            if (_entradas.Count == 0)
+            PerfilCoordenacao c = _capturado;
+            bool primeiro = true;
+            void Linha(string nome, string texto, UIElement extra = null, bool ok = true)
             {
-                _lista.Children.Add(new TextBlock { Text = "Nenhum perfil.", Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(10, 7, 10, 7) });
+                var marca = new TextBlock { Text = ok ? "✓" : "–", Width = 16, FontWeight = FontWeights.Bold,
+                    Foreground = Theme.Solid(ok ? Theme.Verde : Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
+                var conteudo = new DockPanel();
+                if (extra != null) { DockPanel.SetDock(extra, Dock.Right); conteudo.Children.Add(extra); }
+                conteudo.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = ok ? Theme.Solid(Theme.Preto) : Theme.Solid(Theme.Cinza) });
+                var linha = new DockPanel();
+                DockPanel.SetDock(marca, Dock.Left);
+                linha.Children.Add(marca);
+                linha.Children.Add(conteudo);
+                _lista.Children.Add(Theme.Item(nome, linha, null, null, primeiro: primeiro));
+                primeiro = false;
+            }
+
+            if (c == null)
+            {
+                Linha("Perfil", _erroCaptura ?? "", ok: false);
                 AtualizarResumo();
                 return;
             }
-            bool primeiro = true;
-            foreach (Entrada e in _entradas)
+            string setup = c.Exportador?["Name"]?.ToString();
+            Linha("Exportador", $"Setup {setup ?? c.Classe}" + (c.Esquema != null ? $" ({c.Esquema})" : "") +
+                                (c.Fase != null ? $", fase \"{c.Fase}\"" : ", fase padrão do exportador"));
+            OpcoesExportacao o = c.Exportacao ?? new OpcoesExportacao();
+            Linha("Elementos", (o.SoVista ? $"só o visível na vista 3D \"{o.Elementos}\"" : "modelo inteiro") + " · " +
+                               (o.NomeArquivo == null || o.NomeArquivo == OpcoesExportacao.NomeDoModelo ? "arquivo com o nome do modelo" : $"arquivo \"{o.NomeArquivo}.ifc\""));
+            Linha("Coordenadas", (o.EpsgEmBranco != false ? "EPSG em branco" : "EPSG do setup") + " · " +
+                                 (o.SempreEixos != false ? "sempre exportar os eixos" : "eixos pela vista e pela tabela"));
+            string cat = string.Join(" · ", c.Categorias.Select(t => $"tabela {t.Key} ({t.Value.Count} categorias, {t.Value.Count(l => !l.Exportar)} sem exportar)"));
+            Linha("Categorias IFC", cat.Length > 0 ? cat : "sem tabela salva: vale o padrão MetroSP de quem exporta", ok: cat.Length > 0);
+            Linha("Classes por família", c.Familias.Count > 0 ? $"{c.Familias.Count} tipo(s) com classe IFC preenchida" : "nenhum tipo com classe IFC preenchida", ok: c.Familias.Count > 0);
+            if (c.Elementos.Count > 0)
             {
-                Entrada esta = e;
-                var incluir = new CheckBox { Content = e.Perfil.Nome, IsChecked = e.Incluir, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center,
-                    ToolTip = string.Join("\n", AbrirAlteracoesWindow.Descrever(e.Perfil, _doc)) };
-                incluir.Checked += (s, a) => { esta.Incluir = true; AtualizarResumo(); };
-                incluir.Unchecked += (s, a) => { esta.Incluir = false; AtualizarResumo(); };
-                var chips = new StackPanel { Orientation = Orientation.Horizontal };
-                if (e.Agora) chips.Children.Add(Theme.Chip("agora", escuro: true));
-                if (e.Perfil.Esquema != null) chips.Children.Add(Theme.Chip(e.Perfil.Esquema));
-                chips.Children.Add(Theme.Chip(e.Perfil.Alteracoes + " ajustes", destaque: true));
-                var acoes = new StackPanel { Orientation = Orientation.Horizontal };
-                if (_entradas.Count > 1)
-                {
-                    if (e.Perfil.Nome == _padrao) acoes.Children.Add(new TextBlock { Text = "padrão", Foreground = Theme.Solid(Theme.Verde), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0),
-                        ToolTip = "Perfil que vale quando quem recebe não escolhe outro." });
-                    else
-                    {
-                        var padrao = Theme.Link("tornar padrão");
-                        padrao.Margin = new Thickness(0, 0, 10, 0);
-                        padrao.ToolTip = "Perfil que vale quando quem recebe não escolhe outro.";
-                        padrao.Click += (s, a) => { _padrao = esta.Perfil.Nome; MostrarLista(); };
-                        acoes.Children.Add(padrao);
-                    }
-                }
-                if (!e.Agora)
-                {
-                    var remover = Theme.Link("remover");
-                    remover.Click += (s, a) => { _entradas.Remove(esta); if (_padrao == esta.Perfil.Nome) _padrao = null; Capturar(); };
-                    acoes.Children.Add(remover);
-                }
-                _lista.Children.Add(Theme.Item("Classe " + (e.Perfil.Classe ?? "?"), incluir, chips, acoes, primeiro: primeiro));
-                primeiro = false;
+                _porElemento.ToolTip = "Leva também o \"Exportar para IFC como\", o tipo predefinido e o \"Exportar para IFC\" preenchidos nas instâncias, " +
+                                       "pelo UniqueId. Só valem para quem exportar este mesmo modelo.";
+                Linha("Por elemento", $"{c.Elementos.Count} elemento(s) com classe IFC na instância (só valem neste modelo)", _porElemento, ok: _porElemento.IsChecked == true);
             }
+            var txt = new List<string>();
+            if (c.PropertySets != null) txt.Add($"{c.Classe}.txt");
+            if (c.Mapeamento != null) txt.Add("mapeamento");
+            Linha("Property sets", txt.Count > 0 ? string.Join(" e ", txt) : "nenhum", ok: txt.Count > 0);
+            Linha("Projeto e Local", "IfcProject, IfcSite, IfcBuilding e Pset MetroSP_Projeto");
+            var entrega = new[] { _pacote.Ids, _pacote.Planilha, _pacote.MetroShared }.Where(f => !string.IsNullOrWhiteSpace(f) && File.Exists(f)).Select(Path.GetFileName).ToList();
+            Linha("Entrega", entrega.Count > 0 ? string.Join(", ", entrega) : "nenhum arquivo da entrega (.ids, planilha, MetroShared) em uso", ok: entrega.Count > 0);
+            bool regras = ClassesIfc.ArquivoDeRegras != null;
+            Linha("Nomenclatura", regras ? "regras de classe pelo nome do modelo" : "sem regras", ok: regras);
             AtualizarResumo();
         }
 
-        private List<PerfilCoordenacao> Incluidos() => _entradas.Where(e => e.Incluir).Select(e => e.Perfil).ToList();
-
         private void AtualizarResumo()
         {
-            var avisos = new List<string>();
-            if (_erroCaptura != null) avisos.Add(_erroCaptura);
-            List<PerfilCoordenacao> perfis = Incluidos();
-            if (perfis.Count == 0) avisos.Add("nenhum perfil marcado");
-            int n = perfis.Sum(p => p.Alteracoes) + (_dadosProjeto.IsChecked == true ? 1 : 0) + (_entrega?.IsChecked == true ? 1 : 0);
-            Theme.MudarResumo(_resumo, avisos, $"{perfis.Count} perfil(is) · {n} ajustes");
+            if (_capturado == null) Theme.MudarResumo(_resumo, new[] { _erroCaptura ?? "nada para salvar" }, "");
+            else Theme.MudarResumo(_resumo, null, $"Perfil \"{_capturado.Nome}\" pronto · rev. {_revisao?.Text}");
         }
 
-        private void Juntar()
+        private void NovoPerfil()
         {
-            var d = new OpenFileDialog { Title = "Juntar perfis de outro arquivo de coordenação", Filter = ArquivoCoordenacao.Filtro };
-            if (d.ShowDialog(this) != true) return;
-            try
+            var nome = new TextBox { VerticalContentAlignment = VerticalAlignment.Center, Text = "Compatibilização" };
+            var classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
+            foreach (object c in _classe.Items) classe.Items.Add(c);
+            classe.SelectedItem = Escolhido?.Classe != null ? _classe.Items.OfType<string>().FirstOrDefault(n => n == Escolhido.Classe) : null;
+            var corpo = new StackPanel();
+            corpo.Children.Add(Theme.Label("Nome do perfil"));
+            corpo.Children.Add(nome);
+            corpo.Children.Add(Theme.Label("Classe"));
+            corpo.Children.Add(classe);
+            var w = new Window { Title = "MetroSP - Novo perfil", Width = 380, SizeToContent = SizeToContent.Height, Owner = this,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.CanResizeWithGrip };
+            var ok = new Button { Content = "Criar", IsDefault = true, Style = Theme.PrimaryButton };
+            ok.Click += (s, e) =>
             {
-                ArquivoCoordenacao outro = ArquivoCoordenacao.Ler(d.FileName);
-                foreach (PerfilCoordenacao p in outro.Perfis)
-                {
-                    int i = _entradas.FindIndex(e => !e.Agora && string.Equals(e.Perfil.Nome, p.Nome, StringComparison.CurrentCultureIgnoreCase));
-                    if (_entradas.Any(e => e.Agora && string.Equals(e.Perfil.Nome, p.Nome, StringComparison.CurrentCultureIgnoreCase))) continue;   // o de agora vale
-                    if (i >= 0) _entradas[i] = new Entrada { Perfil = p }; else _entradas.Add(new Entrada { Perfil = p });
-                }
-                MostrarLista();
-            }
-            catch (Exception ex) { MessageBox.Show(this, ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning); }
+                string n = nome.Text.Trim();
+                if (n.Length == 0 || !(classe.SelectedItem is string)) { MessageBox.Show(w, "Indique o nome e a classe.", w.Title); return; }
+                if (_perfis.Any(p => string.Equals(p.Nome, n, StringComparison.CurrentCultureIgnoreCase))) { MessageBox.Show(w, "Já existe um perfil com esse nome.", w.Title); return; }
+                w.DialogResult = true;
+            };
+            Theme.Apply(w, "Novo perfil", "Outro jeito de exportar, no mesmo arquivo", corpo, Theme.Rodape(null, new Button { Content = "Cancelar", IsCancel = true }, ok));
+            nome.Loaded += (s, e) => { nome.Focus(); nome.SelectAll(); };
+            if (w.ShowDialog() != true) return;
+            var novo = new PerfilCoordenacao { Nome = nome.Text.Trim(), Classe = (string)classe.SelectedItem };
+            _perfis.Add(novo);
+            PreencherPerfis(novo);
+            Capturar();
+        }
+
+        private void ExcluirPerfil()
+        {
+            PerfilCoordenacao p = Escolhido;
+            if (p == null || _perfis.Count < 2) return;
+            if (MessageBox.Show(this, $"Tirar o perfil \"{p.Nome}\" do arquivo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            _perfis.Remove(p);
+            PreencherPerfis(_perfis[0]);
+            Capturar();
         }
 
         private void Salvar()
         {
-            List<PerfilCoordenacao> perfis = Incluidos();
-            if (perfis.Count == 0) { MessageBox.Show(this, "Marque pelo menos um perfil.", Title); return; }
+            PerfilCoordenacao p = _capturado;
+            if (p == null) { MessageBox.Show(this, "Não foi possível ler o perfil: " + _erroCaptura, Title); return; }
             if (!int.TryParse(_revisao.Text.Trim(), out int revisao) || revisao < 0)
             {
                 MessageBox.Show(this, "A revisão deve ser um número.", Title);
                 return;
             }
+            if (_porElemento.IsChecked != true) p.Elementos.Clear();
+            // O escolhido fica igual ao modelo agora; os outros ficam como estão; o primeiro é o padrão.
+            List<PerfilCoordenacao> perfis = _perfis.Select(x => x == Escolhido ? p : x).ToList();
             var a = new ArquivoCoordenacao
             {
                 Revisao = revisao,
@@ -309,17 +303,14 @@ namespace MetroSP.Coordenacao
                 Nota = string.IsNullOrWhiteSpace(_nota.Text) ? null : _nota.Text.Trim(),
                 ModeloOrigem = _doc.Title,
                 Perfis = perfis,
-                PerfilPadrao = perfis.Any(p => p.Nome == _padrao) ? _padrao : perfis[0].Nome,
+                PerfilPadrao = perfis[0].Nome,
             };
-            if (_dadosProjeto.IsChecked == true) a.Comum.DadosProjeto = CoordenacaoRevit.CapturarDadosProjeto(_doc);
-            if (_entrega.IsChecked == true)
-            {
-                Conferencia.PacoteMetro pacote = Conferencia.PacoteMetro.Abrir();
-                a.Comum.Ids = ArquivoEmbutido.De(pacote.Ids);
-                a.Comum.PlanilhaClassificacao = ArquivoEmbutido.De(pacote.Planilha);
-                a.Comum.MetroShared = ArquivoEmbutido.De(pacote.MetroShared);
-                if (a.Comum.PlanilhaClassificacao != null) a.Comum.ParametroClassificacao = pacote.ParametroClassificacao;
-            }
+            a.Comum.DadosProjeto = CoordenacaoRevit.CapturarDadosProjeto(_doc);
+            a.Comum.Nomenclatura = CoordenacaoRevit.CapturarNomenclatura();
+            a.Comum.Ids = ArquivoEmbutido.De(_pacote.Ids);
+            a.Comum.PlanilhaClassificacao = ArquivoEmbutido.De(_pacote.Planilha);
+            a.Comum.MetroShared = ArquivoEmbutido.De(_pacote.MetroShared);
+            if (a.Comum.PlanilhaClassificacao != null) a.Comum.ParametroClassificacao = _pacote.ParametroClassificacao;
 
             var d = new SaveFileDialog { Title = "Salvar arquivo de coordenação", Filter = ArquivoCoordenacao.Filtro, FileName = a.NomeSugerido(), DefaultExt = ArquivoCoordenacao.Extensao };
             try
@@ -336,20 +327,17 @@ namespace MetroSP.Coordenacao
                 return;
             }
 
-            string noModelo = "";
-            if (_usarNoModelo.IsChecked == true)
+            // O modelo do coordenador passa a usar o mesmo arquivo, no perfil que acabou de salvar.
+            string noModelo;
+            if (CoordenacaoRevit.Executar(_doc, "MetroSP: exportar alterações", () => CoordenacaoRevit.Gravar(_doc, a, p.Nome, Path.GetFileName(d.FileName)), out string erro))
             {
-                string perfil = perfis.Any(p => p.Nome == _nome.Text.Trim()) ? _nome.Text.Trim() : a.PerfilPadrao;
-                if (CoordenacaoRevit.Executar(_doc, "MetroSP: exportar alterações", () => CoordenacaoRevit.Gravar(_doc, a, perfil, Path.GetFileName(d.FileName)), out string erro))
-                {
-                    CoordenacaoRevit.Ativar(_doc);
-                    noModelo = $"\n\nEste modelo também passou a usar o perfil \"{a.Perfil(perfil).Nome}\".";
-                }
-                else noModelo = "\n\nNão foi possível guardar o arquivo neste modelo: " + erro;
+                CoordenacaoRevit.Ativar(_doc);
+                noModelo = $"\n\nEste modelo também usa o perfil \"{p.Nome}\".";
             }
-            MessageBox.Show(this, $"Arquivo salvo (rev. {a.Revisao}, {perfis.Count} perfil(is)):\n{d.FileName}\n\n" +
+            else noModelo = "\n\nNão foi possível guardar o arquivo neste modelo: " + erro;
+            MessageBox.Show(this, $"Arquivo salvo (rev. {a.Revisao}" + (perfis.Count > 1 ? $", {perfis.Count} perfis" : "") + $"):\n{d.FileName}\n\n" +
                 "Envie para o projetista por e-mail, pela pasta do Forma ou pela rede. Ele abre em Entrega passo a passo › Abrir alterações " +
-                "(ou no Exportar IFC), e o Exportar IFC passa a usar o perfil." + noModelo, Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                "(ou no Exportar IFC), e o Exportar IFC passa a usar tudo o que veio nele." + noModelo, Title, MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
         }
     }
