@@ -396,6 +396,21 @@ namespace MetroSP.Ids
         /// <summary>Se o nome do modelo indica uma classe (Nomenclatura.txt ou trecho do nome), ela é escolhida.</summary>
         private void ClasseDoNome()
         {
+            // Padrão escolhido para este modelo (aqui ou no passo Arquivos da Entrega) vale antes da regra do nome.
+            string guardado = _settings.PadraoDo(_doc.Title);
+            if (guardado != null)
+            {
+                object item = guardado == IfcExportSettings.SemPadrao ? Outros
+                    : (object)_classe.Items.OfType<ClassesIfc.Classe>().FirstOrDefault(x => string.Equals(x.Nome, guardado, StringComparison.CurrentCultureIgnoreCase));
+                if (item != null)
+                {
+                    _aplicandoClasse = true;
+                    _classe.SelectedItem = item;
+                    _aplicandoClasse = false;
+                    _motivoClasse = null;
+                    return;
+                }
+            }
             (ClassesIfc.Classe c, string motivo) = ClassesIfc.DoNomeDoModelo(_doc.Title, _classe.Items.OfType<ClassesIfc.Classe>().ToList());
             if (c == null) return;
             _aplicandoClasse = true;
@@ -921,6 +936,7 @@ namespace MetroSP.Ids
             NomeArquivo = nome;
 
             _settings.Classe = ClasseEscolhida?.Nome;
+            GuardarPadraoDoModelo();
             _settings.Setup = _setupGravado ?? Setup.Arquivo;
             _settings.PropertySets = psets;
             _settings.Mapeamento = mapeamento;
@@ -931,6 +947,14 @@ namespace MetroSP.Ids
             _settings.NomeArquivo = string.Equals(nome, NomePadrao(_doc), StringComparison.CurrentCultureIgnoreCase) ? Coordenacao.OpcoesExportacao.NomeDoModelo : nome;
             if (Embutida) { Confirmada?.Invoke(); return; }
             DialogResult = true;
+        }
+
+        /// <summary>O padrão escolhido fica valendo para este modelo (também no passo Arquivos da Entrega).</summary>
+        private void GuardarPadraoDoModelo()
+        {
+            ClassesIfc.Classe c = ClasseEscolhida;
+            if (c != null && ClassesIfc.Obter(c.Nome).DaCoordenacao) return;   // quem manda é o arquivo de coordenação
+            _settings.GuardarPadrao(_doc.Title, c?.Nome ?? IfcExportSettings.SemPadrao);
         }
 
         /// <summary>Confere as escolhas e exporta (o mesmo que o botão Exportar).</summary>
@@ -944,6 +968,7 @@ namespace MetroSP.Ids
         {
             GravarNomes();
             _settings.Classe = ClasseEscolhida?.Nome;
+            GuardarPadraoDoModelo();
             if (Setup != null) _settings.Setup = _setupGravado ?? Setup.Arquivo;
             _settings.PropertySets = TextoPsets();
             _settings.Mapeamento = _mapeamento.Text.Trim();

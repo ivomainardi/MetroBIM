@@ -180,7 +180,7 @@ namespace MetroSP
                     "Padroes"),
                 Dados<CoordenacaoCommand>("Arquivo de coordenação",
                     "Grava tudo o que você ajustou (setup e fase, categorias IFC, classes por família, property sets, mapeamento e Projeto e Local) " +
-                    "num arquivo .coord-metrosp, com um ou mais perfis, para enviar ao projetista. Ele abre o arquivo em Entrega passo a passo › " +
+                    "num arquivo .coord-metrosp, com um ou mais padrões, para enviar ao projetista. Ele abre o arquivo em Entrega passo a passo › " +
                     "Abrir alterações (ou no Exportar IFC), e o Exportar IFC passa a usar tudo o que veio nele.",
                     "Coordenacao"),
                 Dados<CategoriasIfcCommand>("Categorias IFC",

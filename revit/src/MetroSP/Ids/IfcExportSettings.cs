@@ -29,6 +29,25 @@ namespace MetroSP.Ids
         /// <summary>Nome do último .ifc, sem extensão; "{modelo}" quando era o nome do modelo.</summary>
         public string NomeArquivo { get; set; }
 
+        /// <summary>Padrão escolhido para cada modelo (pelo título do modelo).</summary>
+        private readonly Dictionary<string, string> _padroes = new Dictionary<string, string>(StringComparer.CurrentCultureIgnoreCase);
+        /// <summary>Marca de "nenhum padrão" escolhido para o modelo.</summary>
+        public const string SemPadrao = "-";
+        private const string PrefixoPadrao = "padrao:";
+        private readonly HashSet<string> _padroesMudados = new HashSet<string>(StringComparer.CurrentCultureIgnoreCase);
+
+        /// <summary>Padrão escolhido para o modelo (null = nenhum escolhido; <see cref="SemPadrao"/> = escolheu nenhum).</summary>
+        public string PadraoDo(string modelo) =>
+            !string.IsNullOrWhiteSpace(modelo) && _padroes.TryGetValue(modelo.Trim(), out string p) ? p : null;
+
+        public void GuardarPadrao(string modelo, string padrao)
+        {
+            if (string.IsNullOrWhiteSpace(modelo) || modelo.Contains("=")) return;
+            if (string.IsNullOrWhiteSpace(padrao)) _padroes.Remove(modelo.Trim());
+            else _padroes[modelo.Trim()] = padrao.Trim();
+            _padroesMudados.Add(modelo.Trim());
+        }
+
         public static IfcExportSettings Load()
         {
             var s = new IfcExportSettings();
@@ -49,6 +68,9 @@ namespace MetroSP.Ids
                 if (d.TryGetValue("vista", out string vista) && vista.Length > 0) s.Vista = vista;
                 if (d.TryGetValue("epsg", out string epsg)) s.EpsgEmBranco = epsg != "0";
                 if (d.TryGetValue("nome", out string nome) && nome.Length > 0) s.NomeArquivo = nome;
+                foreach (KeyValuePair<string, string> kv in d)
+                    if (kv.Key.StartsWith(PrefixoPadrao, StringComparison.Ordinal) && kv.Value.Length > 0)
+                        s._padroes[kv.Key.Substring(PrefixoPadrao.Length)] = kv.Value;
             }
             catch { /* configuração corrompida: usa padrão */ }
             return s;
@@ -59,6 +81,13 @@ namespace MetroSP.Ids
             try
             {
                 Directory.CreateDirectory(Path.GetDirectoryName(FilePath));
+                // Os padrões por modelo que outra janela gravou depois desta abrir continuam (só os mudados aqui são trocados).
+                var padroes = new Dictionary<string, string>(Load()._padroes, StringComparer.CurrentCultureIgnoreCase);
+                foreach (string m in _padroesMudados)
+                {
+                    if (_padroes.TryGetValue(m, out string p)) padroes[m] = p;
+                    else padroes.Remove(m);
+                }
                 File.WriteAllLines(FilePath, new[]
                 {
                     "classe=" + Classe,
@@ -70,7 +99,7 @@ namespace MetroSP.Ids
                     "vista=" + Vista,
                     "epsg=" + (EpsgEmBranco ? "1" : "0"),
                     "nome=" + NomeArquivo,
-                });
+                }.Concat(padroes.Select(kv => PrefixoPadrao + kv.Key + "=" + kv.Value)));
             }
             catch { /* não é crítico */ }
         }
