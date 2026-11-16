@@ -132,7 +132,11 @@ namespace MetroSP.Commands
             ids.Save();
             string r = $"{arquivos.Count} padrão(ões) Metrô (.ids) adicionado(s). Em uso: {Path.GetFileName(ultimo)}.";
             PacoteMetro pacote = PacoteMetro.Abrir();
-            if (pacote.Arquivo == null)
+            if (pacote.Coordenacao != null && MetroSP.Coordenacao.CoordenacaoRevit.Atual?.Ids != null)
+            {
+                r += $"\nO modelo aberto segue a {pacote.Coordenacao}, que tem o próprio .ids e vale na conferência.";
+            }
+            else if (pacote.Arquivo == null)
             {
                 pacote.Ids = ultimo;
                 pacote.SalvarComoAtual();

@@ -14,7 +14,8 @@ namespace MetroSP.Coordenacao
     /// <summary>
     /// Arquivo de coordenação (.coord-metrosp): tudo o que o coordenador BIM ajustou para a exportação IFC, num
     /// arquivo só, em JSON legível. Leva um ou mais perfis (cada um com o setup do exportador, a fase, as tabelas de
-    /// categorias, as classes por família, os property sets e o mapeamento) e os dados comuns (Projeto e Local).
+    /// categorias, as classes por família, os property sets e o mapeamento) e os dados comuns (Projeto e Local e os
+    /// arquivos da entrega: requisitos .ids, planilha de classificação e MetroShared, que antes iam no .metrosp).
     /// Quem recebe abre o arquivo: ele fica guardado no modelo e o Exportar IFC passa a usar o perfil escolhido.
     /// Não depende da API do Revit (o Civil 3D pode ler o mesmo envelope, com "programa": "Civil3D").
     /// </summary>
@@ -236,6 +237,29 @@ namespace MetroSP.Coordenacao
     {
         /// <summary>IfcProject, IfcSite, IfcBuilding e Pset MetroSP_Projeto (mesmo formato dos dados salvos em Projeto e Local).</summary>
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public JsonObject DadosProjeto { get; set; }
-        [JsonIgnore] public int Alteracoes => DadosProjeto != null ? 1 : 0;
+        /// <summary>Requisitos do Metrô (.ids), planilha de classificação e MetroShared: o que antes ia no pacote .metrosp.</summary>
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ArquivoEmbutido Ids { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ArquivoEmbutido PlanilhaClassificacao { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public string ParametroClassificacao { get; set; }
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] public ArquivoEmbutido MetroShared { get; set; }
+        [JsonIgnore] public int Alteracoes => (DadosProjeto != null ? 1 : 0) + (Ids != null ? 1 : 0) + (PlanilhaClassificacao != null ? 1 : 0) + (MetroShared != null ? 1 : 0);
+        [JsonIgnore] public bool TemEntrega => Ids != null || PlanilhaClassificacao != null || MetroShared != null;
+    }
+
+    /// <summary>Um arquivo levado dentro do .coord-metrosp: o nome e o conteúdo (base64, serve para .xlsx também).</summary>
+    public class ArquivoEmbutido
+    {
+        public string Nome { get; set; }
+        public string Conteudo { get; set; }
+
+        public static ArquivoEmbutido De(string arquivo) =>
+            string.IsNullOrWhiteSpace(arquivo) || !File.Exists(arquivo) ? null
+            : new ArquivoEmbutido { Nome = Path.GetFileName(arquivo), Conteudo = Convert.ToBase64String(File.ReadAllBytes(arquivo)) };
+
+        public byte[] Bytes()
+        {
+            try { return Convert.FromBase64String(Conteudo ?? ""); }
+            catch { return new byte[0]; }
+        }
     }
 }
