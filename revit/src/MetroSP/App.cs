@@ -200,7 +200,7 @@ namespace MetroSP
 
             AddButton<PadroesCommand>(panel, "Padrões",
                 "Adicionar, editar e excluir padrões: classificação, confronto, dados do projeto, corrigir escrita, setups, property sets e " +
-                "mapeamentos IFC, padrões Metrô (.ids) e pacote de entrega (.metrosp). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
+                "mapeamentos IFC, arquivo de coordenação (.coord-metrosp), padrões Metrô (.ids) e pacote de entrega (.metrosp). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
                 "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip.",
                 "Padroes");
 

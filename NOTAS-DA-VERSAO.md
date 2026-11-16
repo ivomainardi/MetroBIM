@@ -12,7 +12,9 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   - O tipo de cada arquivo é reconhecido pelo conteúdo e aparece numa conferência antes de gravar (novo, substitui o
     atual ou fica de fora). Um padrão substituído fica guardado na subpasta Anteriores.
   - Revit: classificação, confronto, dados do projeto, corrigir escrita, setups (.json), **property sets** e
-    mapeamentos (.txt) IFC, **padrões Metrô (.ids)** e **pacote de entrega (.metrosp)**. Os arquivos IFC abrem a janela
+    mapeamentos (.txt) IFC, **arquivo de coordenação (.coord-metrosp)**, **padrões Metrô (.ids)** e **pacote de entrega
+    (.metrosp)**. O arquivo de coordenação abre o Abrir alterações para escolher o perfil (é ele que aparece na faixa
+    laranja do Exportar IFC). Os arquivos IFC abrem a janela
     Arquivos IFC para indicar a classe; o .ids passa a ser o usado no Verificar IDS e na conferência; o .metrosp passa a
     ser o pacote em uso, sem sair do lugar.
   - Civil 3D: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC (mapeamento,

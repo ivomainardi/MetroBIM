@@ -15,7 +15,7 @@ using MetroSP.Padroes;
 namespace MetroSP.Commands
 {
     /// <summary>Todos os padrões salvos pelo plugin (classificação, confronto, arquivos IFC, padrões Metrô) e as planilhas que eles usam.</summary>
-    [Transaction(TransactionMode.ReadOnly)]
+    [Transaction(TransactionMode.Manual)]
     public class PadroesCommand : IExternalCommand
     {
         /// <summary>Pasta dos padrões Metrô (.ids) trazidos pelo Adicionar padrões.</summary>
@@ -79,6 +79,20 @@ namespace MetroSP.Commands
                     Reconhece = EhIds,
                     Trazer = (dono, arquivos) => TrazerIds(arquivos),
                     TrazerTexto = "copia e passa a ser o .ids em uso",
+                },
+                new TipoPadrao
+                {
+                    // Fica guardado no próprio modelo: abre a janela Abrir alterações para escolher o perfil.
+                    Id = "revit-coordenacao", Nome = "Arquivo de coordenação", Pasta = null, Filtro = "*" + Coordenacao.ArquivoCoordenacao.Extensao,
+                    Ferramenta = "Coordenação BIM › Arquivo de coordenação (o projetista abre em Entrega passo a passo › Abrir alterações)",
+                    Reconhece = f => f.EndsWith(Coordenacao.ArquivoCoordenacao.Extensao, StringComparison.OrdinalIgnoreCase),
+                    Trazer = (dono, arquivos) =>
+                    {
+                        if (doc == null) return "Arquivo de coordenação: abra o modelo antes, porque ele fica guardado no próprio modelo.";
+                        Coordenacao.AbrirAlteracoesWindow.Abrir(dono, doc, arquivos.Last());
+                        return null;
+                    },
+                    TrazerTexto = doc == null ? "precisa de um modelo aberto" : "abre Abrir alterações para escolher o perfil",
                 },
                 new TipoPadrao
                 {
