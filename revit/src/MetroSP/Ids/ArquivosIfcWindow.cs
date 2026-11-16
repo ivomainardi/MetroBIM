@@ -592,6 +592,19 @@ namespace MetroSP.Ids
             public TextBlock Situacao;
         }
 
+        /// <summary>Abre a conferência "Trazer arquivos" com estes arquivos assim que a janela aparece (vindo da janela Padrões).</summary>
+        public void TrazerAoAbrir(IEnumerable<string> arquivos)
+        {
+            List<string> lista = arquivos.ToList();
+            EventHandler ao = null;
+            ao = (s, e) =>
+            {
+                ContentRendered -= ao;
+                Dispatcher.BeginInvoke(new Action(() => Trazer(lista)));
+            };
+            ContentRendered += ao;
+        }
+
         private void Trazer(IEnumerable<string> arquivos)
         {
             List<string> lista = arquivos.Where(File.Exists).Distinct(StringComparer.OrdinalIgnoreCase).ToList();

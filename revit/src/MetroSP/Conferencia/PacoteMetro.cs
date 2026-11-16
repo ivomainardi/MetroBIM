@@ -45,6 +45,33 @@ namespace MetroSP.Conferencia
 
         public PacoteMetro Copia() => (PacoteMetro)MemberwiseClone();
 
+        /// <summary>Coordenação do modelo ativo cujos arquivos valem sobre os do pacote (null = nenhuma).</summary>
+        public string Coordenacao { get; private set; }
+
+        /// <summary>O pacote antes da coordenação entrar (é ele que fica salvo como o pacote do usuário).</summary>
+        private PacoteMetro _base;
+
+        /// <summary>
+        /// O arquivo de coordenação (.coord-metrosp) do modelo ativo vale sobre o pacote: o setup, os property sets e os
+        /// arquivos da entrega (.ids, planilha de classificação, MetroShared) que vieram nele substituem os daqui.
+        /// </summary>
+        private PacoteMetro ComCoordenacao()
+        {
+            MetroSP.Coordenacao.CoordenacaoRevit.Ativa a = MetroSP.Coordenacao.CoordenacaoRevit.Atual;
+            if (a == null) return this;
+            PacoteMetro c = Copia();
+            c._base = this;
+            c.Coordenacao = a.Titulo;
+            c.Nome = a.Titulo;
+            if (a.Setup != null) c.Setup = a.Setup;
+            if (a.PropertySets != null) c.PropertySets = a.PropertySets;
+            if (a.Ids != null) c.Ids = a.Ids;
+            if (a.Planilha != null) c.Planilha = a.Planilha;
+            if (a.MetroShared != null) c.MetroShared = a.MetroShared;
+            if (!string.IsNullOrWhiteSpace(a.Arquivo.Comum.ParametroClassificacao)) c.ParametroClassificacao = a.Arquivo.Comum.ParametroClassificacao;
+            return c;
+        }
+
         /// <summary>Texto que muda quando qualquer arquivo ou o nome muda (para saber se o pacote foi editado).</summary>
         public string Assinatura() =>
             string.Join("|", Nome, Ids, Setup, PropertySets, ClassesIfc, Planilha, MetroShared, ParametroClassificacao);
@@ -67,12 +94,19 @@ namespace MetroSP.Conferencia
                 p = d.Count > 0 ? DeIni(d, null) : DasOutrasFerramentas();
             }
             if (d.TryGetValue("vista", out string v)) p.SoVistaAtiva = v == "1";
-            return p;
+            return p.ComCoordenacao();
         }
 
         /// <summary>Lembra o pacote em uso (o arquivo .metrosp ou, sem ele, os caminhos).</summary>
         public void SalvarComoAtual()
         {
+            if (_base != null)
+            {
+                // Com coordenação, fica salvo o pacote de antes (a coordenação já está guardada no modelo).
+                _base.SoVistaAtiva = SoVistaAtiva;
+                _base.SalvarComoAtual();
+                return;
+            }
             var linhas = new List<string>();
             if (Arquivo != null) linhas.Add("pacote=" + Arquivo);
             else linhas.AddRange(ParaIni(null));

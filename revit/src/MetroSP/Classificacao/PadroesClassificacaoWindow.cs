@@ -70,11 +70,9 @@ namespace MetroSP.Classificacao
             Acao("Novo", "Cria um padrão vazio.", Novo);
             Acao("Duplicar", "Copia o padrão aberto com outro nome.", Duplicar);
             Acao("Excluir", "Apaga o padrão aberto deste computador (as planilhas não são apagadas).", Excluir);
-            Acao("Importar padrão...", "Abre um padrão (.json) recebido de outra pessoa e o guarda neste computador.", Importar);
-            Acao("Exportar padrão...", "Salva o padrão aberto num .json para levar a outra máquina ou mandar para a equipe.", Exportar);
             DockPanel.SetDock(acoes, Dock.Right);
             barra.Children.Add(acoes);
-            _lista = new ComboBox { MinWidth = 200 };
+            _lista = new ComboBox { MinWidth = 200, ToolTip = "Padrões salvos neste computador. Para trazer um padrão recebido ou levar para a equipe: Coordenação BIM › Padrões." };
             _lista.SelectionChanged += (s, e) => { if (!_preenchendo && _lista.SelectedItem is PadraoClassificacao p) Abrir(p); };
             barra.Children.Add(_lista);
 
@@ -375,42 +373,6 @@ namespace MetroSP.Classificacao
             _atual = null;
             if (_padroes.Count == 0) _padroes.Add(new PadraoClassificacao { Sistemas = { new SistemaClassificacao() } });
             PreencherLista(_padroes[0]);
-        }
-
-        private void Importar()
-        {
-            if (!PodeTrocar()) return;
-            var d = new Microsoft.Win32.OpenFileDialog { Title = "Importar padrão de classificação", Filter = "Padrão de classificação (*.json)|*.json" };
-            if (d.ShowDialog(this) != true) return;
-            try
-            {
-                PadraoClassificacao p = PadraoClassificacao.Ler(d.FileName);
-                p.Caminho = null;
-                if (_padroes.Any(x => string.Equals(x.Nome, p.Nome, StringComparison.CurrentCultureIgnoreCase)))
-                {
-                    if (MessageBox.Show(this, $"Já existe um padrão \"{p.Nome}\". Substituir?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-                        p.Nome = NomeLivre(p.Nome);
-                    else _padroes.RemoveAll(x => string.Equals(x.Nome, p.Nome, StringComparison.CurrentCultureIgnoreCase));
-                }
-                p.Salvar();
-                _padroes.Add(p);
-                _atual = null;
-                PreencherLista(p);
-                var semPlanilha = p.Sistemas.Where(s => !File.Exists(s.Planilha?.Arquivo)).Select(s => s.Nome).ToList();
-                if (semPlanilha.Count > 0)
-                    MessageBox.Show(this, "Padrão importado. Estas classificações apontam para uma planilha que não existe neste computador; " +
-                        "escolha a planilha de novo (as colunas indicadas são mantidas):\n\n• " + string.Join("\n• ", semPlanilha), Title);
-            }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível importar:\n" + ex.Message, Title); }
-        }
-
-        private void Exportar()
-        {
-            if (_atual == null) return;
-            var d = new Microsoft.Win32.SaveFileDialog { Title = "Exportar padrão de classificação", Filter = "Padrão de classificação (*.json)|*.json", FileName = _atual.Nome + ".json" };
-            if (d.ShowDialog(this) != true) return;
-            try { _atual.Exportar(d.FileName); }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível exportar:\n" + ex.Message, Title); }
         }
 
         private bool Salvar()
