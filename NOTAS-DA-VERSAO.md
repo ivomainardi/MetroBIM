@@ -4,8 +4,11 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## 1.0.6 (em preparação)
+## 1.0.5 (em preparação)
 
+Revit 0.3.8 · Civil 3D 0.12.1
+
+- Revit e Civil 3D, Ribbon, painel Entrega Metrô: os ícones e as dicas não têm mais os números 1, 2 e 3.
 - Revit e Civil 3D, **Padrões**: agora é o lugar para **subir novos padrões**. O botão ficou grande na Ribbon (Revit:
   Coordenação BIM › Padrões; Civil 3D: Configurar padrões › Padrões) e a janela ganhou **Adicionar padrões...** e uma
   área para arrastar os arquivos.

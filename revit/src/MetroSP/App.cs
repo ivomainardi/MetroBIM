@@ -38,7 +38,7 @@ namespace MetroSP
                 // A aba já existe (outro add-in MetroSP carregado). Seguimos usando ela.
             }
 
-            // Painéis na ordem do trabalho: entregar (passos 1 e 2), classificar, cuidar dos dados, manutenção e,
+            // Painéis na ordem do trabalho: entregar, classificar, cuidar dos dados, manutenção e,
             // por último, o que o coordenador BIM prepara uma vez. O Sobre abre pela logo, à direita da aba.
             CreateEntregaPanel(application);
             CreateAcompanharPanel(application);
@@ -96,15 +96,15 @@ namespace MetroSP
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega Metrô");
 
             AddButton<EntregaCommand>(panel, "Entrega\npasso a passo",
-                "Passo 1, por onde começar. Janela única da entrega: as etapas em cima, com setinhas, e embaixo o que falta em cada etapa, com os botões " +
+                "Por onde começar. Janela única da entrega: as etapas em cima, com setinhas, e embaixo o que falta em cada etapa, com os botões " +
                 "que resolvem e a ferramenta da etapa (Parâmetros, Categorias IFC, Editar em massa, Classificação, Local e Exportar IFC).",
                 "Passo1");
 
             // Projeto e Local não tem mais botão: fica no grupo Extras do Exportar IFC (IfcProject, IfcSite, IfcBuilding, localização).
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
-                "Passo 2. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
+                "Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
                 "computador ou no Autodesk Forma. No grupo Extras: Projeto e Local (IfcProject, IfcSite, IfcBuilding e localização).",
-                "Passo2");
+                "Passo3");
         }
 
         private static void CreateAcompanharPanel(UIControlledApplication application)

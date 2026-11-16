@@ -21,7 +21,7 @@ namespace MetroSP.Entrega
         /// <summary>Etapa pedida pelo Painel MetroSP (0 = a primeira com pendência).</summary>
         internal static int PassoPedido;
 
-        /// <summary>Passo 1: janela única da entrega.</summary>
+        /// <summary>Entrega passo a passo: janela única da entrega.</summary>
         [CommandMethod("MSP_ENTREGA", CommandFlags.Modal | CommandFlags.Redraw)]
         public void Entrega()
         {
