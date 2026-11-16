@@ -209,6 +209,7 @@ namespace MetroSP.Coordenacao
             }
             if (p.PropertySets != null) desejados[Path.Combine(FormaPaths.SubPropertySets, classe + ".txt")] = p.PropertySets;
             if (p.Mapeamento != null) desejados[Path.Combine(FormaPaths.SubMapeamentos, classe + ".txt")] = p.Mapeamento;
+            if (comum?.Nomenclatura != null) desejados[ClassesIfc.ArquivoNomenclatura] = comum.Nomenclatura;
             foreach (KeyValuePair<string, List<LinhaCategoria>> t in p.Categorias.Where(k => k.Value != null && k.Value.Count > 0))
             {
                 var linhas = t.Value.Select(l => new CategoriasIfc.Linha
@@ -294,6 +295,16 @@ namespace MetroSP.Coordenacao
             if (c.PropertySets != null && File.Exists(c.PropertySets)) p.PropertySets = File.ReadAllText(c.PropertySets);
             if (c.Mapeamento != null && File.Exists(c.Mapeamento)) p.Mapeamento = File.ReadAllText(c.Mapeamento);
 
+            // As outras escolhas do Exportar IFC: as da última exportação neste computador.
+            IfcExportSettings ultima = IfcExportSettings.Load();
+            p.Exportacao = new OpcoesExportacao
+            {
+                Elementos = ultima.Vista ?? OpcoesExportacao.ModeloInteiro,
+                NomeArquivo = ultima.NomeArquivo ?? OpcoesExportacao.NomeDoModelo,
+                EpsgEmBranco = ultima.EpsgEmBranco,
+                SempreEixos = ultima.SempreEixos,
+            };
+
             foreach (string esquema in new[] { CategoriasIfc.Ifc4, CategoriasIfc.Ifc4x3 })
             {
                 string arq = CategoriasIfc.Arquivo(esquema);
@@ -327,6 +338,13 @@ namespace MetroSP.Coordenacao
                 }
             }
             return p;
+        }
+
+        /// <summary>As regras de Nomenclatura em uso (classe pelo nome do modelo), ou null.</summary>
+        public static string CapturarNomenclatura()
+        {
+            try { string f = ClassesIfc.ArquivoDeRegras; return f != null ? File.ReadAllText(f) : null; }
+            catch { return null; }
         }
 
         /// <summary>Os dados de Projeto e Local do modelo, no formato dos dados salvos.</summary>
