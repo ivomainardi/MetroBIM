@@ -205,11 +205,14 @@ namespace MetroSP.Painel
             }
             if (!EscolherPacote(app, false)) return;
             _pacote.SoVistaAtiva = _soVista.IsChecked == true;
+            _pacote = _pacote.SemPadrao;
             _pacote.SalvarComoAtual();
-            _pacote.AplicarNasOutrasFerramentas();
+            // O padrão do modelo (o mesmo do Exportar IFC e do passo Arquivos) vale sobre o setup e os property sets.
+            PacoteMetro efetivo = _pacote.ComPadrao(doc);
+            efetivo.AplicarNasOutrasFerramentas();
 
             ResultadoConferencia r;
-            try { r = ConferirEntregaWindow.Executar(app, doc, _pacote); }
+            try { r = ConferirEntregaWindow.Executar(app, doc, efetivo); }
             catch (Exception ex)
             {
                 TaskDialog.Show("MetroSP", "Não foi possível conferir:\n" + ex.Message);
@@ -592,7 +595,7 @@ namespace MetroSP.Painel
                 case Correcao.ListarCompartilhados: return "Abrir Parâmetros";
                 case Correcao.ParametrosDeProjeto: return "Abrir Parâmetros";
                 case Correcao.CategoriasIfc: return "Categorias IFC";
-                case Correcao.EditarPacote: return "Escolher padrões";
+                case Correcao.EditarPacote: return "Escolher arquivos";
                 case Correcao.EditarEmMassa: return "Editar em massa";
                 default: return null;
             }

@@ -33,6 +33,8 @@ namespace MetroSP.Painel
         private readonly UIApplication _app;
         private readonly DB.Document _doc;
         private PacoteMetro _pacote;
+        /// <summary>O pacote com o padrão do modelo aplicado (o que a conferência usou).</summary>
+        private PacoteMetro _efetivo;
         private ResultadoConferencia _res;
         private (Sinal Sinal, string Texto) _local;
         private int _passo;
@@ -51,6 +53,7 @@ namespace MetroSP.Painel
         private bool _trocando;
         private Ids.IfcExportSettings _settingsIfc;
         private string _resultadoForma;
+        private bool _formaSincronizado;
 
         /// <summary>Confere o modelo ativo e abre a janela. Chamar no contexto da API (comando ou ExternalEvent).</summary>
         /// <param name="passo">Passo para abrir (0 = o primeiro com pendência).</param>
@@ -90,11 +93,11 @@ namespace MetroSP.Painel
             marca.Inlines.Add(new System.Windows.Documents.Run("MetroSP") { Foreground = Theme.Solid(Theme.Laranja), FontWeight = FontWeights.SemiBold });
             marca.Inlines.Add(new System.Windows.Documents.Run(" · Entrega · " + doc.Title));
             _escopo = new TextBlock { Foreground = Theme.Solid(Color.FromRgb(0xBB, 0xBB, 0xBB)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
-            var trocar = BotaoEscuro("Padrões...", "Escolher os padrões do Metrô (arquivo .metrosp ou os arquivos um a um).");
+            var trocar = BotaoEscuro("Arquivos...", "Escolher os arquivos do Metrô (pacote .metrosp ou os arquivos um a um).");
             trocar.Click += (s, e) => EscolherPacote(true);
             var conferir = BotaoEscuro("⟳ Conferir", "Confere o modelo de novo e atualiza as etapas.");
             conferir.Click += (s, e) => { if (FecharFerramenta()) Conferir(); };
-            _perfil = BotaoEscuro("", "Perfil do arquivo de coordenação em uso neste modelo. Clique para trocar (fica gravado no modelo).");
+            _perfil = BotaoEscuro("", "Padrão do arquivo de coordenação em uso neste modelo. Clique para trocar (fica gravado no modelo).");
             _perfil.Click += (s, e) => Coordenacao.MenuPerfis.Abrir(_perfil, _doc, CoordenacaoMudou);
             var direita = new StackPanel { Orientation = Orientation.Horizontal };
             direita.Children.Add(_perfil);
@@ -144,11 +147,11 @@ namespace MetroSP.Painel
             // Arquivo de coordenação: levar tudo como está para outra pessoa, ou usar o que alguém mandou.
             var exportarAlteracoes = Pilula("⇪ Exportar alterações...");
             exportarAlteracoes.ToolTip = "Grava tudo como está agora (setup e fase, categorias IFC, classes por família, property sets, mapeamento " +
-                                         "e Projeto e Local) num arquivo .coord-metrosp, com um ou mais perfis, para outra pessoa abrir e usar.";
+                                         "e Projeto e Local) num arquivo .coord-metrosp, com um ou mais padrões, para outra pessoa abrir e usar.";
             exportarAlteracoes.Margin = new Thickness(8, 0, 0, 0);
             exportarAlteracoes.Click += (s, e) => { if (FecharFerramenta() && Coordenacao.ExportarAlteracoesWindow.Abrir(this, _doc)) CoordenacaoMudou(); };
             var abrirAlteracoes = Pilula("Abrir alterações...");
-            abrirAlteracoes.ToolTip = "Abre o arquivo .coord-metrosp que o coordenador BIM enviou e escolhe o perfil: o Exportar IFC passa a usar tudo o que veio nele.";
+            abrirAlteracoes.ToolTip = "Abre o arquivo .coord-metrosp que o coordenador BIM enviou e escolhe o padrão: o Exportar IFC passa a usar tudo o que veio nele.";
             abrirAlteracoes.Margin = new Thickness(8, 0, 0, 0);
             abrirAlteracoes.Click += (s, e) => { if (FecharFerramenta() && Coordenacao.AbrirAlteracoesWindow.Abrir(this, _doc)) CoordenacaoMudou(); };
             var esquerdaRodape = new StackPanel { Orientation = Orientation.Horizontal };
@@ -215,13 +218,16 @@ namespace MetroSP.Painel
         private bool Conferir(bool primeira = false)
         {
             if (!EscolherPacote(false)) return false;
+            _pacote = _pacote.SemPadrao;
             _pacote.SalvarComoAtual();
-            _pacote.AplicarNasOutrasFerramentas();
+            // O padrão do modelo (o mesmo do Exportar IFC) vale sobre o setup e os property sets do pacote.
+            _efetivo = _pacote.ComPadrao(_doc);
+            _efetivo.AplicarNasOutrasFerramentas();
             ResultadoConferencia r;
             try
             {
                 Cursor = Cursors.Wait;
-                r = ConferirEntregaWindow.Executar(_app, _doc, _pacote);
+                r = ConferirEntregaWindow.Executar(_app, _doc, _efetivo);
             }
             catch (Exception ex)
             {
@@ -504,7 +510,7 @@ namespace MetroSP.Painel
                     () => { if (FecharFerramenta() && AcoesPendencia.VincularCategoria(_doc, p.Assunto, p.Categoria)) Conferir(); });
             if (p.Correcao == Correcao.EditarPropertySets)
                 yield return ("Ajustar o .txt", "Abre o .txt de property sets dos padrões para trocar o tipo ou o parâmetro; ao salvar, confere de novo.",
-                    () => { if (FecharFerramenta() && AcoesPendencia.EditarPropertySets(_doc, _pacote, this, IntPtr.Zero)) Conferir(); });
+                    () => { if (FecharFerramenta() && AcoesPendencia.EditarPropertySets(_doc, _efetivo ?? _pacote, this, IntPtr.Zero)) Conferir(); });
             if (etapa.Numero == 3 && p.Elementos.Count > 0)
                 yield return ("Escolher classe...", "Escolhe a classe IFC desses elementos e grava no \"Exportar para IFC como\" dos tipos.",
                     () => { if (FecharFerramenta()) AcoesPendencia.EscolherClasse(_doc, _res, p, this, IntPtr.Zero, () => Conferir()); });
@@ -559,10 +565,11 @@ namespace MetroSP.Painel
                 case PassoLocal:
                 {
                     // A mesma janela do Exportar IFC da Ribbon, embutida: o Exportar dela exporta daqui.
-                    if (_settingsIfc == null)
+                    if (_settingsIfc == null) _settingsIfc = Ids.IfcExportSettings.Load();
+                    if (!_formaSincronizado)
                     {
-                        _settingsIfc = Ids.IfcExportSettings.Load();
                         _resultadoForma = ExportarIfcCommand.SincronizarForma();
+                        _formaSincronizado = true;
                     }
                     var w = new Ids.ExportarIfcWindow(_doc, _settingsIfc, _resultadoForma, embutida: true);
                     w.Confirmada += () => ExportarDaqui(w);
@@ -640,10 +647,18 @@ namespace MetroSP.Painel
 
         private UIElement PainelArquivos()
         {
+            PacoteMetro pacote = _efetivo ?? _pacote;
             var p = new StackPanel { Margin = new Thickness(4) };
-            p.Children.Add(new TextBlock { Text = "Padrões do Metrô em uso", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+
+            // ---- padrão: a configuração inteira (setup, property sets e mapeamento), a mesma do Exportar IFC
+            p.Children.Add(new TextBlock { Text = "Padrão", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
+            p.Children.Add(SeletorPadrao(pacote));
+
+            // ---- arquivos do Metrô (pacote)
+            p.Children.Add(new TextBlock { Text = "Arquivos do Metrô", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 4) });
             p.Children.Add(new TextBlock { Text = _pacote.NomeExibido, FontSize = 13, Margin = new Thickness(0, 0, 0, 10) });
-            void Arquivo(string rotulo, string caminho)
+            string doPadrao = pacote.Padrao == null ? null : "do padrão " + pacote.Padrao.Padrao.Nome;
+            void Arquivo(string rotulo, string caminho, string origem = null)
             {
                 bool existe = PacoteMetro.Existe(caminho);
                 var l = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
@@ -652,25 +667,120 @@ namespace MetroSP.Painel
                 l.Children.Add(r);
                 l.Children.Add(new TextBlock
                 {
-                    Text = string.IsNullOrEmpty(caminho) ? "não escolhido" : System.IO.Path.GetFileName(caminho) + (existe ? "" : " (não encontrado)"),
+                    Text = (string.IsNullOrEmpty(caminho) ? "não escolhido" : System.IO.Path.GetFileName(caminho) + (existe ? "" : " (não encontrado)")) +
+                           (origem != null && existe ? "  ·  " + origem : ""),
                     ToolTip = caminho,
                     Foreground = Theme.Solid(existe ? Theme.Preto : Vermelho),
                     TextTrimming = TextTrimming.CharacterEllipsis,
                 });
                 p.Children.Add(l);
             }
-            Arquivo("Property sets (.txt)", _pacote.PropertySets);
-            Arquivo("Requisitos (.ids)", _pacote.Ids);
-            Arquivo("Setup de exportação (.json)", _pacote.Setup);
-            Arquivo("Classes IFC", _pacote.ClassesIfc);
-            Arquivo("Planilha de classificação", _pacote.Planilha);
-            Arquivo("MetroShared (.txt)", _pacote.MetroShared);
-            var b = Pilula("Escolher padrões...", primario: true);
+            Arquivo("Property sets (.txt)", pacote.PropertySets, pacote.PropertySets != _pacote.PropertySets ? doPadrao : null);
+            Arquivo("Requisitos (.ids)", pacote.Ids);
+            Arquivo("Setup de exportação (.json)", pacote.Setup, pacote.Setup != _pacote.Setup ? doPadrao : null);
+            Arquivo("Classes IFC", pacote.ClassesIfc);
+            Arquivo("Planilha de classificação", pacote.Planilha);
+            Arquivo("MetroShared (.txt)", pacote.MetroShared);
+            var b = Pilula("Escolher arquivos...", primario: true);
             b.HorizontalAlignment = HorizontalAlignment.Left;
             b.Margin = new Thickness(0, 14, 0, 0);
+            b.ToolTip = "Escolher o pacote .metrosp ou os arquivos um a um. O setup e os property sets do padrão valem sobre os daqui.";
             b.Click += (s, e) => EscolherPacote(true);
             p.Children.Add(b);
             return p;
+        }
+
+        private class OpcaoPadrao
+        {
+            public string Texto { get; set; }
+            /// <summary>Padrão deste computador (null = nenhum).</summary>
+            public string Padrao { get; set; }
+            /// <summary>Padrão do arquivo de coordenação (troca o padrão em uso no modelo).</summary>
+            public string DaCoordenacao { get; set; }
+            public override string ToString() => Texto;
+        }
+
+        /// <summary>
+        /// Escolha do padrão do modelo. Com arquivo de coordenação, a lista mostra os padrões dele (quem manda é o arquivo);
+        /// sem ele, os padrões deste computador e "Nenhum" (valem os arquivos abaixo). A escolha vale também no Exportar IFC.
+        /// </summary>
+        private FrameworkElement SeletorPadrao(PacoteMetro pacote)
+        {
+            var linha = new DockPanel();
+            var combo = new System.Windows.Controls.ComboBox { Width = 280, Padding = new Thickness(4, 3, 4, 3), HorizontalAlignment = HorizontalAlignment.Left };
+            Border selo = Theme.Selo();
+            selo.Margin = new Thickness(10, 0, 0, 0);
+            selo.VerticalAlignment = VerticalAlignment.Center;
+            var editar = Theme.Link("Editar padrões...");
+            editar.Margin = new Thickness(12, 0, 0, 0);
+            editar.VerticalAlignment = VerticalAlignment.Center;
+            editar.ToolTip = "Abre os padrões de exportação IFC: o setup, os property sets e o mapeamento de cada padrão.";
+            editar.Click += (s, e) =>
+            {
+                var w = new Ids.ArquivosIfcWindow(_doc, pacote.Padrao?.Padrao.Nome) { Owner = this };
+                w.ShowDialog();
+                if (w.Mudou && FecharFerramenta()) Conferir();
+            };
+            DockPanel.SetDock(combo, Dock.Left);
+            DockPanel.SetDock(selo, Dock.Left);
+            linha.Children.Add(combo);
+            linha.Children.Add(selo);
+            linha.Children.Add(editar);
+
+            Coordenacao.CoordenacaoRevit.Ativa c = Coordenacao.CoordenacaoRevit.De(_doc);
+            if (c != null)
+            {
+                foreach (Coordenacao.PerfilCoordenacao pf in c.Arquivo.Perfis)
+                {
+                    var o = new OpcaoPadrao { Texto = pf.Nome + (pf.Classe != null && pf.Classe != pf.Nome ? "  (base " + pf.Classe + ")" : ""), DaCoordenacao = pf.Nome };
+                    combo.Items.Add(o);
+                    if (pf.Nome == c.Perfil.Nome) combo.SelectedItem = o;
+                }
+                combo.IsEnabled = c.Arquivo.Perfis.Count > 1;
+                combo.ToolTip = "Padrões do arquivo de coordenação (rev. " + c.Arquivo.Revisao + "). Cada um traz o setup, os property sets, as categorias e os ajustes " +
+                                "que o coordenador preparou. Para usar um padrão deste computador, tire o arquivo de coordenação (Abrir alterações › não usar).";
+                Theme.MudarSelo(selo, "do arquivo de coordenação", Theme.Estado.Neutro, c.Resumo);
+            }
+            else
+            {
+                List<Ids.ClassesIfc.Classe> padroes;
+                try { padroes = Ids.ClassesIfc.Listar(); }
+                catch { padroes = new List<Ids.ClassesIfc.Classe>(); }
+                var nenhum = new OpcaoPadrao { Texto = "Nenhum (valem os arquivos abaixo)" };
+                foreach (Ids.ClassesIfc.Classe pd in padroes)
+                {
+                    var o = new OpcaoPadrao { Texto = pd.ToString(), Padrao = pd.Nome };
+                    combo.Items.Add(o);
+                    if (pacote.Padrao != null && string.Equals(pacote.Padrao.Padrao.Nome, pd.Nome, StringComparison.CurrentCultureIgnoreCase)) combo.SelectedItem = o;
+                }
+                combo.Items.Add(nenhum);
+                if (combo.SelectedItem == null) combo.SelectedItem = nenhum;
+                combo.ToolTip = "Padrão de exportação deste modelo: carrega o setup, os property sets e o mapeamento dele de uma vez. " +
+                                "Vale na conferência e no Exportar IFC.";
+                if (pacote.Padrao != null) Theme.MudarSelo(selo, pacote.Padrao.Motivo, Theme.Estado.Neutro);
+                else selo.Visibility = Visibility.Collapsed;
+            }
+
+            combo.SelectionChanged += (s, e) =>
+            {
+                if (!(combo.SelectedItem is OpcaoPadrao o)) return;
+                if (o.DaCoordenacao != null)
+                {
+                    if (o.DaCoordenacao == c.Perfil.Nome) return;
+                    if (!Coordenacao.CoordenacaoRevit.TrocarPerfil(_doc, o.DaCoordenacao, out string erro))
+                    {
+                        TaskDialog.Show("MetroSP", "Não foi possível trocar o padrão: " + erro);
+                        return;
+                    }
+                    if (FecharFerramenta()) CoordenacaoMudou();
+                    return;
+                }
+                if (string.Equals(o.Padrao, pacote.Padrao?.Padrao.Nome, StringComparison.CurrentCultureIgnoreCase)) return;
+                Ids.PadraoDoModelo.Guardar(_doc, o.Padrao);
+                _settingsIfc = null;   // o passo Exportar relê a escolha
+                if (FecharFerramenta()) Conferir();
+            };
+            return linha;
         }
 
         /// <summary>Exporta com o que foi escolhido no passo Exportar e, na volta, confere o projeto e o local de novo.</summary>

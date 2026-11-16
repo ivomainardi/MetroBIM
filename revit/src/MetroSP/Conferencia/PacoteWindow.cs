@@ -24,7 +24,7 @@ namespace MetroSP.Conferencia
 
         public PacoteWindow(PacoteMetro atual, string pastaInicial)
         {
-            Title = "MetroSP - Padrões do Metrô";
+            Title = "MetroSP - Arquivos do Metrô";
             Width = 720;
             SizeToContent = SizeToContent.Height;
             ResizeMode = ResizeMode.CanResizeWithGrip;
@@ -120,7 +120,7 @@ namespace MetroSP.Conferencia
             _excluir.Margin = new Thickness(8, 0, 0, 0);
             rodape.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { _excluir } });
 
-            Theme.Apply(this, "Padrões do Metrô", "Os arquivos que o Metrô pede para a entrega", painel, rodape);
+            Theme.Apply(this, "Arquivos do Metrô", "Os arquivos que o Metrô pede para a entrega", painel, rodape);
         }
 
         private void AtualizarOrigem()

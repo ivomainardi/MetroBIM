@@ -4,6 +4,17 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.7 (em preparação)
+
+- Revit, **Entrega passo a passo**, passo 1 **Arquivos**: no topo, a escolha do **Padrão** do modelo. O padrão carrega de
+  uma vez o setup, os property sets e o mapeamento, vale na conferência e no Exportar IFC (o mesmo dos dois lados) e
+  fica guardado para cada modelo. Com arquivo de coordenação, a lista mostra os padrões que vieram nele.
+- Revit, um nome só: **Padrão** é a configuração que se escolhe para exportar. Os "perfis" do arquivo de coordenação
+  passaram a se chamar padrões (Exportar alterações, Abrir alterações e a faixa da coordenação), e a classe de cada um
+  virou a **base** (o padrão deste computador de onde saem o setup e os .txt).
+- Revit: o pacote .metrosp e os arquivos um a um passam a se chamar **Arquivos do Metrô** (botão Arquivos... na Entrega e
+  na Conferência), para não confundir com o padrão.
+
 ## 1.0.6 (16/11/2026)
 
 Revit 0.3.9 · Civil 3D 0.12.2

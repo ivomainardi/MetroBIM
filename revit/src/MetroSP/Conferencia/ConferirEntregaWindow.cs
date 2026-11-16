@@ -90,7 +90,7 @@ namespace MetroSP.Conferencia
             };
             var barraDock = new DockPanel();
             var botoesBarra = new StackPanel { Orientation = Orientation.Horizontal };
-            var trocar = new Button { Content = "Padrões...", ToolTip = "Abrir ou editar os padrões do Metrô (IDS, setup, psets, planilha, MetroShared)." };
+            var trocar = new Button { Content = "Arquivos...", ToolTip = "Abrir ou editar os arquivos do Metrô (IDS, setup, psets, planilha, MetroShared)." };
             _escopo = new System.Windows.Controls.ComboBox { Width = 150, Margin = new Thickness(8, 0, 0, 0), VerticalContentAlignment = VerticalAlignment.Center };
             _escopo.Items.Add("Modelo inteiro");
             _escopo.Items.Add("Só a vista ativa");
@@ -195,7 +195,7 @@ namespace MetroSP.Conferencia
             var chave = _celula != null ? (_celula.Categoria, _celula.Campo) : default;
             _res = res;
             _celula = _celula != null && res.Matriz.TryGetValue(chave, out CelulaMatriz mesma) && mesma.TemPendencia ? mesma : null;
-            _pacoteNome.Text = "Padrões: " + _pacote.NomeExibido;
+            _pacoteNome.Text = "Arquivos: " + _pacote.NomeExibido;
             _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos nos padrões" + (res.ForaDoPadrao > 0 ? $" (+{res.ForaDoPadrao} fora, na etapa 3)" : "") +
                                $" ({res.Escopo}) · conferido às {res.Quando:HH:mm}";
             _pacoteInfo.ToolTip = _pacote.Arquivo;
@@ -721,7 +721,7 @@ namespace MetroSP.Conferencia
             string texto, dica;
             switch (c)
             {
-                case Correcao.EditarPacote: texto = "Editar os padrões..."; dica = "Escolher os arquivos do Metrô."; break;
+                case Correcao.EditarPacote: texto = "Escolher arquivos..."; dica = "Escolher os arquivos do Metrô."; break;
                 case Correcao.ParametrosDeProjeto: texto = "Parâmetros de projeto..."; dica = "Abre a janela Parâmetros de projeto do Revit para vincular o parâmetro às categorias. Depois clique em Conferir de novo."; break;
                 case Correcao.ListarCompartilhados: texto = "Parâmetros..."; dica = "Abre a lista de parâmetros compartilhados com a coluna Padrão (MetroShared)."; break;
                 case Correcao.AplicarClassificacao: texto = "Aplicar Classificação..."; dica = "Seleciona os elementos e abre o Aplicar Classificação com a planilha dos padrões."; break;

@@ -72,6 +72,38 @@ namespace MetroSP.Conferencia
             return c;
         }
 
+        /// <summary>Padrão de exportação que vale para o modelo (null = nenhum: valem os arquivos do pacote).</summary>
+        public MetroSP.Ids.PadraoDoModelo.Escolha Padrao { get; private set; }
+
+        /// <summary>
+        /// O padrão do modelo (o mesmo do Exportar IFC) vale sobre o setup e os property sets do pacote. Com arquivo de
+        /// coordenação, ela já trouxe os arquivos do perfil e o pacote fica como está. Chamar no contexto da API.
+        /// </summary>
+        public PacoteMetro ComPadrao(Autodesk.Revit.DB.Document doc)
+        {
+            PacoteMetro b = _padraoBase ?? this;
+            MetroSP.Ids.PadraoDoModelo.Escolha e;
+            try { e = MetroSP.Ids.PadraoDoModelo.De(doc); }
+            catch { e = null; }
+            if (e == null) return b;
+            PacoteMetro c = b.Copia();
+            c._padraoBase = b;
+            c.Padrao = e;
+            if (!e.DaCoordenacao)
+            {
+                MetroSP.Ids.ClassesIfc.Classe arquivos = MetroSP.Ids.ClassesIfc.Obter(e.Padrao.Nome);
+                if (Existe(arquivos.Setup)) c.Setup = arquivos.Setup;
+                if (Existe(arquivos.PropertySets)) c.PropertySets = arquivos.PropertySets;
+            }
+            return c;
+        }
+
+        /// <summary>O pacote antes do padrão entrar.</summary>
+        private PacoteMetro _padraoBase;
+
+        /// <summary>O pacote sem o padrão do modelo (é ele que fica salvo e que a pessoa edita).</summary>
+        public PacoteMetro SemPadrao => _padraoBase ?? this;
+
         /// <summary>Texto que muda quando qualquer arquivo ou o nome muda (para saber se o pacote foi editado).</summary>
         public string Assinatura() =>
             string.Join("|", Nome, Ids, Setup, PropertySets, ClassesIfc, Planilha, MetroShared, ParametroClassificacao);
@@ -100,6 +132,13 @@ namespace MetroSP.Conferencia
         /// <summary>Lembra o pacote em uso (o arquivo .metrosp ou, sem ele, os caminhos).</summary>
         public void SalvarComoAtual()
         {
+            if (_padraoBase != null)
+            {
+                // Com padrão, fica salvo o pacote de antes (o padrão fica guardado por modelo no Exportar IFC).
+                _padraoBase.SoVistaAtiva = SoVistaAtiva;
+                _padraoBase.SalvarComoAtual();
+                return;
+            }
             if (_base != null)
             {
                 // Com coordenação, fica salvo o pacote de antes (a coordenação já está guardada no modelo).

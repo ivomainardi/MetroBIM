@@ -49,6 +49,8 @@ namespace MetroSP.Commands
                 pacote = escolha.Pacote;
             }
             pacote.SalvarComoAtual();
+            // O padrão do modelo (o mesmo do Exportar IFC e do passo Arquivos) vale sobre o setup e os property sets.
+            pacote = pacote.ComPadrao(doc);
             pacote.AplicarNasOutrasFerramentas();
 
             ResultadoConferencia resultado = ConferirEntregaWindow.Executar(uiapp, doc, pacote);

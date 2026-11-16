@@ -92,7 +92,7 @@ namespace MetroSP.Commands
                         Coordenacao.AbrirAlteracoesWindow.Abrir(dono, doc, arquivos.Last());
                         return null;
                     },
-                    TrazerTexto = doc == null ? "precisa de um modelo aberto" : "abre Abrir alterações para escolher o perfil",
+                    TrazerTexto = doc == null ? "precisa de um modelo aberto" : "abre Abrir alterações para escolher o padrão",
                 },
                 new TipoPadrao
                 {

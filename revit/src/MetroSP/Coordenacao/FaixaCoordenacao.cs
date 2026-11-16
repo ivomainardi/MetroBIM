@@ -47,7 +47,7 @@ namespace MetroSP.Coordenacao
                 {
                     linha.Children.Add(new TextBlock { Text = $"Há um arquivo de coordenação (rev. {novo.Revisao}) em {Path.GetFileName(achado)}. ",
                         Foreground = Theme.Solid(Theme.LaranjaTexto), VerticalAlignment = VerticalAlignment.Center });
-                    linha.Children.Add(Link("usar...", "Abre o arquivo para escolher o perfil.", () => AbrirAlteracoesWindow.Abrir(Dono, _doc, achado)));
+                    linha.Children.Add(Link("usar...", "Abre o arquivo para escolher o padrão.", () => AbrirAlteracoesWindow.Abrir(Dono, _doc, achado)));
                 }
                 else linha.Children.Add(Link("Abrir arquivo de coordenação...",
                     "Usa as alterações que o coordenador BIM enviou (arquivo .coord-metrosp): setup, fase, categorias, classes por família e property sets.",
@@ -64,7 +64,7 @@ namespace MetroSP.Coordenacao
             var grade = new DockPanel();
             var links = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             if (c.Arquivo.Perfis.Count > 1)
-                links.Children.Add(Link("perfil ▾", "Trocar o perfil (fica gravado no modelo).", null, menuPerfis: true));
+                links.Children.Add(Link("padrão ▾", "Trocar o padrão (fica gravado no modelo).", null, menuPerfis: true));
             links.Children.Add(Link("trocar...", "Abrir outro arquivo de coordenação ou outra revisão.", () => AbrirAlteracoesWindow.Abrir(Dono, _doc)));
             links.Children.Add(Link("não usar", "Tira o arquivo de coordenação deste modelo: volta a valer o setup e os .txt do seu computador.", NaoUsar));
             DockPanel.SetDock(links, Dock.Right);
@@ -149,7 +149,7 @@ namespace MetroSP.Coordenacao
                 {
                     if (nome == c.Perfil.Nome) return;
                     if (!CoordenacaoRevit.TrocarPerfil(doc, nome, out string erro))
-                        MessageBox.Show(Window.GetWindow(alvo), "Não foi possível trocar o perfil: " + erro, "MetroSP");
+                        MessageBox.Show(Window.GetWindow(alvo), "Não foi possível trocar o padrão: " + erro, "MetroSP");
                     else aoMudar?.Invoke();
                 };
                 menu.Items.Add(item);

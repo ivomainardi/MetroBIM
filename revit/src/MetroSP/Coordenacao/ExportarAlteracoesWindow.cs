@@ -62,30 +62,30 @@ namespace MetroSP.Coordenacao
             var corpo = new StackPanel();
 
             // ---------- perfil ----------
-            corpo.Children.Add(Theme.Secao("Perfil"));
+            corpo.Children.Add(Theme.Secao("Padrão"));
             var linha = new DockPanel();
-            var novo = new Button { Content = "+ Novo perfil", Margin = new Thickness(8, 0, 0, 0),
-                ToolTip = "Cria outro perfil no mesmo arquivo (ex.: \"Compatibilização · IFC 4\"), com o nome e a classe que você escolher." };
+            var novo = new Button { Content = "+ Novo padrão", Margin = new Thickness(8, 0, 0, 0),
+                ToolTip = "Cria outro padrão no mesmo arquivo (ex.: \"Compatibilização · IFC 4\"), com o nome e a base que você escolher." };
             novo.Click += (s, e) => NovoPerfil();
             DockPanel.SetDock(novo, Dock.Right);
             linha.Children.Add(novo);
             _classe = new ComboBox { Width = 110, Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(8, 0, 0, 0),
-                ToolTip = "Classe MetroSP do perfil: o setup e os .txt dela entram no arquivo (os mesmos que o Exportar IFC usa)." };
+                ToolTip = "Base: o padrão deste computador cujo setup e .txt entram no arquivo (os mesmos que o Exportar IFC usa)." };
             DockPanel.SetDock(_classe, Dock.Right);
             linha.Children.Add(_classe);
             _perfil = new ComboBox { Padding = new Thickness(4, 3, 4, 3),
-                ToolTip = "Um arquivo pode ter vários perfis (jeitos de exportar). O escolhido aqui é o que recebe o estado atual do modelo." };
+                ToolTip = "Um arquivo pode ter vários padrões (jeitos de exportar). O escolhido aqui é o que recebe o estado atual do modelo." };
             linha.Children.Add(_perfil);
             corpo.Children.Add(linha);
             var linhaFrase = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
-            _excluir = Theme.Link("Excluir perfil");
-            _excluir.ToolTip = "Tira este perfil do arquivo.";
+            _excluir = Theme.Link("Excluir padrão");
+            _excluir.ToolTip = "Tira este padrão do arquivo.";
             _excluir.Click += (s, e) => ExcluirPerfil();
             DockPanel.SetDock(_excluir, Dock.Right);
             linhaFrase.Children.Add(_excluir);
             _frase = Theme.Detalhe();
-            _frase.ToolTip = "O primeiro perfil é o que vale quando quem recebe não escolhe outro. " +
-                             "No Exportar IFC do projetista, a escolha de perfil só aparece quando o arquivo tem mais de um.";
+            _frase.ToolTip = "O primeiro padrão é o que vale quando quem recebe não escolhe outro. " +
+                             "No Exportar IFC do projetista, a escolha de padrão só aparece quando o arquivo tem mais de um.";
             linhaFrase.Children.Add(_frase);
             corpo.Children.Add(linhaFrase);
 
@@ -162,7 +162,7 @@ namespace MetroSP.Coordenacao
             _classe.SelectedItem = _classe.Items.OfType<string>().FirstOrDefault(n => string.Equals(n, p.Classe, StringComparison.CurrentCultureIgnoreCase));
             _montando = false;
             if (p.Classe == null || !(_classe.SelectedItem is string))
-                _erroCaptura = "escolha a classe do perfil";
+                _erroCaptura = "escolha a base do padrão";
             else
             {
                 try
@@ -174,9 +174,9 @@ namespace MetroSP.Coordenacao
                 finally { Cursor = null; }
             }
             int outros = _perfis.Count - 1;
-            _frase.Text = "Ao salvar, este perfil fica igual ao modelo agora." +
-                          (outros == 1 ? " O outro perfil do arquivo fica como está." : outros > 1 ? $" Os outros {outros} perfis do arquivo ficam como estão." : "") +
-                          (_perfis.IndexOf(p) == 0 && outros > 0 ? " É o perfil padrão (o primeiro)." : "");
+            _frase.Text = "Ao salvar, este padrão fica igual ao modelo agora." +
+                          (outros == 1 ? " O outro padrão do arquivo fica como está." : outros > 1 ? $" Os outros {outros} padrões do arquivo ficam como estão." : "") +
+                          (_perfis.IndexOf(p) == 0 && outros > 0 ? " É o padrão principal (o primeiro)." : "");
             _excluir.Visibility = outros > 0 ? Visibility.Visible : Visibility.Collapsed;
             MostrarLista();
         }
@@ -204,7 +204,7 @@ namespace MetroSP.Coordenacao
 
             if (c == null)
             {
-                Linha("Perfil", _erroCaptura ?? "", ok: false);
+                Linha("Padrão", _erroCaptura ?? "", ok: false);
                 AtualizarResumo();
                 return;
             }
@@ -240,7 +240,7 @@ namespace MetroSP.Coordenacao
         private void AtualizarResumo()
         {
             if (_capturado == null) Theme.MudarResumo(_resumo, new[] { _erroCaptura ?? "nada para salvar" }, "");
-            else Theme.MudarResumo(_resumo, null, $"Perfil \"{_capturado.Nome}\" pronto · rev. {_revisao?.Text}");
+            else Theme.MudarResumo(_resumo, null, $"Padrão \"{_capturado.Nome}\" pronto · rev. {_revisao?.Text}");
         }
 
         private void NovoPerfil()
@@ -250,21 +250,21 @@ namespace MetroSP.Coordenacao
             foreach (object c in _classe.Items) classe.Items.Add(c);
             classe.SelectedItem = Escolhido?.Classe != null ? _classe.Items.OfType<string>().FirstOrDefault(n => n == Escolhido.Classe) : null;
             var corpo = new StackPanel();
-            corpo.Children.Add(Theme.Label("Nome do perfil"));
+            corpo.Children.Add(Theme.Label("Nome do padrão"));
             corpo.Children.Add(nome);
-            corpo.Children.Add(Theme.Label("Classe"));
+            corpo.Children.Add(Theme.Label("Base"));
             corpo.Children.Add(classe);
-            var w = new Window { Title = "MetroSP - Novo perfil", Width = 380, SizeToContent = SizeToContent.Height, Owner = this,
+            var w = new Window { Title = "MetroSP - Novo padrão", Width = 380, SizeToContent = SizeToContent.Height, Owner = this,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.CanResizeWithGrip };
             var ok = new Button { Content = "Criar", IsDefault = true, Style = Theme.PrimaryButton };
             ok.Click += (s, e) =>
             {
                 string n = nome.Text.Trim();
                 if (n.Length == 0 || !(classe.SelectedItem is string)) { MessageBox.Show(w, "Indique o nome e a classe.", w.Title); return; }
-                if (_perfis.Any(p => string.Equals(p.Nome, n, StringComparison.CurrentCultureIgnoreCase))) { MessageBox.Show(w, "Já existe um perfil com esse nome.", w.Title); return; }
+                if (_perfis.Any(p => string.Equals(p.Nome, n, StringComparison.CurrentCultureIgnoreCase))) { MessageBox.Show(w, "Já existe um padrão com esse nome.", w.Title); return; }
                 w.DialogResult = true;
             };
-            Theme.Apply(w, "Novo perfil", "Outro jeito de exportar, no mesmo arquivo", corpo, Theme.Rodape(null, new Button { Content = "Cancelar", IsCancel = true }, ok));
+            Theme.Apply(w, "Novo padrão", "Outro jeito de exportar, no mesmo arquivo", corpo, Theme.Rodape(null, new Button { Content = "Cancelar", IsCancel = true }, ok));
             nome.Loaded += (s, e) => { nome.Focus(); nome.SelectAll(); };
             if (w.ShowDialog() != true) return;
             var novo = new PerfilCoordenacao { Nome = nome.Text.Trim(), Classe = (string)classe.SelectedItem };
@@ -277,7 +277,7 @@ namespace MetroSP.Coordenacao
         {
             PerfilCoordenacao p = Escolhido;
             if (p == null || _perfis.Count < 2) return;
-            if (MessageBox.Show(this, $"Tirar o perfil \"{p.Nome}\" do arquivo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show(this, $"Tirar o padrão \"{p.Nome}\" do arquivo?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             _perfis.Remove(p);
             PreencherPerfis(_perfis[0]);
             Capturar();
@@ -286,7 +286,7 @@ namespace MetroSP.Coordenacao
         private void Salvar()
         {
             PerfilCoordenacao p = _capturado;
-            if (p == null) { MessageBox.Show(this, "Não foi possível ler o perfil: " + _erroCaptura, Title); return; }
+            if (p == null) { MessageBox.Show(this, "Não foi possível ler o padrão: " + _erroCaptura, Title); return; }
             if (!int.TryParse(_revisao.Text.Trim(), out int revisao) || revisao < 0)
             {
                 MessageBox.Show(this, "A revisão deve ser um número.", Title);
@@ -332,10 +332,10 @@ namespace MetroSP.Coordenacao
             if (CoordenacaoRevit.Executar(_doc, "MetroSP: exportar alterações", () => CoordenacaoRevit.Gravar(_doc, a, p.Nome, Path.GetFileName(d.FileName)), out string erro))
             {
                 CoordenacaoRevit.Ativar(_doc);
-                noModelo = $"\n\nEste modelo também usa o perfil \"{p.Nome}\".";
+                noModelo = $"\n\nEste modelo também usa o padrão \"{p.Nome}\".";
             }
             else noModelo = "\n\nNão foi possível guardar o arquivo neste modelo: " + erro;
-            MessageBox.Show(this, $"Arquivo salvo (rev. {a.Revisao}" + (perfis.Count > 1 ? $", {perfis.Count} perfis" : "") + $"):\n{d.FileName}\n\n" +
+            MessageBox.Show(this, $"Arquivo salvo (rev. {a.Revisao}" + (perfis.Count > 1 ? $", {perfis.Count} padrões" : "") + $"):\n{d.FileName}\n\n" +
                 "Envie para o projetista por e-mail, pela pasta do Forma ou pela rede. Ele abre em Entrega passo a passo › Abrir alterações " +
                 "(ou no Exportar IFC), e o Exportar IFC passa a usar tudo o que veio nele." + noModelo, Title, MessageBoxButton.OK, MessageBoxImage.Information);
             DialogResult = true;
