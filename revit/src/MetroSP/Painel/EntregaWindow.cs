@@ -498,6 +498,14 @@ namespace MetroSP.Painel
         {
             List<DB.ElementId> validos = ids.Where(id => _doc.GetElement(id) != null).ToList();
             if (validos.Count == 0) return;
+            // Lance e patamar de escada só ficam visíveis selecionados junto com a escada: inclui a escada de cada um.
+            foreach (DB.ElementId id in validos.ToList())
+            {
+                DB.Element e = _doc.GetElement(id);
+                DB.ElementId escada = e is DB.Architecture.StairsRun run ? run.GetStairs()?.Id
+                                    : e is DB.Architecture.StairsLanding pat ? pat.GetStairs()?.Id : null;
+                if (escada != null && !validos.Contains(escada)) validos.Add(escada);
+            }
             try { _app.ActiveUIDocument.Selection.SetElementIds(validos); }
             catch (Exception ex) { TaskDialog.Show("MetroSP", "Não foi possível selecionar:\n" + ex.Message); }
         }

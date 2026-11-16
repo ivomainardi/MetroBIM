@@ -15,6 +15,10 @@ Revit 0.3.9 · Civil 3D 0.12.1
   ("IFC exportado SEM elementos") e diz a causa provável: a fase (escolha a última em Extras › Fase) ou a vista.
 - Revit e Civil 3D: o texto padrão do Revit no endereço ("Enter address here", "Address Line 2") não vai mais para o
   IfcBuilding e aparece vazio na janela.
+- Revit, **Entrega** e **Categorias IFC**: lances (Runs), patamares (Landings) e apoios (Supports) de escada não
+  aparecem mais como proxy no passo 3. Eles têm categoria própria, filha de Stairs, e agora usam a linha
+  "Stairs / Runs" da tabela (ou a classe do exportador: IfcStairFlight, IfcSlab, IfcMember). Em Categorias IFC, essas
+  linhas mostram quantos elementos há no modelo, e o Selecionar da Entrega seleciona também a escada de cada um.
 
 ## 1.0.5 (16/11/2026)
 

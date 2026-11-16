@@ -80,7 +80,8 @@ namespace MetroSP.Ids
                 string arquivo = Arquivo(esquema);
                 IEnumerable<Linha> linhas = arquivo != null ? Ler(arquivo) : Padrao(doc, esquema, DoModelo(doc));
                 foreach (Linha l in linhas)
-                    if (!l.Exportar && string.IsNullOrWhiteSpace(l.Subcategoria) && !string.IsNullOrWhiteSpace(l.Categoria)) r.Add(l.Categoria.Trim());
+                    if (!l.Exportar && !string.IsNullOrWhiteSpace(l.Categoria))
+                        r.Add(string.IsNullOrWhiteSpace(l.Subcategoria) ? l.Categoria.Trim() : l.Categoria.Trim() + "|" + l.Subcategoria.Trim());
             }
             catch { /* sem tabela legível: ninguém fica de fora por categoria */ }
             return r;
@@ -170,7 +171,13 @@ namespace MetroSP.Ids
             return r.OrderBy(l => l.Categoria, StringComparer.CurrentCultureIgnoreCase).ThenBy(l => l.Subcategoria, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
-        /// <summary>Elementos de modelo por nome de categoria.</summary>
+        /// <summary>
+        /// Chave da categoria do elemento nas tabelas: o nome, ou "Categoria|Subcategoria" quando a categoria do
+        /// elemento é filha de outra (Runs e Landings de Stairs, por exemplo).
+        /// </summary>
+        public static string ChaveDe(Category c) => c.Parent == null ? c.Name : c.Parent.Name + "|" + c.Name;
+
+        /// <summary>Elementos de modelo por chave de categoria (ver ChaveDe).</summary>
         public static Dictionary<string, int> Contagem(Document doc) => Contagem(doc, out _);
 
         /// <summary>Elementos de modelo por nome de categoria; semClasse: quantos deles não têm a classe IFC no tipo nem na instância.</summary>
@@ -183,8 +190,9 @@ namespace MetroSP.Ids
             {
                 Category c = e.Category;
                 if (c == null || c.CategoryType != CategoryType.Model || e.ViewSpecific) continue;
-                r[c.Name] = r.TryGetValue(c.Name, out int n) ? n + 1 : 1;
-                if (!TemClasseNoElemento(doc, e, tipoComClasse)) semClasse[c.Name] = semClasse.TryGetValue(c.Name, out int s) ? s + 1 : 1;
+                string k = ChaveDe(c);
+                r[k] = r.TryGetValue(k, out int n) ? n + 1 : 1;
+                if (!TemClasseNoElemento(doc, e, tipoComClasse)) semClasse[k] = semClasse.TryGetValue(k, out int s) ? s + 1 : 1;
             }
             return r;
         }
