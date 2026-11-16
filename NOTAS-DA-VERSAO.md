@@ -27,6 +27,10 @@ Revit 0.3.9 · Civil 3D 0.12.1
 - Revit, **Padrões**: a janela Arquivos IFC virou **Padrões › Exportação IFC** (e Exportar IFC › Padrões...). O botão
   Arquivos IFC saiu da Ribbon; Categorias IFC ficou sozinho, grande. Na lista de Padrões, os arquivos aparecem como
   "Exportação IFC · setup / property sets / mapeamento".
+- Revit, **Entrega** e **Categorias IFC**: lances (Runs), patamares (Landings) e apoios (Supports) de escada não
+  aparecem mais como proxy no passo 3. Eles têm categoria própria, filha de Stairs, e agora usam a linha
+  "Stairs / Runs" da tabela (ou a classe do exportador: IfcStairFlight, IfcSlab, IfcMember). Em Categorias IFC, essas
+  linhas mostram quantos elementos há no modelo, e o Selecionar da Entrega seleciona também a escada de cada um.
 
 ## 1.0.5 (16/11/2026)
 

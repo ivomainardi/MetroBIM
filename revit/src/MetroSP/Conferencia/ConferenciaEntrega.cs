@@ -297,7 +297,7 @@ namespace MetroSP.Conferencia
             foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista, soIfc: false))
             {
                 if (!FiltroIfc.VaiParaIfc(_doc, e, fase)) continue;
-                if (naoExportadas.Contains(e.Category.Name) && !CategoriasIfc.TemClasseNoElemento(_doc, e, _tipoComClasse)) continue;
+                if ((naoExportadas.Contains(CategoriasIfc.ChaveDe(e.Category)) || (e.Category.Parent != null && naoExportadas.Contains(e.Category.Parent.Name))) && !CategoriasIfc.TemClasseNoElemento(_doc, e, _tipoComClasse)) continue;
                 string entidade = _analisador.ResolveEntity(e);
                 if (entidade == null) continue;
                 lista.Add((e, entidade));

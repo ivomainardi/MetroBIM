@@ -407,12 +407,27 @@ namespace MetroSP.Ids
             }
             else
             {
-                entity = _mapping.IfcClassForCategory(e.Category.Name) ?? DefaultIfcClass(e.Category);
+                entity = ClasseDaCategoria(e.Category);
                 if (entity != null && entity.Equals("Not Exported", StringComparison.OrdinalIgnoreCase)) entity = null;
             }
 
             _entityCache[e.Id] = entity;
             return entity;
+        }
+
+        /// <summary>
+        /// Classe pela tabela de categorias. Subelementos de escada (Runs, Landings, Supports) têm categoria própria,
+        /// filha de Stairs: a tabela tem a linha "Stairs / Runs", não "Runs". Sem essa linha vale a classe que o
+        /// exportador usa para eles (IfcStairFlight, IfcSlab, IfcMember), não proxy.
+        /// </summary>
+        private string ClasseDaCategoria(Category c)
+        {
+            if (c.Parent == null) return _mapping.IfcClassForCategory(c.Name) ?? DefaultIfcClass(c);
+            string doSub = _mapping.IfcClassForCategory(c.Parent.Name, c.Name);
+            if (doSub != null) return doSub;
+            string padrao = DefaultIfcClass(c);
+            if (!padrao.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase)) return padrao;
+            return _mapping.IfcClassForCategory(c.Parent.Name) ?? DefaultIfcClass(c.Parent);
         }
 
         /// <summary>Classes padrão do exportador para as categorias mais comuns (usadas se não houver tabela de classes).</summary>
@@ -431,6 +446,9 @@ namespace MetroSP.Ids
                 case BuiltInCategory.OST_Doors: return "IfcDoor";
                 case BuiltInCategory.OST_Windows: return "IfcWindow";
                 case BuiltInCategory.OST_Stairs: return "IfcStair";
+                case BuiltInCategory.OST_StairsRuns: return "IfcStairFlight";
+                case BuiltInCategory.OST_StairsLandings: return "IfcSlab";
+                case BuiltInCategory.OST_StairsSupports: return "IfcMember";
                 case BuiltInCategory.OST_Ramps: return "IfcRamp";
                 case BuiltInCategory.OST_StairsRailing: return "IfcRailing";
                 case BuiltInCategory.OST_CurtainWallPanels: return "IfcPlate";
