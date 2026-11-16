@@ -20,6 +20,13 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   - Civil 3D: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC (mapeamento,
     propriedades e opções MetroSP), que entra na configuração ativa.
   - Os pacotes .zip também entram por ali (o antigo Importar pacote). **Excluir** continua igual.
+- **Menos caminhos repetidos**, para cada coisa ter um lugar só:
+  - Revit, **Projeto e Local** saiu da Ribbon: fica no grupo Extras do Exportar IFC, que passa a ser o passo 2. O passo
+    Projeto e Local do Painel MetroSP abre o Exportar IFC.
+  - Revit e Civil 3D, **Padrões de classificação** e **Confrontar planilha**: saíram o importar e o exportar de padrão
+    de cada janela; trazer e levar padrões é pela janela Padrões (a dica da lista de padrões indica onde).
+  - Revit: saiu a janela antiga **Verificar Padrões Metrô**, que não tinha mais botão e pedia de novo os property
+    sets e as classes IFC. A verificação do IDS é a da conferência (Painel MetroSP).
 
 ## 1.0.4 (13/11/2026)
 

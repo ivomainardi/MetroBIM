@@ -51,24 +51,17 @@ namespace MetroSP.Confronto
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             // ---- padrão salvo
-            _padroes = new ComboBox { MinWidth = 240, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Padrões salvos: planilha, colunas, campos e opções. Escolha um para usar de novo." };
+            _padroes = new ComboBox { MinWidth = 240, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Padrões salvos: planilha, colunas, campos e opções. Escolha um para usar de novo. Para trazer um padrão recebido ou levar para a equipe: Coordenação BIM › Padrões." };
             var salvar = new Button { Content = "Salvar", ToolTip = "Salva o padrão com o nome atual (ou pede um nome)." };
             var salvarComo = new Button { Content = "Salvar como...", Margin = new Thickness(6, 0, 0, 0) };
             var excluir = Theme.Link("excluir");
-            var importar = Theme.Link("importar");
-            var exportar = Theme.Link("exportar");
             excluir.Margin = new Thickness(12, 0, 0, 0);
-            importar.Margin = exportar.Margin = new Thickness(10, 0, 0, 0);
-            importar.ToolTip = "Traz um padrão (.json) recebido de outra pessoa.";
-            exportar.ToolTip = "Grava o padrão num arquivo .json para compartilhar.";
             var barraPadrao = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             barraPadrao.Children.Add(Theme.Rotulo("Padrão"));
             barraPadrao.Children.Add(_padroes);
             barraPadrao.Children.Add(salvar);
             barraPadrao.Children.Add(salvarComo);
             barraPadrao.Children.Add(excluir);
-            barraPadrao.Children.Add(importar);
-            barraPadrao.Children.Add(exportar);
 
             // ---- aba 1: o que conferir
             _chave = new ComboBox { MinWidth = 320, IsEditable = true, IsTextSearchEnabled = true, StaysOpenOnEdit = true,
@@ -167,8 +160,6 @@ namespace MetroSP.Confronto
             salvar.Click += (s, e) => Salvar(false);
             salvarComo.Click += (s, e) => Salvar(true);
             excluir.Click += (s, e) => Excluir();
-            importar.Click += (s, e) => Importar();
-            exportar.Click += (s, e) => Exportar();
             _chave.SelectionChanged += (s, e) =>
             {
                 if (_carregando || !(_chave.SelectedItem is CampoConfronto c)) return;
@@ -337,30 +328,6 @@ namespace MetroSP.Confronto
             Padroes.Excluir(_fonte.Programa, _padrao.Nome);
             _padrao.Nome = "";
             ListarPadroes(null);
-        }
-
-        private void Importar()
-        {
-            var d = new Microsoft.Win32.OpenFileDialog { Filter = "Padrão MetroSP (*.json)|*.json" };
-            if (d.ShowDialog(this) != true) return;
-            try
-            {
-                PadraoConfronto p = Padroes.Ler(d.FileName);
-                if (string.IsNullOrWhiteSpace(p.Nome)) p.Nome = Path.GetFileNameWithoutExtension(d.FileName);
-                Padroes.Salvar(_fonte.Programa, p);
-                ListarPadroes(p.Nome);
-                Usar(p.Copia());
-            }
-            catch (Exception ex) { MessageBox.Show(this, "Este arquivo não é um padrão do Confrontar:\n" + ex.Message, Title); }
-        }
-
-        private void Exportar()
-        {
-            _padrao.Mapa = _mapa.Mapa;
-            var d = new Microsoft.Win32.SaveFileDialog { Filter = "Padrão MetroSP (*.json)|*.json", FileName = Padroes.NomeArquivo(string.IsNullOrWhiteSpace(_padrao.Nome) ? "padrao" : _padrao.Nome) + ".json" };
-            if (d.ShowDialog(this) != true) return;
-            try { Padroes.Gravar(d.FileName, _padrao); _resumo.Text = "Padrão gravado em " + d.FileName; }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível gravar:\n" + ex.Message, Title); }
         }
 
         private string PedirNome(string sugestao)

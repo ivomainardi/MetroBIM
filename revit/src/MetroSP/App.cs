@@ -38,7 +38,7 @@ namespace MetroSP
                 // A aba já existe (outro add-in MetroSP carregado). Seguimos usando ela.
             }
 
-            // Painéis na ordem do trabalho: entregar (passos 1, 2 e 3), classificar, cuidar dos dados, manutenção e,
+            // Painéis na ordem do trabalho: entregar (passos 1 e 2), classificar, cuidar dos dados, manutenção e,
             // por último, o que o coordenador BIM prepara uma vez. O Sobre abre pela logo, à direita da aba.
             CreateEntregaPanel(application);
             CreateAcompanharPanel(application);
@@ -100,16 +100,11 @@ namespace MetroSP
                 "que resolvem e a ferramenta da etapa (Parâmetros, Categorias IFC, Editar em massa, Classificação, Local e Exportar IFC).",
                 "Passo1");
 
-            AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
-                "Passo 2. Preenche o IfcProject, o IfcSite e o IfcBuilding (nome, nome longo, descrição, fase, endereço) " +
-                "e o Pset MetroSP_Projeto, e calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô). " +
-                "Os dados podem ser salvos como padrão e usados em outros modelos, também no Civil 3D.",
-                "Passo2");
-
+            // Projeto e Local não tem mais botão: fica no grupo Extras do Exportar IFC (IfcProject, IfcSite, IfcBuilding, localização).
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
-                "Passo 3. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
-                "computador ou no Autodesk Forma.",
-                "Passo3");
+                "Passo 2. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
+                "computador ou no Autodesk Forma. No grupo Extras: Projeto e Local (IfcProject, IfcSite, IfcBuilding e localização).",
+                "Passo2");
         }
 
         private static void CreateAcompanharPanel(UIControlledApplication application)

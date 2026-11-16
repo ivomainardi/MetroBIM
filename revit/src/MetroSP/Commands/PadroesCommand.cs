@@ -59,7 +59,7 @@ namespace MetroSP.Commands
                 new TipoPadrao
                 {
                     Id = "metrosp-dados-projeto", Nome = "Dados do projeto IFC", Pasta = MetroSP.Ifc.DadosProjetoIfc.Pasta,
-                    Ferramenta = "Entrega Metrô › Projeto e Local (barra Padrão no topo da janela); vale também para o Civil 3D",
+                    Ferramenta = "Exportar IFC › Extras › Mais dados... (barra Padrão no topo); vale também para o Civil 3D",
                     Reconhece = f => GerenciadorPadroes.JsonCom(f, "Projeto", "Terreno", "Edificio"),
                 },
                 new TipoPadrao
