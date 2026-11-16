@@ -4,6 +4,18 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.6 (em preparação)
+
+Revit 0.3.9 · Civil 3D 0.12.1
+
+- Revit, **Exportar IFC**: o resumo e o registro (.ifc.log.txt) passam a mostrar a saída (modelo inteiro ou vista, e a
+  fase), quantos elementos saíram por classe IFC e quantos ambientes (IfcSpace), e quantos elementos ficaram de fora
+  por terem sido criados numa fase posterior à exportada.
+- Revit, **Exportar IFC**: quando o IFC sai sem elementos, só com pavimentos e ambientes, o resumo avisa em destaque
+  ("IFC exportado SEM elementos") e diz a causa provável: a fase (escolha a última em Extras › Fase) ou a vista.
+- Revit e Civil 3D: o texto padrão do Revit no endereço ("Enter address here", "Address Line 2") não vai mais para o
+  IfcBuilding e aparece vazio na janela.
+
 ## 1.0.5 (16/11/2026)
 
 Revit 0.3.8 · Civil 3D 0.12.1
