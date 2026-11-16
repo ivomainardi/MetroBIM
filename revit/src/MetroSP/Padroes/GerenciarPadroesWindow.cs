@@ -27,7 +27,8 @@ namespace MetroSP.Padroes
         private readonly TextBlock _resumo;
         private readonly Button _editar, _excluir, _pastaPadrao, _abrirPlanilha, _trocar, _pastaPlanilha;
 
-        public GerenciarPadroesWindow(IList<TipoPadrao> tipos, string programa)
+        /// <param name="exportacaoIfc">Abre a janela dos padrões de exportação IFC (setup, property sets e mapeamento de cada padrão), se houver.</param>
+        public GerenciarPadroesWindow(IList<TipoPadrao> tipos, string programa, Action<Window> exportacaoIfc = null)
         {
             _tipos = tipos;
             _programa = programa;
@@ -72,6 +73,13 @@ namespace MetroSP.Padroes
             Button exportar = Botao("Exportar pacote...", "Grava os padrões selecionados (ou todos, se nada estiver selecionado) num .zip para a equipe, com as planilhas que eles usam.", Exportar);
             var barraPadroes = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             foreach (Button b in new[] { adicionar, _editar, _excluir, _pastaPadrao, exportar }) { b.Margin = new Thickness(0, 0, 8, 4); barraPadroes.Children.Add(b); }
+            if (exportacaoIfc != null)
+            {
+                Button ifc = Botao("Exportação IFC...", "Padrões de exportação IFC: cada um reúne o setup (.json), os property sets e o mapeamento (.txt). " +
+                    "Escolher o padrão no Exportar IFC carrega tudo isso de uma vez.", () => { exportacaoIfc(this); Recarregar(); });
+                ifc.Margin = new Thickness(0, 0, 8, 4);
+                barraPadroes.Children.Add(ifc);
+            }
 
             // Área para soltar arquivos (a janela inteira aceita).
             var solta = new Border

@@ -30,24 +30,35 @@ namespace MetroSP.Commands
             }
 
             IfcExportSettings settings = IfcExportSettings.Load();
-
-            // Pasta do Forma online: baixa o que mudou lá desde a última vez (sem rede, vale a última cópia).
-            string resultadoForma = null;
-            if (FormaOnline.Conectado && FormaOnline.PastaEscolhida() != null)
-                using (var p = Ui.Progresso.Abrir("Forma online"))
-                {
-                    p.Etapa("Conferindo atualizações das configurações de IFC no Forma");
-                    resultadoForma = FormaOnline.Sincronizar().ToString();
-                }
-
-            var janela = new ExportarIfcWindow(doc, settings, resultadoForma);
+            var janela = new ExportarIfcWindow(doc, settings, SincronizarForma());
             new WindowInteropHelper(janela).Owner = uiapp.MainWindowHandle;
             bool ok = janela.ShowDialog() == true;
             settings.Save();
             // Cancelado ou Falhou faz o Revit desfazer tudo do comando, inclusive o Location gravado pela janela.
             Result Fim(Result r) => janela.AlteracoesLocalizacao.Count > 0 ? Result.Succeeded : r;
+            if (janela.AbrirPassoAPasso) { Painel.EntregaWindow.Abrir(uiapp, Painel.EntregaWindow.PassoExportar); return Fim(Result.Succeeded); }
             if (!ok) return Fim(Result.Cancelled);
+            return Fim(ExportarCom(uiapp, janela));
+        }
 
+        /// <summary>Pasta do Forma online: baixa o que mudou lá desde a última vez (sem rede, vale a última cópia). Null se não usa.</summary>
+        internal static string SincronizarForma()
+        {
+            if (!FormaOnline.Conectado || FormaOnline.PastaEscolhida() == null) return null;
+            using (var p = Ui.Progresso.Abrir("Forma online"))
+            {
+                p.Etapa("Conferindo atualizações das configurações de IFC no Forma");
+                return FormaOnline.Sincronizar().ToString();
+            }
+        }
+
+        /// <summary>
+        /// Exporta com o que foi escolhido na janela (aberta direto ou embutida no passo Exportar da Entrega) e mostra o resultado.
+        /// Chamar dentro do contexto da API.
+        /// </summary>
+        public static Result ExportarCom(UIApplication uiapp, ExportarIfcWindow janela)
+        {
+            Document doc = janela.Documento;
             IfcExportSetup setup = janela.Setup;
             string arquivo = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
 
@@ -115,13 +126,13 @@ namespace MetroSP.Commands
             {
                 TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message +
                     (avisoCategorias != null ? "\n\n" + avisoCategorias : ""));
-                return Fim(Result.Failed);
+                return Result.Failed;
             }
 
             if (!exportou || !File.Exists(arquivo))
             {
                 TaskDialog.Show("MetroSP", "O Revit não conseguiu exportar o IFC. Confira o setup e tente pela janela de exportação do Revit para ver a mensagem do exportador.");
-                return Fim(Result.Failed);
+                return Result.Failed;
             }
 
             // Sem EPSG: se o exportador criou IfcMapConversion/IfcProjectedCRS (sistema GIS no Location), saem do arquivo.

@@ -24,7 +24,7 @@ namespace MetroSP.Commands
 
         public static List<TipoPadrao> Tipos(Document doc)
         {
-            // Os três tipos de arquivo IFC entram juntos na janela Arquivos IFC, que pede a classe de cada um.
+            // Os três tipos de arquivo IFC entram juntos na janela Padrões de exportação IFC, que pede o padrão de cada um.
             Func<System.Windows.Window, IList<string>, string> trazerIfc = (dono, arquivos) =>
             {
                 var w = new ArquivosIfcWindow(doc) { Owner = dono };
@@ -34,12 +34,12 @@ namespace MetroSP.Commands
             };
             TipoPadrao Ifc(ArquivosIfc.Tipo t, string id, string nome, string filtro) => new TipoPadrao
             {
-                Id = id, Nome = nome, Pasta = Path.Combine(ClassesIfc.PastaUsuario, ArquivosIfc.Sub(t)), Filtro = filtro,
-                Ferramenta = "Coordenação BIM › Arquivos IFC",
+                Id = id, Nome = "Exportação IFC · " + nome, Pasta = Path.Combine(ClassesIfc.PastaUsuario, ArquivosIfc.Sub(t)), Filtro = filtro,
+                Ferramenta = "Padrões › Exportação IFC (ou Exportar IFC › Padrões...)",
                 Editar = (dono, item) => new ArquivosIfcWindow(doc, Path.GetFileNameWithoutExtension(item.Arquivo), t) { Owner = dono }.ShowDialog(),
                 Reconhece = f => ArquivosIfc.Detectar(f, out _) == t,
                 Trazer = trazerIfc,
-                TrazerTexto = "abre Arquivos IFC para indicar a classe",
+                TrazerTexto = "abre Exportação IFC para indicar o padrão",
             };
             return new List<TipoPadrao>
             {
@@ -69,9 +69,9 @@ namespace MetroSP.Commands
                     Editar = (dono, item) => Escrita.CorrigirEscritaWindow.EditarArquivo(dono, item.Arquivo),
                     Reconhece = f => GerenciadorPadroes.JsonCom(f, "RegrasDesligadas", "Termos", "Correcoes"),
                 },
-                Ifc(ArquivosIfc.Tipo.Setup, "revit-setup-ifc", "Setup IFC", "*.json"),
-                Ifc(ArquivosIfc.Tipo.PropertySets, "revit-psets-ifc", "Property sets IFC", "*.txt"),
-                Ifc(ArquivosIfc.Tipo.Mapeamento, "revit-mapeamento-ifc", "Mapeamento IFC", "*.txt"),
+                Ifc(ArquivosIfc.Tipo.Setup, "revit-setup-ifc", "setup", "*.json"),
+                Ifc(ArquivosIfc.Tipo.PropertySets, "revit-psets-ifc", "property sets", "*.txt"),
+                Ifc(ArquivosIfc.Tipo.Mapeamento, "revit-mapeamento-ifc", "mapeamento", "*.txt"),
                 new TipoPadrao
                 {
                     Id = "revit-ids", Nome = "Padrões Metrô (.ids)", Pasta = PastaIds, Filtro = "*.ids", Extensao = ".ids",
@@ -163,7 +163,7 @@ namespace MetroSP.Commands
             UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc != null && doc.IsFamilyDocument) doc = null;
-            var w = new GerenciarPadroesWindow(Tipos(doc), "Revit");
+            var w = new GerenciarPadroesWindow(Tipos(doc), "Revit", dono => new ArquivosIfcWindow(doc) { Owner = dono }.ShowDialog());
             new WindowInteropHelper(w).Owner = uiapp.MainWindowHandle;
             w.ShowDialog();
             return Result.Succeeded;
