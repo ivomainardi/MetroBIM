@@ -42,12 +42,9 @@ namespace MetroSP.Ui
 
         private static readonly (string Painel, string Ferramentas)[] Ferramentas =
         {
-            ("Entrega Metrô", "Entrega passo a passo (janela única com as etapas, as pendências e a ferramenta de cada etapa) e Exportar IFC (com Projeto e Local no grupo Extras)"),
-            ("Acompanhar", "Painel MetroSP: ao lado do modelo, com o semáforo do que o Metrô pede, pendências para selecionar e pintar e a conferência completa com o IDS"),
-            ("Classificação", "Aplicar e Verificar (com a conferência códigos × descrições)"),
-            ("Dados do modelo", "Planilha de Dados (Excel ida e volta), Confrontar Planilha, Corrigir Escrita, Editar em Massa, Filtrar e Colorir, Copiar Valores"),
-            ("Parâmetros e famílias", "Parâmetros (compartilhados com renomear mantendo o GUID e troca instância ↔ tipo, comparar com .txt, parâmetros de projeto, criar pela planilha, adicionar em famílias) e Renomear Famílias e tipos"),
-            ("Coordenação BIM", "Arquivo de coordenação, Padrões (todos os padrões, inclusive os de exportação IFC, e levar à equipe) e Categorias IFC"),
+            ("Entrega", "Entrega passo a passo (janela única com as etapas, as pendências e a ferramenta de cada etapa; na setinha, o Painel MetroSP ao lado do modelo) e Exportar IFC (com Projeto e Local no grupo Extras)"),
+            ("Ferramentas", "Classificação (Aplicar e Verificar), Dados (Planilha de dados, Confrontar planilha, Corrigir escrita, Editar em massa, Filtrar e colorir, Copiar valores) e Parâmetros (com Renomear famílias na setinha)"),
+            ("Coordenação", "Padrões (todos os padrões, inclusive os de exportação IFC, e levar à equipe), com Arquivo de coordenação e Categorias IFC na setinha"),
         };
 
         /// <summary>Abre a janela sobre o Revit (pela logo da Ribbon ou pelo botão Sobre).</summary>
