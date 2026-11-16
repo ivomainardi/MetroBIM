@@ -40,7 +40,7 @@ namespace MetroSP.Ids
         public ArquivosIfcWindow(DB.Document doc, string classe = null, ArquivosIfc.Tipo aba = ArquivosIfc.Tipo.Setup)
         {
             _doc = doc;
-            Title = "MetroSP - Arquivos IFC";
+            Title = "MetroSP - Padrões de exportação IFC";
             Width = 900;
             Height = 660;
             MinWidth = 700;
@@ -119,7 +119,7 @@ namespace MetroSP.Ids
                 if (_setup != null && _setup.Alterado && !PerguntarDescartar()) e.Cancel = true;
             };
 
-            Theme.Apply(this, "Arquivos IFC", "Setups, property sets e mapeamentos usados pela exportação", corpo, Theme.Rodape(_resumo, pasta, fechar));
+            Theme.Apply(this, "Padrões de exportação IFC", "Cada padrão reúne o setup, os property sets e o mapeamento da exportação", corpo, Theme.Rodape(_resumo, pasta, fechar));
 
             Recarregar(classe);
             _abas.SelectedIndex = Array.IndexOf(Tipos, aba);
@@ -258,7 +258,7 @@ namespace MetroSP.Ids
             string origem = a.Origem == ArquivosIfc.Seu
                 ? (a.TemPadrao ? "seu (no lugar do padrão)" : "seu")
                 : a.Origem;
-            nome.Children.Add(Theme.Detalhe($"Classe {a.Classe} · {origem} · alterado em {File.GetLastWriteTime(a.Caminho):dd/MM/yyyy HH:mm}"));
+            nome.Children.Add(Theme.Detalhe($"Padrão {a.Classe} · {origem} · alterado em {File.GetLastWriteTime(a.Caminho):dd/MM/yyyy HH:mm}"));
             nome.ToolTip = a.Caminho;
             d.Children.Add(nome);
             return d;
@@ -273,7 +273,7 @@ namespace MetroSP.Ids
             if (a.DoUsuario)
             {
                 var apagar = new Button { Content = a.TemPadrao ? "Voltar ao padrão" : "Apagar" };
-                apagar.ToolTip = a.TemPadrao ? "Apaga a sua cópia; a classe volta a usar o arquivo do Forma online ou instalado." : "Apaga o arquivo (ele fica guardado em Anteriores).";
+                apagar.ToolTip = a.TemPadrao ? "Apaga a sua cópia; o padrão volta a usar o arquivo do Forma online ou instalado." : "Apaga o arquivo (ele fica guardado em Anteriores).";
                 apagar.Click += (s, e) =>
                 {
                     string pergunta = a.TemPadrao ? $"Apagar a sua cópia de {a.Nome} e voltar ao padrão?" : $"Apagar {a.Nome}?";
@@ -282,14 +282,14 @@ namespace MetroSP.Ids
                     Executar(() => ArquivosIfc.ApagarDoUsuario(a.Tipo, a.Classe), a.Classe);
                 };
                 Add(apagar);
-                var classe = new Button { Content = "Mudar classe..." };
+                var classe = new Button { Content = "Mudar padrão..." };
                 classe.Click += (s, e) =>
                 {
-                    string nova = PedirTexto("Mudar classe", $"Nova classe para {a.Nome}:", a.Classe);
+                    string nova = PedirTexto("Mudar padrão", $"Novo padrão para {a.Nome}:", a.Classe);
                     if (nova == null || string.Equals(nova, a.Classe, StringComparison.CurrentCulture)) return;
-                    if (!ArquivosIfc.NomeValido(nova)) { MessageBox.Show(this, "Nome de classe inválido.", Title); return; }
+                    if (!ArquivosIfc.NomeValido(nova)) { MessageBox.Show(this, "Nome de padrão inválido.", Title); return; }
                     if (File.Exists(ArquivosIfc.Destino(a.Tipo, nova)) &&
-                        MessageBox.Show(this, $"Você já tem {ArquivosIfc.Descricao(a.Tipo).ToLowerInvariant()} da classe {nova}. Substituir? (o atual fica em Anteriores)", Title,
+                        MessageBox.Show(this, $"Você já tem {ArquivosIfc.Descricao(a.Tipo).ToLowerInvariant()} do padrão {nova}. Substituir? (o atual fica em Anteriores)", Title,
                             MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
                     Executar(() => ArquivosIfc.MudarClasse(a.Tipo, a.Classe, nova), nova);
                 };
@@ -397,7 +397,7 @@ namespace MetroSP.Ids
             Linha(null, Caixa("Psets de material", o.PsetsDeMaterial, v => o.PsetsDeMaterial = v));
             ArquivosIfc.Arquivo psets = ArquivosIfc.Obter(ArquivosIfc.Tipo.PropertySets, a.Classe);
             ArquivosIfc.Arquivo mapa = ArquivosIfc.Obter(ArquivosIfc.Tipo.Mapeamento, a.Classe);
-            Linha(Nome("Property sets"), Theme.Detalhe(psets != null ? $"{psets.Nome} ({psets.Origem}), da classe {a.Classe}" : $"nenhum .txt com o nome {a.Classe}"));
+            Linha(Nome("Property sets"), Theme.Detalhe(psets != null ? $"{psets.Nome} ({psets.Origem}), do padrão {a.Classe}" : $"nenhum .txt com o nome {a.Classe}"));
             Linha(Nome("Mapeamento"), Theme.Detalhe(mapa != null ? $"{mapa.Nome} ({mapa.Origem})" : "nenhum (opcional)"));
 
             Titulo("Localização");
@@ -542,7 +542,7 @@ namespace MetroSP.Ids
             if (editor.Restaurou) ArquivosIfc.ApagarDoUsuario(ArquivosIfc.Tipo.PropertySets, a.Classe);
             Mudou = true;
             Recarregar(a.Classe);
-            _resumo.Text = editor.Restaurou ? $"{a.Classe}: voltou ao padrão." : "Salvo em " + editor.ArquivoSalvo;
+            _resumo.Text = editor.Restaurou ? $"{a.Classe}: voltou ao original." : "Salvo em " + editor.ArquivoSalvo;
         }
 
         private UIElement PainelMapeamento(ArquivosIfc.Arquivo a)
@@ -631,7 +631,7 @@ namespace MetroSP.Ids
                 g.Children.Add(e);
             }
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            string[] titulos = { "Arquivo", "Classe", "Tipo", "Situação" };
+            string[] titulos = { "Arquivo", "Padrão", "Tipo", "Situação" };
             for (int i = 0; i < titulos.Length; i++) Celula(Theme.Secao(titulos[i]), 0, i);
 
             var itens = new List<Trazido>();
@@ -647,7 +647,7 @@ namespace MetroSP.Ids
                     Theme.Estado estado;
                     string texto;
                     if (tipo == null) { texto = t.Tipo == null ? "fica de fora: " + t.Motivo : "fica de fora"; estado = Theme.Estado.Neutro; }
-                    else if (!ArquivosIfc.NomeValido(classe)) { texto = "indique a classe"; estado = Theme.Estado.Aviso; }
+                    else if (!ArquivosIfc.NomeValido(classe)) { texto = "indique o padrão"; estado = Theme.Estado.Aviso; }
                     else
                     {
                         validos++;
@@ -694,7 +694,7 @@ namespace MetroSP.Ids
             ok.Click += (s, e) => janela.DialogResult = true;
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             Atualizar();
-            Theme.Apply(janela, "Trazer arquivos", "Confira a classe e o tipo de cada arquivo antes de gravar",
+            Theme.Apply(janela, "Trazer arquivos", "Confira o padrão e o tipo de cada arquivo antes de gravar",
                 new ScrollViewer { Content = g, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, Theme.Rodape(resumo, cancelar, ok));
             if (janela.ShowDialog() != true) return;
 

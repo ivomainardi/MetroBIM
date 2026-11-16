@@ -102,7 +102,7 @@ namespace MetroSP
 
             // Projeto e Local não tem mais botão: fica no grupo Extras do Exportar IFC (IfcProject, IfcSite, IfcBuilding, localização).
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
-                "Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
+                "Exporta o IFC com o setup (.json) e os property sets (.txt) do padrão escolhido, guardados no " +
                 "computador ou no Autodesk Forma. No grupo Extras: Projeto e Local (IfcProject, IfcSite, IfcBuilding e localização).",
                 "Passo3");
         }
@@ -195,16 +195,13 @@ namespace MetroSP
 
             AddButton<PadroesCommand>(panel, "Padrões",
                 "Adicionar, editar e excluir padrões: classificação, confronto, dados do projeto, corrigir escrita, setups, property sets e " +
-                "mapeamentos IFC, arquivo de coordenação (.coord-metrosp), padrões Metrô (.ids) e pacote de entrega (.metrosp). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
+                "mapeamentos IFC (botão Exportação IFC), arquivo de coordenação (.coord-metrosp), padrões Metrô (.ids) e pacote de entrega (.metrosp). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
                 "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip.",
                 "Padroes");
 
-            panel.AddStackedItems(
-                Dados<ArquivosIfcCommand>("Arquivos IFC",
-                    "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
-                    "principais do setup e confira os property sets no modelo aberto.",
-                    "ArquivosIfc"),
-                Dados<CategoriasIfcCommand>("Categorias IFC",
+            // Os padrões de exportação IFC (setup, property sets e mapeamento) ficam em Padrões › Exportação IFC.
+            panel.AddItem(
+                Dados<CategoriasIfcCommand>("Categorias\nIFC",
                     "Em que classe IFC cada categoria do Revit é exportada: uma tabela para IFC4 e outra para IFC 4.3. " +
                     "Na exportação, vale a tabela do IFC schema do setup.",
                     "CategoriasIfc"));

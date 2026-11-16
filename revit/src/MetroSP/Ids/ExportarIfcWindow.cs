@@ -76,6 +76,15 @@ namespace MetroSP.Ids
         private readonly CheckBox _eixos;
         private readonly CheckBox _epsgEmBranco;
 
+        /// <summary>Documento da exportação.</summary>
+        public DB.Document Documento => _doc;
+        /// <summary>Embutida no passo Exportar da Entrega: o Exportar avisa por <see cref="Confirmada"/> em vez de fechar.</summary>
+        public bool Embutida { get; }
+        /// <summary>Embutida: as escolhas foram conferidas e é para exportar.</summary>
+        public event Action Confirmada;
+        /// <summary>A pessoa pediu para abrir o passo a passo da Entrega (a janela fecha sem exportar).</summary>
+        public bool AbrirPassoAPasso { get; private set; }
+
         private class Opcao
         {
             public string Texto { get; set; }
@@ -84,10 +93,12 @@ namespace MetroSP.Ids
         }
 
         /// <param name="resultadoForma">Resultado da atualização do Forma online feita ao abrir (null se não houve).</param>
-        public ExportarIfcWindow(DB.Document doc, IfcExportSettings settings, string resultadoForma = null)
+        /// <param name="embutida">Dentro do passo Exportar da Entrega (sem Cancelar e sem o resumo da Entrega).</param>
+        public ExportarIfcWindow(DB.Document doc, IfcExportSettings settings, string resultadoForma = null, bool embutida = false)
         {
             _doc = doc;
             _settings = settings;
+            Embutida = embutida;
 
             Title = "MetroSP - Exportar IFC";
             Width = 660;
@@ -97,17 +108,18 @@ namespace MetroSP.Ids
             MinWidth = 540;
 
             var corpo = new StackPanel();
+            if (!embutida) corpo.Children.Add(ResumoEntrega());
 
             // ---------- Arquivo de coordenação (antes das classes: a pasta dele entra na frente das outras) ----------
             corpo.Children.Add(new Coordenacao.FaixaCoordenacao(doc, CoordenacaoMudou));
 
             // ---------- Classe ----------
-            var secaoClasse = Theme.Secao("Classe");
+            var secaoClasse = Theme.Secao("Padrão");
             secaoClasse.Margin = new Thickness(0, 0, 0, 5);
             corpo.Children.Add(secaoClasse);
             var linhaClasse = new DockPanel();
             _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Width = 150, VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Classe instalada com o MetroSP (preenche o setup e os .txt sozinha), ou \"Outros arquivos\" para indicar cada um." };
+                ToolTip = "Padrão de exportação: carrega o setup, os property sets e o mapeamento dele de uma vez.\nOu \"Outros arquivos\" para indicar cada um." };
             DockPanel.SetDock(_classe, Dock.Left);
             linhaClasse.Children.Add(_classe);
             _seloClasse = Theme.Selo();
@@ -119,9 +131,9 @@ namespace MetroSP.Ids
             _botaoForma.HorizontalAlignment = HorizontalAlignment.Right;
             _botaoForma.Margin = new Thickness(12, 0, 0, 0);
             _botaoForma.Click += (s, e) => MenuForma();
-            var gerenciar = Theme.Link("Gerenciar arquivos...");
+            var gerenciar = Theme.Link("Padrões...");
             gerenciar.Margin = new Thickness(12, 0, 0, 0);
-            gerenciar.ToolTip = "Abre a janela Arquivos IFC: setups, property sets e mapeamentos de cada classe.";
+            gerenciar.ToolTip = "Abre os padrões de exportação IFC: o setup, os property sets e o mapeamento de cada padrão.";
             gerenciar.Click += (s, e) => Gerenciar();
             DockPanel.SetDock(gerenciar, Dock.Right);
             linhaClasse.Children.Add(gerenciar);
@@ -241,7 +253,7 @@ namespace MetroSP.Ids
             _classe.SelectionChanged += (s, e) => { _motivoClasse = null; AplicarClasse(); };
             MostrarForma(resultadoForma);
             if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
-            else MostrarClasse(_classe.Items.Count > 1 ? null : "Nenhuma classe instalada: indique os arquivos.");
+            else MostrarClasse(_classe.Items.Count > 1 ? null : "Nenhum padrão instalado: indique os arquivos.");
             editarPsets.Click += (s, e) => EditarPsets();
 
             procurarSetup.Click += (s, e) =>
@@ -274,7 +286,7 @@ namespace MetroSP.Ids
 
             var exportar = new Button { Content = "Exportar", IsDefault = true, Style = Theme.PrimaryButton };
             exportar.Click += (s, e) => Confirmar();
-            var cancelar = new Button { Content = "Cancelar", IsCancel = true };
+            var cancelar = new Button { Content = "Cancelar", IsCancel = true, Visibility = embutida ? Visibility.Collapsed : Visibility.Visible };
             _resumo = new TextBlock { FontSize = 11.5 };
 
             MostrarLocalizacao();
@@ -534,14 +546,14 @@ namespace MetroSP.Ids
             var faltam = new List<string>();
             if (c.Setup == null) faltam.Add("setup (vale o último escolhido)");
             if (c.PropertySets == null) faltam.Add("property sets");
-            string origem = c.DaCoordenacao ? "da coordenação" : c.Editada ? "editada por você" : c.DoForma ? "do Forma online" : "instalada";
+            string origem = c.DaCoordenacao ? "da coordenação" : c.Editada ? "editado por você" : c.DoForma ? "do Forma online" : "instalado";
             string selo = _motivoClasse != null ? "pelo nome do modelo" : origem;
-            string dica = (_motivoClasse != null ? $"Classe indicada {_motivoClasse}.\n" : "") +
+            string dica = (_motivoClasse != null ? $"Padrão indicado {_motivoClasse}.\n" : "") +
                           (c.DaCoordenacao ? "Setup e property sets do arquivo de coordenação do modelo." :
                            c.Editada ? "Property sets editados por você (o padrão não foi alterado)."
                            : c.DoForma ? "Property sets da pasta do Forma online." : "Configuração instalada com o MetroSP.") +
-                          (faltam.Count > 0 ? "\nA classe não traz: " + string.Join(", ", faltam) + "." : "");
-            if (_motivoClasse != null && origem != "instalada") selo += " · " + origem;
+                          (faltam.Count > 0 ? "\nO padrão não traz: " + string.Join(", ", faltam) + "." : "");
+            if (_motivoClasse != null && origem != "instalado") selo += " · " + origem;
             MostrarClasse(selo, dica);
             MostrarCaminhos();
         }
@@ -635,7 +647,7 @@ namespace MetroSP.Ids
             string caminho = TextoPsets();
             if (caminho.Length == 0 || !File.Exists(caminho))
             {
-                MessageBox.Show(this, "Escolha uma classe ou indique um .txt de property sets que exista.", Title);
+                MessageBox.Show(this, "Escolha um padrão ou indique um .txt de property sets que exista.", Title);
                 return;
             }
             ClassesIfc.Classe c = ClasseEscolhida;
@@ -917,7 +929,82 @@ namespace MetroSP.Ids
             _settings.EpsgEmBranco = EpsgEmBranco;
             _settings.Vista = Vista == DB.ElementId.InvalidElementId ? Coordenacao.OpcoesExportacao.ModeloInteiro : _doc.GetElement(Vista)?.Name;
             _settings.NomeArquivo = string.Equals(nome, NomePadrao(_doc), StringComparison.CurrentCultureIgnoreCase) ? Coordenacao.OpcoesExportacao.NomeDoModelo : nome;
+            if (Embutida) { Confirmada?.Invoke(); return; }
             DialogResult = true;
+        }
+
+        /// <summary>Confere as escolhas e exporta (o mesmo que o botão Exportar).</summary>
+        public void Exportar() => Confirmar();
+
+        /// <summary>
+        /// Guarda o que foi escolhido sem exportar: os nomes do IfcProject, IfcSite e IfcBuilding vão para o Revit
+        /// e a classe, os arquivos, a pasta e os eixos ficam lembrados para a próxima vez.
+        /// </summary>
+        public void GuardarEscolhas()
+        {
+            GravarNomes();
+            _settings.Classe = ClasseEscolhida?.Nome;
+            if (Setup != null) _settings.Setup = _setupGravado ?? Setup.Arquivo;
+            _settings.PropertySets = TextoPsets();
+            _settings.Mapeamento = _mapeamento.Text.Trim();
+            try
+            {
+                string pasta = Path.GetDirectoryName(_arquivo.Text.Trim());
+                if (!string.IsNullOrEmpty(pasta) && Directory.Exists(pasta)) _settings.PastaSaida = pasta;
+            }
+            catch { /* caminho inválido digitado: fica a pasta anterior */ }
+            _settings.SempreEixos = SempreEixos;
+            _settings.EpsgEmBranco = EpsgEmBranco;
+            DB.ElementId vista = (_vista.SelectedItem as Opcao)?.Id ?? DB.ElementId.InvalidElementId;
+            _settings.Vista = vista == DB.ElementId.InvalidElementId ? Coordenacao.OpcoesExportacao.ModeloInteiro : _doc.GetElement(vista)?.Name;
+            try
+            {
+                string nome = Path.GetFileNameWithoutExtension(_arquivo.Text.Trim());
+                if (!string.IsNullOrEmpty(nome))
+                    _settings.NomeArquivo = string.Equals(nome, NomePadrao(_doc), StringComparison.CurrentCultureIgnoreCase) ? Coordenacao.OpcoesExportacao.NomeDoModelo : nome;
+            }
+            catch { /* nome inválido digitado: fica o anterior */ }
+        }
+
+        /// <summary>
+        /// Resumo da última conferência da Entrega deste modelo (sem conferir de novo) e o link para o passo a passo,
+        /// onde dá para resolver as pendências e exportar no fim.
+        /// </summary>
+        private FrameworkElement ResumoEntrega()
+        {
+            Conferencia.ResultadoConferencia r = Conferencia.UltimaConferencia.De(_doc);
+            var linha = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+            var passoAPasso = Theme.Link("Passo a passo...");
+            passoAPasso.ToolTip = "Fecha esta janela e abre a Entrega passo a passo: confere o modelo, mostra o que falta em cada etapa e exporta no último passo.";
+            passoAPasso.VerticalAlignment = VerticalAlignment.Center;
+            passoAPasso.Click += (s, e) => { AbrirPassoAPasso = true; DialogResult = false; };
+            DockPanel.SetDock(passoAPasso, Dock.Right);
+            linha.Children.Add(passoAPasso);
+            var rotulo = new TextBlock { Text = "Entrega", Foreground = Theme.Solid(Theme.Preto), VerticalAlignment = VerticalAlignment.Center, Width = LarguraRotulo };
+            DockPanel.SetDock(rotulo, Dock.Left);
+            linha.Children.Add(rotulo);
+            Border selo = Theme.Selo();
+            selo.HorizontalAlignment = HorizontalAlignment.Left;
+            selo.VerticalAlignment = VerticalAlignment.Center;
+            linha.Children.Add(selo);
+            if (r == null)
+            {
+                Theme.MudarSelo(selo, "ainda não conferida", Theme.Estado.Neutro,
+                    "O modelo ainda não foi conferido nesta sessão. Use o Passo a passo para ver o que falta antes de exportar.");
+                return linha;
+            }
+            var pendentes = r.Etapas.Where(e => e.Sinal == Conferencia.Sinal.Vermelho || e.Sinal == Conferencia.Sinal.Amarelo).ToList();
+            string quando = $" · {r.Quando:HH:mm}";
+            string dica = pendentes.Count == 0 ? "Todas as etapas estão certas."
+                : string.Join("\n", pendentes.Select(e => $"{e.Numero}. {e.Titulo}" + (string.IsNullOrEmpty(e.Resumo) ? "" : ": " + e.Resumo)));
+            dica += $"\nConferido às {r.Quando:HH:mm}. Confira de novo no Passo a passo.";
+            if (r.Vermelhas > 0)
+                Theme.MudarSelo(selo, (r.Vermelhas == 1 ? "1 etapa com pendência" : $"{r.Vermelhas} etapas com pendência") + quando, Theme.Estado.Aviso, "O IFC sai incompleto.\n" + dica);
+            else if (r.Amarelas > 0)
+                Theme.MudarSelo(selo, (r.Amarelas == 1 ? "pronta, com 1 aviso" : $"pronta, com {r.Amarelas} avisos") + quando, Theme.Estado.Aviso, dica);
+            else
+                Theme.MudarSelo(selo, "tudo certo" + quando, Theme.Estado.Ok, dica);
+            return linha;
         }
 
         /// <summary>Mostra se o Location confere com o Project Base Point.</summary>

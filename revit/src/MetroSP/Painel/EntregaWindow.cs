@@ -26,6 +26,8 @@ namespace MetroSP.Painel
     public class EntregaWindow : Window
     {
         private const int PassoLocal = 6;
+        /// <summary>Último passo: projeto e local, opções e exportação do IFC.</summary>
+        public const int PassoExportar = PassoLocal;
         private static readonly Color Vermelho = Color.FromRgb(0xB2, 0x22, 0x22);
 
         private readonly UIApplication _app;
@@ -47,9 +49,12 @@ namespace MetroSP.Painel
 
         private Window _janelaFerramenta;
         private bool _trocando;
+        private Ids.IfcExportSettings _settingsIfc;
+        private string _resultadoForma;
 
         /// <summary>Confere o modelo ativo e abre a janela. Chamar no contexto da API (comando ou ExternalEvent).</summary>
-        public static Result Abrir(UIApplication app)
+        /// <param name="passo">Passo para abrir (0 = o primeiro com pendência).</param>
+        public static Result Abrir(UIApplication app, int passo = 0)
         {
             DB.Document doc = app.ActiveUIDocument?.Document;
             if (doc == null || doc.IsFamilyDocument)
@@ -59,6 +64,7 @@ namespace MetroSP.Painel
             }
             var janela = new EntregaWindow(app, doc);
             if (!janela.Conferir(primeira: true)) return Result.Cancelled;
+            if (passo > 0) { janela._passo = passo; janela.Mostrar(); }
             new WindowInteropHelper(janela).Owner = app.MainWindowHandle;
             janela.ShowDialog();
             Painel.PainelMetroSP.Instancia?.ModeloAtivo(doc);
@@ -257,6 +263,14 @@ namespace MetroSP.Painel
         private void SalvarEConferir()
         {
             Window w = _janelaFerramenta;
+            if (w is Ids.ExportarIfcWindow exportar)
+            {
+                // No passo Exportar, salvar guarda as escolhas (nomes no Revit, arquivos lembrados) sem exportar.
+                try { exportar.GuardarEscolhas(); _settingsIfc?.Save(); }
+                catch (Exception ex) { TaskDialog.Show("MetroSP", "Não foi possível guardar as escolhas:\n" + ex.Message); }
+                if (FecharFerramenta()) Conferir();
+                return;
+            }
             Button padrao = w == null ? null : Achar<Button>(_ferramenta, b => b.IsDefault && b.IsEnabled);
             if (padrao != null && new ButtonAutomationPeer(padrao).GetPattern(PatternInterface.Invoke) is IInvokeProvider clique)
             {
@@ -402,14 +416,19 @@ namespace MetroSP.Painel
             if (_passo == PassoLocal)
             {
                 _tituloPendencias.Text = "Exportação";
-                var abrirExportar = new List<(string, string, Action)> { ("Exportar IFC...", "Abre a janela Exportar IFC, com projeto e local, fase e eixos no grupo Extras.", AbrirExportar) };
+                var semAcao = new List<(string, string, Action)>();
                 _pendencias.Children.Add(Cartao(_local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Amarelo, "Projeto e local", _local.Texto,
-                    _local.Sinal == Sinal.Verde ? null : "Preencha no grupo Extras da janela Exportar IFC.", abrirExportar));
+                    _local.Sinal == Sinal.Verde ? null : "Confira no grupo Extras, ao lado.", semAcao));
                 Sinal exp = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Vermelho;
                 string texto = _res.ProntoParaExportar
                     ? (_res.Amarelas > 0 ? "Pronto para exportar, com avisos nas etapas em laranja." : "Tudo certo para exportar.")
                     : $"Ainda há {_res.Vermelhas} etapa(s) com pendência. Dá para exportar, mas o IFC sai incompleto.";
-                _pendencias.Children.Add(Cartao(exp, "Exportar IFC", texto, null, abrirExportar));
+                var exportar = new List<(string, string, Action)>
+                {
+                    ("Exportar", "Exporta o IFC com o padrão, os arquivos e as opções escolhidos ao lado.",
+                        () => (_janelaFerramenta as Ids.ExportarIfcWindow)?.Exportar()),
+                };
+                _pendencias.Children.Add(Cartao(exp, "Exportar IFC", texto, null, exportar));
                 return;
             }
             EtapaConferencia etapa = _res.Etapas.FirstOrDefault(e => e.Numero == _passo);
@@ -537,6 +556,18 @@ namespace MetroSP.Painel
                 }
                 case 5:
                     return new Classificacao.VerificarClassificacaoWindow(uidoc, Classificacao.ClassSettings.Abrir());
+                case PassoLocal:
+                {
+                    // A mesma janela do Exportar IFC da Ribbon, embutida: o Exportar dela exporta daqui.
+                    if (_settingsIfc == null)
+                    {
+                        _settingsIfc = Ids.IfcExportSettings.Load();
+                        _resultadoForma = ExportarIfcCommand.SincronizarForma();
+                    }
+                    var w = new Ids.ExportarIfcWindow(_doc, _settingsIfc, _resultadoForma, embutida: true);
+                    w.Confirmada += () => ExportarDaqui(w);
+                    return w;
+                }
                 default:
                     return null;
             }
@@ -547,7 +578,6 @@ namespace MetroSP.Painel
             if (_janelaFerramenta != null) return;
             _ferramenta.Child = null;
             if (_passo == 1) { _ferramenta.Child = PainelArquivos(); return; }
-            if (_passo == PassoLocal) { _ferramenta.Child = PainelLocal(); return; }
 
             Window w;
             try { w = CriarFerramenta(); }
@@ -643,36 +673,14 @@ namespace MetroSP.Painel
             return p;
         }
 
-        /// <summary>Abre a janela Exportar IFC (a mesma do botão da Ribbon) e, na volta, confere o projeto e o local de novo.</summary>
-        private void AbrirExportar()
+        /// <summary>Exporta com o que foi escolhido no passo Exportar e, na volta, confere o projeto e o local de novo.</summary>
+        private void ExportarDaqui(Ids.ExportarIfcWindow w)
         {
-            ExportarIfcCommand.Exportar(_app);
+            _settingsIfc?.Save();
+            try { ExportarIfcCommand.ExportarCom(_app, w); }
+            catch (Exception ex) { TaskDialog.Show("MetroSP", "Erro ao exportar o IFC:\n" + ex.Message); }
             _local = AcoesPendencia.SituacaoLocal(_doc);
             Mostrar();
-        }
-
-        private UIElement PainelLocal()
-        {
-            var p = new StackPanel { Margin = new Thickness(4) };
-            p.Children.Add(new TextBlock { Text = "Projeto e local", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
-            p.Children.Add(new TextBlock { Text = _local.Texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
-            p.Children.Add(new TextBlock
-            {
-                Text = "O projeto e o local (IfcProject, IfcSite, IfcBuilding e a localização), a fase e os eixos ficam no grupo Extras da janela Exportar IFC.",
-                TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.Cinza), FontSize = 11, Margin = new Thickness(0, 0, 0, 0),
-            });
-            p.Children.Add(new TextBlock { Text = "Exportar IFC", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 4) });
-            p.Children.Add(new TextBlock
-            {
-                Text = _res.ProntoParaExportar ? "Exporta com o setup (.json) e os property sets (.txt) dos padrões." : "Ainda há etapas com pendência: o IFC sai incompleto.",
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 8),
-            });
-            var exportar = Pilula("Exportar IFC...", primario: true);
-            exportar.HorizontalAlignment = HorizontalAlignment.Left;
-            exportar.Click += (s, e) => AbrirExportar();
-            p.Children.Add(exportar);
-            return p;
         }
 
         // ================================================================== visual

@@ -27,6 +27,18 @@ Revit 0.3.9 · Civil 3D 0.12.2
   ("IFC exportado SEM elementos") e diz a causa provável: a fase (escolha a última em Extras › Fase) ou a vista.
 - Revit e Civil 3D: o texto padrão do Revit no endereço ("Enter address here", "Address Line 2") não vai mais para o
   IfcBuilding e aparece vazio na janela.
+- Revit, **Entrega passo a passo**, passo 6 **Exportar**: agora tem tudo o que está no Exportar IFC (padrão e
+  arquivos, elementos, arquivo, projeto e local, EPSG, fase e eixos) e **exporta dali mesmo**, pelo botão Exportar.
+  À esquerda ficam a situação do projeto e local e se o modelo está pronto. **Salvar e conferir** nesse passo guarda as
+  escolhas (os nomes vão para o Revit) sem exportar.
+- Revit, **Exportar IFC** (botão da Ribbon): continua exportando direto e ganhou, no topo, o **resumo da Entrega** (a
+  última conferência: tudo certo, avisos ou etapas com pendência, com o detalhe na dica) e o link **Passo a passo...**,
+  que abre a Entrega já no passo Exportar.
+- Revit, **Padrão no lugar de Classe**: no Exportar IFC o grupo "Classe" passou a se chamar **Padrão**. Escolher o padrão
+  carrega de uma vez o setup, os property sets e o mapeamento dele.
+- Revit, **Padrões**: a janela Arquivos IFC virou **Padrões › Exportação IFC** (e Exportar IFC › Padrões...). O botão
+  Arquivos IFC saiu da Ribbon; Categorias IFC ficou sozinho, grande. Na lista de Padrões, os arquivos aparecem como
+  "Exportação IFC · setup / property sets / mapeamento".
 - Revit, **Entrega** e **Categorias IFC**: lances (Runs), patamares (Landings) e apoios (Supports) de escada não
   aparecem mais como proxy no passo 3. Eles têm categoria própria, filha de Stairs, e agora usam a linha
   "Stairs / Runs" da tabela (ou a classe do exportador: IfcStairFlight, IfcSlab, IfcMember). Em Categorias IFC, essas
