@@ -22,6 +22,8 @@ namespace MetroSP.Coordenacao
         private readonly TextBox _arquivo;
         private readonly TextBlock _info;
         private readonly StackPanel _perfis;
+        private readonly TextBlock _secaoPerfil;
+        private readonly Border _grupoPerfil;
         private readonly TextBlock _conteudo;
         private readonly CheckBox _gravarFamilias;
         private readonly CheckBox _dadosProjeto;
@@ -67,8 +69,10 @@ namespace MetroSP.Coordenacao
             _info.Margin = new Thickness(0, 4, 0, 0);
             corpo.Children.Add(_info);
 
-            corpo.Children.Add(Theme.Secao("Perfil"));
-            corpo.Children.Add(Theme.Grupo(out _perfis));
+            _secaoPerfil = Theme.Secao("Perfil");
+            corpo.Children.Add(_secaoPerfil);
+            _grupoPerfil = Theme.Grupo(out _perfis);
+            corpo.Children.Add(_grupoPerfil);
 
             corpo.Children.Add(Theme.Secao("O que entra"));
             _conteudo = new TextBlock { TextWrapping = TextWrapping.Wrap, LineHeight = 19 };
@@ -182,6 +186,10 @@ namespace MetroSP.Coordenacao
                 primeiro = false;
             }
             _perfilEscolhido = escolhido;
+            // Um perfil só: não há o que escolher.
+            Visibility vis = a.Perfis.Count > 1 ? Visibility.Visible : Visibility.Collapsed;
+            _secaoPerfil.Visibility = vis;
+            _grupoPerfil.Visibility = vis;
             _dadosProjeto.Visibility = a.Comum.DadosProjeto != null ? Visibility.Visible : Visibility.Collapsed;
             _entrega.Text = a.Comum.TemEntrega
                 ? "Para todos os perfis: " + string.Join(", ", new[] { a.Comum.Ids, a.Comum.PlanilhaClassificacao, a.Comum.MetroShared }.Where(x => x != null).Select(x => x.Nome))

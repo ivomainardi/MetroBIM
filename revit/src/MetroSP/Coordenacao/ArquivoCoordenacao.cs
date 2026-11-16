@@ -182,7 +182,7 @@ namespace MetroSP.Coordenacao
             Elementos = Elementos.Select(e => (AjusteElemento)e.MemberwiseCopy()).ToList(),
         };
 
-        public override string ToString() => Nome;
+        public override string ToString() => Nome + (Classe != null ? "  ·  " + Classe : "") + (Esquema != null ? "  ·  " + Esquema : "");
     }
 
     /// <summary>Escolhas da janela Exportar IFC que não estão no setup. Campo null = vale a escolha de quem exporta.</summary>

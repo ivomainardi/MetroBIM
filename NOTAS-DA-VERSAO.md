@@ -4,6 +4,23 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.6 (em preparação)
+
+Revit 0.3.9 · Civil 3D 0.12.1
+
+- Revit, arquivo de coordenação: leva **tudo do Exportar IFC**. Além do setup, da fase, das categorias, das classes
+  por família e dos .txt, vão também os Elementos (modelo inteiro ou o visível numa vista 3D, pelo nome da vista), o
+  nome do arquivo .ifc (o nome do modelo ou um nome fixo), o EPSG em branco, o "Sempre exportar os eixos" e as regras
+  de Nomenclatura (classe pelo nome do modelo). No Exportar IFC do projetista, essas escolhas vêm preenchidas pelo
+  arquivo (a dica de cada uma diz "Escolha do arquivo de coordenação"). A pasta de saída não vai, porque muda de um
+  computador para outro. O Exportar IFC também passa a lembrar a vista, o EPSG e o nome da última exportação.
+- Revit, **Exportar alterações** mais simples: um lugar só para o perfil (a lista, a classe e **+ Novo perfil**) e uma
+  frase que diz o que acontece ao salvar (o perfil escolhido fica igual ao modelo agora e os outros ficam como estão).
+  Saíram as caixinhas de incluir, o "tornar padrão" (o primeiro perfil é o padrão), o "juntar de outro arquivo" e o
+  "usar também neste modelo" (o modelo do coordenador passa a usar o arquivo sempre). A lista **O que vai no arquivo**
+  mostra exatamente o que vai, lido do modelo. As classes por elemento só aparecem quando o modelo tem alguma.
+- Revit, **Abrir alterações**: a escolha de perfil só aparece quando o arquivo tem mais de um.
+
 ## 1.0.5 (16/11/2026)
 
 Revit 0.3.8 · Civil 3D 0.12.1
