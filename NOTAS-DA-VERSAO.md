@@ -4,9 +4,9 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## 1.0.6 (em preparação)
+## 1.0.6 (16/11/2026)
 
-Revit 0.3.9 · Civil 3D 0.12.1
+Revit 0.3.9 · Civil 3D 0.12.2
 
 - Revit, arquivo de coordenação: leva **tudo do Exportar IFC**. Além do setup, da fase, das categorias, das classes
   por família e dos .txt, vão também os Elementos (modelo inteiro ou o visível numa vista 3D, pelo nome da vista), o
@@ -20,6 +20,17 @@ Revit 0.3.9 · Civil 3D 0.12.1
   "usar também neste modelo" (o modelo do coordenador passa a usar o arquivo sempre). A lista **O que vai no arquivo**
   mostra exatamente o que vai, lido do modelo. As classes por elemento só aparecem quando o modelo tem alguma.
 - Revit, **Abrir alterações**: a escolha de perfil só aparece quando o arquivo tem mais de um.
+- Revit, **Exportar IFC**: o resumo e o registro (.ifc.log.txt) passam a mostrar a saída (modelo inteiro ou vista, e a
+  fase), quantos elementos saíram por classe IFC e quantos ambientes (IfcSpace), e quantos elementos ficaram de fora
+  por terem sido criados numa fase posterior à exportada.
+- Revit, **Exportar IFC**: quando o IFC sai sem elementos, só com pavimentos e ambientes, o resumo avisa em destaque
+  ("IFC exportado SEM elementos") e diz a causa provável: a fase (escolha a última em Extras › Fase) ou a vista.
+- Revit e Civil 3D: o texto padrão do Revit no endereço ("Enter address here", "Address Line 2") não vai mais para o
+  IfcBuilding e aparece vazio na janela.
+- Revit, **Entrega** e **Categorias IFC**: lances (Runs), patamares (Landings) e apoios (Supports) de escada não
+  aparecem mais como proxy no passo 3. Eles têm categoria própria, filha de Stairs, e agora usam a linha
+  "Stairs / Runs" da tabela (ou a classe do exportador: IfcStairFlight, IfcSlab, IfcMember). Em Categorias IFC, essas
+  linhas mostram quantos elementos há no modelo, e o Selecionar da Entrega seleciona também a escada de cada um.
 
 ## 1.0.5 (16/11/2026)
 
