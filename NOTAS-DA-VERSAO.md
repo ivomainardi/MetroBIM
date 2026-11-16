@@ -4,6 +4,21 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.6 (em preparação)
+
+- Revit e Civil 3D, **Padrões**: agora é o lugar para **subir novos padrões**. O botão ficou grande na Ribbon (Revit:
+  Coordenação BIM › Padrões; Civil 3D: Configurar padrões › Padrões) e a janela ganhou **Adicionar padrões...** e uma
+  área para arrastar os arquivos.
+  - O tipo de cada arquivo é reconhecido pelo conteúdo e aparece numa conferência antes de gravar (novo, substitui o
+    atual ou fica de fora). Um padrão substituído fica guardado na subpasta Anteriores.
+  - Revit: classificação, confronto, dados do projeto, corrigir escrita, setups (.json), **property sets** e
+    mapeamentos (.txt) IFC, **padrões Metrô (.ids)** e **pacote de entrega (.metrosp)**. Os arquivos IFC abrem a janela
+    Arquivos IFC para indicar a classe; o .ids passa a ser o usado no Verificar IDS e na conferência; o .metrosp passa a
+    ser o pacote em uso, sem sair do lugar.
+  - Civil 3D: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC (mapeamento,
+    propriedades e opções MetroSP), que entra na configuração ativa.
+  - Os pacotes .zip também entram por ali (o antigo Importar pacote). **Excluir** continua igual.
+
 ## 1.0.4 (13/11/2026)
 
 Revit 0.3.7 · Civil 3D 0.12.0

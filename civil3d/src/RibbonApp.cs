@@ -76,11 +76,13 @@ namespace MetroSP
                     "Procura em property sets, nome e descrição espaços sobrando ou errados (duplos, nas pontas, na pontuação, entre número " +
                     "e unidade), acentuação e caracteres estranhos. Mostra o valor atual e a sugestão para corrigir ou ignorar.")));
 
-            // O que o coordenador BIM prepara uma vez e distribui: botões pequenos, no fim da aba.
+            // O que o coordenador BIM prepara uma vez e distribui, no fim da aba: Padrões em destaque e os outros pequenos.
             tab.Panels.Add(Panel("Configurar padrões",
+                Button("Padrões", "Padroes", "MSP_PADROES",
+                    "Adicionar, editar e excluir padrões: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC " +
+                    "(mapeamento, propriedades e opções MetroSP). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
+                    "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip."),
                 Stack(
-                    Small("Padrões e planilhas", "Padroes", "MSP_PADROES",
-                        "Todos os padrões salvos (classificação, confronto, dados do projeto, exportação IFC) e as planilhas que eles usam: editar, trocar planilha e levar para a equipe num .zip."),
                     Small("Configurar IFC", "IfcConfigurar", "MSP_IFCCONFIG", "Classes IFC, propriedades, projeto, alinhamento e opções avançadas do pacote de configuração."),
                     Small("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da IFC 4.3 Extension da Autodesk, atualizações e a pasta dos arquivos de configuração do desenho.")),
                 Stack(

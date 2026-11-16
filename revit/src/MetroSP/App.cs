@@ -198,11 +198,13 @@ namespace MetroSP
                 "Abrir alterações (ou no Exportar IFC), e o Exportar IFC passa a usar tudo o que veio nele.",
                 "Coordenacao");
 
+            AddButton<PadroesCommand>(panel, "Padrões",
+                "Adicionar, editar e excluir padrões: classificação, confronto, dados do projeto, corrigir escrita, setups, property sets e " +
+                "mapeamentos IFC, padrões Metrô (.ids) e pacote de entrega (.metrosp). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
+                "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip.",
+                "Padroes");
+
             panel.AddStackedItems(
-                Dados<PadroesCommand>("Padrões e planilhas",
-                    "Todos os padrões salvos (classificação, confronto, dados do projeto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
-                    "editar, trocar a planilha de todos de uma vez e levar para a equipe num .zip.",
-                    "Padroes"),
                 Dados<ArquivosIfcCommand>("Arquivos IFC",
                     "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
                     "principais do setup e confira os property sets no modelo aberto.",
