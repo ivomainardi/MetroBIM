@@ -4,6 +4,21 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.7 (a publicar)
+
+Revit 0.3.10 · Civil 3D 0.12.3
+
+- Revit e Civil 3D, **Ribbon mais enxuta**, igual nos dois: três painéis, **Entrega**, **Ferramentas** e **Coordenação**.
+  Nenhuma ferramenta saiu; as menos usadas passaram para a setinha ▾ do botão.
+  - Entrega: **Entrega passo a passo** (na setinha, o Painel MetroSP ao lado do modelo) e **Exportar IFC**.
+  - Revit, Ferramentas: **Classificação ▾** (Aplicar e Verificar), **Dados ▾** (Planilha de dados, Confrontar planilha,
+    Corrigir escrita, Editar em massa, Filtrar e colorir e Copiar valores) e **Parâmetros ▾** (com Renomear famílias).
+  - Civil 3D, Ferramentas: **Classificação** e **Dados ▾** (Property sets, Confrontar planilha e Corrigir escrita).
+  - Coordenação: **Padrões ▾**. No Revit, com Arquivo de coordenação e Categorias IFC; no Civil 3D, com Configurar IFC,
+    Exportador e Forma.
+  - Civil 3D, **Projeto e Local** saiu da frente e fica na setinha do Exportar IFC.
+  - O Sobre continua na logo, à direita. Os comandos digitados no Civil 3D (MSP_...) não mudaram.
+
 ## 1.0.6 (16/11/2026)
 
 Revit 0.3.9 · Civil 3D 0.12.2
