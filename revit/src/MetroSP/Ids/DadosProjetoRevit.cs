@@ -76,7 +76,7 @@ namespace MetroSP.Ids
                     Nome = edificio,
                     NomeLongo = Texto(info, LongoEdificio),
                     Descricao = Texto(info, DescricaoEdificio),
-                    Endereco = info?.Address ?? "",
+                    Endereco = DadosEntidadeIfc.SemEnderecoPadrao(info?.Address ?? ""),
                 },
                 Propriedades = LerPropriedades(info),
             };
