@@ -39,6 +39,13 @@ namespace MetroSP.Conferencia
             _origem = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 10, 0) };
             topo.Children.Add(_origem);
             painel.Children.Add(topo);
+            // Para levar os arquivos à equipe agora é o arquivo de coordenação (.coord-metrosp), que leva tudo dentro dele.
+            var aviso = Theme.Detalhe(atual.Coordenacao != null
+                ? $"Este modelo segue a {atual.Coordenacao}: os arquivos que vieram nela valem sobre os daqui."
+                : "Para mandar estes arquivos à equipe, use Coordenação BIM › Arquivo de coordenação (vão dentro dele).");
+            aviso.Margin = new Thickness(0, 0, 0, 6);
+            aviso.TextWrapping = TextWrapping.Wrap;
+            painel.Children.Add(aviso);
 
             _nome = Campo(painel, "Nome dos padrões (ex.: L20 · Classe B3 Arquitetura)");
             _psets = Arquivo(painel, "Property sets do Metrô (.txt) — obrigatório", "Texto (*.txt)|*.txt");
@@ -69,28 +76,6 @@ namespace MetroSP.Conferencia
                     AtualizarOrigem();
                 }
                 catch (Exception ex) { MessageBox.Show(this, "Não deu para ler os padrões:\n" + ex.Message, "MetroSP"); }
-            };
-
-            var salvarComo = new Button { Content = "Salvar padrões como...", ToolTip = "Grava um .metrosp com estes arquivos (caminhos relativos à pasta dele) para a equipe usar." };
-            salvarComo.Click += (s, e) =>
-            {
-                var d = new Microsoft.Win32.SaveFileDialog
-                {
-                    Filter = $"Padrões MetroSP (*{PacoteMetro.Extensao})|*{PacoteMetro.Extensao}",
-                    FileName = (string.IsNullOrWhiteSpace(_nome.Text) ? "padroes" : Limpar(_nome.Text)) + PacoteMetro.Extensao,
-                };
-                string inicio = _arquivo != null ? Path.GetDirectoryName(_arquivo) : Path.GetDirectoryName(_psets.Text.Trim());
-                if (!string.IsNullOrEmpty(inicio) && Directory.Exists(inicio)) d.InitialDirectory = inicio;
-                if (d.ShowDialog(this) != true) return;
-                try
-                {
-                    PacoteMetro p = Ler();
-                    p.SalvarArquivo(d.FileName);
-                    _arquivo = p.Arquivo;
-                    _assinaturaArquivo = p.Assinatura();
-                    AtualizarOrigem();
-                }
-                catch (Exception ex) { MessageBox.Show(this, "Não deu para salvar os padrões:\n" + ex.Message, "MetroSP"); }
             };
 
             _excluir = new Button
@@ -133,7 +118,7 @@ namespace MetroSP.Conferencia
             DockPanel.SetDock(direita, Dock.Right);
             rodape.Children.Add(direita);
             _excluir.Margin = new Thickness(8, 0, 0, 0);
-            rodape.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { salvarComo, _excluir } });
+            rodape.Children.Add(new StackPanel { Orientation = Orientation.Horizontal, Children = { _excluir } });
 
             Theme.Apply(this, "Padrões do Metrô", "Os arquivos que o Metrô pede para a entrega", painel, rodape);
         }

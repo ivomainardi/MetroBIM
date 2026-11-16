@@ -23,6 +23,17 @@ namespace MetroSP.Padroes
         public string Ferramenta { get; set; }
         /// <summary>Abre o editor do padrão; null = só pela ferramenta.</summary>
         public Action<Window, ItemPadrao> Editar { get; set; }
+        /// <summary>Reconhece um arquivo deste tipo, para o Adicionar padrões. null = não se adiciona por arquivo.</summary>
+        public Func<string, bool> Reconhece { get; set; }
+        /// <summary>
+        /// Traz os arquivos de um jeito próprio (ex.: pede a classe IFC ou só passa a usar o arquivo). Devolve o resumo
+        /// (null = nada feito). Sem isso, o arquivo é copiado para a <see cref="Pasta"/>.
+        /// </summary>
+        public Func<Window, IList<string>, string> Trazer { get; set; }
+        /// <summary>O que acontece ao trazer pelo <see cref="Trazer"/> (aparece na conferência antes de gravar).</summary>
+        public string TrazerTexto { get; set; }
+        /// <summary>Extensão com que o arquivo fica na pasta (null = a do próprio arquivo).</summary>
+        public string Extensao { get; set; }
     }
 
     public class ItemPadrao
@@ -125,6 +136,65 @@ namespace MetroSP.Padroes
             foreach (ItemPadrao i in itens.Where(x => x.Planilhas.Any(p => MesmoCaminho(p, antiga))))
                 if (Substituir(i.Arquivo, new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { [antiga] = nova })) n++;
             return n;
+        }
+
+        // ------------------------------------------------------------------ adicionar arquivos
+
+        /// <summary>Pasta (dentro da pasta de cada tipo) onde fica a versão anterior de um padrão substituído.</summary>
+        public const string SubAnteriores = "Anteriores";
+
+        /// <summary>Extensões que podem ser adicionadas (as dos tipos e o .zip do pacote), para o texto e o filtro do Abrir.</summary>
+        public static List<string> ExtensoesAceitas(IEnumerable<TipoPadrao> tipos) =>
+            tipos.Where(t => t.Reconhece != null)
+                .SelectMany(t => (t.Filtro ?? "").Split(';'))
+                .Select(f => f.Trim().TrimStart('*').ToLowerInvariant())
+                .Where(e => e.StartsWith(".") && e.Length > 1)
+                .Concat(new[] { ".zip" })
+                .Distinct().ToList();
+
+        /// <summary>Os tipos que reconhecem o arquivo, o mais provável primeiro.</summary>
+        public static List<TipoPadrao> Candidatos(string arquivo, IEnumerable<TipoPadrao> tipos)
+        {
+            var r = new List<TipoPadrao>();
+            foreach (TipoPadrao t in tipos)
+            {
+                if (t.Reconhece == null) continue;
+                try { if (t.Reconhece(arquivo)) r.Add(t); }
+                catch { /* arquivo que não abre: não é deste tipo */ }
+            }
+            return r;
+        }
+
+        /// <summary>true se o arquivo é um .json com um objeto que tem alguma das chaves (sem diferenciar maiúsculas).</summary>
+        public static bool JsonCom(string arquivo, params string[] chaves)
+        {
+            try
+            {
+                return LerJson(arquivo) is JsonObject o &&
+                       o.Any(kv => chaves.Any(c => string.Equals(c, kv.Key, StringComparison.OrdinalIgnoreCase)));
+            }
+            catch { return false; }
+        }
+
+        /// <summary>Onde o arquivo fica ao ser copiado para a pasta do tipo.</summary>
+        public static string Destino(TipoPadrao t, string arquivo) =>
+            Path.Combine(t.Pasta, Path.GetFileNameWithoutExtension(arquivo) + (t.Extensao ?? Path.GetExtension(arquivo)));
+
+        /// <summary>Copia o arquivo para a pasta do tipo. O padrão com o mesmo nome vai antes para a subpasta Anteriores.</summary>
+        public static string Copiar(string arquivo, TipoPadrao t)
+        {
+            Directory.CreateDirectory(t.Pasta);
+            string destino = Destino(t, arquivo);
+            if (MesmoCaminho(destino, arquivo)) return destino;
+            if (File.Exists(destino))
+            {
+                string anteriores = Path.Combine(t.Pasta, SubAnteriores);
+                Directory.CreateDirectory(anteriores);
+                File.Copy(destino, Path.Combine(anteriores,
+                    $"{Path.GetFileNameWithoutExtension(destino)} {DateTime.Now:yyyy-MM-dd HHmmss}{Path.GetExtension(destino)}"), overwrite: true);
+            }
+            File.Copy(arquivo, destino, overwrite: true);
+            return destino;
         }
 
         // ------------------------------------------------------------------ pacote .zip

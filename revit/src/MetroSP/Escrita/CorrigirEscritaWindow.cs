@@ -272,7 +272,7 @@ namespace MetroSP.Escrita
             return w.ShowDialog() == true ? caixa.Text.Trim() : null;
         }
 
-        /// <summary>Edita os termos e as correções de um padrão. Também abre pelo "Padrões e planilhas".</summary>
+        /// <summary>Edita os termos e as correções de um padrão. Também abre pela janela Padrões.</summary>
         public static bool EditarPadrao(Window dono, PadraoEscrita p)
         {
             var w = new Window { Title = "MetroSP - Termos e correções", Owner = dono, Width = 760, Height = 560, MinWidth = 520, MinHeight = 360,
@@ -311,7 +311,7 @@ namespace MetroSP.Escrita
             return true;
         }
 
-        /// <summary>Abre o editor para um arquivo de padrão (usado pelo "Padrões e planilhas").</summary>
+        /// <summary>Abre o editor para um arquivo de padrão (usado pela janela Padrões).</summary>
         public static void EditarArquivo(Window dono, string arquivo)
         {
             PadraoEscrita p;

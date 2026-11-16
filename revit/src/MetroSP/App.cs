@@ -38,7 +38,7 @@ namespace MetroSP
                 // A aba já existe (outro add-in MetroSP carregado). Seguimos usando ela.
             }
 
-            // Painéis na ordem do trabalho: entregar (passos 1, 2 e 3), classificar, cuidar dos dados, manutenção e,
+            // Painéis na ordem do trabalho: entregar, classificar, cuidar dos dados, manutenção e,
             // por último, o que o coordenador BIM prepara uma vez. O Sobre abre pela logo, à direita da aba.
             CreateEntregaPanel(application);
             CreateAcompanharPanel(application);
@@ -96,19 +96,14 @@ namespace MetroSP
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Entrega Metrô");
 
             AddButton<EntregaCommand>(panel, "Entrega\npasso a passo",
-                "Passo 1, por onde começar. Janela única da entrega: as etapas em cima, com setinhas, e embaixo o que falta em cada etapa, com os botões " +
+                "Por onde começar. Janela única da entrega: as etapas em cima, com setinhas, e embaixo o que falta em cada etapa, com os botões " +
                 "que resolvem e a ferramenta da etapa (Parâmetros, Categorias IFC, Editar em massa, Classificação, Local e Exportar IFC).",
                 "Passo1");
 
-            AddButton<LocalizacaoIfcCommand>(panel, "Projeto e\nLocal",
-                "Passo 2. Preenche o IfcProject, o IfcSite e o IfcBuilding (nome, nome longo, descrição, fase, endereço) " +
-                "e o Pset MetroSP_Projeto, e calcula a latitude e a longitude pelo Project Base Point (PTL do Metrô). " +
-                "Os dados podem ser salvos como padrão e usados em outros modelos, também no Civil 3D.",
-                "Passo2");
-
+            // Projeto e Local não tem mais botão: fica no grupo Extras do Exportar IFC (IfcProject, IfcSite, IfcBuilding, localização).
             AddButton<ExportarIfcCommand>(panel, "Exportar\nIFC",
-                "Passo 3. Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
-                "computador ou no Autodesk Forma.",
+                "Exporta o IFC com o setup (.json) e os property sets (.txt) da classe, guardados no " +
+                "computador ou no Autodesk Forma. No grupo Extras: Projeto e Local (IfcProject, IfcSite, IfcBuilding e localização).",
                 "Passo3");
         }
 
@@ -198,11 +193,13 @@ namespace MetroSP
                 "Abrir alterações (ou no Exportar IFC), e o Exportar IFC passa a usar tudo o que veio nele.",
                 "Coordenacao");
 
+            AddButton<PadroesCommand>(panel, "Padrões",
+                "Adicionar, editar e excluir padrões: classificação, confronto, dados do projeto, corrigir escrita, setups, property sets e " +
+                "mapeamentos IFC, arquivo de coordenação (.coord-metrosp), padrões Metrô (.ids) e pacote de entrega (.metrosp). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
+                "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip.",
+                "Padroes");
+
             panel.AddStackedItems(
-                Dados<PadroesCommand>("Padrões e planilhas",
-                    "Todos os padrões salvos (classificação, confronto, dados do projeto, setups, property sets e mapeamentos IFC) e as planilhas que eles usam: " +
-                    "editar, trocar a planilha de todos de uma vez e levar para a equipe num .zip.",
-                    "Padroes"),
                 Dados<ArquivosIfcCommand>("Arquivos IFC",
                     "Setups (.json), property sets e mapeamentos (.txt) de cada classe: traga vários de uma vez, veja e troque as opções " +
                     "principais do setup e confira os property sets no modelo aberto.",

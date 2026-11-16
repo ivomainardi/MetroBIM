@@ -62,7 +62,7 @@ namespace MetroSP.Ui
             DockPanel.SetDock(usar, Dock.Right);
             barra.Children.Add(usar);
             _padroes = new ComboBox { MinWidth = 200, VerticalContentAlignment = VerticalAlignment.Center };
-            _padroes.ToolTip = "Padrões em " + DadosProjetoIfc.Pasta + ". Para levar à equipe: Padrões e planilhas.";
+            _padroes.ToolTip = "Padrões em " + DadosProjetoIfc.Pasta + ". Para adicionar ou levar à equipe: Configurar padrões › Padrões.";
             barra.Children.Add(_padroes);
             Children.Add(barra);
             _infoPadrao = Theme.Detalhe();

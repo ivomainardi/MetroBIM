@@ -275,11 +275,11 @@ namespace MetroSP.Painel
             foreach (EtapaConferencia etapa in _res.Etapas) _passos.Children.Add(Passo(etapa));
 
             // Passos que não são conferências: abrir a ferramenta.
-            // Ao fechar a janela do Projeto e Local, relê só este passo (sem reconferir o modelo todo).
+            // Projeto e Local fica no grupo Extras do Exportar IFC. Ao fechar, relê só este passo (sem reconferir o modelo todo).
             _passos.Children.Add(PassoAcao(_res.Etapas.Count + 1, "Projeto e Local", _local.Texto, "Abrir",
                 app =>
                 {
-                    LocalizacaoIfcCommand.Abrir(app);
+                    ExportarIfcCommand.Exportar(app);
                     if (_doc != null && _doc.IsValidObject) { _local = AcoesPendencia.SituacaoLocal(_doc); MostrarPassos(); }
                 }, _local.Sinal));
             Sinal sinalExportar = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Cinza;

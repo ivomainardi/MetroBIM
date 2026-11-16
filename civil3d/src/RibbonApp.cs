@@ -47,14 +47,14 @@ namespace MetroSP
             var tab = new RibbonTab { Title = "MetroSP", Id = TabId };
             ribbon.Tabs.Add(tab);
 
-            // Só a Entrega Metrô é numerada: são os passos 1-2-3. O resto fica sem número, como no plugin do Revit.
+            // Entrega Metrô: os passos da entrega, na ordem (os ícones não têm número, como no plugin do Revit).
             tab.Panels.Add(Panel("Entrega Metrô",
                 Button("Entrega\npasso a passo", "Passo1", "MSP_ENTREGA",
-                    "Passo 1, por onde começar. Janela única da entrega: as etapas em cima, com setinhas (verde = pronta, laranja = pendências), " +
+                    "Por onde começar. Janela única da entrega: as etapas em cima, com setinhas (verde = pronta, laranja = pendências), " +
                     "e embaixo o que falta em cada etapa, com os botões que resolvem e a ferramenta da etapa (Exportador, Property sets, " +
                     "Classes IFC, Dados, Classificação, Alinhamentos, Local e exportar)."),
                 Button("Projeto e\nLocal", "Passo2", "MSP_IFCPROJETO",
-                    "Passo 2. Preenche o IfcProject, o IfcSite, as instalações (a linha como IfcRailway e cada estação como IfcBuilding) " +
+                    "Preenche o IfcProject, o IfcSite, as instalações (a linha como IfcRailway e cada estação como IfcBuilding) " +
                     "e o Pset MetroSP_Projeto. Os dados podem ser salvos como padrão e usados em outros desenhos, também no Revit."),
                 ExportSplit()));
 
@@ -76,11 +76,13 @@ namespace MetroSP
                     "Procura em property sets, nome e descrição espaços sobrando ou errados (duplos, nas pontas, na pontuação, entre número " +
                     "e unidade), acentuação e caracteres estranhos. Mostra o valor atual e a sugestão para corrigir ou ignorar.")));
 
-            // O que o coordenador BIM prepara uma vez e distribui: botões pequenos, no fim da aba.
+            // O que o coordenador BIM prepara uma vez e distribui, no fim da aba: Padrões em destaque e os outros pequenos.
             tab.Panels.Add(Panel("Configurar padrões",
+                Button("Padrões", "Padroes", "MSP_PADROES",
+                    "Adicionar, editar e excluir padrões: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC " +
+                    "(mapeamento, propriedades e opções MetroSP). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
+                    "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip."),
                 Stack(
-                    Small("Padrões e planilhas", "Padroes", "MSP_PADROES",
-                        "Todos os padrões salvos (classificação, confronto, dados do projeto, exportação IFC) e as planilhas que eles usam: editar, trocar planilha e levar para a equipe num .zip."),
                     Small("Configurar IFC", "IfcConfigurar", "MSP_IFCCONFIG", "Classes IFC, propriedades, projeto, alinhamento e opções avançadas do pacote de configuração."),
                     Small("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da IFC 4.3 Extension da Autodesk, atualizações e a pasta dos arquivos de configuração do desenho.")),
                 Stack(
@@ -90,11 +92,11 @@ namespace MetroSP
             tab.Panels.Add(BrandPanel());
         }
 
-        /// <summary>Passo 3: Exportar IFC, com a setinha para exportar só a seleção ou só os alinhamentos.</summary>
+        /// <summary>Exportar IFC, com a setinha para exportar só a seleção ou só os alinhamentos.</summary>
         static RibbonSplitButton ExportSplit()
         {
             var tudo = Button("Exportar\nIFC", "Passo3", "MSP_IFCEXPORT",
-                "Passo 3. Exporta o desenho em IFC 4.3 com o exportador da Autodesk e completa o arquivo: alinhamento 3D, projeto, local e instalações.");
+                "Exporta o desenho em IFC 4.3 com o exportador da Autodesk e completa o arquivo: alinhamento 3D, projeto, local e instalações.");
             var selecao = Button("Só a seleção", "IfcSelecao", "MSP_IFCEXPORTSEL", "Exporta só os objetos selecionados.");
             var alinhamentos = Button("Só os alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D.");
             foreach (var b in new[] { selecao, alinhamentos })

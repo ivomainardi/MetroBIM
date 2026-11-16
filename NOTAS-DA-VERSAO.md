@@ -4,6 +4,36 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.5 (16/11/2026)
+
+Revit 0.3.8 · Civil 3D 0.12.1
+
+- Revit e Civil 3D, Ribbon, painel Entrega Metrô: os ícones e as dicas não têm mais os números 1, 2 e 3.
+- Revit e Civil 3D, **Padrões**: agora é o lugar para **subir novos padrões**. O botão ficou grande na Ribbon (Revit:
+  Coordenação BIM › Padrões; Civil 3D: Configurar padrões › Padrões) e a janela ganhou **Adicionar padrões...** e uma
+  área para arrastar os arquivos.
+  - O tipo de cada arquivo é reconhecido pelo conteúdo e aparece numa conferência antes de gravar (novo, substitui o
+    atual ou fica de fora). Um padrão substituído fica guardado na subpasta Anteriores.
+  - Revit: classificação, confronto, dados do projeto, corrigir escrita, setups (.json), **property sets** e
+    mapeamentos (.txt) IFC, **arquivo de coordenação (.coord-metrosp)**, **padrões Metrô (.ids)** e **pacote de entrega
+    (.metrosp)**. O arquivo de coordenação abre o Abrir alterações para escolher o perfil (é ele que aparece na faixa
+    laranja do Exportar IFC). Os arquivos IFC abrem a janela Arquivos IFC para indicar a classe; o .ids passa a ser o
+    usado na conferência; o .metrosp passa a ser o pacote em uso, sem sair do lugar.
+  - Civil 3D: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC (mapeamento,
+    propriedades e opções MetroSP), que entra na configuração ativa.
+  - Os pacotes .zip também entram por ali (o antigo Importar pacote). **Excluir** continua igual.
+- **Menos caminhos repetidos**, para cada coisa ter um lugar só:
+  - Revit, **Projeto e Local** saiu da Ribbon: fica no grupo Extras do Exportar IFC. O passo Projeto e Local do Painel MetroSP abre o Exportar IFC.
+  - Revit e Civil 3D, **Padrões de classificação** e **Confrontar planilha**: saíram o importar e o exportar de padrão
+    de cada janela; trazer e levar padrões é pela janela Padrões (a dica da lista de padrões indica onde).
+  - Revit, **um pacote só para a equipe**: o arquivo de coordenação (.coord-metrosp) passa a levar também os arquivos
+    da entrega (requisitos .ids, planilha de classificação e MetroShared), dentro dele. Ao abrir, eles valem na
+    conferência, na Classificação e em Parâmetros, sobre os do pacote .metrosp. A janela Padrões do Metrô não grava mais
+    .metrosp (os que já existem continuam abrindo) e indica o arquivo de coordenação para mandar à equipe.
+  - Civil 3D, **Configurar IFC**: o Importar virou **Adicionar padrões...**, que abre a janela Padrões.
+  - Revit: saiu a janela antiga **Verificar Padrões Metrô**, que não tinha mais botão e pedia de novo os property
+    sets e as classes IFC. A verificação do IDS é a da conferência (Painel MetroSP).
+
 ## 1.0.4 (13/11/2026)
 
 Revit 0.3.7 · Civil 3D 0.12.0
