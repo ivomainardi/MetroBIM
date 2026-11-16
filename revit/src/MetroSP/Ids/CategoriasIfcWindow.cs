@@ -195,6 +195,9 @@ namespace MetroSP.Ids
 
         private const string SemClasse = "(vazio)", SemTipo = "(nenhum)";
 
+        /// <summary>Chave da contagem: o nome da categoria, ou "Categoria|Subcategoria" (ver CategoriasIfc.ChaveDe).</summary>
+        private static string ChaveContagem(Par p) => string.IsNullOrEmpty(p.Subcategoria) ? p.Categoria : p.Categoria + "|" + p.Subcategoria;
+
         private static string NomeEsquema(string e) => e == CategoriasIfc.Ifc4 ? "IFC4" : "IFC 4.3";
 
         /// <summary>Junta as linhas dos dois IFC schemas pela categoria; a que falta num deles entra vazia (exportar, sem classe).</summary>
@@ -222,7 +225,7 @@ namespace MetroSP.Ids
             }
             foreach (Par p in pares)
             {
-                int n = string.IsNullOrEmpty(p.Subcategoria) && _contagem.TryGetValue(p.Categoria, out int c) ? c : 0;
+                int n = _contagem.TryGetValue(ChaveContagem(p), out int c) ? c : 0;
                 p.L4.NoModelo = n;
                 p.L43.NoModelo = n;
             }
@@ -300,7 +303,7 @@ namespace MetroSP.Ids
                 // Não exportar é uma escolha, não um erro: só conta a categoria usada que exporta sem classe, e só se
                 // algum elemento dela não tem a classe no tipo ou na instância ("Exportar para IFC como").
                 int semClasse = _pares.Count(p => p.NoModelo > 0 && p.De(e).Exportar && string.IsNullOrWhiteSpace(p.De(e).Classe)
-                                                  && _semClasse.TryGetValue(p.Categoria, out int s) && s > 0);
+                                                  && _semClasse.TryGetValue(ChaveContagem(p), out int s) && s > 0);
                 if (semClasse > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {semClasse} usadas sem classe", destaque: true));
                 int naoExportadas = _pares.Count(p => p.NoModelo > 0 && !p.De(e).Exportar);
                 if (naoExportadas > 0) _selos.Children.Add(Theme.Chip($"{NomeEsquema(e)}: {naoExportadas} usadas e não exportadas"));

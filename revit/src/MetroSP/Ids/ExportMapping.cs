@@ -174,6 +174,16 @@ namespace MetroSP.Ids
             return m?.IfcClass;
         }
 
+        /// <summary>Classe IFC da linha categoria + subcategoria (ex.: Stairs / Runs). null se não houver ou estiver vazia.</summary>
+        public string IfcClassForCategory(string category, string subCategory)
+        {
+            if (string.IsNullOrEmpty(subCategory)) return IfcClassForCategory(category);
+            CategoryMapping m = Categories.FirstOrDefault(c =>
+                string.Equals(c.Category, category, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(c.SubCategory, subCategory, StringComparison.OrdinalIgnoreCase));
+            return string.IsNullOrWhiteSpace(m?.IfcClass) ? null : m.IfcClass;
+        }
+
         /// <summary>
         /// Tipos de dado do exportador IFC da Autodesk (enum PropertyType do revit-ifc). A leitura ignora maiúsculas e
         /// aceita o prefixo "Ifc" (IfcLabel = Label); um tipo fora da lista é exportado como Text.
