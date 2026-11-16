@@ -25,6 +25,7 @@ namespace MetroSP.Coordenacao
         private readonly TextBlock _conteudo;
         private readonly CheckBox _gravarFamilias;
         private readonly CheckBox _dadosProjeto;
+        private readonly TextBlock _entrega;
         private readonly TextBlock _resumo;
         private readonly Button _usar;
         private ArquivoCoordenacao _lido;
@@ -90,6 +91,10 @@ namespace MetroSP.Coordenacao
                           "(só os campos preenchidos no arquivo). Os mesmos campos do botão Projeto e Local.",
             };
             corpo.Children.Add(_dadosProjeto);
+            _entrega = Theme.Detalhe("");
+            _entrega.Margin = new Thickness(0, 6, 0, 0);
+            _entrega.ToolTip = "Requisitos do Metrô (.ids), planilha de classificação e MetroShared: valem na conferência, na Classificação e em Parâmetros.";
+            corpo.Children.Add(_entrega);
 
             _resumo = new TextBlock();
             _usar = new Button { Content = "Usar este perfil", IsDefault = true, Style = Theme.PrimaryButton, IsEnabled = false };
@@ -178,6 +183,10 @@ namespace MetroSP.Coordenacao
             }
             _perfilEscolhido = escolhido;
             _dadosProjeto.Visibility = a.Comum.DadosProjeto != null ? Visibility.Visible : Visibility.Collapsed;
+            _entrega.Text = a.Comum.TemEntrega
+                ? "Para todos os perfis: " + string.Join(", ", new[] { a.Comum.Ids, a.Comum.PlanilhaClassificacao, a.Comum.MetroShared }.Where(x => x != null).Select(x => x.Nome))
+                : "";
+            _entrega.Visibility = a.Comum.TemEntrega ? Visibility.Visible : Visibility.Collapsed;
             MostrarPerfil();
         }
 
@@ -263,6 +272,13 @@ namespace MetroSP.Coordenacao
                 return;
             }
             CoordenacaoRevit.Ativar(_doc);
+            if (a.Comum.TemEntrega)
+            {
+                // Os arquivos da entrega (.ids, planilha, MetroShared) passam a valer também na Classificação e em Parâmetros.
+                Conferencia.PacoteMetro.Abrir().AplicarNasOutrasFerramentas();
+                feito.Add("Arquivos da entrega em uso: " + string.Join(", ", new[] { a.Comum.Ids, a.Comum.PlanilhaClassificacao, a.Comum.MetroShared }
+                    .Where(x => x != null).Select(x => x.Nome)) + ".");
+            }
             if (!familias && p.Familias.Count + p.Elementos.Count > 0)
                 feito.Add("As classes por família entram só no IFC, na hora de exportar (o modelo não mudou).");
             Resultado = string.Join("\n", feito);

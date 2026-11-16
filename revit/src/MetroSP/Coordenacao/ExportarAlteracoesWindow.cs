@@ -35,6 +35,7 @@ namespace MetroSP.Coordenacao
         private readonly StackPanel _lista;
         private readonly CheckBox _porElemento;
         private readonly CheckBox _dadosProjeto;
+        private readonly CheckBox _entrega;
         private readonly CheckBox _usarNoModelo;
         private readonly TextBox _revisao;
         private readonly TextBox _nota;
@@ -123,6 +124,22 @@ namespace MetroSP.Coordenacao
             _dadosProjeto.Checked += (s, e) => AtualizarResumo();
             _dadosProjeto.Unchecked += (s, e) => AtualizarResumo();
             corpo.Children.Add(_dadosProjeto);
+            Conferencia.PacoteMetro pacote = Conferencia.PacoteMetro.Abrir();
+            var arquivosEntrega = new[] { pacote.Ids, pacote.Planilha, pacote.MetroShared }.Where(f => !string.IsNullOrWhiteSpace(f) && File.Exists(f)).ToList();
+            _entrega = new CheckBox
+            {
+                Content = "Arquivos da entrega: requisitos (.ids), planilha de classificação e MetroShared",
+                IsChecked = arquivosEntrega.Count > 0,
+                IsEnabled = arquivosEntrega.Count > 0,
+                Margin = new Thickness(0, 4, 0, 0),
+                ToolTip = arquivosEntrega.Count > 0
+                    ? "Vão dentro do arquivo (quem recebe não precisa de pasta compartilhada): " + string.Join(", ", arquivosEntrega.Select(Path.GetFileName)) + "."
+                    : "Nenhum arquivo da entrega em uso neste computador. Escolha em Painel MetroSP › Padrões do Metrô.",
+            };
+            ToolTipService.SetShowOnDisabled(_entrega, true);
+            _entrega.Checked += (s, e) => AtualizarResumo();
+            _entrega.Unchecked += (s, e) => AtualizarResumo();
+            corpo.Children.Add(_entrega);
             _usarNoModelo = new CheckBox
             {
                 Content = "Usar também neste modelo",
@@ -253,7 +270,7 @@ namespace MetroSP.Coordenacao
             if (_erroCaptura != null) avisos.Add(_erroCaptura);
             List<PerfilCoordenacao> perfis = Incluidos();
             if (perfis.Count == 0) avisos.Add("nenhum perfil marcado");
-            int n = perfis.Sum(p => p.Alteracoes) + (_dadosProjeto.IsChecked == true ? 1 : 0);
+            int n = perfis.Sum(p => p.Alteracoes) + (_dadosProjeto.IsChecked == true ? 1 : 0) + (_entrega?.IsChecked == true ? 1 : 0);
             Theme.MudarResumo(_resumo, avisos, $"{perfis.Count} perfil(is) · {n} ajustes");
         }
 
@@ -296,6 +313,14 @@ namespace MetroSP.Coordenacao
             };
             if (_dadosProjeto.IsChecked == true) a.Comum.DadosProjeto = CoordenacaoRevit.CapturarDadosProjeto(_doc);
             a.Comum.Nomenclatura = CoordenacaoRevit.CapturarNomenclatura();
+            if (_entrega.IsChecked == true)
+            {
+                Conferencia.PacoteMetro pacote = Conferencia.PacoteMetro.Abrir();
+                a.Comum.Ids = ArquivoEmbutido.De(pacote.Ids);
+                a.Comum.PlanilhaClassificacao = ArquivoEmbutido.De(pacote.Planilha);
+                a.Comum.MetroShared = ArquivoEmbutido.De(pacote.MetroShared);
+                if (a.Comum.PlanilhaClassificacao != null) a.Comum.ParametroClassificacao = pacote.ParametroClassificacao;
+            }
 
             var d = new SaveFileDialog { Title = "Salvar arquivo de coordenação", Filter = ArquivoCoordenacao.Filtro, FileName = a.NomeSugerido(), DefaultExt = ArquivoCoordenacao.Extensao };
             try

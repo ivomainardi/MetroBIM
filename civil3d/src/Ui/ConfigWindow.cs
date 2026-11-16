@@ -72,7 +72,7 @@ namespace MetroSP.Ui
             var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(toolbar, Dock.Top);
             if (somenteProjeto) toolbar.Visibility = Visibility.Collapsed;
-            toolbar.Children.Add(Tool("Importar…", "Importa JSON ou CSV de configuração para o pacote.", (s, e) => ImportFiles()));
+            toolbar.Children.Add(Tool("Adicionar padrões…", "Abre a janela Padrões, onde se trazem os arquivos de configuração IFC (e os outros padrões): arraste ou escolha os arquivos.", (s, e) => AbrirPadroes()));
             toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do pacote numa pasta.", (s, e) => ExportPackage()));
             if (Settings.Load().UsesForma)
                 toolbar.Children.Add(Tool("Baixar do Forma", "Troca o pacote pela versão mais recente do Forma.", async (s, e) => await DownloadFromForma()));
@@ -206,21 +206,12 @@ namespace MetroSP.Ui
             }
         }
 
-        void ImportFiles()
+        /// <summary>Trazer arquivos é pela janela Padrões (um lugar só para todos os padrões); depois relê o pacote.</summary>
+        void AbrirPadroes()
         {
-            var dlg = new Microsoft.Win32.OpenFileDialog
-            {
-                Title = "Importar configurações IFC",
-                Filter = "Configuração IFC (*.json;*.csv)|*.json;*.csv",
-                Multiselect = true
-            };
-            if (dlg.ShowDialog(this) != true) return;
-            try
-            {
-                var done = ConfigPackage.Import(dlg.FileNames);
-                ReloadEverything("Importado: " + string.Join("; ", done));
-            }
-            catch (Exception ex) { Warn(ex.Message); }
+            var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+            new Padroes.GerenciarPadroesWindow(Padroes.PadroesCommands.Tipos(doc), "Civil 3D") { Owner = this }.ShowDialog();
+            ReloadEverything("Pacote relido.");
         }
 
         void ExportPackage()

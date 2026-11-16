@@ -35,6 +35,12 @@ namespace MetroSP.Coordenacao
             public string Pasta { get; set; }
             /// <summary>Quando os arquivos do perfil foram recebidos neste computador (mais antigo dos arquivos da pasta).</summary>
             public string Modelo { get; set; }
+            /// <summary>Arquivos da entrega que vieram na coordenação, já gravados na pasta (null = não veio).</summary>
+            public string Ids { get; set; }
+            public string Planilha { get; set; }
+            public string MetroShared { get; set; }
+            public string Setup { get; set; }
+            public string PropertySets { get; set; }
             public string Titulo => $"Coordenação rev. {Arquivo.Revisao}" + (Arquivo.Perfis.Count > 1 ? " · " + Perfil.Nome : "");
             public string Resumo => $"{Arquivo.Autor ?? "?"} · {DataCurta(Arquivo.Data)}" + (string.IsNullOrEmpty(Origem) ? "" : " · " + Origem);
         }
@@ -159,9 +165,19 @@ namespace MetroSP.Coordenacao
             PerfilCoordenacao p = a.Perfil(perfil);
             if (p == null) { _atual = null; return; }
             string pasta = Path.Combine(Raiz, Assinatura(chave));
-            try { Materializar(doc, p, pasta, a.Comum?.Nomenclatura); }
+            try { Materializar(doc, p, pasta, a.Comum); }
             catch { /* sem pasta gravável: segue sem os arquivos, mas mostra a coordenação */ }
-            _atual = new Ativa { Arquivo = a, Perfil = p, Origem = origem, Pasta = pasta, Modelo = chave };
+            string classe = NomeArquivo(p.Classe ?? "Coordenacao");
+            string Se(string rel) { string f = Path.Combine(pasta, rel); return File.Exists(f) ? f : null; }
+            _atual = new Ativa
+            {
+                Arquivo = a, Perfil = p, Origem = origem, Pasta = pasta, Modelo = chave,
+                Setup = Se(Path.Combine(FormaPaths.SubSetups, classe + ".json")),
+                PropertySets = Se(Path.Combine(FormaPaths.SubPropertySets, classe + ".txt")),
+                Ids = a.Comum.Ids == null ? null : Se(Path.Combine(SubEntrega, NomeArquivo(a.Comum.Ids.Nome))),
+                Planilha = a.Comum.PlanilhaClassificacao == null ? null : Se(Path.Combine(SubEntrega, NomeArquivo(a.Comum.PlanilhaClassificacao.Nome))),
+                MetroShared = a.Comum.MetroShared == null ? null : Se(Path.Combine(SubEntrega, NomeArquivo(a.Comum.MetroShared.Nome))),
+            };
         }
 
         private static string ChaveModelo(Document doc)
@@ -173,8 +189,14 @@ namespace MetroSP.Coordenacao
         private static string Assinatura(string texto) => ArquivoCoordenacao.Assinatura(texto?.ToLowerInvariant());
 
         /// <summary>Escreve setup, .txt e tabelas do perfil na pasta. Só regrava o que mudou (a data do arquivo diz quando chegou).</summary>
-        internal static void Materializar(Document doc, PerfilCoordenacao p, string pasta, string nomenclatura = null)
+        /// <summary>Subpasta com os arquivos da entrega (.ids, planilha, MetroShared) que vieram na coordenação.</summary>
+        public const string SubEntrega = "Entrega";
+
+        internal static void Materializar(Document doc, PerfilCoordenacao p, string pasta, DadosComuns comum = null)
         {
+            var binarios = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
+            foreach (ArquivoEmbutido e in new[] { comum?.Ids, comum?.PlanilhaClassificacao, comum?.MetroShared })
+                if (e != null && !string.IsNullOrWhiteSpace(e.Nome)) binarios[Path.Combine(SubEntrega, NomeArquivo(e.Nome))] = e.Bytes();
             string classe = NomeArquivo(p.Classe ?? "Coordenacao");
             var desejados = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (p.Exportador != null)
@@ -187,7 +209,7 @@ namespace MetroSP.Coordenacao
             }
             if (p.PropertySets != null) desejados[Path.Combine(FormaPaths.SubPropertySets, classe + ".txt")] = p.PropertySets;
             if (p.Mapeamento != null) desejados[Path.Combine(FormaPaths.SubMapeamentos, classe + ".txt")] = p.Mapeamento;
-            if (nomenclatura != null) desejados[ClassesIfc.ArquivoNomenclatura] = nomenclatura;
+            if (comum?.Nomenclatura != null) desejados[ClassesIfc.ArquivoNomenclatura] = comum.Nomenclatura;
             foreach (KeyValuePair<string, List<LinhaCategoria>> t in p.Categorias.Where(k => k.Value != null && k.Value.Count > 0))
             {
                 var linhas = t.Value.Select(l => new CategoriasIfc.Linha
@@ -202,7 +224,14 @@ namespace MetroSP.Coordenacao
             foreach (string f in Directory.EnumerateFiles(pasta, "*", SearchOption.AllDirectories).ToList())
             {
                 string rel = f.Substring(pasta.Length).TrimStart(Path.DirectorySeparatorChar);
-                if (!desejados.ContainsKey(rel)) { try { File.Delete(f); } catch { } }
+                if (!desejados.ContainsKey(rel) && !binarios.ContainsKey(rel)) { try { File.Delete(f); } catch { } }
+            }
+            foreach (KeyValuePair<string, byte[]> b in binarios)
+            {
+                string f = Path.Combine(pasta, b.Key);
+                if (File.Exists(f) && File.ReadAllBytes(f).SequenceEqual(b.Value)) continue;
+                Directory.CreateDirectory(Path.GetDirectoryName(f));
+                File.WriteAllBytes(f, b.Value);
             }
             foreach (KeyValuePair<string, string> d in desejados)
             {

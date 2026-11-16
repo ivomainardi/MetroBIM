@@ -42,13 +42,13 @@ Os dois endereços ficam em `ExtensaoAutodeskUrl` e `VersoesMetroSpUrl` no `Metr
 
 | Painel | Botão | Comando |
 |---|---|---|
-| Entrega Metrô | 1 Entrega passo a passo (janela única com as 7 etapas) | `MSP_ENTREGA` |
-| Entrega Metrô | 2 Projeto e Local (IfcProject, IfcSite, instalações, MetroSP_Projeto) | `MSP_IFCPROJETO` |
-| Entrega Metrô | 3 Exportar IFC ▾ desenho todo · só a seleção · só os alinhamentos | `MSP_IFCEXPORT` · `MSP_IFCEXPORTSEL` · `MSP_IFCALINHAMENTO` |
+| Entrega Metrô | Entrega passo a passo (janela única com as 7 etapas) | `MSP_ENTREGA` |
+| Entrega Metrô | Projeto e Local (IfcProject, IfcSite, instalações, MetroSP_Projeto) | `MSP_IFCPROJETO` |
+| Entrega Metrô | Exportar IFC ▾ desenho todo · só a seleção · só os alinhamentos | `MSP_IFCEXPORT` · `MSP_IFCEXPORTSEL` · `MSP_IFCALINHAMENTO` |
 | Acompanhar | Painel MetroSP (etapas e semáforo, encaixável) | `MSP_PAINEL` |
 | Classificação | Verificar | `MSP_CLASSVERIFICAR` |
 | Dados do modelo | Property sets · Confrontar planilha · Corrigir escrita | `MSP_PSETS` · `MSP_CONFRONTAR` · `MSP_ESCRITA` |
-| Configurar padrões | Padrões e planilhas · Configurar IFC · Exportador (com a Pasta) · Forma | `MSP_PADROES` · `MSP_IFCCONFIG` · `MSP_IFCEXTENSAO` · `MSP_FORMA` |
+| Configurar padrões | Padrões (adicionar, editar, excluir) · Configurar IFC · Exportador (com a Pasta) · Forma | `MSP_PADROES` · `MSP_IFCCONFIG` · `MSP_IFCEXTENSAO` · `MSP_FORMA` |
 | Ação BIM · Metrô SP | selo (abre o Sobre) | `MSP_SOBRE` |
 | (linha de comando) | Forma: Sincronizar · Entrar · Sair · Conta | `MSP_IFCSYNC` · `MSP_FORMALOGIN` · `MSP_FORMALOGOUT` · `MSP_CONFIG` |
 | (linha de comando) | Pasta do desenho · Pós-processar IFC | `MSP_IFCPASTA` · `MSP_IFCPOSPROC` |
