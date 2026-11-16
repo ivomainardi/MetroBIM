@@ -42,7 +42,7 @@ namespace MetroSP.Conferencia
             // Para levar os arquivos à equipe agora é o arquivo de coordenação (.coord-metrosp), que leva tudo dentro dele.
             var aviso = Theme.Detalhe(atual.Coordenacao != null
                 ? $"Este modelo segue a {atual.Coordenacao}: os arquivos que vieram nela valem sobre os daqui."
-                : "Para mandar estes arquivos à equipe, use Coordenação BIM › Arquivo de coordenação (vão dentro dele).");
+                : "Para mandar estes arquivos à equipe, use Coordenação › Padrões ▾ › Arquivo de coordenação (vão dentro dele).");
             aviso.Margin = new Thickness(0, 0, 0, 6);
             aviso.TextWrapping = TextWrapping.Wrap;
             painel.Children.Add(aviso);

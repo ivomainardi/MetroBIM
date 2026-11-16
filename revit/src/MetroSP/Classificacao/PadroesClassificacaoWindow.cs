@@ -72,7 +72,7 @@ namespace MetroSP.Classificacao
             Acao("Excluir", "Apaga o padrão aberto deste computador (as planilhas não são apagadas).", Excluir);
             DockPanel.SetDock(acoes, Dock.Right);
             barra.Children.Add(acoes);
-            _lista = new ComboBox { MinWidth = 200, ToolTip = "Padrões salvos neste computador. Para trazer um padrão recebido ou levar para a equipe: Coordenação BIM › Padrões." };
+            _lista = new ComboBox { MinWidth = 200, ToolTip = "Padrões salvos neste computador. Para trazer um padrão recebido ou levar para a equipe: Coordenação › Padrões." };
             _lista.SelectionChanged += (s, e) => { if (!_preenchendo && _lista.SelectedItem is PadraoClassificacao p) Abrir(p); };
             barra.Children.Add(_lista);
 

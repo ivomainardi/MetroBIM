@@ -46,7 +46,7 @@ namespace MetroSP.Commands
                 new TipoPadrao
                 {
                     Id = "revit-classificacao", Nome = "Classificação", Pasta = PadraoClassificacao.Pasta,
-                    Ferramenta = "Classificação › Verificar › Editar padrões (com um modelo aberto)",
+                    Ferramenta = "Ferramentas › Classificação › Verificar › Editar padrões (com um modelo aberto)",
                     Editar = doc == null ? null : (dono, item) => new PadroesClassificacaoWindow(doc, item.Nome) { Owner = dono }.ShowDialog(),
                     Reconhece = f => GerenciadorPadroes.JsonCom(f, "Sistemas"),
                 },
@@ -65,7 +65,7 @@ namespace MetroSP.Commands
                 new TipoPadrao
                 {
                     Id = "escrita", Nome = "Corrigir escrita", Pasta = Escrita.PadroesEscrita.Pasta,
-                    Ferramenta = "Dados do modelo › Corrigir Escrita (padrão no topo da janela; vale também no Civil 3D)",
+                    Ferramenta = "Ferramentas › Dados › Corrigir escrita (padrão no topo da janela; vale também no Civil 3D)",
                     Editar = (dono, item) => Escrita.CorrigirEscritaWindow.EditarArquivo(dono, item.Arquivo),
                     Reconhece = f => GerenciadorPadroes.JsonCom(f, "RegrasDesligadas", "Termos", "Correcoes"),
                 },
@@ -84,7 +84,7 @@ namespace MetroSP.Commands
                 {
                     // Fica guardado no próprio modelo: abre a janela Abrir alterações para escolher o perfil.
                     Id = "revit-coordenacao", Nome = "Arquivo de coordenação", Pasta = null, Filtro = "*" + Coordenacao.ArquivoCoordenacao.Extensao,
-                    Ferramenta = "Coordenação BIM › Arquivo de coordenação (o projetista abre em Entrega passo a passo › Abrir alterações)",
+                    Ferramenta = "Coordenação › Padrões ▾ › Arquivo de coordenação (o projetista abre em Entrega passo a passo › Abrir alterações)",
                     Reconhece = f => f.EndsWith(Coordenacao.ArquivoCoordenacao.Extensao, StringComparison.OrdinalIgnoreCase),
                     Trazer = (dono, arquivos) =>
                     {

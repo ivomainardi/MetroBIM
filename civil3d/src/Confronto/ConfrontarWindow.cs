@@ -51,7 +51,7 @@ namespace MetroSP.Confronto
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             // ---- padrão salvo
-            _padroes = new ComboBox { MinWidth = 240, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Padrões salvos: planilha, colunas, campos e opções. Escolha um para usar de novo. Para trazer um padrão recebido ou levar para a equipe: Configurar padrões › Padrões." };
+            _padroes = new ComboBox { MinWidth = 240, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Padrões salvos: planilha, colunas, campos e opções. Escolha um para usar de novo. Para trazer um padrão recebido ou levar para a equipe: Coordenação › Padrões." };
             var salvar = new Button { Content = "Salvar", ToolTip = "Salva o padrão com o nome atual (ou pede um nome)." };
             var salvarComo = new Button { Content = "Salvar como...", Margin = new Thickness(6, 0, 0, 0) };
             var excluir = Theme.Link("excluir");
