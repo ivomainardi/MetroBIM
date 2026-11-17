@@ -35,6 +35,17 @@ namespace MetroSP.Conferencia
         public string MetroShared { get; set; }
         public string ParametroClassificacao { get; set; } = "ClassificationCode";
 
+        /// <summary>Planilha do MetroDATA exportada do Airtable (.xlsx): os dados exigidos no passo MetroDATA.</summary>
+        public string MetroData { get; set; }
+        /// <summary>Disciplina do MetroDATA (ex.: "Arquitetura", "Sistemas / Telecom X"); vazio = todas.</summary>
+        public string MetroDataDisciplina { get; set; }
+        /// <summary>Etapa do projeto (Básico, Executivo, J2...); vazio = todas.</summary>
+        public string MetroDataEtapa { get; set; }
+        /// <summary>Confere as propriedades até esta classe (1 a 4); 0 = todas.</summary>
+        public int MetroDataClasse { get; set; }
+        /// <summary>Objeto do MetroDATA escolhido para cada categoria do Revit (quando a classe IFC não basta).</summary>
+        public Dictionary<string, string> MetroDataObjetos { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Escopo da última conferência: true = só a vista ativa.</summary>
         public bool SoVistaAtiva { get; set; }
 
@@ -43,7 +54,22 @@ namespace MetroSP.Conferencia
             : Arquivo != null ? Path.GetFileNameWithoutExtension(Arquivo)
             : "Arquivos escolhidos neste computador";
 
-        public PacoteMetro Copia() => (PacoteMetro)MemberwiseClone();
+        public PacoteMetro Copia()
+        {
+            var c = (PacoteMetro)MemberwiseClone();
+            c.MetroDataObjetos = new Dictionary<string, string>(MetroDataObjetos ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
+            return c;
+        }
+
+        /// <summary>Copia as escolhas do MetroDATA (disciplina, etapa, classe e objetos) de outro pacote.</summary>
+        public void CopiarEscolhasMetroData(PacoteMetro de)
+        {
+            if (de == null) return;
+            MetroDataDisciplina = de.MetroDataDisciplina;
+            MetroDataEtapa = de.MetroDataEtapa;
+            MetroDataClasse = de.MetroDataClasse;
+            MetroDataObjetos = new Dictionary<string, string>(de.MetroDataObjetos ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase);
+        }
 
         /// <summary>Coordenação do modelo ativo cujos arquivos valem sobre os do pacote (null = nenhuma).</summary>
         public string Coordenacao { get; private set; }
@@ -106,7 +132,7 @@ namespace MetroSP.Conferencia
 
         /// <summary>Texto que muda quando qualquer arquivo ou o nome muda (para saber se o pacote foi editado).</summary>
         public string Assinatura() =>
-            string.Join("|", Nome, Ids, Setup, PropertySets, ClassesIfc, Planilha, MetroShared, ParametroClassificacao);
+            string.Join("|", Nome, Ids, Setup, PropertySets, ClassesIfc, Planilha, MetroShared, ParametroClassificacao, MetroData);
 
         // ------------------------------------------------------------------ usuário
 
@@ -118,7 +144,11 @@ namespace MetroSP.Conferencia
 
             if (d.TryGetValue("pacote", out string arquivo) && File.Exists(arquivo))
             {
-                try { p = LerArquivo(arquivo); }
+                try
+                {
+                    p = LerArquivo(arquivo);
+                    LerMetroData(p, d, null, true); // escolhas do MetroDATA deste usuário valem sobre as do pacote
+                }
                 catch { p = null; }
             }
             if (p == null)
@@ -136,6 +166,8 @@ namespace MetroSP.Conferencia
             {
                 // Com padrão, fica salvo o pacote de antes (o padrão fica guardado por modelo no Exportar IFC).
                 _padraoBase.SoVistaAtiva = SoVistaAtiva;
+                _padraoBase.MetroData = MetroData;
+                _padraoBase.CopiarEscolhasMetroData(this);
                 _padraoBase.SalvarComoAtual();
                 return;
             }
@@ -143,11 +175,17 @@ namespace MetroSP.Conferencia
             {
                 // Com coordenação, fica salvo o pacote de antes (a coordenação já está guardada no modelo).
                 _base.SoVistaAtiva = SoVistaAtiva;
+                _base.MetroData = MetroData;
+                _base.CopiarEscolhasMetroData(this);
                 _base.SalvarComoAtual();
                 return;
             }
             var linhas = new List<string>();
-            if (Arquivo != null) linhas.Add("pacote=" + Arquivo);
+            if (Arquivo != null)
+            {
+                linhas.Add("pacote=" + Arquivo);
+                linhas.AddRange(IniMetroData(null));
+            }
             else linhas.AddRange(ParaIni(null));
             linhas.Add("vista=" + (SoVistaAtiva ? "1" : "0"));
             try
@@ -258,6 +296,9 @@ namespace MetroSP.Conferencia
 
         // ------------------------------------------------------------------ ini
 
+        /// <summary>Linhas "metrodata.objeto.Categoria=Objeto" (uma por categoria escolhida).</summary>
+        private const string PrefixoObjeto = "metrodata.objeto.";
+
         private IEnumerable<string> ParaIni(string pasta)
         {
             yield return "nome=" + (Nome ?? "");
@@ -268,6 +309,17 @@ namespace MetroSP.Conferencia
             yield return "planilha=" + Relativo(Planilha, pasta);
             yield return "metroshared=" + Relativo(MetroShared, pasta);
             yield return "parametro=" + (ParametroClassificacao ?? "");
+            foreach (string l in IniMetroData(pasta)) yield return l;
+        }
+
+        private IEnumerable<string> IniMetroData(string pasta)
+        {
+            yield return "metrodata=" + Relativo(MetroData, pasta);
+            yield return "metrodata.disciplina=" + (MetroDataDisciplina ?? "");
+            yield return "metrodata.etapa=" + (MetroDataEtapa ?? "");
+            yield return "metrodata.classe=" + (MetroDataClasse > 0 ? MetroDataClasse.ToString() : "");
+            foreach (var k in (MetroDataObjetos ?? new Dictionary<string, string>()).OrderBy(k => k.Key, StringComparer.OrdinalIgnoreCase))
+                if (!string.IsNullOrWhiteSpace(k.Value)) yield return PrefixoObjeto + k.Key + "=" + k.Value;
         }
 
         private static PacoteMetro DeIni(Dictionary<string, string> d, string pasta)
@@ -284,7 +336,22 @@ namespace MetroSP.Conferencia
                 MetroShared = Absoluto(V("metroshared"), pasta),
             };
             if (V("parametro") != null) p.ParametroClassificacao = V("parametro");
+            LerMetroData(p, d, pasta, false);
             return p;
+        }
+
+        /// <param name="soPreenchidos">true = só troca o que está preenchido (escolhas deste usuário sobre um pacote .metrosp).</param>
+        private static void LerMetroData(PacoteMetro p, Dictionary<string, string> d, string pasta, bool soPreenchidos)
+        {
+            string V(string k) => d.TryGetValue(k, out string v) && v.Trim().Length > 0 ? v.Trim() : null;
+            if (!soPreenchidos || V("metrodata") != null) p.MetroData = Absoluto(V("metrodata"), pasta);
+            if (!soPreenchidos || d.ContainsKey("metrodata.disciplina")) p.MetroDataDisciplina = V("metrodata.disciplina");
+            if (!soPreenchidos || d.ContainsKey("metrodata.etapa")) p.MetroDataEtapa = V("metrodata.etapa");
+            if (!soPreenchidos || d.ContainsKey("metrodata.classe")) p.MetroDataClasse = int.TryParse(V("metrodata.classe"), out int classe) ? classe : 0;
+            var objetos = d.Where(k => k.Key.StartsWith(PrefixoObjeto, StringComparison.OrdinalIgnoreCase) && k.Value.Trim().Length > 0).ToList();
+            if (soPreenchidos && objetos.Count == 0) return;
+            p.MetroDataObjetos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var k in objetos) p.MetroDataObjetos[k.Key.Substring(PrefixoObjeto.Length)] = k.Value.Trim();
         }
 
         private static Dictionary<string, string> LerIni(string arquivo)
