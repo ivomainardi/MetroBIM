@@ -10,6 +10,10 @@
   uma regra só para ele, no topo. Clique duplo edita a regra; ↑ ↓ mudam a ordem; + cria; ✕ exclui.
 - **Corrigir classes**: troca as classes fora do esquema pela correção óbvia (ex.: `IfcBuiltElement.USERDEFINED` →
   `IfcBuiltElement`, que não tem tipo no IFC 4.3). A pendência do passo 3 já diz a classe a usar.
+- **Latitude e longitude no IfcSite = origem do PTL** (150.000; 250.000): o IfcSite passa a ficar nesse ponto, sem
+  rotação, com a latitude e a longitude exatas da origem do PTL (23°33'3,0482" S; 46°43'53,6793" O). Antes eram as do
+  ponto que o exportador da Autodesk escolhia para deslocar a geometria. Nenhum objeto muda de lugar (as colocações
+  relativas ao site são compensadas). Latitude e longitude digitadas em Projeto continuam valendo por cima.
 - A dica da tabela de regras passou a dizer "vale a primeira regra que casar, de cima para baixo" (era "de baixo para
   cima"), como a ordem do padrão da equipe pressupõe (U-3D-TRILHO_AMV antes de U-3D-TRILHO). Conferir no Civil 3D.
 

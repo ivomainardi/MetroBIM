@@ -775,8 +775,8 @@ namespace MetroSP.Ui
 
             // Lat/long, elevação, matrícula e coordenadas: só do Civil 3D, dentro da coluna IfcSite.
             var extra = Form(
-                ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo. Vazio: calculada pelo PTL.")),
-                ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo. Vazio: calculada pelo PTL.")),
+                ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo. Vazio: a da origem do PTL (150.000; 250.000), onde fica o IfcSite.")),
+                ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo. Vazio: a da origem do PTL (150.000; 250.000), onde fica o IfcSite.")),
                 ("Elevação (m)", Text(e.Terreno, nameof(SiteInfo.Elevacao))),
                 ("Matrícula", Text(e.Terreno, nameof(SiteInfo.Matricula), "Matrícula do terreno (LandTitleNumber).")),
                 ("Coordenadas", Ptl(e)));
@@ -1038,7 +1038,7 @@ namespace MetroSP.Ui
             var check = new CheckBox
             {
                 Content = "PTL do Metrô, sem EPSG",
-                ToolTip = "Ligado (padrão): o IFC sai nas coordenadas do desenho (PTL do Metrô), sem EPSG, IfcProjectedCRS e " +
+                ToolTip = "Ligado (padrão): o IFC sai nas coordenadas do modelo (PTL do Metrô), sem EPSG, IfcProjectedCRS e " +
                           "IfcMapConversion, como no plugin do Revit. Assim o modelo encontra as estruturas do Revit.\n" +
                           "Desligado: vale o EPSG ao lado no IfcMapConversion.",
                 Margin = new Thickness(0, 3, 0, 3)
