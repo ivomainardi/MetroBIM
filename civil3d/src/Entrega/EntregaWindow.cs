@@ -35,7 +35,7 @@ namespace MetroSP.Entrega
         readonly AcDocument _doc;
         ResultadoEntrega _res;
         int _passo;
-        int _abaDados;               // etapa 4: 0 = Corrigir escrita, 1 = Confrontar planilha
+        int _abaDados;               // etapa 4: 0 = Propriedades (MetroDATA), 1 = Escrita, 2 = Comparar com planilha
         string _comandoDepois;       // comando que roda quando a janela fecha (exportar, sincronizar...)
         readonly List<ObjectId> _selecionar = new List<ObjectId>();
 
@@ -48,6 +48,8 @@ namespace MetroSP.Entrega
         readonly TextBlock _rodapeTexto;
         readonly Button _anterior;
         readonly Button _proximo;
+        readonly Button _exportarRodape, _salvarRodape;
+        string _comandoExportar = "MSP_IFCEXPORT";
         readonly TextBlock _escopo;
 
         Window _janelaFerramenta;
@@ -91,7 +93,7 @@ namespace MetroSP.Entrega
             marca.Inlines.Add(new System.Windows.Documents.Run("MetroSP") { Foreground = Theme.Solid(Theme.Laranja), FontWeight = FontWeights.SemiBold });
             marca.Inlines.Add(new System.Windows.Documents.Run(" · Entrega · " + nome));
             _escopo = new TextBlock { Foreground = Theme.Solid(Color.FromRgb(0xBB, 0xBB, 0xBB)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
-            var conferir = BotaoEscuro("⟳ Conferir", "Confere o desenho de novo e atualiza as etapas.");
+            var conferir = BotaoEscuro("⟳ Conferir", "Confere o modelo de novo e atualiza as etapas.");
             conferir.Click += (s, e) => { if (FecharFerramenta()) Conferir(); };
             var direita = new StackPanel { Orientation = Orientation.Horizontal };
             direita.Children.Add(_escopo);
@@ -136,13 +138,19 @@ namespace MetroSP.Entrega
             _proximo = Pilula("Próximo passo ›");
             _proximo.Click += (s, e) => IrPara(_passo + 1);
             var salvar = Pilula("Salvar e conferir", primario: true);
-            salvar.ToolTip = "Grava o que foi alterado na ferramenta desta etapa e confere o desenho de novo.";
+            salvar.ToolTip = "Grava o que foi alterado na ferramenta desta etapa e confere o modelo de novo.";
             salvar.Margin = new Thickness(0, 0, 8, 0);
             salvar.Click += (s, e) => SalvarEConferir();
+            _salvarRodape = salvar;
+            _exportarRodape = Pilula("Exportar IFC", primario: true);
+            _exportarRodape.ToolTip = "Grava o que foi alterado, fecha esta janela e exporta com as opções da Saída.";
+            _exportarRodape.Visibility = Visibility.Collapsed;
+            _exportarRodape.Click += (s, e) => FecharE(_comandoExportar);
             _rodapeTexto = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(12, 0, 12, 0) };
             var direitaRodape = new StackPanel { Orientation = Orientation.Horizontal };
             direitaRodape.Children.Add(salvar);
             direitaRodape.Children.Add(_proximo);
+            direitaRodape.Children.Add(_exportarRodape);
             var rodape = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
             DockPanel.SetDock(_anterior, Dock.Left);
             DockPanel.SetDock(direitaRodape, Dock.Right);
@@ -191,7 +199,7 @@ namespace MetroSP.Entrega
             catch (Exception ex)
             {
                 Log.Erro("conferência da entrega", ex);
-                MessageBox.Show("Não foi possível conferir o desenho:\n" + ex.Message, "MetroSP");
+                MessageBox.Show("Não foi possível conferir o modelo:\n" + ex.Message, "MetroSP");
                 return false;
             }
             finally { Cursor = null; }
@@ -245,8 +253,12 @@ namespace MetroSP.Entrega
             MostrarPendencias();
             if (IsLoaded) MostrarFerramenta();   // antes de abrir, espera o Loaded (a ferramenta precisa desta janela como dona)
             _anterior.Visibility = _passo > 1 ? Visibility.Visible : Visibility.Hidden;
-            _proximo.Visibility = _passo < Ultima ? Visibility.Visible : Visibility.Hidden;
-            _rodapeTexto.Text = "Ao salvar, a etapa é conferida de novo e fica verde se estiver tudo certo.";
+            _proximo.Visibility = _passo < Ultima ? Visibility.Visible : Visibility.Collapsed;
+            _exportarRodape.Visibility = _passo == Ultima ? Visibility.Visible : Visibility.Collapsed;
+            var modelo = Pilula("", primario: _passo != Ultima);
+            _salvarRodape.Template = modelo.Template;
+            _salvarRodape.FontWeight = modelo.FontWeight;
+            _rodapeTexto.Text = _passo == Ultima ? ResumoExportar() : "Ao salvar, a etapa é conferida de novo e fica verde se estiver tudo certo.";
         }
 
         void MostrarEtapas()
@@ -349,7 +361,7 @@ namespace MetroSP.Entrega
             {
                 var acoes = Acoes(p).ToList();
                 if (p.Objetos.Count > 0)
-                    acoes.Add(($"Selecionar ({p.Objetos.Count})", "Seleciona esses objetos no desenho (aparecem selecionados ao fechar esta janela).", () => Selecionar(p.Objetos)));
+                    acoes.Add(($"Selecionar ({p.Objetos.Count})", "Seleciona esses objetos no modelo (aparecem selecionados ao fechar esta janela).", () => Selecionar(p.Objetos)));
                 _pendencias.Children.Add(Cartao(p.Sinal, p.Titulo, p.Texto, acoes));
             }
             if (abertas.Count > Maximo)
@@ -415,10 +427,10 @@ namespace MetroSP.Entrega
                     });
                     break;
                 case Acao.SalvarDesenho:
-                    yield return ("Salvar o desenho", "Fecha esta janela e salva o DWG.", () => FecharE("QSAVE"));
+                    yield return ("Salvar o modelo", "Fecha esta janela e salva o DWG.", () => FecharE("QSAVE"));
                     break;
                 case Acao.CriarPset:
-                    yield return ("Criar no desenho", $"Cria o property set {p.Alvo} como está no mapeamento IFC. Pode ser ajustado depois em Property sets.", () =>
+                    yield return ("Criar no modelo", $"Cria o property set {p.Alvo} como está no mapeamento IFC. Pode ser ajustado depois em Property sets.", () =>
                     {
                         if (!FecharFerramenta()) return;
                         Executar(() => PsetsCore.CriarNoDesenho(_doc.Database, new[] { (PsetMontagem)p.Dados }));
@@ -434,7 +446,7 @@ namespace MetroSP.Entrega
                     });
                     break;
                 case Acao.UsarPerfil:
-                    yield return ($"Usar {p.Valor}", "Guarda este perfil para o alinhamento neste desenho; a exportação não pergunta mais.", () =>
+                    yield return ($"Usar {p.Valor}", "Guarda este perfil para o alinhamento neste modelo; a exportação não pergunta mais.", () =>
                     {
                         if (!FecharFerramenta()) return;
                         AlignmentCommands.GuardarPerfis(_doc, new[] { (p.Alvo, p.Valor) });
@@ -442,8 +454,12 @@ namespace MetroSP.Entrega
                     });
                     break;
                 case Acao.AbrirEscrita:
+                    if (_abaDados != 1)
+                        yield return ("Abrir Escrita", "Abre a aba Escrita ao lado.", () => { if (FecharFerramenta()) { _abaDados = 1; Mostrar(); } });
+                    break;
+                case Acao.AbrirMetroData:
                     if (_abaDados != 0)
-                        yield return ("Corrigir escrita", "Abre o Corrigir escrita ao lado.", () => { if (FecharFerramenta()) { _abaDados = 0; Mostrar(); } });
+                        yield return ("Abrir Propriedades", "Abre a aba Propriedades (MetroDATA) ao lado.", () => { if (FecharFerramenta()) { _abaDados = 0; Mostrar(); } });
                     break;
                 case Acao.PreencherProjeto:
                     break; // o Projeto e Local já está aberto ao lado
@@ -481,21 +497,14 @@ namespace MetroSP.Entrega
             switch (_passo)
             {
                 case 2:
-                {
-                    var w = new MontarPsetsWindow(_doc, null);
-                    // Faltando anexar: abre direto na aba Anexar.
-                    if (_res.Etapa(2).Abertas.Any(p => p.Acao == Acao.AnexarPset)) w.Abas.SelectedIndex = 1;
-                    return w;
-                }
+                    return new ClassesIfcWindow();
                 case 3:
                 {
-                    var w = new ConfigWindow(Commands.DrawingFolder(_doc));
-                    w.Abas.SelectedIndex = 1;   // Classes IFC
-                    return w;
+                    return new MontarPsetsWindow(_doc, null);
                 }
                 case 4:
-                    return _abaDados == 0
-                        ? new Escrita.CorrigirEscritaWindow(new Confronto.FonteCivil3D(_doc, null))
+                    return _abaDados == 0 ? new MetroData.MetroDataWindow(_doc)
+                        : _abaDados == 1 ? new Escrita.CorrigirEscritaWindow(new Confronto.FonteCivil3D(_doc, null))
                         : (Window)new Confronto.ConfrontarWindow(new Confronto.FonteCivil3D(_doc, null));
                 case 5:
                     return new Classificacao.VerificarClassificacaoWindow(_doc, null);
@@ -511,9 +520,10 @@ namespace MetroSP.Entrega
             _abas.Children.Clear();
             _abas.Visibility = _passo == 4 ? Visibility.Visible : Visibility.Collapsed;
             if (_passo != 4) return;
-            string[] nomes = { "Corrigir escrita", "Confrontar planilha" };
+            string[] nomes = { "Propriedades", "Escrita", "Comparar com planilha" };
             string[] dicas =
             {
+                "As propriedades que a planilha do MetroDATA pede para cada objeto e quantas estão vazias.",
                 "Espaços, acentos e caracteres estranhos em property sets, nome e descrição.",
                 "Compara property sets, nome, descrição e layer com uma planilha externa.",
             };
@@ -548,7 +558,7 @@ namespace MetroSP.Entrega
             MostrarAbas();
             _salvarPainel = null;
             _ferramenta.Child = null;
-            if (_passo == 1) { _ferramenta.Child = PainelExportador(); return; }
+            if (_passo == 1) { _ferramenta.Child = PainelPadroes(); return; }
             if (_passo == 6) { _ferramenta.Child = PainelAlinhamentos(); return; }
 
             Window w;
@@ -573,7 +583,7 @@ namespace MetroSP.Entrega
             hospede.Resources.MergedDictionaries.Add(w.Resources);
             System.Windows.Documents.TextElement.SetFontFamily(hospede, w.FontFamily);
             System.Windows.Documents.TextElement.SetFontSize(hospede, w.FontSize);
-            _ferramenta.Child = hospede;
+            _ferramenta.Child = _passo == Ultima ? CabecalhoExportar(hospede) : (UIElement)hospede;
             _janelaFerramenta = w;
             AcompanharFerramenta();
             w.Closed += (s, e) =>
@@ -617,182 +627,565 @@ namespace MetroSP.Entrega
 
         // ================================================================== painéis próprios
 
-        UIElement PainelExportador()
+        /// <summary>
+        /// Lista dos perfis de exportação deste computador (os pré-configurados primeiro). A escolha fica gravada no modelo
+        /// e vale na conferência e no Exportar IFC.
+        /// </summary>
+        FrameworkElement SeletorPerfil(Settings cfg)
+        {
+            var linha = new DockPanel();
+            var combo = Theme.Digitavel(new ComboBox { Width = 260, Padding = new Thickness(4, 3, 4, 3), HorizontalAlignment = HorizontalAlignment.Left });
+            List<string> perfis;
+            try { perfis = ConfigPackage.Perfis(); }
+            catch { perfis = new List<string> { ConfigPackage.PerfilMetroSP }; }
+            string atual = ConfigPackage.PerfilAtivo;
+            foreach (string n in perfis) combo.Items.Add(n);
+            combo.SelectedItem = perfis.FirstOrDefault(n => string.Equals(n, atual, StringComparison.OrdinalIgnoreCase));
+            combo.ToolTip = "Perfil de exportação deste modelo: classes IFC, propriedades, alinhamento e arquivos do exportador. " +
+                            "Fica gravado no modelo (Propriedades do desenho › Personalizado › " + ConfigPackage.PropriedadePerfil + ").";
+
+            string gravado = ConfigPackage.PerfilDoModelo(_doc);
+            Border selo;
+            if (gravado == null) selo = Theme.Selo("modelo sem perfil: vale o MetroSP", Theme.Estado.Aviso);
+            else if (!ConfigPackage.Existe(gravado)) selo = Theme.Selo("o perfil " + gravado + " do modelo não existe neste computador: vale o MetroSP", Theme.Estado.Aviso);
+            else selo = Theme.Selo((ConfigPackage.PreConfigurado(atual) ? "pré-configurado" : "criado aqui") + (cfg.UsesForma ? ", sincronizado com o Forma" : ""));
+            selo.Margin = new Thickness(10, 0, 0, 0);
+            DockPanel.SetDock(combo, Dock.Left);
+            linha.Children.Add(combo);
+            linha.Children.Add(selo);
+
+            combo.SelectionChanged += (s, e) =>
+            {
+                if (!(combo.SelectedItem is string n)) return;
+                if (string.Equals(n, gravado, StringComparison.OrdinalIgnoreCase)) return;
+                ConfigPackage.UsarNoModelo(_doc, n);
+                if (FecharFerramenta()) Conferir();
+            };
+            return linha;
+        }
+
+        /// <summary>Pede o nome de um perfil até ser válido (ou cancelar).</summary>
+        string PedirNomePerfil(string titulo, string pergunta, string inicial, string atual)
+        {
+            string nome = inicial;
+            while (true)
+            {
+                nome = Theme.PedirTexto(this, titulo, pergunta, nome)?.Trim();
+                if (nome == null || nome.Length == 0) return null;
+                if (atual != null && string.Equals(nome, atual, StringComparison.Ordinal)) return nome;
+                string erro = atual != null && string.Equals(nome, atual, StringComparison.OrdinalIgnoreCase) ? null : ConfigPackage.NomeInvalido(nome);
+                if (erro == null) return nome;
+                MessageBox.Show(this, erro, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        /// <summary>
+        /// Passo 1, Perfis (como no Revit): o perfil de exportação do modelo, os perfis em uso (cada um com o arquivo, o que traz
+        /// e o passo que o usa) e o resumo do modelo.
+        /// </summary>
+        UIElement PainelPadroes()
         {
             var cfg = Settings.Load();
             var p = new StackPanel { Margin = new Thickness(4) };
-            p.Children.Add(Titulo("Exportador da Autodesk"));
-            var instaladas = AutodeskIfcExtension.FindInstalled();
-            bool ok = instaladas.Count > 0 || AutodeskIfcExtension.CommandDefined(cfg.ExportCommand);
-            p.Children.Add(Theme.Selo(ok ? "IFC 4.3 Extension instalada" : "IFC 4.3 Extension não instalada", ok ? Theme.Estado.Ok : Theme.Estado.Aviso));
-            foreach (var i in instaladas)
-                p.Children.Add(Theme.Detalhe(i.Name + (i.Version != null ? " · versão " + i.Version : "")));
 
-            p.Children.Add(Titulo("Configuração IFC", 18));
-            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Pacote sincronizado com o Autodesk Forma" : "Pacote local (padrão MetroSP ou importado)"));
-            var grade = new Grid { Margin = new Thickness(0, 6, 0, 0) };
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            int linha = 0;
-            foreach (var (kind, caminho, data) in ConfigPackage.List())
-            {
-                grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                var n = new TextBlock { Text = System.IO.Path.GetFileName(caminho), ToolTip = caminho, Margin = new Thickness(0, 2, 12, 2), TextTrimming = TextTrimming.CharacterEllipsis };
-                var d = new TextBlock { Text = data.ToString("dd/MM/yyyy HH:mm"), Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 2, 0, 2) };
-                Grid.SetRow(n, linha); Grid.SetRow(d, linha); Grid.SetColumn(d, 1);
-                grade.Children.Add(n); grade.Children.Add(d);
-                linha++;
-            }
-            p.Children.Add(grade);
-
-            var botoes = new WrapPanel { Margin = new Thickness(0, 16, 0, 0) };
-            var exp = Pilula("Exportador...", primario: !ok);
-            exp.ToolTip = "Versão instalada, atualizações (Autodesk e GitHub) e a pasta dos arquivos do desenho.";
-            exp.Click += (s, e) => { ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false); MostrarFerramenta(); };
-            var config = Pilula("Configurar IFC...");
-            config.ToolTip = "Classes, propriedades, alinhamento e opções avançadas do pacote.";
+            // ---- perfil de exportação
+            p.Children.Add(Titulo("Perfil de exportação"));
+            var linhaPerfil = new WrapPanel();
+            linhaPerfil.Children.Add(SeletorPerfil(cfg));
+            p.Children.Add(linhaPerfil);
+            p.Children.Add(Theme.Detalhe("Fica gravado no modelo e vale na conferência e no Exportar IFC."));
+            var botoes = linhaPerfil;
+            Button Lk(string texto) => Theme.Link(texto);
+            var config = Lk("Editar perfil...");
+            config.ToolTip = "Classes IFC, propriedades, alinhamento e opções avançadas do perfil de exportação.";
             config.Click += (s, e) =>
             {
                 var w = new ConfigWindow(Commands.DrawingFolder(_doc)) { Owner = this };
                 w.ShowDialog();
                 Conferir();
             };
-            var forma = Pilula("Forma...");
-            forma.ToolTip = "Entrar, sair, sincronizar e conta do Autodesk Forma.";
-            forma.Click += (s, e) =>
+            botoes.Children.Add(config);
+            string atual = ConfigPackage.PerfilAtivo;
+            var duplicar = Lk("Duplicar...");
+            duplicar.ToolTip = "Cria um perfil novo a partir de " + atual + " e passa a usá-lo neste modelo.";
+            duplicar.Click += (s, e) =>
             {
-                string cmd = FormaWindow.Escolher(this);
-                if (cmd != null) FecharE(cmd);
+                string novo = PedirNomePerfil("Duplicar perfil", "Nome do perfil novo (cópia de " + atual + "):", atual + " - cópia", null);
+                if (novo == null) return;
+                try { ConfigPackage.Duplicar(atual, novo); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                ConfigPackage.UsarNoModelo(_doc, novo);
+                Conferir();
             };
-            foreach (var b in new[] { exp, config, forma }) { b.Margin = new Thickness(0, 0, 6, 4); botoes.Children.Add(b); }
-            p.Children.Add(botoes);
+            botoes.Children.Add(duplicar);
+            bool pre = ConfigPackage.PreConfigurado(atual);
+            var renomear = Lk("Renomear...");
+            renomear.IsEnabled = !pre;
+            renomear.ToolTip = pre ? "Perfil pré-configurado não muda de nome. Duplique e renomeie a cópia." : "Muda o nome de " + atual + ".";
+            ToolTipService.SetShowOnDisabled(renomear, true);
+            renomear.Click += (s, e) =>
+            {
+                string novo = PedirNomePerfil("Renomear perfil", "Nome novo de " + atual + ":", atual, atual);
+                if (novo == null || novo == atual) return;
+                try { ConfigPackage.Renomear(atual, novo); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                ConfigPackage.UsarNoModelo(_doc, novo);
+                Conferir();
+            };
+            botoes.Children.Add(renomear);
+            var excluir = Lk("Excluir");
+            excluir.IsEnabled = !pre;
+            excluir.ToolTip = pre ? "Perfil pré-configurado não pode ser excluído." : "Apaga o perfil " + atual + " deste computador; o modelo volta ao MetroSP.";
+            ToolTipService.SetShowOnDisabled(excluir, true);
+            excluir.Click += (s, e) =>
+            {
+                if (MessageBox.Show(this, "Excluir o perfil " + atual + " deste computador? Outros modelos que usam esse perfil passam a usar o MetroSP.",
+                        "MetroSP", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+                try { ConfigPackage.Excluir(atual); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                ConfigPackage.UsarNoModelo(_doc, ConfigPackage.PerfilMetroSP);
+                Conferir();
+            };
+            botoes.Children.Add(excluir);
+            var exp = Lk("Exportador...");
+            exp.ToolTip = "Versão instalada da IFC 4.3 Extension, atualizações (Autodesk e GitHub) e a pasta dos arquivos do modelo.";
+            exp.Click += (s, e) => { ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false); MostrarFerramenta(); };
+            if (cfg.UsesForma)
+            {
+                var forma = Lk("Forma...");
+                forma.ToolTip = "Entrar, sair, sincronizar e conta do Autodesk Forma.";
+                forma.Click += (s, e) => { string cmd = FormaWindow.Escolher(this); if (cmd != null) FecharE(cmd); };
+                botoes.Children.Add(forma);
+            }
+            foreach (Button b in botoes.Children.OfType<Button>()) { b.Margin = new Thickness(14, 0, 0, 0); b.VerticalAlignment = VerticalAlignment.Center; }
+
+            // ---- padrões em uso
+            p.Children.Add(Titulo("Perfis em uso", 18));
+            var grade = new Grid();
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            void Celula(UIElement el, int l, int c) { Grid.SetRow(el, l); Grid.SetColumn(el, c); grade.Children.Add(el); }
+            grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            string[] cab = { "", "Perfil", "Arquivo", "O que traz", "Passo" };
+            for (int c = 1; c < cab.Length; c++)
+                Celula(new TextBlock { Text = cab[c], FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 14, 4) }, 0, c);
+
+            void Padrao(string nome, string dica, string arquivo, string caminho, string traz, string passo, Sinal sinal, Button link = null)
+            {
+                int l = grade.RowDefinitions.Count;
+                grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Color cor = sinal == Sinal.Vermelho ? Colors.Firebrick : sinal == Sinal.Amarelo ? Theme.Laranja : sinal == Sinal.Verde ? Theme.Verde : Theme.CinzaClaro;
+                Celula(new Ellipse { Width = 9, Height = 9, Fill = Theme.Solid(cor), Margin = new Thickness(0, 6, 8, 0), VerticalAlignment = VerticalAlignment.Top }, l, 0);
+                Celula(new TextBlock { Text = nome, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 3, 14, 3), ToolTip = dica }, l, 1);
+                Celula(new TextBlock { Text = string.IsNullOrEmpty(arquivo) ? "—" : arquivo, ToolTip = caminho, TextTrimming = TextTrimming.CharacterEllipsis,
+                    Foreground = Theme.Solid(string.IsNullOrEmpty(arquivo) ? Theme.Cinza : Theme.Preto), Margin = new Thickness(0, 3, 14, 3) }, l, 2);
+                var tz = new DockPanel();
+                if (link != null) { link.Margin = new Thickness(10, 3, 14, 3); DockPanel.SetDock(link, Dock.Right); tz.Children.Add(link); }
+                tz.Children.Add(new TextBlock { Text = traz, ToolTip = traz, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, link == null ? 14 : 0, 3) });
+                Celula(tz, l, 3);
+                Celula(new TextBlock { Text = passo, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, 0, 3) }, l, 4);
+            }
+            string Arq(ConfigKind k) => System.IO.File.Exists(ConfigPackage.PathOf(k)) ? ConfigPackage.FileNames[k] : null;
+            string Seguro(Func<string> f) { try { return f(); } catch (Exception ex) { return "não deu para ler: " + ex.Message; } }
+
+            var instaladas = AutodeskIfcExtension.FindInstalled();
+            bool extOk = instaladas.Count > 0 || AutodeskIfcExtension.CommandDefined(cfg.ExportCommand);
+            Padrao("Exportador da Autodesk", "IFC 4.3 Extension: o exportador que o Exportar IFC usa.", "IFC 4.3 Extension", null,
+                extOk ? (instaladas.FirstOrDefault()?.Version is string v ? "versão " + v + " instalada" : "instalada") : "não instalada", "7",
+                extOk ? Sinal.Verde : Sinal.Vermelho, exp);
+
+            System.Text.Json.Nodes.JsonNode autodesk = null;
+            try { autodesk = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig); } catch { }
+            string versao = (string)(autodesk?["Export"]?["IfcVersion"]) ?? "IFC4X3_ADD2";
+            Padrao("Configurações", "Opções do exportador da Autodesk (IfcInfraConfiguration.json): versão do IFC e o que exportar.",
+                Arq(ConfigKind.AutodeskConfig), ConfigPackage.PathOf(ConfigKind.AutodeskConfig), Ifc.IfcCatalog.Label(versao), "7",
+                Arq(ConfigKind.AutodeskConfig) != null ? Sinal.Verde : Sinal.Vermelho);
+
+            string classes = Seguro(() =>
+            {
+                var m = ConfigPackage.LoadJson(ConfigKind.ObjectMapping);
+                int Conta(string k) => (m?[k] as System.Text.Json.Nodes.JsonArray)?.Count ?? 0;
+                return $"{Conta("MapCADLayerName")} regras por layer, {Conta("MapBlockName")} por bloco";
+            });
+            Padrao("Classes IFC", "Regras de classe IFC por layer, bloco e baseline, no IFC 4.3 (IfcInfraExportMapping.json) e no IFC4 (.IFC4.json).",
+                Arq(ConfigKind.ObjectMapping) == null ? null : Arq(ConfigKind.ObjectMapping) + (Arq(ConfigKind.ObjectMappingIfc4) != null ? " (+ .IFC4)" : ""),
+                ConfigPackage.PathOf(ConfigKind.ObjectMapping), classes, "2",
+                _res?.Etapa(2)?.Sinal == Sinal.Vermelho ? Sinal.Amarelo : Arq(ConfigKind.ObjectMapping) != null ? Sinal.Verde : Sinal.Vermelho);
+
+            string psets = Seguro(() =>
+            {
+                var l = PsetsCore.DoMapeamentoIfc();
+                return $"{l.Select(x => x.Nome).Distinct(StringComparer.OrdinalIgnoreCase).Count()} property sets, {l.Sum(x => x.Propriedades.Count)} propriedades";
+            });
+            string arqPsets = Arq(ConfigKind.PropertyMappingCsv) ?? Arq(ConfigKind.PropertyTemplates);
+            Padrao("Property sets", "O que vai para o IFC em cada property set e de onde vem (IFCInfraExportPropertyMapping).",
+                arqPsets, ConfigPackage.PathOf(ConfigKind.PropertyMappingCsv), psets, "3", arqPsets != null ? Sinal.Verde : Sinal.Cinza);
+
+            string escrita = Seguro(() => Escrita.PadroesEscrita.Listar().FirstOrDefault()?.Nome);
+            Padrao("Escrita", "Siglas, termos e correções do Corrigir escrita.", escrita, null,
+                escrita == null ? "não usado" : "siglas, termos e correções", "4", escrita == null ? Sinal.Cinza : Sinal.Verde);
+
+            var confronto = Seguro(() => string.Join(", ", Confronto.Padroes.Listar("Civil3D").Select(x => x.Nome)));
+            Padrao("Confronto", "Planilha externa e campos que o Confrontar planilha compara.", string.IsNullOrEmpty(confronto) ? null : confronto, null,
+                string.IsNullOrEmpty(confronto) ? "não usado" : "planilha e campos a comparar", "4", string.IsNullOrEmpty(confronto) ? Sinal.Cinza : Sinal.Verde);
+
+            List<Classificacao.PadraoClassificacao> classif = null;
+            try { classif = Classificacao.PadraoClassificacao.Listar(); } catch { }
+            var padraoClassif = classif?.FirstOrDefault(x => x.Nome == Classificacao.VerificarClassificacaoWindow._ultimoPadrao) ?? classif?.FirstOrDefault();
+            var planilha = padraoClassif?.Sistemas.Select(s => s.Planilha?.Arquivo).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+            Padrao("Classificação", "Planilha de classificação do Metrô: os códigos aceitos.",
+                planilha != null ? System.IO.Path.GetFileName(planilha) : padraoClassif?.Nome, planilha,
+                padraoClassif == null ? "falta escolher" : planilha == null ? "falta escolher a planilha" : $"{padraoClassif.Sistemas.Count} classificação(ões)", "5",
+                padraoClassif == null || planilha == null ? Sinal.Amarelo : Sinal.Verde);
+
+            string projeto = Seguro(() =>
+            {
+                var est = ConfigPackage.LoadMetroSp().Estrutura;
+                int inst = est.AllFacilities().Count(f => !string.IsNullOrWhiteSpace(f.Nome));
+                return (string.IsNullOrWhiteSpace(est.Projeto?.Nome) ? "projeto sem nome" : est.Projeto.Nome) + $", {inst} instalação(ões)";
+            });
+            Padrao("Projeto e alinhamento", "IfcProject, IfcSite, instalações e opções do alinhamento 3D.", Arq(ConfigKind.MetroSP), ConfigPackage.PathOf(ConfigKind.MetroSP),
+                projeto, "6 e 7", _res?.Etapa(7)?.Sinal == Sinal.Vermelho ? Sinal.Amarelo : Sinal.Verde);
+            p.Children.Add(grade);
+
+            // ---- o modelo visto pelos padrões
+            p.Children.Add(Titulo("No modelo", 18));
+            var numeros = new WrapPanel();
+            void Numero(string valor, string rotulo, string dica)
+            {
+                var bloco = new StackPanel { Margin = new Thickness(0, 0, 26, 4), ToolTip = dica };
+                bloco.Children.Add(new TextBlock { Text = valor, FontSize = 20, FontWeight = FontWeights.SemiBold });
+                bloco.Children.Add(new TextBlock { Text = rotulo, FontSize = 11, Foreground = Theme.Solid(Theme.Cinza) });
+                numeros.Children.Add(bloco);
+            }
+            try
+            {
+                var db = _doc.Database;
+                int noIfc, total = 0;
+                using (var tr = db.TransactionManager.StartOpenCloseTransaction())
+                {
+                    noIfc = Ifc.FiltroIfc.Objetos(db, tr).Count;
+                    var ms = (Autodesk.AutoCAD.DatabaseServices.BlockTableRecord)tr.GetObject(
+                        Autodesk.AutoCAD.DatabaseServices.SymbolUtilityServices.GetBlockModelSpaceId(db), Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead);
+                    foreach (ObjectId _ in ms) total++;
+                    tr.Commit();
+                }
+                var pt = new System.Globalization.CultureInfo("pt-BR");
+                Numero(noIfc.ToString("N0", pt), "objetos que vão para o IFC", "Objetos do espaço do modelo que o exportador leva (sem anotações, layers desligados ou fora da exportação).");
+                Numero((total - noIfc).ToString("N0", pt), "ficam fora", "Anotações (textos, cotas, hachuras), layers desligados ou congelados e o que está com Exportar desmarcado.");
+            }
+            catch (Exception ex) { p.Children.Add(Theme.Detalhe("Não deu para contar os objetos: " + ex.Message)); }
+            Numero((_res?.Perfis.Count ?? 0).ToString(), "alinhamentos", "Alinhamentos do modelo (passo 6).");
+            Numero(Ifc.IfcCatalog.Label(versao).Replace(" (IFC4X3_ADD2)", ""), "esquema", "Versão do IFC nas configurações do exportador.");
+            p.Children.Add(numeros);
+
+            var adicionar = Pilula("Adicionar perfis...", primario: true);
+            adicionar.HorizontalAlignment = HorizontalAlignment.Left;
+            adicionar.Margin = new Thickness(0, 16, 0, 0);
+            adicionar.ToolTip = "Abre a janela Perfis: arraste ou escolha os arquivos (configuração IFC, classificação, escrita, confronto).";
+            adicionar.Click += (s, e) =>
+            {
+                new Padroes.GerenciarPadroesWindow(Padroes.PadroesCommands.Tipos(_doc), "Civil 3D") { Owner = this }.ShowDialog();
+                Conferir();
+            };
+            p.Children.Add(adicionar);
             return new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = p };
         }
 
         /// <summary>Linha da tabela de perfis (etapa 6).</summary>
-        public class LinhaPerfil
+        public class LinhaPerfil : System.ComponentModel.INotifyPropertyChanged
         {
+            string _escolhido;
             public string Handle { get; set; }
+            public ObjectId Id { get; set; }
             public string Alinhamento { get; set; }
             public List<string> Perfis { get; set; }
-            public string Escolhido { get; set; }
+            public string Escolhido { get => _escolhido; set { _escolhido = value; On(nameof(Escolhido)); } }
             public string Estacas { get; set; }
+            public double Comprimento { get; set; }
+            public string ComprimentoTexto => Comprimento > 0 ? Comprimento.ToString("N2", new System.Globalization.CultureInfo("pt-BR")) + " m" : "";
             public string Situacao { get; set; }
             public bool Pendente { get; set; }
             public bool PodeEscolher => Perfis != null && Perfis.Count > 1;
+            public string PerfilTexto => Perfis == null || Perfis.Count == 0 ? "—" : Escolhido;
             public string Original { get; set; }
+            public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+            void On(string n) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(n));
         }
 
+        /// <summary>
+        /// Passo 6: as opções do eixo 3D numa faixa no alto (valem para todos os modelos) e a tabela dos alinhamentos com o
+        /// perfil longitudinal que vai para o IFC. "Perfil longitudinal" para não confundir com o perfil de exportação.
+        /// </summary>
         UIElement PainelAlinhamentos()
         {
             var linhas = new ObservableCollection<LinhaPerfil>(_res.Perfis.Select(s => new LinhaPerfil
             {
                 Handle = s.Handle,
+                Id = s.Id,
                 Alinhamento = s.Alinhamento,
                 Perfis = s.Perfis,
                 Escolhido = s.Escolhido,
                 Original = s.Origem == "Sugerido" ? null : s.Escolhido,
                 Estacas = s.Estacas,
+                Comprimento = s.Comprimento,
                 Pendente = s.Pendente,
                 Situacao = s.Origem switch
                 {
-                    "Único" => "Um perfil",
-                    "Guardado" => "Escolhido para este desenho",
-                    "Preferido" => "Pela lista de preferidos",
+                    "Único" => "um perfil",
+                    "Guardado" => "escolhido para este modelo",
+                    "Preferido" => "pela lista de preferidos",
                     "Sugerido" => $"{s.Perfis.Count} perfis: escolha",
-                    _ => "Sem perfil: vai só a planta",
+                    _ => "sem perfil: vai só a planta",
                 },
             }));
             var p = new DockPanel();
-            var topo = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var soPendentes = new CheckBox { Content = $"Só os pendentes ({linhas.Count(l => l.Pendente)})", IsChecked = linhas.Any(l => l.Pendente), VerticalAlignment = VerticalAlignment.Center };
-            var opcoes = Pilula("Opções do alinhamento...");
-            opcoes.ToolTip = "Eixo 3D no IFC, passo das estacas e a lista de perfis preferidos (vale para todos os desenhos).";
-            opcoes.Click += (s, e) =>
-            {
-                var w = new ConfigWindow(Commands.DrawingFolder(_doc)) { Owner = this };
-                w.Abas.SelectedIndex = 3;   // Alinhamento
-                w.ShowDialog();
-                Conferir();
-            };
-            DockPanel.SetDock(opcoes, Dock.Right);
-            topo.Children.Add(opcoes);
-            topo.Children.Add(soPendentes);
-            DockPanel.SetDock(topo, Dock.Top);
-            p.Children.Add(topo);
+
+            // ---- opções do eixo 3D (antes no Configurar IFC › Alinhamento)
+            MetroSpIfcConfig cfg;
+            try { cfg = ConfigPackage.LoadMetroSp(); } catch { cfg = new MetroSpIfcConfig(); }
+            cfg.Alinhamento ??= new AlignmentOptions();
+            var faixa = new WrapPanel { Background = Theme.Solid(Theme.CinzaFundo), Margin = new Thickness(0, 0, 0, 6) };
+            var eixo3d = new CheckBox { Content = "Eixo 3D no IFC com as cotas do perfil longitudinal", IsChecked = cfg.Alinhamento.AplicarNoIfc, FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 6, 16, 6),
+                ToolTip = "Depois de exportar, troca o eixo de cada IfcAlignment pelo eixo 3D, com as cotas do perfil longitudinal escolhido." };
+            var passo = new TextBox { Text = cfg.Alinhamento.Passo.ToString(System.Globalization.CultureInfo.CurrentCulture), Width = 50, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 6, 4, 6),
+                ToolTip = "Distância entre os pontos do eixo 3D (m)." };
+            var preferidos = new TextBox { Text = string.Join(" ; ", cfg.Alinhamento.PerfisPreferidos ?? new List<string>()), Width = 260, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 6, 6, 6),
+                ToolTip = "Nomes (aceita expressão regular) em ordem de preferência, separados por ;. Quando o alinhamento tem mais de um perfil longitudinal, vale o primeiro que casar." };
+            TextBlock Cinza(string t) => new TextBlock { Text = t, Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
+            faixa.Children.Add(eixo3d);
+            faixa.Children.Add(Cinza("Estacas a cada"));
+            faixa.Children.Add(passo);
+            faixa.Children.Add(Cinza("m"));
+            faixa.Children.Add(new Border { Width = 16 });
+            faixa.Children.Add(Cinza("Preferidos"));
+            faixa.Children.Add(preferidos);
+            faixa.Children.Add(Cinza("(vale para todos os modelos)  "));
+            DockPanel.SetDock(faixa, Dock.Top);
+            p.Children.Add(faixa);
+            List<string> Preferidos() => preferidos.Text.Split(';').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
 
             if (linhas.Count == 0)
             {
-                p.Children.Add(Theme.Detalhe("Este desenho não tem alinhamento: o IFC vai com projeto, terreno, instalações e os objetos do desenho."));
+                p.Children.Add(Theme.Detalhe("Este modelo não tem alinhamento: o IFC vai com projeto, terreno, instalações e os objetos do modelo."));
+                _salvarPainel = () => SalvarOpcoesAlinhamento(cfg, eixo3d, passo, Preferidos());
                 return p;
             }
 
-            var grade = new DataGrid
-            {
-                AutoGenerateColumns = false,
-                CanUserAddRows = false,
-                CanUserDeleteRows = false,
-                HeadersVisibility = DataGridHeadersVisibility.Column,
-                SelectionMode = DataGridSelectionMode.Single,
-            };
-            grade.Columns.Add(new DataGridTextColumn { Header = "Alinhamento", Binding = new Binding(nameof(LinhaPerfil.Alinhamento)), IsReadOnly = true, Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
+            // ---- ações
+            var acoes = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var soPendentes = new CheckBox { Content = $"Só os pendentes ({linhas.Count(l => l.Pendente)})", IsChecked = false, VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(soPendentes, Dock.Right);
+            acoes.Children.Add(soPendentes);
+            var botoes = new WrapPanel();
+            acoes.Children.Add(botoes);
+            DockPanel.SetDock(acoes, Dock.Top);
+            p.Children.Add(acoes);
+
+            var grade = new FilterableGrid(linhas, typeof(LinhaPerfil));
+            grade.Grid.IsReadOnly = false;
+            Theme.StyleSelection(grade.Grid);
+            grade.AddColumn("Alinhamento", nameof(LinhaPerfil.Alinhamento), 180).IsReadOnly = true;
+            var colPerfil = grade.AddColumn("Perfil longitudinal usado no IFC", nameof(LinhaPerfil.Escolhido), 260, fill: true);
+            int iPerfil = grade.Grid.Columns.IndexOf(colPerfil);
+            grade.Grid.Columns.Remove(colPerfil);
+            var ver = new FrameworkElementFactory(typeof(TextBlock));
+            ver.SetBinding(TextBlock.TextProperty, new Binding(nameof(LinhaPerfil.PerfilTexto)));
+            ver.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 2, 0));
             var combo = new FrameworkElementFactory(typeof(ComboBox));
             combo.SetBinding(ItemsControl.ItemsSourceProperty, new Binding(nameof(LinhaPerfil.Perfis)));
             combo.SetBinding(System.Windows.Controls.Primitives.Selector.SelectedItemProperty, new Binding(nameof(LinhaPerfil.Escolhido)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
-            combo.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(LinhaPerfil.PodeEscolher)));
-            grade.Columns.Add(new DataGridTemplateColumn
+            combo.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(LinhaPerfil.PodeEscolher)) { Converter = new BooleanToVisibilityConverter() });
+            var cel = new FrameworkElementFactory(typeof(Grid));
+            cel.AppendChild(ver);
+            cel.AppendChild(combo);
+            grade.Grid.Columns.Insert(iPerfil, new DataGridTemplateColumn
             {
-                Header = "Perfil usado no IFC",
-                CellTemplate = new DataTemplate { VisualTree = combo },
-                Width = new DataGridLength(1.6, DataGridLengthUnitType.Star),
+                Header = colPerfil.Header, SortMemberPath = nameof(LinhaPerfil.Escolhido), IsReadOnly = true,
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 200,
+                CellTemplate = new DataTemplate { VisualTree = cel },
             });
-            grade.Columns.Add(new DataGridTextColumn { Header = "Estacas", Binding = new Binding(nameof(LinhaPerfil.Estacas)), IsReadOnly = true, Width = 150 });
-            var estilo = new Style(typeof(TextBlock));
+            grade.AddColumn("Estacas", nameof(LinhaPerfil.Estacas), 160).IsReadOnly = true;
+            var comp = grade.AddColumn("Comprimento", nameof(LinhaPerfil.ComprimentoTexto), 110);
+            comp.IsReadOnly = true;
+            comp.SortMemberPath = nameof(LinhaPerfil.Comprimento);
+            comp.ElementStyle = new Style(typeof(TextBlock), comp.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
+            var sit = grade.AddColumn("Como foi escolhido", nameof(LinhaPerfil.Situacao), 200);
+            sit.IsReadOnly = true;
+            var estilo = new Style(typeof(TextBlock), sit.ElementStyle);
             var pend = new DataTrigger { Binding = new Binding(nameof(LinhaPerfil.Pendente)), Value = true };
             pend.Setters.Add(new Setter(TextBlock.ForegroundProperty, Theme.Solid(Theme.LaranjaTexto)));
             pend.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
             estilo.Triggers.Add(pend);
-            grade.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(LinhaPerfil.Situacao)), IsReadOnly = true, ElementStyle = estilo, Width = new DataGridLength(1.2, DataGridLengthUnitType.Star) });
-
-            var vista = CollectionViewSource.GetDefaultView(linhas);
-            void Filtrar() => vista.Filter = soPendentes.IsChecked == true ? (o => ((LinhaPerfil)o).Pendente) : (Predicate<object>)null;
-            soPendentes.Checked += (s, e) => Filtrar();
-            soPendentes.Unchecked += (s, e) => Filtrar();
-            Filtrar();
-            grade.ItemsSource = vista;
+            sit.ElementStyle = estilo;
+            var linhaEst = new Style(typeof(DataGridRow), grade.Grid.RowStyle);
+            var pendRow = new DataTrigger { Binding = new Binding(nameof(LinhaPerfil.PodeEscolher)), Value = true };
+            var pendRow2 = new MultiDataTrigger();
+            pendRow2.Conditions.Add(new Condition(new Binding(nameof(LinhaPerfil.Pendente)), true));
+            pendRow2.Conditions.Add(new Condition(new Binding(nameof(LinhaPerfil.PodeEscolher)), true));
+            pendRow2.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
+            linhaEst.Triggers.Add(pendRow2);
+            grade.Grid.RowStyle = linhaEst;
+            grade.ExtraFilter = o => soPendentes.IsChecked != true || ((LinhaPerfil)o).Pendente;
+            soPendentes.Click += (s, e) => grade.Refresh();
             p.Children.Add(grade);
 
-            // Salvar e conferir: guarda o perfil de cada alinhamento com mais de um (a exportação não pergunta mais).
+            List<LinhaPerfil> Escolhidas()
+            {
+                var sel = grade.Grid.SelectedItems.OfType<LinhaPerfil>().ToList();
+                return sel.Count > 0 ? sel : grade.VisibleItems<LinhaPerfil>().ToList();
+            }
+            Button Acao(string texto, string dica, Action a)
+            {
+                var b = Pilula(texto);
+                b.ToolTip = dica;
+                b.Margin = new Thickness(0, 0, 6, 0);
+                b.Click += (s, e) => a();
+                botoes.Children.Add(b);
+                return b;
+            }
+            void Selecionar(bool aproximar)
+            {
+                var ids = Escolhidas().Select(l => l.Id).Where(id => id.IsValid && !id.IsErased).ToArray();
+                try
+                {
+                    _doc.Editor.SetImpliedSelection(ids);
+                    if (aproximar && ids.Length > 0) _doc.SendStringToExecute("._ZOOM _O ", true, false, false);
+                }
+                catch { }
+            }
+            Acao("Selecionar no modelo", "Seleciona os alinhamentos escolhidos (ou os da tabela).", () => Selecionar(false));
+            Acao("Aproximar", "Seleciona e aproxima a vista dos alinhamentos escolhidos.", () => Selecionar(true));
+            Acao("Usar o preferido em todos", "Nos alinhamentos com mais de um perfil longitudinal, escolhe o primeiro da lista de preferidos.", () =>
+            {
+                var pref = Preferidos();
+                int n = 0;
+                foreach (var l in linhas.Where(l => l.PodeEscolher))
+                    foreach (string rx in pref)
+                    {
+                        string hit = null;
+                        try { hit = l.Perfis.FirstOrDefault(x => System.Text.RegularExpressions.Regex.IsMatch(x, rx, System.Text.RegularExpressions.RegexOptions.IgnoreCase)); } catch { }
+                        if (hit == null) continue;
+                        if (hit != l.Escolhido || l.Pendente) { l.Escolhido = hit; n++; }
+                        break;
+                    }
+                MessageBox.Show(this, n == 0 ? "Nenhum alinhamento mudou: confira a lista de preferidos." : $"{n} alinhamento(s) com o preferido. Salve e confira para gravar.", Title);
+            });
+
+            // Salvar e conferir: as opções do eixo 3D e o perfil longitudinal de cada alinhamento com mais de um.
             _salvarPainel = () =>
             {
-                var escolhas = linhas.Where(l => l.PodeEscolher && !string.IsNullOrEmpty(l.Escolhido) && l.Escolhido != l.Original)
+                SalvarOpcoesAlinhamento(cfg, eixo3d, passo, Preferidos());
+                var escolhas = linhas.Where(l => l.PodeEscolher && !string.IsNullOrEmpty(l.Escolhido) && (l.Escolhido != l.Original || l.Pendente))
                     .Select(l => (l.Handle, l.Escolhido)).ToList();
                 if (escolhas.Count > 0) AlignmentCommands.GuardarPerfis(_doc, escolhas);
             };
             return p;
         }
 
+        static void SalvarOpcoesAlinhamento(MetroSpIfcConfig cfg, CheckBox eixo3d, TextBox passo, List<string> preferidos)
+        {
+            var a = cfg.Alinhamento;
+            bool mudou = a.AplicarNoIfc != (eixo3d.IsChecked == true) || !(a.PerfisPreferidos ?? new List<string>()).SequenceEqual(preferidos);
+            a.AplicarNoIfc = eixo3d.IsChecked == true;
+            if (double.TryParse(passo.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out double v) && v > 0 && v != a.Passo) { a.Passo = v; mudou = true; }
+            a.PerfisPreferidos = preferidos;
+            if (!mudou) return;
+            try { ConfigPackage.SaveMetroSp(cfg); } catch (Exception ex) { Log.Erro("salvar opções do alinhamento", ex); }
+        }
+
         UIElement PainelExportar()
         {
-            var p = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-            p.Children.Add(new TextBlock { Text = "Exportar IFC", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
             string texto = _res.Vermelhas > 0
                 ? $"Ainda há {_res.Vermelhas} etapa(s) com pendência. Dá para exportar, mas o IFC sai incompleto."
                 : _res.Amarelas > 0 ? "Pronto para exportar, com avisos nas etapas em laranja." : "Tudo certo para exportar.";
-            p.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
-            var botoes = new WrapPanel();
-            var tudo = Pilula("Exportar IFC", primario: _res.Etapa(Ultima).Abertas.All(x => x.Sinal != Sinal.Vermelho));
-            tudo.ToolTip = "Fecha esta janela e exporta o desenho todo (IFC 4.3).";
-            tudo.Click += (s, e) => FecharE("MSP_IFCEXPORT");
-            var sel = Pilula("Só a seleção");
-            sel.ToolTip = "Fecha esta janela e exporta só os objetos selecionados.";
-            sel.Click += (s, e) => FecharE("MSP_IFCEXPORTSEL");
-            var ali = Pilula("Só os alinhamentos");
-            ali.ToolTip = "Fecha esta janela e grava um IFC separado só com os alinhamentos 3D.";
-            ali.Click += (s, e) => FecharE("MSP_IFCALINHAMENTO");
-            foreach (var b in new[] { tudo, sel, ali }) { b.Margin = new Thickness(0, 0, 6, 4); botoes.Children.Add(b); }
-            p.Children.Add(botoes);
-            return p;
+            var t = Theme.Detalhe(texto + " O botão Exportar IFC fica no rodapé.");
+            t.Margin = new Thickness(0, 10, 0, 0);
+            return t;
+        }
+
+        string ResumoExportar()
+        {
+            string objetos = _comandoExportar == "MSP_IFCEXPORTSEL" ? "só a seleção" : _comandoExportar == "MSP_IFCALINHAMENTO" ? "só os alinhamentos" : "modelo inteiro";
+            return $"Perfil {ConfigPackage.PerfilAtivo} · {Ifc.IfcCatalog.Label(ConfigPackage.IfcVersionDoPerfil())} · {objetos}";
+        }
+
+        /// <summary>
+        /// Passo 7 (mesmo desenho do Exportar do Revit): Perfil em uma linha e Saída (esquema e objetos) no alto; embaixo,
+        /// Projeto e local (a aba Projeto do Configurar IFC). Os avisos ficam nos cartões; Exportar IFC, no rodapé.
+        /// </summary>
+        UIElement CabecalhoExportar(UIElement projeto)
+        {
+            var topo = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+            TextBlock Secao(string t) => new TextBlock { Text = t, FontWeight = FontWeights.Bold, Foreground = Theme.Solid(Theme.Preto), FontSize = 11, Margin = new Thickness(0, 8, 0, 4) };
+            Grid Linha(string rotulo, UIElement campo, UIElement extra = null)
+            {
+                var g = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var r = new TextBlock { Text = rotulo, Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
+                g.Children.Add(r);
+                Grid.SetColumn((FrameworkElement)campo, 1);
+                g.Children.Add(campo);
+                if (extra != null) { Grid.SetColumn((FrameworkElement)extra, 2); ((FrameworkElement)extra).Margin = new Thickness(12, 0, 0, 0); g.Children.Add(extra); }
+                return g;
+            }
+            TextBlock Info(string t) => new TextBlock { Text = t, Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+
+            // ---- Perfil
+            string versao = ConfigPackage.IfcVersionDoPerfil();
+            int regras = 0, psets = 0;
+            try { regras = ConfigPackage.LoadMapping(versao).Select(kv => (kv.Value as System.Text.Json.Nodes.JsonArray)?.Count ?? 0).Sum(); } catch { }
+            try
+            {
+                var raiz = ConfigPackage.LoadJson(ConfigKind.PropertyTemplates);
+                psets = ((raiz as System.Text.Json.Nodes.JsonArray) ?? raiz?["PropertySetTemplates"] as System.Text.Json.Nodes.JsonArray)?.Count ?? 0;
+            }
+            catch { }
+            topo.Children.Add(Secao("PERFIL"));
+            var perfilInfo = new StackPanel { Orientation = Orientation.Horizontal };
+            perfilInfo.Children.Add(Info($"{Ifc.IfcCatalog.Label(versao)} · {regras} regras de classe · {psets} psets  "));
+            var irPerfis = Theme.Link("Perfis...");
+            irPerfis.ToolTip = "Vai para o passo 1 (perfil de exportação deste modelo).";
+            irPerfis.Click += (s, e) => IrPara(1);
+            perfilInfo.Children.Add(irPerfis);
+            topo.Children.Add(Linha("Perfil", new TextBlock { Text = ConfigPackage.PerfilAtivo, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 200 }, perfilInfo));
+
+            // ---- Saída
+            topo.Children.Add(Secao("SAÍDA"));
+            var esquema = new ComboBox { Width = 220, ItemsSource = new[] { "IFC 4.3", "IFC4" }, SelectedIndex = ConfigPackage.EhIfc4(versao) ? 1 : 0,
+                ToolTip = "Esquema do IFC. Gravado no perfil de exportação (configuração da Autodesk)." };
+            esquema.SelectionChanged += (s, e) =>
+            {
+                try
+                {
+                    ConfigPackage.EnsureActive();
+                    var cfg = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig) as System.Text.Json.Nodes.JsonObject ?? new System.Text.Json.Nodes.JsonObject();
+                    if (!(cfg["Export"] is System.Text.Json.Nodes.JsonObject exp)) cfg["Export"] = exp = new System.Text.Json.Nodes.JsonObject();
+                    exp["IfcVersion"] = esquema.SelectedIndex == 1 ? ConfigPackage.IfcVersionIfc4 : ConfigPackage.IfcVersionIfc43;
+                    ConfigPackage.SaveJson(ConfigKind.AutodeskConfig, cfg);
+                    _rodapeTexto.Text = ResumoExportar() + " (esquema gravado no perfil; confira de novo para ver as classes)";
+                }
+                catch (Exception ex) { MessageBox.Show(this, "Não foi possível gravar o esquema:\n" + ex.Message, "MetroSP"); }
+            };
+            topo.Children.Add(Linha("Esquema", esquema, Info("IFC4 usa a tabela de classes do IFC4 do perfil.")));
+            var objetos = new ComboBox { Width = 220, ItemsSource = new[] { "Modelo inteiro", "Só a seleção", "Só os alinhamentos (IFC separado)" },
+                SelectedIndex = _comandoExportar == "MSP_IFCEXPORTSEL" ? 1 : _comandoExportar == "MSP_IFCALINHAMENTO" ? 2 : 0 };
+            objetos.SelectionChanged += (s, e) =>
+            {
+                _comandoExportar = objetos.SelectedIndex == 1 ? "MSP_IFCEXPORTSEL" : objetos.SelectedIndex == 2 ? "MSP_IFCALINHAMENTO" : "MSP_IFCEXPORT";
+                _rodapeTexto.Text = ResumoExportar();
+            };
+            topo.Children.Add(Linha("Objetos", objetos, Info("O exportador da Autodesk pergunta onde salvar o arquivo.")));
+
+            topo.Children.Add(Secao("PROJETO E LOCAL"));
+            var d = new DockPanel();
+            DockPanel.SetDock(topo, Dock.Top);
+            d.Children.Add(topo);
+            d.Children.Add(projeto);
+            return d;
         }
 
         // ================================================================== visual

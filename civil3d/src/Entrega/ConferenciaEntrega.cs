@@ -18,7 +18,7 @@ namespace MetroSP.Entrega
     public enum Sinal { Verde, Amarelo, Vermelho, Cinza }
 
     /// <summary>O que a pendência pede: cada tipo tem um botão na janela (ver EntregaWindow.Acoes).</summary>
-    public enum Acao { Nenhuma, Comando, Exportador, SalvarDesenho, CriarPset, AnexarPset, UsarPerfil, AbrirEscrita, PreencherProjeto }
+    public enum Acao { Nenhuma, Comando, Exportador, SalvarDesenho, CriarPset, AnexarPset, UsarPerfil, AbrirEscrita, PreencherProjeto, AbrirMetroData }
 
     public class Pendencia
     {
@@ -66,13 +66,13 @@ namespace MetroSP.Entrega
     {
         public static readonly (int Numero, string Nome, string Dica)[] Etapas =
         {
-            (1, "Exportador", "IFC 4.3 Extension da Autodesk instalada e configuração IFC (padrão MetroSP ou Forma) em dia."),
-            (2, "Property sets", "Property sets que o mapeamento IFC pede: montados no desenho e anexados aos objetos que vão para o IFC."),
-            (3, "Classe IFC", "Classe IFC de cada tipo de objeto, dentro do esquema escolhido (IFC 4.3)."),
-            (4, "Dados", "Erros de escrita (espaços, acentos, caracteres estranhos) e confronto com a planilha do padrão."),
-            (5, "Classificação", "Códigos de classificação dos objetos conferidos com a planilha do padrão."),
-            (6, "Alinhamentos", "Perfil de cada alinhamento que vai para o IFC (eixo 3D com as cotas)."),
-            (7, "Local e exportar", "IfcProject, IfcSite e instalações (IfcRailway, IfcBuilding), e a exportação."),
+            (1, "Perfis", "Perfil de exportação, perfis em uso e o exportador IFC 4.3 da Autodesk instalado."),
+            (2, "Classes IFC", "Classe IFC de cada layer, bloco e baseline do modelo, dentro do esquema escolhido (IFC 4.3)."),
+            (3, "Property sets", "Property sets que o mapeamento IFC pede: montados no modelo e anexados aos objetos que vão para o IFC."),
+            (4, "MetroDATA", "Propriedades que a planilha do MetroDATA pede para cada objeto, erros de escrita e confronto com planilha."),
+            (5, "Classificação", "Códigos de classificação dos objetos conferidos com a planilha do perfil."),
+            (6, "Alinhamentos", "Perfil longitudinal de cada alinhamento que vai para o IFC (eixo 3D com as cotas)."),
+            (7, "Exportar", "IfcProject, IfcSite e instalações (IfcRailway, IfcBuilding), e a exportação."),
         };
 
         /// <summary>Última conferência de cada desenho, para o Painel MetroSP.</summary>
@@ -88,8 +88,8 @@ namespace MetroSP.Entrega
             foreach (var (n, nome, dica) in Etapas) r.Etapas.Add(new EtapaEntrega { Numero = n, Nome = nome, Dica = dica });
 
             Rodar(r, 1, () => Exportador(doc, r.Etapa(1)));
-            Rodar(r, 2, () => PropertySets(doc, r.Etapa(2)));
-            Rodar(r, 3, () => ClasseIfc(r.Etapa(3)));
+            Rodar(r, 2, () => ClasseIfc(r.Etapa(2)));
+            Rodar(r, 3, () => PropertySets(doc, r.Etapa(3)));
             Rodar(r, 4, () => Dados(doc, r.Etapa(4)));
             Rodar(r, 5, () => Classificacao(doc, r.Etapa(5)));
             Rodar(r, 6, () => Alinhamentos(doc, r));
@@ -111,7 +111,7 @@ namespace MetroSP.Entrega
             }
         }
 
-        // ------------------------------------------------------------------ 1 Exportador
+        // ------------------------------------------------------------------ 1 Perfis
 
         static void Exportador(AcDocument doc, EtapaEntrega e)
         {
@@ -119,7 +119,7 @@ namespace MetroSP.Entrega
             if (Commands.DrawingFolder(doc) == null && cfg.Destino != "ProgramData")
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Vermelho, Titulo = "Desenho não salvo",
+                    Sinal = Sinal.Vermelho, Titulo = "Modelo não salvo",
                     Texto = "A configuração IFC é gravada na pasta do DWG.", Acao = Acao.SalvarDesenho,
                 });
 
@@ -129,6 +129,20 @@ namespace MetroSP.Entrega
                 {
                     Sinal = Sinal.Vermelho, Titulo = "IFC 4.3 Extension não instalada",
                     Texto = "Sem ela o Civil 3D não exporta IFC 4.3.", Acao = Acao.Exportador,
+                });
+
+            string perfil = ConfigPackage.PerfilDoModelo(doc);
+            if (perfil == null)
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = "Modelo sem perfil de exportação",
+                    Texto = "Escolha na lista Perfil de exportação qual vale para este modelo. Até lá vale o MetroSP.",
+                });
+            else if (!ConfigPackage.Existe(perfil))
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = "Perfil " + perfil + " não existe neste computador",
+                    Texto = "O modelo pede esse perfil, mas ele não está aqui; vale o MetroSP. Escolha outro na lista ou duplique um com esse nome e importe os arquivos dele (Editar perfil › Adicionar perfis…).",
                 });
 
             ConfigPackage.EnsureActive();
@@ -174,7 +188,7 @@ namespace MetroSP.Entrega
             foreach (var p in esperados.Where(p => !noDesenho.Contains(p.Nome)))
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Titulo = p.Nome + " · não está no desenho",
+                    Sinal = Sinal.Amarelo, Titulo = p.Nome + " · não está no modelo",
                     Texto = $"O mapeamento IFC pede {p.Propriedades.Count} propriedade(s) dele.",
                     Acao = Acao.CriarPset, Alvo = p.Nome, Dados = p,
                 });
@@ -206,13 +220,12 @@ namespace MetroSP.Entrega
             return g.Count > 4 ? s + $" e mais {g.Count - 4} tipo(s)" : s;
         }
 
-        // ------------------------------------------------------------------ 3 Classe IFC
+        // ------------------------------------------------------------------ 2 Classes IFC
 
         static void ClasseIfc(EtapaEntrega e)
         {
-            var mapping = ConfigPackage.LoadJson(ConfigKind.ObjectMapping) as JsonObject ?? new JsonObject();
-            var config = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig);
-            string versao = (string)(config?["Export"]?["IfcVersion"]) ?? "IFC4X3_ADD2";
+            string versao = ConfigPackage.IfcVersionDoPerfil();
+            var mapping = ConfigPackage.LoadMapping(versao);
             var invalidas = Ui.ConfigWindow.ClassesInvalidas(mapping, versao);
             foreach (string linha in invalidas)
             {
@@ -221,16 +234,58 @@ namespace MetroSP.Entrega
                 {
                     Sinal = Sinal.Vermelho,
                     Titulo = i > 0 ? linha.Substring(0, i) : linha,
-                    Texto = (i > 0 ? "Classe " + linha.Substring(i + 3) + " " : "Classe ") + "fora do " + Ifc.IfcCatalog.Label(versao) + ".",
+                    Texto = (i > 0 ? "Classe " + linha.Substring(i + 3) + " " : "Classe ") + "fora do " + Ifc.IfcCatalog.Label(versao) + "." +
+                            Sugestao(i > 0 ? linha.Substring(i + 3).Trim('"') : null, versao),
                 });
             }
+            SemClasse(e, mapping, versao);
             e.Resumo = "Esquema " + Ifc.IfcCatalog.Label(versao) + ".";
         }
 
-        // ------------------------------------------------------------------ 4 Dados
+        /// <summary>
+        /// Layers, blocos e baselines com objetos que vão para o IFC sem classe: sem regra no perfil, ou com regra de classe
+        /// vazia. Saem com a classe que a Autodesk escolher (em geral IfcBuildingElementProxy).
+        /// </summary>
+        static void SemClasse(EtapaEntrega e, JsonObject mapping, string versao)
+        {
+            Dictionary<string, List<Ifc.ItemDesenho>> modelo;
+            try { modelo = Ifc.ConteudoDesenho.Ler(); }
+            catch { return; }
+            foreach (var kv in modelo)
+            {
+                var regras = (mapping[kv.Key] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
+                var faltam = new List<Ifc.ItemDesenho>();
+                foreach (var it in kv.Value.Where(i => i.Objetos > 0 && string.IsNullOrEmpty(i.Situacao)))
+                {
+                    var r = regras.FirstOrDefault(x => Ui.ClassesIfcWindow.Casa((string)x["Name"], it.Nome));
+                    if (r != null && ((bool?)r["Export"] ?? true) == false) continue;
+                    if (r == null || string.IsNullOrWhiteSpace((string)r["IfcExportAs"])) faltam.Add(it);
+                }
+                if (faltam.Count == 0) continue;
+                var (um, varios) = Ifc.ConteudoDesenho.Palavra(kv.Key);
+                int objetos = faltam.Sum(i => i.Objetos);
+                string nomes = string.Join(", ", faltam.OrderByDescending(i => i.Objetos).Take(5).Select(i => i.Nome)) + (faltam.Count > 5 ? $" e mais {faltam.Count - 5}" : "");
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo,
+                    Titulo = $"{faltam.Count} {(faltam.Count == 1 ? um : varios)} sem classe IFC ({objetos:N0} objetos)",
+                    Texto = $"Vão para o IFC com a classe que a Autodesk escolher (em geral IfcBuildingElementProxy): {nomes}. " +
+                            "Escolha a classe ou desmarque Exportar na tabela.",
+                });
+            }
+        }
+
+        static string Sugestao(string classe, string versao)
+        {
+            string s = Ifc.IfcCatalog.Sugestao(classe, Ifc.IfcCatalog.For(versao));
+            return s == null ? "" : $" Use \"{s}\" (botão Corrigir classes).";
+        }
+
+        // ------------------------------------------------------------------ 4 MetroDATA
 
         static void Dados(AcDocument doc, EtapaEntrega e)
         {
+            string resumoMd = MetroDataPendencias(doc, e);
             var fonte = new FonteCivil3D(doc, null);
             var padrao = PadroesEscrita.Listar().First();
             var corretor = new CorretorEscrita(padrao);
@@ -255,7 +310,50 @@ namespace MetroSP.Entrega
                     Sinal = Sinal.Amarelo, Titulo = $"{kv.Key} · {kv.Value} valor(es) com erro de escrita",
                     Texto = "Espaços, acentos ou caracteres estranhos.", Acao = Acao.AbrirEscrita,
                 });
-            e.Resumo = $"Escrita conferida em {objetos.Count} objeto(s) (padrão \"{padrao.Nome}\").";
+            e.Resumo = (resumoMd != null ? resumoMd + " " : "") + $"Escrita conferida em {objetos.Count} objeto(s) (perfil \"{padrao.Nome}\").";
+        }
+
+        /// <summary>Pendências da planilha do MetroDATA: vazios por propriedade, layers sem objeto e o que não sai no IFC.</summary>
+        static string MetroDataPendencias(AcDocument doc, EtapaEntrega e)
+        {
+            var esc = MetroData.EscolhasMetroData.Ler(doc);
+            if (string.IsNullOrWhiteSpace(esc.Arquivo))
+            {
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Sem a planilha do MetroDATA", Texto = "Escolha o .xlsx exportado do Airtable na aba Propriedades.", Acao = Acao.AbrirMetroData });
+                return null;
+            }
+            MetroData.PlanilhaMetroData md;
+            try { md = MetroData.PlanilhaMetroData.Ler(esc.Arquivo); }
+            catch (Exception ex)
+            {
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Planilha do MetroDATA não foi lida", Texto = ex.Message, Acao = Acao.AbrirMetroData });
+                return null;
+            }
+            var linhas = MetroData.ConferenciaMetroData.Analisar(doc, md, esc, out _);
+            foreach (var l in linhas.Where(l => l.Vazios > 0).OrderByDescending(l => l.Vazios))
+            {
+                string prop = l.Campo.Contains('.') ? l.Campo.Substring(l.Campo.LastIndexOf('.') + 1) : l.Campo;
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = l.Classe > 0 && l.Classe <= 2 ? Sinal.Vermelho : Sinal.Amarelo,
+                    Titulo = $"{prop} · {l.Vazios:N0} vazio(s)", Texto = $"{l.Objeto} ({l.Layers})", Acao = Acao.AbrirMetroData,
+                    Objetos = l.IdsVazios.ToList(),
+                });
+            }
+            foreach (var l in linhas.Where(l => l.SemObjeto))
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = $"{l.Layers} sem objeto do MetroDATA", Texto = $"{l.Objetos:N0} objeto(s). Escolha em Objetos.",
+                    Acao = Acao.AbrirMetroData, Objetos = l.Ids.ToList(),
+                });
+            var naoSai = linhas.Where(l => l.NaoSaiNoIfc).ToList();
+            if (naoSai.Count > 0)
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = $"{naoSai.Count} propriedade(s) do MetroDATA não sai(em) no IFC",
+                    Texto = string.Join(", ", naoSai.Select(l => l.Campo).Distinct().Take(4)) + ". Mapeie na Saída no IFC (passo 3).", Acao = Acao.AbrirMetroData,
+                });
+            return $"MetroDATA: {linhas.Count(l => !l.SemObjeto)} propriedade(s) pedida(s) ({Path.GetFileName(esc.Arquivo)}).";
         }
 
         // ------------------------------------------------------------------ 5 Classificação
@@ -266,14 +364,14 @@ namespace MetroSP.Entrega
             var padrao = padroes.FirstOrDefault(p => p.Nome == VerificarClassificacaoWindow._ultimoPadrao) ?? padroes.FirstOrDefault();
             if (padrao == null)
             {
-                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Nenhum padrão de classificação", Texto = "Escolha a planilha de classificação do Metrô na ferramenta ao lado." });
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Nenhum perfil de classificação", Texto = "Escolha a planilha de classificação do Metrô na ferramenta ao lado." });
                 return;
             }
             var cache = new Dictionary<string, Planilha.Tabela>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in padrao.Sistemas) s.Carregar(cache);
             var sistemas = padrao.Sistemas.Where(s => s.Lista != null).ToList();
             foreach (var s in padrao.Sistemas.Where(s => s.Lista == null))
-                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = s.Nome + " · " + (s.Erro ?? "sem planilha"), Texto = "Indique a planilha no padrão \"" + padrao.Nome + "\"." });
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = s.Nome + " · " + (s.Erro ?? "sem planilha"), Texto = "Indique a planilha no perfil \"" + padrao.Nome + "\"." });
             if (sistemas.Count == 0) return;
 
             var db = doc.Database;
@@ -284,16 +382,29 @@ namespace MetroSP.Entrega
                 foreach (var s in sistemas) linhas.AddRange(ClassificacaoCore.Verificar(db, tr, ids, s));
                 tr.Commit();
             }
-            foreach (var g in linhas.Where(l => l.Situacao != ClassificacaoCore.OK).GroupBy(l => l.Situacao)
-                         .OrderBy(g => Array.IndexOf(ClassificacaoCore.Ordem, g.Key)))
+            foreach (var s in sistemas)
+            {
+                var faltam = VerificarClassificacaoWindow.PropsQueFaltamNoIfc(s);
+                if (faltam.Count > 0)
+                    e.Pendencias.Add(new Pendencia
+                    {
+                        Sinal = Sinal.Vermelho, Titulo = $"{s.Nome} · não vai para o IFC",
+                        Texto = $"{string.Join(", ", faltam)} não está na Saída no IFC: sem ele, não sai IfcClassification. Use Mapear ao lado.",
+                    });
+            }
+            foreach (var g in linhas.Where(l => l.Situacao != ClassificacaoCore.OK).GroupBy(l => (l.Sistema, l.Situacao))
+                         .OrderBy(g => g.Key.Sistema).ThenBy(g => Array.IndexOf(ClassificacaoCore.Ordem, g.Key.Situacao)))
+            {
+                int valores = g.Select(l => l.Preenchido ?? "").Distinct().Count();
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = g.Key == ClassificacaoCore.DescricaoDiferente ? Sinal.Amarelo : Sinal.Vermelho,
-                    Titulo = $"{g.Key} · {g.Count()} objeto(s)",
-                    Texto = Tipos(g.Select(l => l.Tipo)),
+                    Sinal = g.Key.Situacao == ClassificacaoCore.DescricaoDiferente ? Sinal.Amarelo : Sinal.Vermelho,
+                    Titulo = (sistemas.Count > 1 ? g.Key.Sistema + " · " : "") + g.Key.Situacao,
+                    Texto = $"{g.Count():N0} objeto(s)" + (valores > 1 ? $" em {valores} valores" : "") + " · " + Tipos(g.Select(l => l.Tipo)),
                     Objetos = g.Select(l => l.Id).Distinct().ToList(),
                 });
-            e.Resumo = $"Padrão \"{padrao.Nome}\": {linhas.Count} verificação(ões).";
+            }
+            e.Resumo = $"Perfil \"{padrao.Nome}\": {linhas.Count} verificação(ões).";
         }
 
         // ------------------------------------------------------------------ 6 Alinhamentos
@@ -303,7 +414,7 @@ namespace MetroSP.Entrega
             var e = r.Etapa(6);
             var metro = ConfigPackage.LoadMetroSp();
             r.Perfis = AlignmentCommands.Situacao(doc, metro.Alinhamento);
-            if (r.Perfis.Count == 0) { e.Resumo = "Desenho sem alinhamento."; return; }
+            if (r.Perfis.Count == 0) { e.Resumo = "Modelo sem alinhamento."; return; }
             if (!metro.Alinhamento.AplicarNoIfc)
                 e.Pendencias.Add(new Pendencia
                 {
@@ -313,14 +424,14 @@ namespace MetroSP.Entrega
             foreach (var s in r.Perfis.Where(p => p.Origem == "Sugerido"))
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Titulo = $"{s.Alinhamento} · {s.Perfis.Count} perfis",
+                    Sinal = Sinal.Amarelo, Titulo = $"{s.Alinhamento} · {s.Perfis.Count} perfis longitudinais",
                     Texto = $"Sugerido: {s.Escolhido}. A exportação vai perguntar.",
                     Acao = Acao.UsarPerfil, Alvo = s.Handle, Valor = s.Escolhido, Objetos = { s.Id },
                 });
             foreach (var s in r.Perfis.Where(p => p.Origem == "Nenhum"))
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Titulo = s.Alinhamento + " · sem perfil de projeto",
+                    Sinal = Sinal.Amarelo, Titulo = s.Alinhamento + " · sem perfil longitudinal",
                     Texto = "Vai só a planta, sem as cotas.", Objetos = { s.Id },
                 });
             e.Resumo = $"{r.Perfis.Count} alinhamento(s).";
@@ -335,8 +446,14 @@ namespace MetroSP.Entrega
                 e.Pendencias.Add(new Pendencia { Sinal = Sinal.Vermelho, Titulo = "IfcProject sem nome", Texto = "O nome do projeto é obrigatório.", Acao = Acao.PreencherProjeto });
             if (string.IsNullOrWhiteSpace(est.Terreno?.Nome))
                 e.Pendencias.Add(new Pendencia { Sinal = Sinal.Vermelho, Titulo = "IfcSite sem nome", Texto = "O nome do terreno é obrigatório.", Acao = Acao.PreencherProjeto });
-            if (!est.AllFacilities().Any(f => !string.IsNullOrWhiteSpace(f.Nome)))
-                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Nenhuma instalação", Texto = "Inclua a linha (IfcRailway) e as estações (IfcBuilding).", Acao = Acao.PreencherProjeto });
+            var principal = est.AllFacilities().FirstOrDefault(f => f.Principal);
+            if (principal == null || string.IsNullOrWhiteSpace(principal.Nome))
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = "Instalação principal sem nome",
+                    Texto = $"A {(principal?.Tipo ?? "instalação")} que recebe os objetos sai com o nome que a Autodesk dá. Preencha em Estrutura no IFC.",
+                    Acao = Acao.PreencherProjeto,
+                });
             e.Resumo = string.IsNullOrWhiteSpace(est.Projeto?.Nome) ? null : $"{est.Projeto.Nome} · {est.Terreno?.Nome}";
         }
     }

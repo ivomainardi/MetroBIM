@@ -73,7 +73,7 @@ namespace MetroSP.Ifc
                 if (a != null) used.Add(a);
                 if (a == null)
                 {
-                    _log($"IfcAlignment \"{name}\" sem alinhamento correspondente no desenho; mantido como veio.");
+                    _log($"IfcAlignment \"{name}\" sem alinhamento correspondente no modelo; mantido como veio.");
                     continue;
                 }
 
@@ -96,7 +96,7 @@ namespace MetroSP.Ifc
                 if (!hasHorizontal)
                 {
                     if (a.Horizontal.Count > 0) empty.Add((al, a));
-                    else _log($"{a.Name}: veio sem geometria e o desenho não tem horizontal; mantido como veio.");
+                    else _log($"{a.Name}: veio sem geometria e o modelo não tem horizontal; mantido como veio.");
                     continue;
                 }
                 if (a.Axis3D.Count < 2)
@@ -196,7 +196,7 @@ namespace MetroSP.Ifc
             }
             _m.SetArg(al.Id, 6, _m.Get(temp).Args[6]);
             _m.Remove(temp);
-            _log($"{a.Name}: veio vazio da Autodesk; preenchido com o desenho ({a.Horizontal.Count} segmento(s) horizontais, " +
+            _log($"{a.Name}: veio vazio da Autodesk; preenchido com o modelo ({a.Horizontal.Count} segmento(s) horizontais, " +
                  $"{a.Vertical.Count} vertical(is), {a.Axis3D.Count} pontos no eixo 3D, perfil {a.ProfileName}).");
             return 1;
         }
@@ -287,7 +287,7 @@ namespace MetroSP.Ifc
             var dy = ifc[1] - mine[1];
             if (Math.Abs(dx) < 1e-3 && Math.Abs(dy) < 1e-3) return zero;
 
-            _log($"{a.Name}: coordenadas do IFC deslocadas em ({dx:0.###}; {dy:0.###}) em relação ao desenho; deslocamento aplicado.");
+            _log($"{a.Name}: coordenadas do IFC deslocadas em ({dx:0.###}; {dy:0.###}) em relação ao modelo; deslocamento aplicado.");
             return new[] { dx, dy, 0.0 };
         }
 
@@ -423,6 +423,39 @@ namespace MetroSP.Ifc
             }
 
             var facilities = cfg.AllFacilities().Where(f => !string.IsNullOrWhiteSpace(f.Nome)).ToList();
+            var principal = facilities.FirstOrDefault(f => f.Principal);
+            if (principal != null)
+            {
+                // A instalação que a Autodesk gravou (a que tem os objetos) recebe o tipo e os dados da principal.
+                var ent = FacilityTypes.SelectMany(t => _m.OfType(t)).OrderBy(b => b.Id).FirstOrDefault()
+                          ?? _m.OfType("IFCFACILITY").FirstOrDefault();
+                if (ent != null)
+                {
+                    var tipo = (principal.Tipo ?? FacilityInfo.DefaultType).Trim().ToUpperInvariant();
+                    bool ifc43 = _m.Schema == null || _m.Schema.StartsWith("IFC4X3", StringComparison.OrdinalIgnoreCase);
+                    if (!FacilityTypes.Contains(tipo)) tipo = ent.Type;
+                    if (!ifc43 && tipo != "IFCBUILDING") tipo = ent.Type;   // no IFC4 só existe IfcBuilding
+                    if (tipo != ent.Type)
+                    {
+                        while (ent.Args.Count > 9) ent.Args.RemoveAt(ent.Args.Count - 1);
+                        while (ent.Args.Count < 9) ent.Args.Add("$");
+                        if (tipo == "IFCBUILDING") ent.Args.AddRange(new[] { "$", "$", "$" });
+                        else ent.Args.Add(".NOTDEFINED.");
+                        _m.SetType(ent.Id, tipo);
+                        _log($"instalação principal: {ent.Type} no lugar do que a Autodesk gravou.");
+                    }
+                    _m.SetArg(ent.Id, 2, IfcAlignmentWriter.S(principal.Nome.Trim()));
+                    SetText(ent, 3, principal.Descricao);
+                    SetText(ent, 7, principal.NomeLongo);
+                    if (tipo == "IFCBUILDING")
+                    {
+                        if (principal.ElevacaoReferencia.HasValue) _m.SetArg(ent.Id, 9, IfcAlignmentWriter.F(principal.ElevacaoReferencia.Value));
+                        Address(ent, 11, principal.Endereco);
+                    }
+                    _log($"instalação principal: {principal.Nome}.");
+                }
+                facilities.Remove(principal);
+            }
             if (facilities.Count > 0)
             {
                 var siteGid = StepModel.Text(site.Args[0]) ?? "site";
@@ -478,8 +511,8 @@ namespace MetroSP.Ifc
         /// Critério do plugin do Revit (Shared Coordinates, EPSG em branco): a Autodesk grava a geometria perto da
         /// origem e o deslocamento no IfcMapConversion; aqui o deslocamento passa para a colocação raiz, então as
         /// coordenadas absolutas do IFC voltam a ser as do desenho (PTL do Metrô). Saem IfcMapConversion,
-        /// IfcProjectedCRS e o Pset "Coordinate Reference System". Latitude e longitude do IfcSite vêm do PTL,
-        /// a não ser que a configuração traga as suas.
+        /// IfcProjectedCRS e o Pset "Coordinate Reference System". O IfcSite fica na origem do PTL (150.000; 250.000)
+        /// com a latitude e a longitude dessa origem, a não ser que a configuração traga as suas.
         /// </summary>
         public void ApplyPtl(SiteInfo terreno)
         {
@@ -521,20 +554,62 @@ namespace MetroSP.Ifc
                 AlinhamentosAbsolutos();
             }
 
-            // Latitude e longitude do IfcSite pelo PTL, como no Revit (a configuração, se tiver, vale depois).
+            // IfcSite na origem do PTL (150.000; 250.000), onde a latitude e a longitude são as da própria origem
+            // (exatas, sem conversão). A configuração, se trouxer latitude e longitude, vale depois.
             var site = _m.OfType("IFCSITE").FirstOrDefault();
-            if (site == null || (terreno?.Latitude != null && terreno?.Longitude != null)) return;
-            var o = PlacementMatrix(StepModel.Ref(site.Args[5])).T;
-            var dist = Math.Sqrt(Math.Pow(o[0] - PtlMetroSP.X0, 2) + Math.Pow(o[1] - PtlMetroSP.Y0, 2));
-            if (dist > PtlMetroSP.RaioRecomendado)
+            if (site == null) return;
+            SiteNaOrigemPtl(site);
+            if (terreno?.Latitude != null && terreno?.Longitude != null) return;
+            _m.SetArg(site.Id, 9, CompoundAngle(PtlMetroSP.Lat0));
+            _m.SetArg(site.Id, 10, CompoundAngle(PtlMetroSP.Lon0));
+            _log($"latitude e longitude do IfcSite = origem do PTL: {PtlMetroSP.Lat0:0.0000000}; {PtlMetroSP.Lon0:0.0000000}.");
+        }
+
+        /// <summary>
+        /// Põe a colocação do IfcSite na origem do PTL (X0; Y0; 0), sem rotação, e compensa as colocações que eram
+        /// relativas a ele, para nenhum objeto mudar de lugar. Produtos que usavam a mesma colocação do site ganham
+        /// uma cópia da antiga.
+        /// </summary>
+        void SiteNaOrigemPtl(StepEntity site)
+        {
+            string F(double v) => IfcAlignmentWriter.F(v);
+            int Axis(Matrix m)
             {
-                _log($"aviso: a origem do IfcSite ({o[0]:0.###}; {o[1]:0.###}) está a {dist / 1000:0.#} km da origem do PTL; latitude e longitude mantidas.");
+                var o = _m.Add("IFCCARTESIANPOINT", "(" + F(m.T[0]) + "," + F(m.T[1]) + "," + F(m.T[2]) + ")");
+                var z = _m.Add("IFCDIRECTION", "(" + F(m.R[2]) + "," + F(m.R[5]) + "," + F(m.R[8]) + ")");
+                var x = _m.Add("IFCDIRECTION", "(" + F(m.R[0]) + "," + F(m.R[3]) + "," + F(m.R[6]) + ")");
+                return _m.Add("IFCAXIS2PLACEMENT3D", "#" + o, "#" + z, "#" + x);
+            }
+
+            int antigo = StepModel.Ref(site.Args[5]);
+            var novo = Matrix.FromAxes(new[] { PtlMetroSP.X0, PtlMetroSP.Y0, 0.0 }, new[] { 0.0, 0, 1 }, new[] { 1.0, 0, 0 });
+            if (antigo == 0 || _m.TypeOf(antigo) != "IFCLOCALPLACEMENT")
+            {
+                _m.SetArg(site.Id, 5, "#" + _m.Add("IFCLOCALPLACEMENT", "$", "#" + Axis(novo)));
+                _log("IfcSite na origem do PTL (sem colocação antes).");
                 return;
             }
-            var (lat, lon) = PtlMetroSP.ParaGeodesica(o[0], o[1]);
-            _m.SetArg(site.Id, 9, CompoundAngle(lat));
-            _m.SetArg(site.Id, 10, CompoundAngle(lon));
-            _log($"latitude e longitude do IfcSite pelo PTL: {lat:0.0000000}; {lon:0.0000000}.");
+            var velho = PlacementMatrix(antigo);
+            if (Igual(velho, novo)) return;
+
+            // outros produtos com a mesma colocação do site ficam onde estavam
+            var copia = 0;
+            foreach (var e in _m.Ids.Select(_m.Get).Where(e => e != null && e.Id != site.Id && e.Args.Count > 5 && e.Args[5].Trim() == "#" + antigo).ToList())
+            {
+                if (copia == 0) copia = _m.Add("IFCLOCALPLACEMENT", "$", "#" + Axis(velho));
+                _m.SetArg(e.Id, 5, "#" + copia);
+            }
+            // colocações relativas ao site: nova relativa = novo⁻¹ · velho · relativa
+            var ajuste = novo.Inverse().Multiply(velho);
+            int n = 0;
+            foreach (var lp in _m.OfType("IFCLOCALPLACEMENT").Where(l => l.Id != antigo && StepModel.Ref(l.Args[0]) == antigo).ToList())
+            {
+                _m.SetArg(lp.Id, 1, "#" + Axis(ajuste.Multiply(Axis2Placement(StepModel.Ref(lp.Args[1])))));
+                n++;
+            }
+            _m.SetArg(antigo, 0, "$");
+            _m.SetArg(antigo, 1, "#" + Axis(novo));
+            _log($"IfcSite na origem do PTL ({PtlMetroSP.X0:0}; {PtlMetroSP.Y0:0}; 0); {n} colocação(ões) compensada(s), nada mudou de lugar.");
         }
 
         static readonly string[] AlignmentFamily = { "IFCALIGNMENT", "IFCALIGNMENTHORIZONTAL", "IFCALIGNMENTVERTICAL", "IFCALIGNMENTCANT", "IFCALIGNMENTSEGMENT" };
@@ -830,7 +905,7 @@ namespace MetroSP.Ifc
             if (ifcCount == 1 && byName.Count == 1)
             {
                 var only = byName.Values.First();
-                _log($"IfcAlignment \"{ifcName}\" é o único do arquivo; usando {only.Name}, o único do desenho.");
+                _log($"IfcAlignment \"{ifcName}\" é o único do arquivo; usando {only.Name}, o único do modelo.");
                 return only;
             }
             return null;

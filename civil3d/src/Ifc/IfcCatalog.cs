@@ -3,6 +3,7 @@
 // para cada valor do PredefinedType (sem NOTDEFINED).
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace MetroSP.Ifc
 {
@@ -647,6 +648,38 @@ namespace MetroSP.Ifc
             ifcVersion != null && ifcVersion.Trim().Equals("IFC4", StringComparison.OrdinalIgnoreCase) ? "IFC4" : "IFC 4.3 (IFC4X3_ADD2)";
 
         static readonly Dictionary<string[], HashSet<string>> Sets = new Dictionary<string[], HashSet<string>>();
+
+        /// <summary>
+        /// Correção óbvia para uma classe fora do esquema: a mesma escrita da lista (maiúsculas) ou, se o tipo
+        /// não existe na classe, a classe sem o tipo (ex.: IfcBuiltElement.USERDEFINED → IfcBuiltElement,
+        /// que não tem tipo no IFC 4.3). Null se não houver correção segura.
+        /// </summary>
+        public static string Sugestao(string value, string[] list)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+            string v = value.Trim();
+            string exata = list.FirstOrDefault(c => c.Equals(v, StringComparison.OrdinalIgnoreCase));
+            if (exata != null) return exata == v ? null : exata;
+            int i = v.IndexOf('.');
+            if (i <= 0) return null;
+            string classe = v.Substring(0, i);
+            return list.FirstOrDefault(c => c.Equals(classe, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>
+        /// Classe equivalente no IFC4: a mesma se existir; senão a classe sem o tipo; senão IfcBuildingElementProxy (as
+        /// classes de infraestrutura do IFC 4.3, como IfcTrackElement e IfcCourse, não existem no IFC4).
+        /// </summary>
+        public static string ParaIfc4(string classe)
+        {
+            if (string.IsNullOrWhiteSpace(classe)) return classe;
+            string v = classe.Trim();
+            string exata = Ifc4.FirstOrDefault(c => c.Equals(v, StringComparison.OrdinalIgnoreCase));
+            if (exata != null) return exata;
+            string sem = Sugestao(v, Ifc4);
+            if (sem != null) return sem;
+            return "IfcBuildingElementProxy";
+        }
 
         /// <summary>Vazio vale (classe da Autodesk). Compara sem diferenciar maiúsculas, como a Extension.</summary>
         public static bool IsValid(string value, string[] list)

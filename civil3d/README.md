@@ -18,8 +18,8 @@ Os dois endereços ficam em `ExtensaoAutodeskUrl` e `VersoesMetroSpUrl` no `Metr
 
 1. Usuário clica **Exportar IFC** (`MSP_IFCEXPORT`) ou **Exportar seleção** (`MSP_IFCEXPORTSEL`).
 2. Configuração ativa, conforme `FonteConfiguracao` em `MetroSP.settings.json`:
-   - `Forma`: baixa do Forma a versão mais recente de cada JSON para o pacote ativo (login Autodesk na primeira vez);
-   - `Local`: usa o pacote ativo como está (o padrão MetroSP ou o que foi importado/editado na janela);
+   - `Forma`: baixa do Forma a versão mais recente de cada JSON para o perfil de exportação ativo (login Autodesk na primeira vez);
+   - `Local`: usa o perfil de exportação ativo como está (o padrão MetroSP ou o que foi importado/editado na janela);
    - `Automatico` (padrão): Forma se `ClientId`, `ProjectId` e `FolderUrn` estiverem preenchidos, senão Local.
 3. Grava os JSON da Autodesk onde o IFC Extension procura. No modo `PorDesenho` fica
    `[nome do DWG]-IfcInfraConfiguration.json` / `-IfcInfraExportMapping.json` na pasta do desenho
@@ -67,9 +67,9 @@ cinza e branco; selo azul Metrô no painel **Ação BIM · Metrô SP**, sempre o
 - Janelas montadas com `Ui/Theme.cs` (o mesmo do MetroSP do Revit): cabeçalho com as logos e faixa laranja,
   rodapé cinza com o botão principal em laranja, tabelas com seleção laranja.
 
-## Pacote de configuração IFC
+## Perfil de exportação IFC
 
-O pacote ativo fica em `%APPDATA%\MetroSP\Config` e vem pré-carregado com o padrão MetroSP
+O perfil de exportação ativo fica em `%APPDATA%\MetroSP\Config` e vem pré-carregado com o padrão MetroSP
 (`MetroSP.bundle/Contents/Padrao`). Arquivos:
 
 | Arquivo | Dono | Conteúdo |
@@ -94,7 +94,7 @@ As explicações de cada campo ficam na dica (passe o mouse).
 | Classes IFC | regras por layer, bloco ou baseline → classe IFC (`IfcRail.RAIL`...), exportar sim/não, ordem |
 | Propriedades | de onde vem cada propriedade (CSV) e os property sets (JSON) |
 | Alinhamento | cotas do perfil no IFC, passo do eixo 3D, perfil preferido |
-| Avançado | arquivos do pacote, `IfcInfraConfiguration.json` e importação dos modelos da Autodesk |
+| Avançado | arquivos do perfil, `IfcInfraConfiguration.json` e importação dos modelos da Autodesk |
 
 Todo arquivo é validado antes de gravar e a versão anterior fica como `.bak`.
 
@@ -108,7 +108,7 @@ Código em `src/PropertySets`: `PsetsCore` (ler/comparar/criar no desenho, plani
   `Aplica-se a` (tipos separados por `;`, ou `Todos`), `Descrição` e `IFC` (entidade, ex. `IfcElement`, ou `Não`).
   Os títulos são reconhecidos com variações (inglês, sem acento). O `IFCInfraExportPropertyMapping.csv` também é aceito.
 - "Aplica-se a" grava o filtro de classes do property set (nomes RX, como `AeccDbAlignment`), lidos da própria API.
-- "Levar para o IFC" escreve no pacote de configuração ativo (`IFCInfraExportPropertyMapping.json` e `.csv`).
+- "Levar para o IFC" escreve no perfil de exportação ativo (`IFCInfraExportPropertyMapping.json` e `.csv`).
 
 ## Alinhamento 3D
 
@@ -145,7 +145,7 @@ Espirais não clotoides são mapeadas para o tipo IFC equivalente (cúbica, Blos
 4. **MetroSP.settings.json** (em `MetroSP.bundle/Contents`): preencha `ClientId`, `ProjectId` (GUID do projeto, que aparece na URL)
    e `FolderUrn` (valor de `folderUrn=` na URL da pasta aberta no navegador).
    Cada usuário pode sobrescrever com uma cópia em `%APPDATA%\MetroSP\` (botão **Conta e Forma**).
-   Sem Forma, nada disso é obrigatório: o plugin usa o pacote local.
+   Sem Forma, nada disso é obrigatório: o plugin usa o perfil de exportação local.
 
 ## Versões suportadas
 

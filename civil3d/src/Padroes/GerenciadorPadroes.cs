@@ -245,7 +245,7 @@ namespace MetroSP.Padroes
                 using (var w = new StreamWriter(z.CreateEntry(Manifesto).Open(), new UTF8Encoding(false)))
                     w.Write(JsonSerializer.Serialize(c, Escrita));
             }
-            string r = $"{itens.Count} padrão(ões)" + (comPlanilhas ? $" e {c.Planilhas.Count} planilha(s)" : "") + " em " + Path.GetFileName(zip) + ".";
+            string r = $"{itens.Count} perfil(is)" + (comPlanilhas ? $" e {c.Planilhas.Count} planilha(s)" : "") + " em " + Path.GetFileName(zip) + ".";
             if (faltando > 0) r += $" {faltando} planilha(s) não foram encontradas neste computador e ficaram de fora.";
             return r;
         }
@@ -260,7 +260,7 @@ namespace MetroSP.Padroes
             var ignorados = new List<string>();
             using (ZipArchive z = ZipFile.OpenRead(zip))
             {
-                ZipArchiveEntry m = z.GetEntry(Manifesto) ?? throw new InvalidDataException("O arquivo não é um pacote de padrões do MetroSP.");
+                ZipArchiveEntry m = z.GetEntry(Manifesto) ?? throw new InvalidDataException("O arquivo não é um pacote de perfis do MetroSP.");
                 ConteudoPacote c;
                 using (var r = new StreamReader(m.Open(), Encoding.UTF8))
                     c = JsonSerializer.Deserialize<ConteudoPacote>(r.ReadToEnd()) ?? new ConteudoPacote();
@@ -290,7 +290,7 @@ namespace MetroSP.Padroes
                     copiados++;
                 }
             }
-            string s = $"{copiados} padrão(ões) importado(s)";
+            string s = $"{copiados} perfil(is) importado(s)";
             if (planilhas > 0) s += $", {planilhas} planilha(s) copiada(s) para {PastaPlanilhasImportadas}";
             if (pulados > 0) s += $", {pulados} mantido(s) como estava(m)";
             if (ignorados.Count > 0) s += $". {ignorados.Count} de outro programa ficaram de fora: " + string.Join(", ", ignorados.Take(5));

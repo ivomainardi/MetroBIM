@@ -17,9 +17,11 @@ using AcDocument = Autodesk.AutoCAD.ApplicationServices.Document;
 namespace MetroSP.Classificacao
 {
     /// <summary>
-    /// Confere as classificações do padrão (uma ou mais por objeto, em property sets) com as planilhas:
-    /// formato, código existente, descrição igual à da lista e tipo/layer previsto. Só objetos que vão para o IFC.
-    /// Cada linha tem um botão com a ação para a situação; as propostas seguras podem ser aplicadas de uma vez.
+    /// Passo 5 (mesmo desenho do Revit): perfil de classificação no alto, uma aba por classificação e, nela, uma tabela por
+    /// valor escrito (Está escrito, Na lista, O que muda, Objetos, Ação), com o detalhe da linha ao lado. Mostra também o
+    /// caminho até o IFC: a classificação vai num property set, o exportador leva o Pset (se estiver na Saída no IFC) e o
+    /// MetroSP cria IfcClassification, IfcClassificationReference e IfcRelAssociatesClassification depois de exportar.
+    /// Só objetos que vão para o IFC.
     /// </summary>
     public class VerificarClassificacaoWindow : Window
     {
@@ -28,19 +30,20 @@ namespace MetroSP.Classificacao
         private readonly List<ObjectId> _selecao;
         private readonly ComboBox _padraoCombo;
         private readonly TextBlock _padraoInfo;
-        private readonly ComboBox _escopo;
-        private readonly WrapPanel _resumo;
-        private readonly CheckBox _incluirInseguras;
+        private readonly StackPanel _abasSistemas;
+        private readonly StackPanel _caminhoIfc;
+        private readonly CheckBox _mostrarCertos;
         private readonly DockPanel _areaTabela;
+        private readonly StackPanel _detalhe;
         private readonly TextBlock _rodapeInfo;
-        private readonly Button _aplicar, _aplicarSelecionadas, _exportar, _selecionar, _reanalisar;
+        private readonly Button _aplicar, _exportar;
         private PadraoClassificacao _padrao;
         private bool _trocandoPadrao;
         private Button _escolherPlanilha;
         private List<LinhaVerificacao> _linhas;
+        private SistemaClassificacao _sistema;
         private FilterableGrid _tabela;
-        private string _situacao;
-        private bool _ocultarOk;
+        private readonly List<LinhaValor> _valores = new List<LinhaValor>();
 
         internal static string _ultimoPadrao;
 
@@ -50,7 +53,7 @@ namespace MetroSP.Classificacao
             _db = doc.Database;
             _selecao = selecao != null && selecao.Count > 0 ? selecao : null;
 
-            Title = "MetroSP - Verificar classificação";
+            Title = "MetroSP - Classificação";
             Width = 1200;
             Height = 740;
             MinWidth = 820;
@@ -58,16 +61,17 @@ namespace MetroSP.Classificacao
             ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-            // Padrão
-            var linhaPadrao = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
-            var rotPadrao = Theme.Rotulo("Padrão");
+            // ---- perfil
+            var linhaPadrao = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+            var rotPadrao = Theme.Rotulo("Perfil");
             DockPanel.SetDock(rotPadrao, Dock.Left);
             linhaPadrao.Children.Add(rotPadrao);
-            _padraoCombo = new ComboBox { MinWidth = 220, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Conjunto de classificações a conferir, com a planilha de cada uma." };
-            _padraoCombo.SelectionChanged += (s, e) => { if (!_trocandoPadrao) UsarPadrao(_padraoCombo.SelectedItem as PadraoClassificacao); };
+            _padraoCombo = new ComboBox { MinWidth = 220, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Perfil de classificação: as classificações a conferir, com a planilha de cada uma." };
+            Theme.Digitavel(_padraoCombo);
+            _padraoCombo.SelectionChanged += (s, e) => { if (!_trocandoPadrao && _padraoCombo.SelectedItem is PadraoClassificacao p) UsarPadrao(p); };
             DockPanel.SetDock(_padraoCombo, Dock.Left);
             linhaPadrao.Children.Add(_padraoCombo);
-            var editar = new Button { Content = "Editar padrões...", ToolTip = "Criar ou mudar padrões: classificações, property sets e as colunas da planilha." };
+            var editar = new Button { Content = "Classificação...", ToolTip = "Criar ou mudar perfis de classificação: classificações, property sets e as colunas da planilha." };
             editar.Click += (s, e) => EditarPadroes();
             DockPanel.SetDock(editar, Dock.Left);
             linhaPadrao.Children.Add(editar);
@@ -77,7 +81,7 @@ namespace MetroSP.Classificacao
                 Style = Theme.PrimaryButton,
                 Margin = new Thickness(8, 0, 0, 0),
                 Visibility = System.Windows.Visibility.Collapsed,
-                ToolTip = "Abre a planilha (.xlsx ou .csv) com a lista de classificação. As colunas são sugeridas pelos títulos; dá para mudar em \"Editar padrões...\".",
+                ToolTip = "Abre a planilha (.xlsx ou .csv) com a lista de classificação. As colunas são sugeridas pelos títulos.",
             };
             _escolherPlanilha.Click += (s, e) => EscolherPlanilha();
             DockPanel.SetDock(_escolherPlanilha, Dock.Left);
@@ -85,61 +89,60 @@ namespace MetroSP.Classificacao
             _padraoInfo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
             linhaPadrao.Children.Add(_padraoInfo);
 
-            // Escopo
-            _escopo = new ComboBox { Padding = new Thickness(4, 3, 4, 3), MinWidth = 220, Margin = new Thickness(0, 0, 12, 0), ToolTip = "Só objetos que vão para o IFC (layers ligados, fora das anotações e do que a exportação exclui)." };
-            if (_selecao != null) _escopo.Items.Add($"Seleção atual ({_selecao.Count} objetos)");
-            _escopo.Items.Add("Todo o desenho");
-            _escopo.SelectedIndex = 0;
-            var verificar = new Button { Content = "Verificar", Style = Theme.PrimaryButton };
-            verificar.Click += (s, e) => Verificar();
-            var barra = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-            barra.Children.Add(Theme.Rotulo("Escopo"));
-            barra.Children.Add(_escopo);
-            barra.Children.Add(verificar);
+            // ---- abas (uma por classificação) e opções
+            var linhaAbas = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            _mostrarCertos = new CheckBox { Content = "Mostrar os certos", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0) };
+            _mostrarCertos.Click += (s, e) => MostrarSistema();
+            DockPanel.SetDock(_mostrarCertos, Dock.Right);
+            linhaAbas.Children.Add(_mostrarCertos);
+            var selTodos = new Button { Content = "Selecionar no modelo", Padding = new Thickness(10, 2, 10, 2), ToolTip = "Seleciona no Civil 3D os objetos das linhas visíveis (ou das escolhidas)." };
+            selTodos.Click += (s, e) => Selecionar((_tabela?.Grid.SelectedItems.Count > 0 ? _tabela.Grid.SelectedItems.OfType<LinhaValor>() : _tabela?.VisibleItems<LinhaValor>() ?? Enumerable.Empty<LinhaValor>()).SelectMany(v => v.Linhas.Select(l => l.Id)));
+            DockPanel.SetDock(selTodos, Dock.Right);
+            linhaAbas.Children.Add(selTodos);
+            _abasSistemas = new StackPanel { Orientation = Orientation.Horizontal };
+            linhaAbas.Children.Add(_abasSistemas);
 
-            _resumo = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            _incluirInseguras = new CheckBox
-            {
-                Content = "Incluir propostas que trocam o código (código parecido, texto fora do formato)",
-                ToolTip = "Sem esta opção, só são aplicadas as correções de escrita: mesmo código, descrição como na lista.",
-                Margin = new Thickness(0, 0, 0, 8),
-            };
-            _incluirInseguras.Click += (s, e) => AtualizarRodape();
+            // ---- caminho até o IFC
+            _caminhoIfc = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+
+            // ---- tabela e detalhe
+            _detalhe = new StackPanel { Width = 250, Margin = new Thickness(12, 0, 0, 0) };
+            DockPanel.SetDock(_detalhe, Dock.Right);
             _areaTabela = new DockPanel();
-            _areaTabela.Children.Add(new TextBlock { Text = "Escolha o padrão e clique em \"Verificar\".", Foreground = Theme.Solid(Theme.Cinza) });
+            _areaTabela.Children.Add(new TextBlock { Text = "Lendo o modelo...", Foreground = Theme.Solid(Theme.Cinza) });
+            var meio = new DockPanel();
+            meio.Children.Add(_detalhe);
+            meio.Children.Add(_areaTabela);
 
             var corpo = new DockPanel();
-            foreach (UIElement el in new UIElement[] { linhaPadrao, barra, _resumo, _incluirInseguras })
+            foreach (UIElement el in new UIElement[] { linhaPadrao, linhaAbas, _caminhoIfc })
             {
                 DockPanel.SetDock(el, Dock.Top);
                 corpo.Children.Add(el);
             }
-            corpo.Children.Add(_areaTabela);
+            corpo.Children.Add(meio);
 
             _rodapeInfo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-            _reanalisar = new Button { Content = "Reanalisar", IsEnabled = false, ToolTip = "Lê o desenho de novo, mantendo escopo e filtros da tabela." };
+            var reanalisar = new Button { Content = "Ler de novo", ToolTip = "Lê o modelo e as planilhas de novo." };
             _exportar = new Button { Content = "Exportar (.csv)", IsEnabled = false };
-            _selecionar = new Button { Content = "Selecionar no desenho", IsEnabled = false, ToolTip = "Seleciona no Civil 3D os objetos visíveis na tabela (fica selecionado ao fechar a janela)." };
-            _aplicarSelecionadas = new Button { Content = "Aplicar selecionadas", IsEnabled = false, ToolTip = "Aplica só as propostas das linhas selecionadas (Ctrl/Shift+clique). Inclui as que trocam o código." };
-            _aplicar = new Button { Content = "Aplicar propostas", Style = Theme.PrimaryButton, IsEnabled = false };
+            _aplicar = new Button { Content = "Corrigir escrita", Style = Theme.PrimaryButton, IsEnabled = false,
+                ToolTip = "Grava as correções seguras da aba (mesmo código, texto como na lista)." };
             var fechar = new Button { Content = "Fechar", IsCancel = true };
-            _reanalisar.Click += (s, e) => Verificar();
+            reanalisar.Click += (s, e) => Verificar();
             _exportar.Click += (s, e) => Exportar();
-            _selecionar.Click += (s, e) => Selecionar(_tabela.VisibleItems<LinhaVerificacao>().Select(l => l.Id));
-            _aplicarSelecionadas.Click += (s, e) => Aplicar(true);
-            _aplicar.Click += (s, e) => Aplicar(false);
+            _aplicar.Click += (s, e) => CorrigirEscrita();
             fechar.Click += (s, e) => Close();
             var rodape = new DockPanel();
-            StackPanel botoes = Theme.Buttons(_reanalisar, _exportar, _selecionar, _aplicarSelecionadas, _aplicar, fechar);
+            StackPanel botoes = Theme.Buttons(reanalisar, _exportar, _aplicar, fechar);
             DockPanel.SetDock(botoes, Dock.Right);
             rodape.Children.Add(botoes);
             rodape.Children.Add(_rodapeInfo);
 
-            Theme.Apply(this, "Verificar classificação", Path.GetFileName(doc.Name) + " · confere as classificações com as planilhas do padrão", corpo, rodape);
-            CarregarPadroes(_ultimoPadrao);
+            Theme.Apply(this, "Classificação", Path.GetFileName(doc.Name) + " · confere as classificações com as planilhas do perfil", corpo, rodape);
+            Loaded += (s, e) => CarregarPadroes(_ultimoPadrao);
         }
 
-        // ------------------------------------------------------------------ padrões
+        // ------------------------------------------------------------------ perfis
 
         private void CarregarPadroes(string escolher)
         {
@@ -160,13 +163,14 @@ namespace MetroSP.Classificacao
             var cache = new Dictionary<string, Planilha.Tabela>(StringComparer.OrdinalIgnoreCase);
             foreach (SistemaClassificacao s in p.Sistemas) s.Carregar(cache);
             _padraoInfo.Text = string.Join("  ·  ", p.Sistemas.Select(s => s.Lista != null && s.Erro == null
-                ? $"{s.Nome}: {s.Lista.Itens.Count} itens em {s.Propriedades}" : $"{s.Nome}: {s.Erro}"));
+                ? $"{s.Nome}: {s.Lista.Itens.Count} itens" : $"{s.Nome}: {s.Erro}"));
             _padraoInfo.ToolTip = string.Join("\n", p.Sistemas.Select(s =>
                 $"{s.Nome}  ·  {s.Propriedades}  ·  {s.Planilha?.NomeArquivo}" + (string.IsNullOrEmpty(s.Planilha?.Aba) ? "" : $" › {s.Planilha.Aba}") +
                 (s.Lista?.Avisos.Count > 0 ? "\n   " + string.Join("\n   ", s.Lista.Avisos.Take(10)) : "")));
             _padraoInfo.Foreground = Theme.Solid(p.Sistemas.Any(s => s.Lista == null || s.Erro != null) ? Theme.LaranjaTexto : Theme.Cinza);
             _escolherPlanilha.Visibility = p.Sistemas.Any(s => s.Lista == null) ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            if (_linhas != null) Verificar();
+            if (_sistema == null || !p.Sistemas.Contains(_sistema)) _sistema = p.Sistemas.FirstOrDefault(s => s.Lista != null) ?? p.Sistemas.FirstOrDefault();
+            Verificar();
         }
 
         /// <summary>Escolhe a planilha da primeira classificação sem lista, sugere as colunas e salva o padrão.</summary>
@@ -211,159 +215,211 @@ namespace MetroSP.Classificacao
         private void Verificar()
         {
             var sistemas = _padrao?.Sistemas.Where(x => x.Lista != null && x.Lista.Itens.Count > 0).ToList() ?? new List<SistemaClassificacao>();
-            if (sistemas.Count == 0)
+            _linhas = new List<LinhaVerificacao>();
+            if (sistemas.Count > 0)
             {
-                MessageBox.Show(this, "Nenhuma classificação do padrão tem a planilha lida. Clique em \"Editar padrões...\" e escolha a planilha e as colunas.", Title);
-                return;
-            }
-            Cursor = Cursors.Wait;
-            try
-            {
-                using (_doc.LockDocument())
-                using (Transaction tr = _db.TransactionManager.StartTransaction())
+                Cursor = Cursors.Wait;
+                try
                 {
-                    bool selecao = (_escopo.SelectedItem as string ?? "").StartsWith("Seleção");
-                    List<ObjectId> ids = Ifc.FiltroIfc.Objetos(_db, tr, selecao ? _selecao : null);
-                    var linhas = new List<LinhaVerificacao>();
-                    foreach (SistemaClassificacao s in sistemas) linhas.AddRange(ClassificacaoCore.Verificar(_db, tr, ids, s));
-                    tr.Commit();
-                    _linhas = linhas;
+                    using (_doc.LockDocument())
+                    using (Transaction tr = _db.TransactionManager.StartTransaction())
+                    {
+                        List<ObjectId> ids = Ifc.FiltroIfc.Objetos(_db, tr, _selecao);
+                        foreach (SistemaClassificacao s in sistemas) _linhas.AddRange(ClassificacaoCore.Verificar(_db, tr, ids, s));
+                        tr.Commit();
+                    }
                 }
+                catch (Exception ex) { MessageBox.Show(this, "Não foi possível verificar:\n" + ex.Message, Title); }
+                finally { Cursor = null; }
             }
-            catch (Exception ex)
-            {
-                MessageBox.Show(this, "Não foi possível verificar:\n" + ex.Message, Title);
-                return;
-            }
-            finally { Cursor = null; }
-            Mostrar();
+            MostrarAbas();
+            MostrarSistema();
         }
 
-        private void Mostrar()
+        private void MostrarAbas()
         {
-            if (_situacao != null && !_linhas.Any(l => l.Situacao == _situacao)) _situacao = null;
-            MostrarEtiquetas();
+            _abasSistemas.Children.Clear();
+            foreach (SistemaClassificacao s in _padrao?.Sistemas ?? new List<SistemaClassificacao>())
+            {
+                int erros = _linhas.Count(l => l.SistemaRef == s && l.Situacao != ClassificacaoCore.OK);
+                bool on = s == _sistema;
+                var b = new Button
+                {
+                    Content = s.Nome + (erros > 0 ? $"  ({erros:N0})" : ""),
+                    Padding = new Thickness(14, 3, 14, 3), Margin = new Thickness(0, 0, -1, 0),
+                    Background = on ? Theme.Solid(Theme.Preto) : System.Windows.Media.Brushes.White,
+                    Foreground = on ? System.Windows.Media.Brushes.White : Theme.Solid(Theme.Preto),
+                    FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal,
+                    ToolTip = s.Lista == null ? s.Nome + ": " + s.Erro : $"{s.Propriedades} · {s.Lista.Itens.Count} itens",
+                };
+                var sis = s;
+                b.Click += (o, e) => { _sistema = sis; MostrarAbas(); MostrarSistema(); };
+                _abasSistemas.Children.Add(b);
+            }
+        }
+
+        /// <summary>Como a classificação desta aba chega ao IFC, e se o Pset dela está na Saída no IFC.</summary>
+        private void MostrarCaminhoIfc()
+        {
+            _caminhoIfc.Children.Clear();
+            SistemaClassificacao s = _sistema;
+            if (s == null) return;
+            string formato = s.Formato == FormatoClassificacao.CodigoDescricao ? "Código:Descrição" : "código" + (s.Descricao != null ? " + " + s.Descricao : "");
+            _caminhoIfc.Children.Add(new TextBlock
+            {
+                Text = $"No IFC: IfcClassification \"{s.Nome}\"" + (string.IsNullOrWhiteSpace(s.Edicao) ? "" : $" ({s.Edicao})") +
+                       $"  ←  {s.PropertySet} › {s.PropriedadeCodigo} ({formato})",
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0),
+                ToolTip = "A classificação fica num property set. O exportador da Autodesk leva o Pset para o IFC (se estiver na Saída no IFC, passo 3) e " +
+                          "o MetroSP cria, depois de exportar, IfcClassification, IfcClassificationReference (código e descrição) e IfcRelAssociatesClassification.",
+            });
+            var faltam = PropsQueFaltamNoIfc(s);
+            if (faltam.Count == 0)
+            {
+                _caminhoIfc.Children.Add(new TextBlock { Text = "✓ sai no IFC", Foreground = Theme.Solid(Theme.Verde), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
+                return;
+            }
+            _caminhoIfc.Children.Add(new TextBlock
+            {
+                Text = "Não vai para o IFC: " + string.Join(", ", faltam) + " não está(ão) na Saída no IFC.",
+                Foreground = Theme.Solid(Theme.LaranjaTexto), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0),
+            });
+            var mapear = new Button { Content = "Mapear", Style = Theme.PrimaryButton, Padding = new Thickness(10, 1, 10, 1),
+                ToolTip = $"Acrescenta {s.PropertySet} ao perfil de exportação, com o mesmo nome no IFC (o MetroSP procura esse nome depois de exportar)." };
+            mapear.Click += (o, e) =>
+            {
+                string msg;
+                try
+                {
+                    msg = PropertySets.PsetsCore.LevarParaIfc(new[] { new PropertySets.PsetMontagem
+                    {
+                        Nome = s.PropertySet,
+                        Propriedades = new[] { s.PropriedadeCodigo, s.Descricao }.Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Select(x => new PropertySets.PropriedadeMontagem { Nome = x }).ToList(),
+                    } });
+                }
+                catch (Exception ex) { msg = "Não foi possível mapear: " + ex.Message; }
+                _rodapeInfo.Text = msg ?? "";
+                MostrarCaminhoIfc();
+            };
+            _caminhoIfc.Children.Add(mapear);
+        }
+
+        /// <summary>Propriedades da classificação que não saem no IFC com o mesmo Pset e nome (o pós-processamento procura esse nome).</summary>
+        internal static List<string> PropsQueFaltamNoIfc(SistemaClassificacao s)
+        {
+            var saida = PropertySets.SaidaIfcPainel.LerMapeamento();
+            bool Sai(string prop) => saida.Any(r => r.Ativa && string.Equals(r.Pset, s.PropertySet, StringComparison.OrdinalIgnoreCase)
+                                                  && string.Equals(r.Prop, prop, StringComparison.OrdinalIgnoreCase));
+            return new[] { s.PropriedadeCodigo, s.Descricao }.Where(p => !string.IsNullOrWhiteSpace(p) && !Sai(p))
+                .Select(p => s.PropertySet + " › " + p).ToList();
+        }
+
+        private void MostrarSistema()
+        {
+            MostrarCaminhoIfc();
+            _valores.Clear();
             var estado = _tabela?.Estado();
             _areaTabela.Children.Clear();
-            _tabela = new FilterableGrid(_linhas, typeof(LinhaVerificacao));
-            _tabela.AddColumn("Situação", nameof(LinhaVerificacao.Situacao), 160);
-            if (_linhas.Select(l => l.SistemaRef).Distinct().Count() > 1)
-                _tabela.AddColumn("Classificação", nameof(LinhaVerificacao.Sistema), 120);
-            _tabela.AddColumn("Objeto", nameof(LinhaVerificacao.Objeto), 200);
-            _tabela.AddColumn("Tipo", nameof(LinhaVerificacao.Tipo), 110);
-            _tabela.AddColumn("Layer", nameof(LinhaVerificacao.Layer), 140);
-            _tabela.AddColumn("Handle", nameof(LinhaVerificacao.Handle), 70);
-            _tabela.AddColumn("Preenchido", nameof(LinhaVerificacao.Preenchido), 200);
-            _tabela.AddColumn("Na lista", nameof(LinhaVerificacao.NaLista), 200);
-            _tabela.AddColumn("Proposta", nameof(LinhaVerificacao.Proposta), 160, fill: true);
-            if (_linhas.Any(l => !string.IsNullOrEmpty(l.Bloqueio)))
-                _tabela.AddColumn("Bloqueio para gravar", nameof(LinhaVerificacao.Bloqueio), 200);
-            _tabela.Grid.Columns.Insert(1, ColunaAcao());
-            _tabela.Grid.LoadingRow += (s, e) =>
+            if (_sistema?.Lista == null)
             {
-                var l = (LinhaVerificacao)e.Row.Item;
-                e.Row.Background = l.Situacao == ClassificacaoCore.OK ? Theme.LinhaNormal
-                    : l.Situacao == ClassificacaoCore.SemClassificacao || l.Situacao == ClassificacaoCore.SemParametro ? Theme.LinhaAviso
-                    : Theme.LinhaProblema;
-            };
+                _areaTabela.Children.Add(new TextBlock { Text = _sistema == null ? "O perfil não tem classificações." : $"{_sistema.Nome}: {_sistema.Erro}. Escolha a planilha.", Foreground = Theme.Solid(Theme.LaranjaTexto) });
+                MostrarDetalhe(null);
+                _aplicar.IsEnabled = _exportar.IsEnabled = false;
+                return;
+            }
+            var doSistema = _linhas.Where(l => l.SistemaRef == _sistema).ToList();
+            foreach (var g in doSistema.GroupBy(l => (l.Situacao, Escrito: l.FaltaPset ? "\u0001" : (l.Preenchido ?? "").Trim())))
+                _valores.Add(new LinhaValor(g.ToList()));
+            var ordem = ClassificacaoCore.Ordem.ToList();
+            var lista = _valores.OrderBy(v => v.Situacao == ClassificacaoCore.OK ? 1 : 0).ThenByDescending(v => v.Objetos).ToList();
+
+            _tabela = new FilterableGrid(lista, typeof(LinhaValor));
+            _tabela.AddColumn("Está escrito", nameof(LinhaValor.EstaEscrito), 260);
+            _tabela.AddColumn("Na lista", nameof(LinhaValor.NaLista), 260, fill: true);
+            _tabela.AddColumn("O que muda", nameof(LinhaValor.OQueMuda), 150);
+            var obj = _tabela.AddColumn("Objetos", nameof(LinhaValor.ObjetosTexto), 70);
+            obj.SortMemberPath = nameof(LinhaValor.Objetos);
+            obj.ElementStyle = new Style(typeof(TextBlock), obj.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, System.Windows.TextAlignment.Right) } };
+            _tabela.Grid.Columns.Add(ColunaAcao());
+            bool certos = _mostrarCertos.IsChecked == true;
+            _tabela.ExtraFilter = o => certos || ((LinhaValor)o).Situacao != ClassificacaoCore.OK;
+            var estilo = new Style(typeof(DataGridRow), _tabela.Grid.RowStyle);
+            var pend = new DataTrigger { Binding = new Binding(nameof(LinhaValor.Problema)), Value = true };
+            pend.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
+            estilo.Triggers.Add(pend);
+            _tabela.Grid.RowStyle = estilo;
+            _tabela.Grid.SelectionChanged += (s, e) => MostrarDetalhe(_tabela.Grid.SelectedItem as LinhaValor);
             _tabela.Filtered += AtualizarRodape;
-            _tabela.Grid.SelectionChanged += (s, e) => AtualizarSelecionadas();
             Theme.StyleSelection(_tabela.Grid);
-            var opcoes = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-            opcoes.Children.Add(_tabela.CreateSingleLineToggle());
-            var ocultar = new CheckBox { Content = "Ocultar OK", VerticalAlignment = VerticalAlignment.Center, IsChecked = _ocultarOk };
-            ocultar.Click += (s, e) => { _ocultarOk = ocultar.IsChecked == true; AplicarFiltroExtra(); };
-            opcoes.Children.Add(ocultar);
-            AplicarFiltroExtra();
-            _tabela.Restaurar(estado);
-            DockPanel.SetDock(opcoes, Dock.Top);
-            _areaTabela.Children.Add(opcoes);
-            _areaTabela.Children.Add(_tabela);
-            _exportar.IsEnabled = _selecionar.IsEnabled = _reanalisar.IsEnabled = true;
-            AtualizarRodape();
-        }
-
-        private void MostrarEtiquetas()
-        {
-            _resumo.Children.Clear();
-            foreach (string s in ClassificacaoCore.Ordem)
-            {
-                int n = _linhas.Count(l => l.Situacao == s);
-                if (n == 0 && s != ClassificacaoCore.OK) continue;
-                bool problema = s == ClassificacaoCore.DescricaoDiferente || s == ClassificacaoCore.ForaDaLista || s == ClassificacaoCore.FormatoInvalido;
-                Border chip = Theme.Chip($"{n} {s.ToLowerInvariant()}", destaque: problema, escuro: s == ClassificacaoCore.ForaDaLista);
-                chip.Cursor = Cursors.Hand;
-                chip.ToolTip = _situacao == s ? "Clique para mostrar todas as situações" : "Clique para ver só estes na tabela";
-                if (_situacao == s) { chip.BorderBrush = Theme.Solid(Theme.Laranja); chip.BorderThickness = new Thickness(2); }
-                else if (_situacao != null) chip.Opacity = 0.55;
-                string sit = s;
-                chip.MouseLeftButtonUp += (o, e) => { _situacao = _situacao == sit ? null : sit; MostrarEtiquetas(); AplicarFiltroExtra(); };
-                _resumo.Children.Add(chip);
-            }
-            foreach (var g in _linhas.Where(l => l.FaltaPset).GroupBy(l => l.SistemaRef))
-            {
-                var linhas = g.ToList();
-                var anexar = new Button
-                {
-                    Content = $"Anexar {g.Key.PropertySet} em {linhas.Count} objetos",
-                    ToolTip = $"Cria o property set {g.Key.PropertySet} (se não existir) com {g.Key.PropriedadeCodigo}" +
-                              (g.Key.Descricao != null ? $" e {g.Key.Descricao}" : "") + " e anexa aos objetos, vazio. Depois é só escolher a classificação.",
-                    Padding = new Thickness(8, 1, 8, 1),
-                    Margin = new Thickness(4, 0, 0, 0),
-                };
-                anexar.Click += (o, e) => Anexar(linhas);
-                _resumo.Children.Add(anexar);
-            }
-        }
-
-        private void AplicarFiltroExtra()
-        {
-            if (_tabela == null) return;
-            string sit = _situacao;
-            bool ocultar = _ocultarOk;
-            _tabela.ExtraFilter = sit == null && !ocultar ? (Func<object, bool>)null
-                : o => (sit == null || ((LinhaVerificacao)o).Situacao == sit) && (!ocultar || ((LinhaVerificacao)o).Situacao != ClassificacaoCore.OK);
             _tabela.Refresh();
-        }
-
-        // ------------------------------------------------------------------ propostas
-
-        private List<LinhaVerificacao> Propostas(out int conflitos, bool soSelecionadas)
-        {
-            conflitos = 0;
-            if (_tabela == null) return new List<LinhaVerificacao>();
-            bool todas = soSelecionadas || _incluirInseguras.IsChecked == true;
-            IEnumerable<LinhaVerificacao> origem = soSelecionadas ? _tabela.Grid.SelectedItems.OfType<LinhaVerificacao>() : _tabela.VisibleItems<LinhaVerificacao>();
-            return origem.Where(l => l.Gravacoes.Count > 0 && string.IsNullOrEmpty(l.Bloqueio) && (l.PropostaSegura || todas)).ToList();
+            _tabela.Restaurar(estado);
+            int ok = doSistema.Count(l => l.Situacao == ClassificacaoCore.OK);
+            _mostrarCertos.Content = $"Mostrar os certos ({ok:N0} objetos)";
+            _areaTabela.Children.Add(_tabela);
+            _exportar.IsEnabled = true;
+            MostrarDetalhe(null);
+            AtualizarRodape();
         }
 
         private void AtualizarRodape()
         {
-            if (_tabela == null) return;
-            int v = _tabela.VisibleItems<LinhaVerificacao>().Count();
-            var p = Propostas(out _, false);
-            _rodapeInfo.Text = v == _linhas.Count ? $"{v} linhas" : $"{v} de {_linhas.Count} visíveis (filtro ativo)";
-            _aplicar.IsEnabled = p.Count > 0;
-            _aplicar.Content = p.Count == 0 ? "Nada a corrigir" : $"Aplicar todas ({p.Count})";
-            AtualizarSelecionadas();
+            if (_tabela == null || _sistema == null) return;
+            var seguras = SeguraDoSistema();
+            int erros = _valores.Where(v => v.Situacao != ClassificacaoCore.OK).Sum(v => v.Objetos);
+            _rodapeInfo.Text = erros == 0 ? $"{_sistema.Nome}: tudo certo." : $"{_sistema.Nome}: {erros:N0} objeto(s) para corrigir em {_valores.Count(v => v.Situacao != ClassificacaoCore.OK)} valor(es).";
+            _aplicar.IsEnabled = seguras.Count > 0;
+            _aplicar.Content = seguras.Count > 0 ? $"Corrigir escrita ({seguras.Count:N0})" : "Corrigir escrita";
         }
 
-        private void AtualizarSelecionadas()
-        {
-            int n = _tabela == null ? 0 : Propostas(out _, true).Count;
-            _aplicarSelecionadas.IsEnabled = n > 0;
-            _aplicarSelecionadas.Content = n > 0 ? $"Aplicar selecionadas ({n})" : "Aplicar selecionadas";
-        }
+        private List<LinhaVerificacao> SeguraDoSistema() =>
+            _linhas.Where(l => l.SistemaRef == _sistema && l.PropostaSegura && l.Gravacoes.Count > 0 && string.IsNullOrEmpty(l.Bloqueio)).ToList();
 
-        private void Aplicar(bool soSelecionadas)
+        private void CorrigirEscrita()
         {
-            var p = Propostas(out _, soSelecionadas);
+            var p = SeguraDoSistema();
             if (p.Count == 0) return;
-            string msg = $"Gravar {p.Count} correções?\n\nExemplos:\n" +
-                         string.Join("\n", p.Take(5).Select(l => $"• {l.Preenchido}  →  {string.Join(" · ", l.Gravacoes.Select(g => g.Valor))}")) +
+            string msg = $"Corrigir a escrita em {p.Count:N0} objeto(s)?\n\nExemplos:\n" +
+                         string.Join("\n", p.GroupBy(l => l.Preenchido).Take(5).Select(g => $"• {g.Key}  →  {string.Join(" · ", g.First().Gravacoes.Select(x => x.Valor))}")) +
                          "\n\nPode ser desfeito com U (desfazer) no Civil 3D.";
             if (MessageBox.Show(this, msg, Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             Gravar(p.Select(l => (l.SistemaRef, l.Id, (IEnumerable<(string, string)>)l.Gravacoes)));
+        }
+
+        // ------------------------------------------------------------------ detalhe
+
+        private void MostrarDetalhe(LinhaValor v)
+        {
+            _detalhe.Children.Clear();
+            if (v == null)
+            {
+                _detalhe.Children.Add(Theme.Detalhe("Escolha uma linha para ver o que muda e em quais layers está."));
+                return;
+            }
+            _detalhe.Children.Add(new TextBlock { Text = $"{v.Objetos:N0} OBJETO(S)", Foreground = Theme.Solid(Theme.LaranjaTexto), FontWeight = FontWeights.Bold, FontSize = 11 });
+            void Campo(string rotulo, string texto)
+            {
+                if (string.IsNullOrEmpty(texto)) return;
+                _detalhe.Children.Add(new TextBlock { Text = rotulo, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 8, 0, 0) });
+                _detalhe.Children.Add(new TextBox { Text = texto, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                    Background = Theme.Solid(Theme.CinzaFundo), BorderThickness = new Thickness(0) });
+            }
+            Campo("Está escrito", v.EstaEscrito);
+            Campo("Vai ficar", v.VaiFicar);
+            if (!string.IsNullOrEmpty(v.Proposta)) _detalhe.Children.Add(new TextBlock { Text = v.Proposta, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
+            _detalhe.Children.Add(new TextBlock { Text = "Layers", Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 8, 0, 0) });
+            var layers = v.Linhas.GroupBy(l => l.Layer ?? "").OrderByDescending(g => g.Count()).ToList();
+            foreach (var g in layers.Take(3)) _detalhe.Children.Add(new TextBlock { Text = $"{g.Count():N0}  {g.Key}", TextTrimming = TextTrimming.CharacterEllipsis });
+            if (layers.Count > 3) _detalhe.Children.Add(new TextBlock { Text = $"{layers.Skip(3).Sum(g => g.Count()):N0} em mais {layers.Count - 3} layer(s)", Foreground = Theme.Solid(Theme.Cinza) });
+            var sel = new Button { Content = "Selecionar no modelo", Margin = new Thickness(0, 10, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+            sel.Click += (s, e) => Selecionar(v.Linhas.Select(l => l.Id));
+            _detalhe.Children.Add(sel);
+            if (v.Linhas.Count == 1)
+            {
+                var zoom = new Button { Content = "Aproximar", Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+                zoom.Click += (s, e) => Zoom(v.Linhas[0]);
+                _detalhe.Children.Add(zoom);
+            }
         }
 
         /// <summary>Grava (por property set), mostra o resumo e confere de novo.</summary>
@@ -390,48 +446,40 @@ namespace MetroSP.Classificacao
             Verificar();
         }
 
-        // ------------------------------------------------------------------ ação por linha
+        // ------------------------------------------------------------------ ação por valor
 
         private DataGridTemplateColumn ColunaAcao()
         {
             var botao = new FrameworkElementFactory(typeof(Button));
-            botao.SetBinding(ContentControl.ContentProperty, new Binding(nameof(LinhaVerificacao.Acao)));
-            botao.SetBinding(FrameworkElement.ToolTipProperty, new Binding(nameof(LinhaVerificacao.Proposta)));
-            botao.SetValue(Control.PaddingProperty, new Thickness(6, 0, 6, 0));
+            botao.SetBinding(ContentControl.ContentProperty, new Binding(nameof(LinhaValor.Acao)));
+            botao.SetBinding(FrameworkElement.ToolTipProperty, new Binding(nameof(LinhaValor.Proposta)));
+            botao.SetValue(Control.PaddingProperty, new Thickness(8, 0, 8, 0));
             botao.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 1, 2, 1));
-            botao.SetValue(Control.FontSizeProperty, 11.0);
             var estilo = new Style(typeof(Button), TryFindResource(typeof(Button)) as Style);
-            var semAcao = new DataTrigger { Binding = new Binding(nameof(LinhaVerificacao.Acao)), Value = null };
+            var semAcao = new DataTrigger { Binding = new Binding(nameof(LinhaValor.Acao)), Value = null };
             semAcao.Setters.Add(new Setter(UIElement.VisibilityProperty, System.Windows.Visibility.Collapsed));
             estilo.Triggers.Add(semAcao);
             botao.SetValue(FrameworkElement.StyleProperty, estilo);
             botao.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((s, e) =>
             {
-                if ((s as FrameworkElement)?.DataContext is LinhaVerificacao l) ExecutarAcao(l);
+                if ((s as FrameworkElement)?.DataContext is LinhaValor v) ExecutarAcao(v);
             }));
             return new DataGridTemplateColumn { Header = "Ação", Width = 130, CellTemplate = new DataTemplate { VisualTree = botao } };
         }
 
-        private List<LinhaVerificacao> Junto(LinhaVerificacao l)
-        {
-            var sel = _tabela.Grid.SelectedItems.OfType<LinhaVerificacao>().ToList();
-            return sel.Contains(l) ? sel.Where(x => x.SistemaRef == l.SistemaRef && x.Acao == l.Acao).ToList() : new List<LinhaVerificacao> { l };
-        }
-
-        private void ExecutarAcao(LinhaVerificacao l)
+        private void ExecutarAcao(LinhaValor v)
         {
             try
             {
+                LinhaVerificacao l = v.Linhas[0];
                 switch (l.Acao)
                 {
                     case "Corrigir":
-                        var linhas = Junto(l);
-                        if (linhas.Count > 1 && MessageBox.Show(this, $"Corrigir as {linhas.Count} linhas selecionadas?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                        Gravar(linhas.Select(x => (x.SistemaRef, x.Id, (IEnumerable<(string, string)>)x.Gravacoes)));
+                        Gravar(v.Linhas.Where(x => x.Gravacoes.Count > 0 && string.IsNullOrEmpty(x.Bloqueio)).Select(x => (x.SistemaRef, x.Id, (IEnumerable<(string, string)>)x.Gravacoes)));
                         break;
-                    case "Escolher...": Escolher(l, Junto(l)); break;
-                    case "Anexar property set": Anexar(Junto(l)); break;
-                    default: Zoom(l); break;
+                    case "Escolher...": Escolher(l, v.Linhas); break;
+                    case "Anexar property set": Anexar(v.Linhas); break;
+                    default: Selecionar(v.Linhas.Select(x => x.Id)); break;
                 }
             }
             catch (Exception ex) { MessageBox.Show(this, ex.Message, Title); }
@@ -469,9 +517,9 @@ namespace MetroSP.Classificacao
 
         private void Selecionar(IEnumerable<ObjectId> ids)
         {
-            var lista = ids.Distinct().ToArray();
+            var lista = ids.Distinct().Where(id => id.IsValid && !id.IsErased).ToArray();
             try { _doc.Editor.SetImpliedSelection(lista); } catch { }
-            _rodapeInfo.Text = $"{lista.Length} objetos selecionados no desenho.";
+            _rodapeInfo.Text = $"{lista.Length:N0} objeto(s) selecionado(s) no modelo.";
         }
 
         /// <summary>Seleciona o objeto e aproxima a vista dele.</summary>
@@ -517,11 +565,36 @@ namespace MetroSP.Classificacao
             };
             if (d.ShowDialog(this) != true) return;
             var sb = new StringBuilder("Situação;Classificação;Property set;Objeto;Tipo;Layer;Handle;Preenchido;Na lista;Proposta;Bloqueio\r\n");
-            foreach (LinhaVerificacao l in _tabela.VisibleItems<LinhaVerificacao>())
+            foreach (LinhaVerificacao l in _tabela.VisibleItems<LinhaValor>().SelectMany(v => v.Linhas))
                 sb.Append(string.Join(";", new[] { l.Situacao, l.Sistema, l.SistemaRef?.Propriedades, l.Objeto, l.Tipo, l.Layer, l.Handle, l.Preenchido, l.NaLista, l.Proposta, l.Bloqueio }
                     .Select(v => "\"" + (v ?? "").Replace("\"", "\"\"") + "\""))).Append("\r\n");
             try { File.WriteAllText(d.FileName, sb.ToString(), new UTF8Encoding(true)); }
             catch (Exception ex) { MessageBox.Show(this, "Não foi possível gravar o arquivo:\n" + ex.Message, Title); }
         }
+    }
+
+    /// <summary>Um valor escrito numa classificação (com a situação) e os objetos que o têm.</summary>
+    public class LinhaValor
+    {
+        public LinhaValor(List<LinhaVerificacao> linhas) { Linhas = linhas; }
+        public List<LinhaVerificacao> Linhas { get; }
+        LinhaVerificacao P => Linhas[0];
+        public string Situacao => P.Situacao;
+        public int Objetos => Linhas.Count;
+        public string ObjetosTexto => Objetos.ToString("N0");
+        public string EstaEscrito => P.FaltaPset ? "(sem o property set)" : string.IsNullOrWhiteSpace(P.Preenchido) ? "(vazio)" : P.Preenchido;
+        public string NaLista => P.NaLista;
+        public string Acao => P.Acao;
+        public string Proposta => P.Proposta;
+        public bool Problema => Situacao != ClassificacaoCore.OK;
+        public string VaiFicar => P.Gravacoes.Count > 0 ? string.Join(" · ", P.Gravacoes.Select(g => g.Valor)) : null;
+        public string OQueMuda =>
+            Situacao == ClassificacaoCore.OK ? "" :
+            Situacao == ClassificacaoCore.DescricaoDiferente ? "texto da descrição" :
+            Situacao == ClassificacaoCore.ForaDaLista ? "código" :
+            Situacao == ClassificacaoCore.FormatoInvalido ? "formato" :
+            Situacao == ClassificacaoCore.CategoriaNaoPrevista ? "tipo ou layer não previsto" :
+            Situacao == ClassificacaoCore.SemClassificacao ? "escolher" :
+            Situacao == ClassificacaoCore.SemParametro ? "anexar property set" : Situacao;
     }
 }

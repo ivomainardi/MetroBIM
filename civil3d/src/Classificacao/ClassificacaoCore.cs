@@ -633,7 +633,7 @@ namespace MetroSP.Classificacao
                 dict.AddNewRecord(nome, def);
                 tr.AddNewlyCreatedDBObject(def, true);
                 id = def.ObjectId;
-                criado = $"Property set {nome} criado no desenho (vale para todos os objetos).";
+                criado = $"Property set {nome} criado no modelo (vale para todos os objetos).";
             }
             var faltam = propriedades.Where(p => !Enumerable.Range(0, def.Definitions.Count).Any(i =>
                 string.Equals(def.Definitions[i].Name, p, StringComparison.OrdinalIgnoreCase))).ToList();

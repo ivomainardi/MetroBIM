@@ -48,7 +48,7 @@ namespace MetroSP.Classificacao
         public PadroesClassificacaoWindow(Database db, string abrir)
         {
             (_psets, _parametrosModelo) = PropriedadesDoDesenho(db);
-            Title = "MetroSP - Padrões de classificação";
+            Title = "MetroSP - Perfis de classificação";
             Width = 1000;
             Height = 760;
             MinWidth = 760;
@@ -58,7 +58,7 @@ namespace MetroSP.Classificacao
 
             // Padrão
             var barra = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            var rotulo = Theme.Rotulo("Padrão");
+            var rotulo = Theme.Rotulo("Perfil");
             DockPanel.SetDock(rotulo, Dock.Left);
             barra.Children.Add(rotulo);
             var acoes = new StackPanel { Orientation = Orientation.Horizontal };
@@ -69,12 +69,13 @@ namespace MetroSP.Classificacao
                 acoes.Children.Add(b);
                 return b;
             }
-            Acao("Novo", "Cria um padrão vazio.", Novo);
-            Acao("Duplicar", "Copia o padrão aberto com outro nome.", Duplicar);
-            Acao("Excluir", "Apaga o padrão aberto deste computador (as planilhas não são apagadas).", Excluir);
+            Acao("Novo", "Cria um perfil vazio.", Novo);
+            Acao("Duplicar", "Copia o perfil aberto com outro nome.", Duplicar);
+            Acao("Excluir", "Apaga o perfil aberto deste computador (as planilhas não são apagadas).", Excluir);
             DockPanel.SetDock(acoes, Dock.Right);
             barra.Children.Add(acoes);
-            _lista = new ComboBox { MinWidth = 200, ToolTip = "Padrões salvos neste computador. Para trazer um padrão recebido ou levar para a equipe: Coordenação › Padrões." };
+            _lista = new ComboBox { MinWidth = 200, ToolTip = "Perfis salvos neste computador. Para trazer um perfil recebido ou levar para a equipe: Coordenação › Perfis." };
+            Theme.Digitavel(_lista);
             _lista.SelectionChanged += (s, e) => { if (!_preenchendo && _lista.SelectedItem is PadraoClassificacao p) Abrir(p); };
             barra.Children.Add(_lista);
 
@@ -82,7 +83,7 @@ namespace MetroSP.Classificacao
             var rotNome = Theme.Rotulo("Nome");
             DockPanel.SetDock(rotNome, Dock.Left);
             linhaNome.Children.Add(rotNome);
-            _nome = new TextBox { ToolTip = "Nome do padrão (também é o nome do arquivo salvo)." };
+            _nome = new TextBox { ToolTip = "Nome do perfil (também é o nome do arquivo salvo)." };
             _nome.TextChanged += (s, e) => { if (!_preenchendo && _atual != null) { _atual.Nome = _nome.Text.Trim(); Alterou(); } };
             linhaNome.Children.Add(_nome);
 
@@ -94,7 +95,7 @@ namespace MetroSP.Classificacao
             DockPanel.SetDock(tituloSis, Dock.Top);
             esquerda.Children.Add(tituloSis);
             var botoesSis = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
-            var adicionar = new Button { Content = "+ Adicionar", ToolTip = "Acrescenta uma classificação ao padrão." };
+            var adicionar = new Button { Content = "+ Adicionar", ToolTip = "Acrescenta uma classificação ao perfil." };
             adicionar.Click += (s, e) => Adicionar();
             _remover = new Button { Content = "Remover", Margin = new Thickness(6, 0, 0, 0) };
             _remover.Click += (s, e) => Remover();
@@ -135,7 +136,7 @@ namespace MetroSP.Classificacao
             };
             _detalhe.Children.Add(Campo("Como fica no modelo", _formato));
 
-            _pset = new ComboBox { IsEditable = true, IsTextSearchEnabled = true, ToolTip = "Property set onde fica a classificação. Se não existir no desenho, é criado ao gravar (vale para todos os objetos)." };
+            _pset = new ComboBox { IsEditable = true, IsTextSearchEnabled = true, ToolTip = "Property set onde fica a classificação. Se não existir no modelo, é criado ao gravar (vale para todos os objetos)." };
             foreach (string p in _psets) _pset.Items.Add(p);
             _pset.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler((s, e) =>
             {
@@ -202,7 +203,7 @@ namespace MetroSP.Classificacao
             corpo.Children.Add(principal);
 
             _info = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-            var salvar = new Button { Content = "Salvar", Style = Theme.PrimaryButton, ToolTip = "Grava o padrão neste computador (" + PadraoClassificacao.Pasta + ")." };
+            var salvar = new Button { Content = "Salvar", Style = Theme.PrimaryButton, ToolTip = "Grava o perfil neste computador (" + PadraoClassificacao.Pasta + ")." };
             salvar.Click += (s, e) => Salvar();
             var fechar = new Button { Content = "Fechar", IsCancel = true };
             fechar.Click += (s, e) => Close();
@@ -212,7 +213,7 @@ namespace MetroSP.Classificacao
             rodape.Children.Add(botoes);
             rodape.Children.Add(_info);
 
-            Theme.Apply(this, "Padrões de classificação", "Classificações a conferir, onde ficam no desenho e de qual planilha vem cada lista", corpo, rodape);
+            Theme.Apply(this, "Perfis de classificação", "Classificações a conferir, onde ficam no modelo e de qual planilha vem cada lista", corpo, rodape);
             Closing += (s, e) =>
             {
                 if (!_alterado) return;
@@ -348,7 +349,7 @@ namespace MetroSP.Classificacao
         private void Novo()
         {
             if (!PodeTrocar()) return;
-            var p = new PadraoClassificacao { Nome = NomeLivre("Novo padrão"), Sistemas = { new SistemaClassificacao() } };
+            var p = new PadraoClassificacao { Nome = NomeLivre("Novo perfil"), Sistemas = { new SistemaClassificacao() } };
             _padroes.Add(p);
             _atual = null;
             PreencherLista(p);
@@ -379,7 +380,7 @@ namespace MetroSP.Classificacao
         private void Excluir()
         {
             if (_atual == null) return;
-            if (MessageBox.Show(this, $"Excluir o padrão \"{_atual.Nome}\" deste computador?\n\nAs planilhas que ele usa não são apagadas.",
+            if (MessageBox.Show(this, $"Excluir o perfil \"{_atual.Nome}\" deste computador?\n\nAs planilhas que ele usa não são apagadas.",
                     Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             try { _atual.Excluir(); }
             catch (Exception ex) { MessageBox.Show(this, "Não foi possível excluir:\n" + ex.Message, Title); return; }
@@ -393,10 +394,10 @@ namespace MetroSP.Classificacao
         private bool Salvar()
         {
             if (_atual == null) return true;
-            if (string.IsNullOrWhiteSpace(_atual.Nome)) { MessageBox.Show(this, "Dê um nome ao padrão.", Title); return false; }
+            if (string.IsNullOrWhiteSpace(_atual.Nome)) { MessageBox.Show(this, "Dê um nome ao perfil.", Title); return false; }
             if (_padroes.Any(p => p != _atual && string.Equals(p.Nome, _atual.Nome, StringComparison.CurrentCultureIgnoreCase)))
             {
-                MessageBox.Show(this, $"Já existe outro padrão chamado \"{_atual.Nome}\".", Title);
+                MessageBox.Show(this, $"Já existe outro perfil chamado \"{_atual.Nome}\".", Title);
                 return false;
             }
             var semParametro = _atual.Sistemas.Where(s => string.IsNullOrWhiteSpace(s.PropriedadeCodigo) || string.IsNullOrWhiteSpace(s.PropertySet)).Select(s => s.Nome).ToList();
