@@ -41,6 +41,8 @@ namespace MetroSP.Ui
         /// <summary>Fonte e estilos padrão (botões, campos, tabelas, abas) nos recursos de uma janela ou painel.</summary>
         public static void Estilos(FrameworkElement el)
         {
+            // Toda janela MetroSP abre no monitor do Revit (ver JanelaNoMonitor, em comum/).
+            if (el is Window janela) JanelaNoMonitor.Preparar(janela);
             if (el is Control c)
             {
                 c.FontFamily = new FontFamily("Segoe UI");

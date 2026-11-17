@@ -4,8 +4,11 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## Próxima versão
+## Próxima versão (em preparação)
 
+- Revit e Civil 3D, **janelas no monitor do software**: todas as janelas do MetroSP, inclusive as de progresso
+  (carregando), abrem no mesmo monitor do Revit ou do Civil 3D, centralizadas sobre ele. Uma janela que lembra a
+  posição só volta lá se for nesse monitor, e nenhuma fica maior que a tela onde abre.
 - Revit, **Verificar requisitos (.ids)** de volta, no lugar certo: no passo **Exportar** da **Entrega passo a passo**, o
   cartão **Requisitos (.ids)** confere o modelo com cada regra do .ids dos padrões antes de exportar (classe IFC,
   property sets e valores, classificação e material), só com os elementos que vão para o IFC. O resultado abre numa

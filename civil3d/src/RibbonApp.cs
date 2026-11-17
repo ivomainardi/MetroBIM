@@ -20,6 +20,8 @@ namespace MetroSP
 
         public void Initialize()
         {
+            // Janelas MetroSP abrem no mesmo monitor do Civil 3D.
+            try { JanelaNoMonitor.Principal = AcApp.MainWindow.Handle; } catch { }
             if (ComponentManager.Ribbon != null) CreateTab();
             else ComponentManager.ItemInitialized += OnItemInitialized;
 

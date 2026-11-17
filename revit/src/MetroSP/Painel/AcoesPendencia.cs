@@ -17,6 +17,7 @@ namespace MetroSP.Painel
     {
         internal static void Dono(Window janela, Window dono, IntPtr donoRevit)
         {
+            JanelaNoMonitor.Preparar(janela);
             if (dono != null) janela.Owner = dono;
             else new WindowInteropHelper(janela).Owner = donoRevit;
         }

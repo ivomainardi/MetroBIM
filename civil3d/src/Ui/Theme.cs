@@ -45,6 +45,8 @@ namespace MetroSP.Ui
         /// <summary>Fonte e estilos MetroSP (botões, campos, tabelas, abas) numa janela montada à mão.</summary>
         public static void Estilos(Window w)
         {
+            // Toda janela MetroSP abre no monitor do Civil 3D (ver JanelaNoMonitor, em comum/).
+            JanelaNoMonitor.Preparar(w);
             w.Background = Brushes.White;
             w.FontFamily = new FontFamily("Segoe UI");
             w.FontSize = 12;
@@ -100,6 +102,7 @@ namespace MetroSP.Ui
         /// </summary>
         public static void Redimensionavel(Window w, bool ajustaAoConteudo)
         {
+            JanelaNoMonitor.Preparar(w);
             w.ResizeMode = ResizeMode.CanResizeWithGrip;
             if (!ajustaAoConteudo) return;
             void Aberta(object s, EventArgs e)
