@@ -71,7 +71,7 @@ namespace MetroSP.Entrega
             (3, "Property sets", "Property sets que o mapeamento IFC pede: montados no modelo e anexados aos objetos que vão para o IFC."),
             (4, "MetroDATA", "Propriedades que a planilha do MetroDATA pede para cada objeto, erros de escrita e confronto com planilha."),
             (5, "Classificação", "Códigos de classificação dos objetos conferidos com a planilha do perfil."),
-            (6, "Alinhamentos", "Perfil de cada alinhamento que vai para o IFC (eixo 3D com as cotas)."),
+            (6, "Alinhamentos", "Perfil longitudinal de cada alinhamento que vai para o IFC (eixo 3D com as cotas)."),
             (7, "Exportar", "IfcProject, IfcSite e instalações (IfcRailway, IfcBuilding), e a exportação."),
         };
 
@@ -424,14 +424,14 @@ namespace MetroSP.Entrega
             foreach (var s in r.Perfis.Where(p => p.Origem == "Sugerido"))
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Titulo = $"{s.Alinhamento} · {s.Perfis.Count} perfis",
+                    Sinal = Sinal.Amarelo, Titulo = $"{s.Alinhamento} · {s.Perfis.Count} perfis longitudinais",
                     Texto = $"Sugerido: {s.Escolhido}. A exportação vai perguntar.",
                     Acao = Acao.UsarPerfil, Alvo = s.Handle, Valor = s.Escolhido, Objetos = { s.Id },
                 });
             foreach (var s in r.Perfis.Where(p => p.Origem == "Nenhum"))
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Titulo = s.Alinhamento + " · sem perfil de projeto",
+                    Sinal = Sinal.Amarelo, Titulo = s.Alinhamento + " · sem perfil longitudinal",
                     Texto = "Vai só a planta, sem as cotas.", Objetos = { s.Id },
                 });
             e.Resumo = $"{r.Perfis.Count} alinhamento(s).";

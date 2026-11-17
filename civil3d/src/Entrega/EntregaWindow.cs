@@ -881,106 +881,206 @@ namespace MetroSP.Entrega
         }
 
         /// <summary>Linha da tabela de perfis (etapa 6).</summary>
-        public class LinhaPerfil
+        public class LinhaPerfil : System.ComponentModel.INotifyPropertyChanged
         {
+            string _escolhido;
             public string Handle { get; set; }
+            public ObjectId Id { get; set; }
             public string Alinhamento { get; set; }
             public List<string> Perfis { get; set; }
-            public string Escolhido { get; set; }
+            public string Escolhido { get => _escolhido; set { _escolhido = value; On(nameof(Escolhido)); } }
             public string Estacas { get; set; }
+            public double Comprimento { get; set; }
+            public string ComprimentoTexto => Comprimento > 0 ? Comprimento.ToString("N2", new System.Globalization.CultureInfo("pt-BR")) + " m" : "";
             public string Situacao { get; set; }
             public bool Pendente { get; set; }
             public bool PodeEscolher => Perfis != null && Perfis.Count > 1;
+            public string PerfilTexto => Perfis == null || Perfis.Count == 0 ? "—" : Escolhido;
             public string Original { get; set; }
+            public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+            void On(string n) => PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(n));
         }
 
+        /// <summary>
+        /// Passo 6: as opções do eixo 3D numa faixa no alto (valem para todos os modelos) e a tabela dos alinhamentos com o
+        /// perfil longitudinal que vai para o IFC. "Perfil longitudinal" para não confundir com o perfil de exportação.
+        /// </summary>
         UIElement PainelAlinhamentos()
         {
             var linhas = new ObservableCollection<LinhaPerfil>(_res.Perfis.Select(s => new LinhaPerfil
             {
                 Handle = s.Handle,
+                Id = s.Id,
                 Alinhamento = s.Alinhamento,
                 Perfis = s.Perfis,
                 Escolhido = s.Escolhido,
                 Original = s.Origem == "Sugerido" ? null : s.Escolhido,
                 Estacas = s.Estacas,
+                Comprimento = s.Comprimento,
                 Pendente = s.Pendente,
                 Situacao = s.Origem switch
                 {
-                    "Único" => "Um perfil",
-                    "Guardado" => "Escolhido para este modelo",
-                    "Preferido" => "Pela lista de preferidos",
+                    "Único" => "um perfil",
+                    "Guardado" => "escolhido para este modelo",
+                    "Preferido" => "pela lista de preferidos",
                     "Sugerido" => $"{s.Perfis.Count} perfis: escolha",
-                    _ => "Sem perfil: vai só a planta",
+                    _ => "sem perfil: vai só a planta",
                 },
             }));
             var p = new DockPanel();
-            var topo = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
-            var soPendentes = new CheckBox { Content = $"Só os pendentes ({linhas.Count(l => l.Pendente)})", IsChecked = linhas.Any(l => l.Pendente), VerticalAlignment = VerticalAlignment.Center };
-            var opcoes = Pilula("Opções do alinhamento...");
-            opcoes.ToolTip = "Eixo 3D no IFC, passo das estacas e a lista de perfis preferidos (vale para todos os modelos).";
-            opcoes.Click += (s, e) =>
-            {
-                var w = new ConfigWindow(Commands.DrawingFolder(_doc)) { Owner = this };
-                w.Abas.SelectedIndex = 2;   // Alinhamento
-                w.ShowDialog();
-                Conferir();
-            };
-            DockPanel.SetDock(opcoes, Dock.Right);
-            topo.Children.Add(opcoes);
-            topo.Children.Add(soPendentes);
-            DockPanel.SetDock(topo, Dock.Top);
-            p.Children.Add(topo);
+
+            // ---- opções do eixo 3D (antes no Configurar IFC › Alinhamento)
+            MetroSpIfcConfig cfg;
+            try { cfg = ConfigPackage.LoadMetroSp(); } catch { cfg = new MetroSpIfcConfig(); }
+            cfg.Alinhamento ??= new AlignmentOptions();
+            var faixa = new WrapPanel { Background = Theme.Solid(Theme.CinzaFundo), Margin = new Thickness(0, 0, 0, 6) };
+            var eixo3d = new CheckBox { Content = "Eixo 3D no IFC com as cotas do perfil longitudinal", IsChecked = cfg.Alinhamento.AplicarNoIfc, FontWeight = FontWeights.SemiBold,
+                VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8, 6, 16, 6),
+                ToolTip = "Depois de exportar, troca o eixo de cada IfcAlignment pelo eixo 3D, com as cotas do perfil longitudinal escolhido." };
+            var passo = new TextBox { Text = cfg.Alinhamento.Passo.ToString(System.Globalization.CultureInfo.CurrentCulture), Width = 50, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 6, 4, 6),
+                ToolTip = "Distância entre os pontos do eixo 3D (m)." };
+            var preferidos = new TextBox { Text = string.Join(" ; ", cfg.Alinhamento.PerfisPreferidos ?? new List<string>()), Width = 260, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 6, 6, 6),
+                ToolTip = "Nomes (aceita expressão regular) em ordem de preferência, separados por ;. Quando o alinhamento tem mais de um perfil longitudinal, vale o primeiro que casar." };
+            TextBlock Cinza(string t) => new TextBlock { Text = t, Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
+            faixa.Children.Add(eixo3d);
+            faixa.Children.Add(Cinza("Estacas a cada"));
+            faixa.Children.Add(passo);
+            faixa.Children.Add(Cinza("m"));
+            faixa.Children.Add(new Border { Width = 16 });
+            faixa.Children.Add(Cinza("Preferidos"));
+            faixa.Children.Add(preferidos);
+            faixa.Children.Add(Cinza("(vale para todos os modelos)  "));
+            DockPanel.SetDock(faixa, Dock.Top);
+            p.Children.Add(faixa);
+            List<string> Preferidos() => preferidos.Text.Split(';').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
 
             if (linhas.Count == 0)
             {
                 p.Children.Add(Theme.Detalhe("Este modelo não tem alinhamento: o IFC vai com projeto, terreno, instalações e os objetos do modelo."));
+                _salvarPainel = () => SalvarOpcoesAlinhamento(cfg, eixo3d, passo, Preferidos());
                 return p;
             }
 
-            var grade = new DataGrid
-            {
-                AutoGenerateColumns = false,
-                CanUserAddRows = false,
-                CanUserDeleteRows = false,
-                HeadersVisibility = DataGridHeadersVisibility.Column,
-                SelectionMode = DataGridSelectionMode.Single,
-            };
-            grade.Columns.Add(new DataGridTextColumn { Header = "Alinhamento", Binding = new Binding(nameof(LinhaPerfil.Alinhamento)), IsReadOnly = true, Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
+            // ---- ações
+            var acoes = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            var soPendentes = new CheckBox { Content = $"Só os pendentes ({linhas.Count(l => l.Pendente)})", IsChecked = false, VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(soPendentes, Dock.Right);
+            acoes.Children.Add(soPendentes);
+            var botoes = new WrapPanel();
+            acoes.Children.Add(botoes);
+            DockPanel.SetDock(acoes, Dock.Top);
+            p.Children.Add(acoes);
+
+            var grade = new FilterableGrid(linhas, typeof(LinhaPerfil));
+            grade.Grid.IsReadOnly = false;
+            Theme.StyleSelection(grade.Grid);
+            grade.AddColumn("Alinhamento", nameof(LinhaPerfil.Alinhamento), 180).IsReadOnly = true;
+            var colPerfil = grade.AddColumn("Perfil longitudinal usado no IFC", nameof(LinhaPerfil.Escolhido), 260, fill: true);
+            int iPerfil = grade.Grid.Columns.IndexOf(colPerfil);
+            grade.Grid.Columns.Remove(colPerfil);
+            var ver = new FrameworkElementFactory(typeof(TextBlock));
+            ver.SetBinding(TextBlock.TextProperty, new Binding(nameof(LinhaPerfil.PerfilTexto)));
+            ver.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 2, 0));
             var combo = new FrameworkElementFactory(typeof(ComboBox));
             combo.SetBinding(ItemsControl.ItemsSourceProperty, new Binding(nameof(LinhaPerfil.Perfis)));
             combo.SetBinding(System.Windows.Controls.Primitives.Selector.SelectedItemProperty, new Binding(nameof(LinhaPerfil.Escolhido)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
-            combo.SetBinding(UIElement.IsEnabledProperty, new Binding(nameof(LinhaPerfil.PodeEscolher)));
-            grade.Columns.Add(new DataGridTemplateColumn
+            combo.SetBinding(UIElement.VisibilityProperty, new Binding(nameof(LinhaPerfil.PodeEscolher)) { Converter = new BooleanToVisibilityConverter() });
+            var cel = new FrameworkElementFactory(typeof(Grid));
+            cel.AppendChild(ver);
+            cel.AppendChild(combo);
+            grade.Grid.Columns.Insert(iPerfil, new DataGridTemplateColumn
             {
-                Header = "Perfil usado no IFC",
-                CellTemplate = new DataTemplate { VisualTree = combo },
-                Width = new DataGridLength(1.6, DataGridLengthUnitType.Star),
+                Header = colPerfil.Header, SortMemberPath = nameof(LinhaPerfil.Escolhido), IsReadOnly = true,
+                Width = new DataGridLength(1, DataGridLengthUnitType.Star), MinWidth = 200,
+                CellTemplate = new DataTemplate { VisualTree = cel },
             });
-            grade.Columns.Add(new DataGridTextColumn { Header = "Estacas", Binding = new Binding(nameof(LinhaPerfil.Estacas)), IsReadOnly = true, Width = 150 });
-            var estilo = new Style(typeof(TextBlock));
+            grade.AddColumn("Estacas", nameof(LinhaPerfil.Estacas), 160).IsReadOnly = true;
+            var comp = grade.AddColumn("Comprimento", nameof(LinhaPerfil.ComprimentoTexto), 110);
+            comp.IsReadOnly = true;
+            comp.SortMemberPath = nameof(LinhaPerfil.Comprimento);
+            comp.ElementStyle = new Style(typeof(TextBlock), comp.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
+            var sit = grade.AddColumn("Como foi escolhido", nameof(LinhaPerfil.Situacao), 200);
+            sit.IsReadOnly = true;
+            var estilo = new Style(typeof(TextBlock), sit.ElementStyle);
             var pend = new DataTrigger { Binding = new Binding(nameof(LinhaPerfil.Pendente)), Value = true };
             pend.Setters.Add(new Setter(TextBlock.ForegroundProperty, Theme.Solid(Theme.LaranjaTexto)));
             pend.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
             estilo.Triggers.Add(pend);
-            grade.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(LinhaPerfil.Situacao)), IsReadOnly = true, ElementStyle = estilo, Width = new DataGridLength(1.2, DataGridLengthUnitType.Star) });
-
-            var vista = CollectionViewSource.GetDefaultView(linhas);
-            void Filtrar() => vista.Filter = soPendentes.IsChecked == true ? (o => ((LinhaPerfil)o).Pendente) : (Predicate<object>)null;
-            soPendentes.Checked += (s, e) => Filtrar();
-            soPendentes.Unchecked += (s, e) => Filtrar();
-            Filtrar();
-            grade.ItemsSource = vista;
+            sit.ElementStyle = estilo;
+            var linhaEst = new Style(typeof(DataGridRow), grade.Grid.RowStyle);
+            var pendRow = new DataTrigger { Binding = new Binding(nameof(LinhaPerfil.PodeEscolher)), Value = true };
+            var pendRow2 = new MultiDataTrigger();
+            pendRow2.Conditions.Add(new Condition(new Binding(nameof(LinhaPerfil.Pendente)), true));
+            pendRow2.Conditions.Add(new Condition(new Binding(nameof(LinhaPerfil.PodeEscolher)), true));
+            pendRow2.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
+            linhaEst.Triggers.Add(pendRow2);
+            grade.Grid.RowStyle = linhaEst;
+            grade.ExtraFilter = o => soPendentes.IsChecked != true || ((LinhaPerfil)o).Pendente;
+            soPendentes.Click += (s, e) => grade.Refresh();
             p.Children.Add(grade);
 
-            // Salvar e conferir: guarda o perfil de cada alinhamento com mais de um (a exportação não pergunta mais).
+            List<LinhaPerfil> Escolhidas()
+            {
+                var sel = grade.Grid.SelectedItems.OfType<LinhaPerfil>().ToList();
+                return sel.Count > 0 ? sel : grade.VisibleItems<LinhaPerfil>().ToList();
+            }
+            Button Acao(string texto, string dica, Action a)
+            {
+                var b = Pilula(texto);
+                b.ToolTip = dica;
+                b.Margin = new Thickness(0, 0, 6, 0);
+                b.Click += (s, e) => a();
+                botoes.Children.Add(b);
+                return b;
+            }
+            void Selecionar(bool aproximar)
+            {
+                var ids = Escolhidas().Select(l => l.Id).Where(id => id.IsValid && !id.IsErased).ToArray();
+                try
+                {
+                    _doc.Editor.SetImpliedSelection(ids);
+                    if (aproximar && ids.Length > 0) _doc.SendStringToExecute("._ZOOM _O ", true, false, false);
+                }
+                catch { }
+            }
+            Acao("Selecionar no modelo", "Seleciona os alinhamentos escolhidos (ou os da tabela).", () => Selecionar(false));
+            Acao("Aproximar", "Seleciona e aproxima a vista dos alinhamentos escolhidos.", () => Selecionar(true));
+            Acao("Usar o preferido em todos", "Nos alinhamentos com mais de um perfil longitudinal, escolhe o primeiro da lista de preferidos.", () =>
+            {
+                var pref = Preferidos();
+                int n = 0;
+                foreach (var l in linhas.Where(l => l.PodeEscolher))
+                    foreach (string rx in pref)
+                    {
+                        string hit = null;
+                        try { hit = l.Perfis.FirstOrDefault(x => System.Text.RegularExpressions.Regex.IsMatch(x, rx, System.Text.RegularExpressions.RegexOptions.IgnoreCase)); } catch { }
+                        if (hit == null) continue;
+                        if (hit != l.Escolhido || l.Pendente) { l.Escolhido = hit; n++; }
+                        break;
+                    }
+                MessageBox.Show(this, n == 0 ? "Nenhum alinhamento mudou: confira a lista de preferidos." : $"{n} alinhamento(s) com o preferido. Salve e confira para gravar.", Title);
+            });
+
+            // Salvar e conferir: as opções do eixo 3D e o perfil longitudinal de cada alinhamento com mais de um.
             _salvarPainel = () =>
             {
-                var escolhas = linhas.Where(l => l.PodeEscolher && !string.IsNullOrEmpty(l.Escolhido) && l.Escolhido != l.Original)
+                SalvarOpcoesAlinhamento(cfg, eixo3d, passo, Preferidos());
+                var escolhas = linhas.Where(l => l.PodeEscolher && !string.IsNullOrEmpty(l.Escolhido) && (l.Escolhido != l.Original || l.Pendente))
                     .Select(l => (l.Handle, l.Escolhido)).ToList();
                 if (escolhas.Count > 0) AlignmentCommands.GuardarPerfis(_doc, escolhas);
             };
             return p;
+        }
+
+        static void SalvarOpcoesAlinhamento(MetroSpIfcConfig cfg, CheckBox eixo3d, TextBox passo, List<string> preferidos)
+        {
+            var a = cfg.Alinhamento;
+            bool mudou = a.AplicarNoIfc != (eixo3d.IsChecked == true) || !(a.PerfisPreferidos ?? new List<string>()).SequenceEqual(preferidos);
+            a.AplicarNoIfc = eixo3d.IsChecked == true;
+            if (double.TryParse(passo.Text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.CurrentCulture, out double v) && v > 0 && v != a.Passo) { a.Passo = v; mudou = true; }
+            a.PerfisPreferidos = preferidos;
+            if (!mudou) return;
+            try { ConfigPackage.SaveMetroSp(cfg); } catch (Exception ex) { Log.Erro("salvar opções do alinhamento", ex); }
         }
 
         UIElement PainelExportar()

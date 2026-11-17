@@ -205,7 +205,20 @@ namespace MetroSP.Alinhamento
             /// <summary>Único, Guardado, Preferido, Sugerido (a exportação perguntaria) ou Nenhum.</summary>
             public string Origem { get; set; }
             public string Estacas { get; set; }
+            public double Comprimento { get; set; }
             public bool Pendente => Origem == "Sugerido" || Origem == "Nenhum";
+        }
+
+        static readonly System.Globalization.CultureInfo PtBr = new System.Globalization.CultureInfo("pt-BR");
+
+        /// <summary>Estaca no formato km+metros (ex.: 1+842,35).</summary>
+        public static string Estaca(double v)
+        {
+            double a = Math.Abs(v);
+            int km = (int)Math.Floor(a / 1000);
+            double m = Math.Round(a - km * 1000.0, 2);
+            if (m >= 1000) { km++; m -= 1000; }
+            return (v < 0 ? "-" : "") + km + "+" + m.ToString("000.00", PtBr).Replace(",00", "");
         }
 
         public static List<SituacaoPerfil> Situacao(AcDocument doc, AlignmentOptions opts)
@@ -220,7 +233,7 @@ namespace MetroSP.Alinhamento
                     Alignment al;
                     try { al = (Alignment)tr.GetObject(id, OpenMode.ForRead); } catch { continue; }
                     var s = new SituacaoPerfil { Id = id, Handle = al.Handle.ToString(), Alinhamento = al.Name };
-                    try { s.Estacas = $"{al.StartingStation:0.000} a {al.EndingStation:0.000}"; } catch { }
+                    try { s.Estacas = $"{Estaca(al.StartingStation)} a {Estaca(al.EndingStation)}"; s.Comprimento = al.Length; } catch { }
                     var candidates = new List<Profile>();
                     foreach (ObjectId pid in al.GetProfileIds())
                     {
