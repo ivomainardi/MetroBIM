@@ -26,6 +26,8 @@ namespace MetroSP
             // Se o Revit já tiver carregado outra versão delas, o .NET Framework procura aqui com este evento.
             AppDomain.CurrentDomain.AssemblyResolve += ResolverDaPastaDoAddin;
 #endif
+            // Janelas MetroSP abrem no mesmo monitor do Revit.
+            try { Ui.JanelaNoMonitor.Principal = application.MainWindowHandle; } catch { }
             try { VersaoRevit = application.ControlledApplication.SubVersionNumber; } catch { }
             if (string.IsNullOrEmpty(VersaoRevit)) VersaoRevit = application.ControlledApplication.VersionNumber;
 

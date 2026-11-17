@@ -115,6 +115,8 @@ namespace MetroSP.Ui
                     ShowInTaskbar = false,
                     Background = Brushes.White,
                 };
+                // No monitor do Revit (sem dono: a janela roda em outra thread), no alto.
+                JanelaNoMonitor.Preparar(_janela, noAlto: true);
                 // Fechar pelo X equivale a cancelar, quando permitido; a janela some só no fim da operação.
                 _janela.Closing += (s, e) =>
                 {
