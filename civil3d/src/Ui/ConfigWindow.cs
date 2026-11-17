@@ -73,16 +73,16 @@ namespace MetroSP.Ui
             DockPanel.SetDock(toolbar, Dock.Top);
             if (somenteProjeto) toolbar.Visibility = Visibility.Collapsed;
             toolbar.Children.Add(Tool("Adicionar padrões…", "Abre a janela Padrões, onde se trazem os arquivos de configuração IFC (e os outros padrões): arraste ou escolha os arquivos.", (s, e) => AbrirPadroes()));
-            toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do pacote numa pasta.", (s, e) => ExportPackage()));
+            toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do perfil de exportação numa pasta.", (s, e) => ExportPackage()));
             if (Settings.Load().UsesForma)
-                toolbar.Children.Add(Tool("Baixar do Forma", "Troca o pacote pela versão mais recente do Forma.", async (s, e) => await DownloadFromForma()));
+                toolbar.Children.Add(Tool("Baixar do Forma", "Troca o perfil de exportação pela versão mais recente do Forma.", async (s, e) => await DownloadFromForma()));
             toolbar.Children.Add(Tool("Restaurar padrão", "Volta ao padrão MetroSP.", (s, e) => RestoreDefaults()));
             body.Children.Add(toolbar);
             body.Children.Add(_tabs);
 
             Theme.Apply(this, somenteProjeto ? "Projeto IFC" : "Configuração IFC",
                 somenteProjeto ? "IfcProject, IfcSite, instalações (IfcRailway, IfcBuilding) e Pset MetroSP_Projeto, aplicados na exportação"
-                    : Settings.Load().UsesForma ? "Pacote sincronizado com o Forma" : "Pacote local",
+                    : Settings.Load().UsesForma ? "Perfil de exportação sincronizado com o Forma" : "Perfil de exportação local",
                 body, Theme.Rodape(_status,
                     Btn("Salvar", (s, e) => SaveAll(close: false)),
                     saveClose,
@@ -211,16 +211,16 @@ namespace MetroSP.Ui
         {
             var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
             new Padroes.GerenciarPadroesWindow(Padroes.PadroesCommands.Tipos(doc), "Civil 3D") { Owner = this }.ShowDialog();
-            ReloadEverything("Pacote relido.");
+            ReloadEverything("Perfil de exportação relido.");
         }
 
         void ExportPackage()
         {
             SaveAll(close: false);
-            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Pasta para exportar o pacote de configuração" };
+            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Pasta para exportar o perfil de exportação" };
             if (dlg.ShowDialog(this) != true) return;
             ConfigPackage.ExportTo(dlg.FolderName);
-            Status("Pacote exportado para " + dlg.FolderName);
+            Status("Perfil de exportação gravado em " + dlg.FolderName);
         }
 
         /// <summary>Importa os arquivos gerados por IFCInfraSaveConfig / IFCInfraSaveMappingConfig.</summary>
@@ -241,7 +241,7 @@ namespace MetroSP.Ui
                      "(eles gravam os modelos da Autodesk na pasta do desenho) e clique de novo.");
                 return;
             }
-            if (MessageBox.Show(this, "Substituir no pacote ativo:\n\n" + string.Join("\n", found), "MetroSP",
+            if (MessageBox.Show(this, "Substituir no perfil de exportação ativo:\n\n" + string.Join("\n", found), "MetroSP",
                     MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             try { ReloadEverything("Importado: " + string.Join("; ", ConfigPackage.Import(found))); }
             catch (Exception ex) { Warn(ex.Message); }
@@ -282,8 +282,8 @@ namespace MetroSP.Ui
 
         void RestoreDefaults()
         {
-            if (MessageBox.Show(this, "Trocar o pacote ativo pelo padrão MetroSP? Os arquivos atuais serão apagados " +
-                                      "(exporte o pacote antes, se quiser guardar).", "MetroSP",
+            if (MessageBox.Show(this, "Trocar o perfil de exportação ativo pelo padrão MetroSP? Os arquivos atuais serão apagados " +
+                                      "(exporte o perfil antes, se quiser guardar).", "MetroSP",
                     MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
             ConfigPackage.RestoreDefaults();
             ReloadEverything("Padrão MetroSP restaurado.");
@@ -897,7 +897,7 @@ namespace MetroSP.Ui
             open.Click += (s, e) => Process.Start(new ProcessStartInfo("explorer.exe", "\"" + ConfigPackage.ActiveDir + "\"") { UseShellExecute = true });
             DockPanel.SetDock(open, Dock.Right);
             filesHead.Children.Add(open);
-            filesHead.Children.Add(Section("Arquivos do pacote"));
+            filesHead.Children.Add(Section("Arquivos do perfil"));
             head.Children.Add(filesHead);
             head.Children.Add(PackageFiles());
 
@@ -913,7 +913,7 @@ namespace MetroSP.Ui
 
             if (_autodeskConfig == null)
             {
-                panel.Children.Add(Theme.Detalhe("Ainda não há este arquivo no pacote. Rode IFCInfraSaveConfig no Civil 3D e use Importar da Autodesk."));
+                panel.Children.Add(Theme.Detalhe("Ainda não há este arquivo no perfil. Rode IFCInfraSaveConfig no Civil 3D e use Importar da Autodesk."));
                 return panel;
             }
             var tree = new TreeView();

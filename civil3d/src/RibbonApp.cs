@@ -88,7 +88,7 @@ namespace MetroSP
                         "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip. " +
                         "Na setinha: Configurar IFC, Exportador e Forma."),
                     Button("Padrões", "Padroes", "MSP_PADROES", "Adicionar, editar e excluir padrões e levar tudo para a equipe num .zip."),
-                    Button("Configurar IFC", "IfcConfigurar", "MSP_IFCCONFIG", "Classes IFC, propriedades, projeto, alinhamento e opções avançadas do pacote de configuração."),
+                    Button("Configurar IFC", "IfcConfigurar", "MSP_IFCCONFIG", "Classes IFC, propriedades, projeto, alinhamento e opções avançadas do perfil de exportação."),
                     Button("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da IFC 4.3 Extension da Autodesk, atualizações e a pasta dos arquivos de configuração do desenho."),
                     Button("Forma", "IfcSincronizar", "MSP_FORMA", "Autodesk Forma: entrar, sair, sincronizar a configuração IFC e a conta (Client ID, projeto e pasta)."))));
 

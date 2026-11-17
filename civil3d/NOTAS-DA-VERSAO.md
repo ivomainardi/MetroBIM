@@ -14,6 +14,7 @@
   rotação, com a latitude e a longitude exatas da origem do PTL (23°33'3,0482" S; 46°43'53,6793" O). Antes eram as do
   ponto que o exportador da Autodesk escolhia para deslocar a geometria. Nenhum objeto muda de lugar (as colocações
   relativas ao site são compensadas). Latitude e longitude digitadas em Projeto continuam valendo por cima.
+- **"Perfil de exportação"** no lugar de "pacote" (de configuração IFC), como no Revit.
 - A dica da tabela de regras passou a dizer "vale a primeira regra que casar, de cima para baixo" (era "de baixo para
   cima"), como a ordem do padrão da equipe pressupõe (U-3D-TRILHO_AMV antes de U-3D-TRILHO). Conferir no Civil 3D.
 

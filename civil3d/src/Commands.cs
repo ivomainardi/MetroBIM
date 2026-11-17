@@ -151,7 +151,7 @@ namespace MetroSP
             body.Children.Add(chips);
             body.Children.Add(Ui.Theme.Secao("Arquivos"));
             body.Children.Add(Ui.Theme.Detalhe("Configuração: " + (cfg.LoadedFrom ?? "(não encontrada)")));
-            body.Children.Add(Ui.Theme.Detalhe("Pacote IFC ativo: " + ConfigPackage.ActiveDir));
+            body.Children.Add(Ui.Theme.Detalhe("Perfil de exportação ativo: " + ConfigPackage.ActiveDir));
             body.Children.Add(Ui.Theme.Detalhe("Exportador da Autodesk: " + AutodeskIfcExtension.Describe(cfg.ExportCommand)));
             if (cfg.UsesForma)
             {

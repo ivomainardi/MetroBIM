@@ -629,7 +629,7 @@ namespace MetroSP.Entrega
                 p.Children.Add(Theme.Detalhe(i.Name + (i.Version != null ? " · versão " + i.Version : "")));
 
             p.Children.Add(Titulo("Configuração IFC", 18));
-            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Pacote sincronizado com o Autodesk Forma" : "Pacote local (padrão MetroSP ou importado)"));
+            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Perfil de exportação sincronizado com o Autodesk Forma" : "Perfil de exportação local (padrão MetroSP ou importado)"));
             var grade = new Grid { Margin = new Thickness(0, 6, 0, 0) };
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -650,7 +650,7 @@ namespace MetroSP.Entrega
             exp.ToolTip = "Versão instalada, atualizações (Autodesk e GitHub) e a pasta dos arquivos do desenho.";
             exp.Click += (s, e) => { ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false); MostrarFerramenta(); };
             var config = Pilula("Configurar IFC...");
-            config.ToolTip = "Classes, propriedades, alinhamento e opções avançadas do pacote.";
+            config.ToolTip = "Classes, propriedades, alinhamento e opções avançadas do perfil de exportação.";
             config.Click += (s, e) =>
             {
                 var w = new ConfigWindow(Commands.DrawingFolder(_doc)) { Owner = this };
