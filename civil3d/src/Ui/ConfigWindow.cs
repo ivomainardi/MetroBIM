@@ -298,285 +298,281 @@ namespace MetroSP.Ui
             ["MapBaselineName"] = "Por baseline (corredor)"
         };
 
+        // Lista única: cada layer (bloco, baseline) do modelo é uma linha, com a regra do padrão que vale para ele;
+        // as regras que não pegam nada no modelo vêm no fim, como "só no padrão". As regras continuam em _mappingRows,
+        // na ordem do padrão (vale a primeira que casar, de cima para baixo).
+
+        readonly ObservableCollection<LinhaClasse> _linhas = new ObservableCollection<LinhaClasse>();
+        FilterableGrid _lista;
+        Dictionary<string, List<ItemDesenho>> _modelo;
+        TextBlock _resumoLista;
+        CheckBox _soUsados;
+        Button _corrigir;
+        ComboBox _classes;
+
         UIElement MappingTab()
         {
             var panel = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
 
             var top = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(top, Dock.Top);
-            _mappingSection = new ComboBox { Width = 190, Margin = new Thickness(0, 0, 16, 0) };
+            _mappingSection = new ComboBox { Width = 150, Margin = new Thickness(0, 0, 8, 4) };
             foreach (var key in KnownSections.Union(_mapping.Where(kv => kv.Value is JsonArray).Select(kv => kv.Key)))
                 _mappingSection.Items.Add(new ComboBoxItem { Content = SectionLabels.TryGetValue(key, out var l) ? l : key, Tag = key, ToolTip = key });
             _mappingSection.SelectionChanged += (s, e) => SwitchSection((_mappingSection.SelectedItem as ComboBoxItem)?.Tag as string);
             top.Children.Add(_mappingSection);
 
-            var classes = ClassPicker(IfcClasses);
-            classes.ToolTip = $"Todas as classes do {IfcCatalog.Label(IfcVersion)}, o esquema escolhido na configuração da Autodesk. " +
-                              "Digite parte do nome (ex.: TRACKSLAB) para filtrar; só vale uma classe da lista.";
-            top.Children.Add(classes);
+            _classes = ClassPicker(IfcClasses);
+            _classes.Width = 240;
+            _classes.Margin = new Thickness(0, 0, 0, 4);
+            _classes.ToolTip = $"Todas as classes do {IfcCatalog.Label(IfcVersion)}, o esquema escolhido na configuração da Autodesk. " +
+                               "Digite parte do nome (ex.: TRACKSLAB) para filtrar; só vale uma classe da lista.";
+            top.Children.Add(_classes);
 
-            var grid = new DataGrid
-            {
-                AutoGenerateColumns = false,
-                CanUserAddRows = true,
-                ItemsSource = _mappingRows,
-                HeadersVisibility = DataGridHeadersVisibility.Column
-            };
-            _gradeRegras = grid;
-            grid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Name"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            MappingRow.Catalog = IfcClasses;
-            var invalid = new Style(typeof(TextBlock));
-            var trig = new DataTrigger { Binding = new Binding(nameof(MappingRow.ClasseInvalida)), Value = true };
-            trig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick));
-            trig.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
-            trig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Classe fora do esquema; escolha uma da lista e clique Aplicar (ou Corrigir classes)."));
-            invalid.Triggers.Add(trig);
-            grid.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Classe IFC", Binding = new Binding("IfcExportAs"), IsReadOnly = true, ElementStyle = invalid,
-                Width = new DataGridLength(2, DataGridLengthUnitType.Star)
-            });
-            grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding("Export") { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 62 });
-            var semUso = new Style(typeof(TextBlock));
-            semUso.Setters.Add(new Setter(TextBlock.ToolTipProperty, new Binding(nameof(MappingRow.NoDesenhoDica))));
-            var trigUso = new DataTrigger { Binding = new Binding(nameof(MappingRow.UsadaNoDesenho)), Value = false };
-            trigUso.Setters.Add(new Setter(TextBlock.ForegroundProperty, Theme.Solid(Theme.Cinza)));
-            semUso.Triggers.Add(trigUso);
-            grid.Columns.Add(new DataGridTextColumn
-            {
-                Header = "No modelo", Binding = new Binding(nameof(MappingRow.NoDesenho)) { Mode = BindingMode.OneWay }, IsReadOnly = true,
-                ElementStyle = semUso, Width = 92
-            });
-            grid.ToolTip = "Padrão carregado. Nome aceita expressão regular (ex.: ^U-3D-). Vale a primeira regra que casar, de cima para baixo.";
-            grid.CellEditEnding += (s, e) => Dispatcher.BeginInvoke(new Action(Recalcular), System.Windows.Threading.DispatcherPriority.Background);
-            grid.CurrentCellChanged += (s, e) => Recalcular();
-            _mappingRows.CollectionChanged += (s, e) => Recalcular();
-
-            var apply = Btn("Aplicar", (s, e) =>
-            {
-                var escolhida = classes.SelectedItem as string;
-                if (escolhida == null) { Status("Escolha uma classe da lista."); return; }
-                var linhas = grid.SelectedItems.OfType<MappingRow>().ToList();
-                if (linhas.Count == 0) { Status("Selecione as regras que vão receber a classe."); return; }
-                foreach (var r in linhas) r.IfcExportAs = escolhida == SemClasse ? "" : escolhida;
-                grid.Items.Refresh();
-                Recalcular();
-            });
-            apply.Margin = new Thickness(6, 0, 16, 0);
-            apply.ToolTip = "Põe a classe escolhida nas regras selecionadas.";
+            var apply = Btn("Aplicar", (s, e) => AplicarClasse());
+            apply.Margin = new Thickness(6, 0, 12, 4);
+            apply.ToolTip = "Põe a classe nas linhas selecionadas. Se a linha segue uma regra geral (ex.: ^G-3D-.*), muda a regra " +
+                            "e todos os layers dela. Layer sem regra ganha uma regra só para ele.";
             top.Children.Add(apply);
-            top.Children.Add(SymbolButton("↑", "Subir (a regra de cima vale primeiro)", (s, e) => { Move(grid, -1); Recalcular(); }));
-            top.Children.Add(SymbolButton("↓", "Descer", (s, e) => { Move(grid, +1); Recalcular(); }));
-            top.Children.Add(SymbolButton("+", "Nova regra", (s, e) => AddRow(grid, _mappingRows)));
-            top.Children.Add(SymbolButton("✕", "Excluir as regras selecionadas (ou tecla Delete)", (s, e) => RemoveSelected(grid, _mappingRows, "regra")));
+            top.Children.Add(SymbolButton("↑", "Sobe a regra da linha selecionada (a de cima vale primeiro)", (s, e) => MoverRegra(-1)));
+            top.Children.Add(SymbolButton("↓", "Desce a regra da linha selecionada", (s, e) => MoverRegra(+1)));
+            top.Children.Add(SymbolButton("+", "Nova regra (nome ou expressão regular, ex.: ^U-3D-)", (s, e) => NovaRegra()));
+            top.Children.Add(SymbolButton("✕", "Exclui do padrão a regra das linhas selecionadas", (s, e) => ExcluirRegras()));
+            _soUsados = new CheckBox
+            {
+                Content = "Só usados no modelo", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 4),
+                ToolTip = "Esconde layers sem objeto no espaço do modelo."
+            };
+            _soUsados.Click += (s, e) => _lista.Refresh();
+            top.Children.Add(_soUsados);
             _corrigir = Tool("Corrigir classes", "", (s, e) => CorrigirClasses());
             _corrigir.VerticalAlignment = VerticalAlignment.Center;
+            _corrigir.Margin = new Thickness(12, 0, 0, 4);
             top.Children.Add(_corrigir);
             panel.Children.Add(top);
 
-            // ---- lado a lado: padrão (regras) | desenho (layers, blocos, baselines)
-            var lados = new Grid();
-            lados.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 260 });
-            lados.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
-            lados.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 260 });
+            _resumoLista = Theme.Detalhe();
+            _resumoLista.Margin = new Thickness(0, 4, 0, 0);
+            DockPanel.SetDock(_resumoLista, Dock.Bottom);
+            panel.Children.Add(_resumoLista);
 
-            var esquerda = new DockPanel();
-            var tituloPadrao = Theme.Secao("No padrão");
-            tituloPadrao.Margin = new Thickness(0, 0, 0, 4);
-            tituloPadrao.ToolTip = "Regras do padrão de Classes IFC carregado (IfcInfraExportMapping.json).";
-            DockPanel.SetDock(tituloPadrao, Dock.Top);
-            esquerda.Children.Add(tituloPadrao);
-            esquerda.Children.Add(grid);
-            lados.Children.Add(esquerda);
+            MappingRow.Catalog = IfcClasses;
+            _lista = new FilterableGrid(_linhas, typeof(LinhaClasse));
+            _lista.AddColumn("Nome", nameof(LinhaClasse.Nome), 170, fill: true);
+            _lista.AddColumn("Onde", nameof(LinhaClasse.Onde), 110);
+            var obj = _lista.AddColumn("Objetos", nameof(LinhaClasse.Objetos), 66);
+            obj.SortMemberPath = nameof(LinhaClasse.ObjetosNum);
+            obj.ElementStyle = new Style(typeof(TextBlock), obj.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
+            var classe = _lista.AddColumn("Classe IFC", nameof(LinhaClasse.Classe), 200);
+            var invalida = new Style(typeof(TextBlock), classe.ElementStyle);
+            var trig = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.ClasseInvalida)), Value = true };
+            trig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick));
+            trig.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
+            trig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Classe fora do esquema: escolha uma da lista e clique Aplicar (ou Corrigir classes)."));
+            invalida.Triggers.Add(trig);
+            classe.ElementStyle = invalida;
 
-            var divisor = new GridSplitter { Width = 6, HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.Transparent, ToolTip = "Arraste para mudar a largura" };
-            Grid.SetColumn(divisor, 1);
-            lados.Children.Add(divisor);
+            var marca = new FrameworkElementFactory(typeof(CheckBox));
+            marca.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(LinhaClasse.Exportar)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+            marca.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            marca.SetValue(FrameworkElement.ToolTipProperty, "Desmarcado: não vai para o IFC. Muda a regra (todos os layers dela).");
+            _lista.Grid.Columns.Insert(4, new DataGridTemplateColumn { Header = "Exportar", CellTemplate = new DataTemplate { VisualTree = marca }, Width = 62 });
+            _lista.AddColumn("Regra que vale", nameof(LinhaClasse.Regra), 150);
+            var ordem = _lista.AddColumn("Ordem", nameof(LinhaClasse.Ordem), 56);
+            ordem.ElementStyle = new Style(typeof(TextBlock), ordem.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
+            _lista.ExtraFilter = o => o is LinhaClasse l && (_soUsados.IsChecked != true || l.Item == null || l.Item.Objetos > 0);
+            _lista.Filtered += AtualizarResumo;
+            _lista.Grid.MouseDoubleClick += (s, e) => EditarRegra();
+            _lista.Grid.ToolTip = "Clique duas vezes para editar a regra da linha. Vale a primeira regra que casar, de cima para baixo (coluna Ordem).";
 
-            var direita = DesenhoPainel(grid, classes);
-            Grid.SetColumn(direita, 2);
-            lados.Children.Add(direita);
-
-            panel.Children.Add(lados);
+            var linha = new Style(typeof(DataGridRow), _lista.Grid.RowStyle);
+            var sem = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.SemRegra)), Value = true };
+            sem.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
+            sem.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Nenhuma regra do padrão pega este nome: sai com a classe que a Autodesk escolher."));
+            linha.Triggers.Add(sem);
+            var fora = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.Exportar)), Value = false };
+            fora.Setters.Add(new Setter(Control.ForegroundProperty, Theme.Solid(Theme.Cinza)));
+            linha.Triggers.Add(fora);
+            _lista.Grid.RowStyle = linha;
+            panel.Children.Add(_lista);
 
             _currentSection = null;
             _mappingSection.SelectedIndex = 0;
             return panel;
         }
 
-        // ---- o que existe no desenho
-
-        DataGrid _gradeRegras;
-        Button _corrigir;
-        Dictionary<string, List<ItemDesenho>> _desenho;
-        readonly ObservableCollection<ItemDesenho> _itensDesenho = new ObservableCollection<ItemDesenho>();
-        FilterableGrid _gradeDesenho;
-        TextBlock _tituloDesenho, _resumoDesenho;
-        CheckBox _soUsados, _soSemRegra;
-        bool _recalculando;
-
-        UIElement DesenhoPainel(DataGrid regras, ComboBox classes)
-        {
-            var p = new DockPanel();
-            var cab = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
-            DockPanel.SetDock(cab, Dock.Top);
-            var reler = Theme.Link("Reler");
-            reler.ToolTip = "Lê de novo layers, blocos e corredores do modelo.";
-            reler.Click += (s, e) => { _desenho = null; MostrarDesenho(); };
-            DockPanel.SetDock(reler, Dock.Right);
-            cab.Children.Add(reler);
-            _tituloDesenho = Theme.Secao("No modelo");
-            _tituloDesenho.ToolTip = "O que existe no modelo e a regra do padrão que cada nome pega. Conta só objetos do espaço do modelo que não são anotação.";
-            cab.Children.Add(_tituloDesenho);
-            p.Children.Add(cab);
-
-            var filtros = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
-            DockPanel.SetDock(filtros, Dock.Top);
-            _soUsados = new CheckBox { Content = "Só usados no modelo", IsChecked = true, Margin = new Thickness(0, 0, 14, 0), ToolTip = "Esconde os nomes sem nenhum objeto no espaço do modelo." };
-            _soSemRegra = new CheckBox { Content = "Só sem regra", Margin = new Thickness(0, 0, 14, 0), ToolTip = "Mostra só o que nenhuma regra do padrão pega (sai com a classe que a Autodesk escolher)." };
-            _soUsados.Click += (s, e) => _gradeDesenho.Refresh();
-            _soSemRegra.Click += (s, e) => _gradeDesenho.Refresh();
-            filtros.Children.Add(_soUsados);
-            filtros.Children.Add(_soSemRegra);
-            var criar = new Button { Content = "Criar regra", Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 0, 0, 0),
-                ToolTip = "Cria no topo do padrão uma regra para cada nome selecionado, com a classe escolhida na lista de cima." };
-            criar.Click += (s, e) => CriarRegras(classes);
-            filtros.Children.Add(criar);
-            p.Children.Add(filtros);
-
-            _resumoDesenho = Theme.Detalhe();
-            _resumoDesenho.Margin = new Thickness(0, 4, 0, 0);
-            DockPanel.SetDock(_resumoDesenho, Dock.Bottom);
-            p.Children.Add(_resumoDesenho);
-
-            _gradeDesenho = new FilterableGrid(_itensDesenho, typeof(ItemDesenho));
-            _gradeDesenho.AddColumn("Nome", nameof(ItemDesenho.Nome), 150, fill: true);
-            var obj = _gradeDesenho.AddColumn("Objetos", nameof(ItemDesenho.Objetos), 70);
-            obj.ElementStyle = new Style(typeof(TextBlock), obj.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
-            _gradeDesenho.AddColumn("Vai como", nameof(ItemDesenho.VaiComo), 170);
-            _gradeDesenho.AddColumn("Regra", nameof(ItemDesenho.Regra), 130);
-            _gradeDesenho.AddColumn("Tipos", nameof(ItemDesenho.Tipos), 160);
-            _gradeDesenho.AddColumn("Situação", nameof(ItemDesenho.Situacao), 90);
-            _gradeDesenho.AddColumn("Também casa", nameof(ItemDesenho.Outras), 130);
-            _gradeDesenho.ExtraFilter = o => o is ItemDesenho i && (_soUsados.IsChecked != true || i.Objetos > 0) && (_soSemRegra.IsChecked != true || i.SemRegra);
-            _gradeDesenho.Filtered += AtualizarResumo;
-
-            var linha = new Style(typeof(DataGridRow), _gradeDesenho.Grid.RowStyle);
-            var sem = new DataTrigger { Binding = new Binding(nameof(ItemDesenho.SemRegra)), Value = true };
-            sem.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
-            sem.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Nenhuma regra do padrão pega este nome: sai com a classe que a Autodesk escolher."));
-            linha.Triggers.Add(sem);
-            var fora = new DataTrigger { Binding = new Binding(nameof(ItemDesenho.NaoExporta)), Value = true };
-            fora.Setters.Add(new Setter(Control.ForegroundProperty, Theme.Solid(Theme.Cinza)));
-            linha.Triggers.Add(fora);
-            _gradeDesenho.Grid.RowStyle = linha;
-
-            // Clicar numa regra marca no desenho os nomes que ela pega; clicar num nome marca a regra que vale.
-            regras.SelectionChanged += (s, e) =>
-            {
-                if (_recalculando || !(regras.SelectedItem is MappingRow r) || !regras.IsKeyboardFocusWithin) return;
-                var pegos = _gradeDesenho.VisibleItems<ItemDesenho>().Where(i => i.RegraObj == r).ToList();
-                _gradeDesenho.Grid.SelectedItems.Clear();
-                foreach (var i in pegos) _gradeDesenho.Grid.SelectedItems.Add(i);
-                if (pegos.Count > 0) _gradeDesenho.Grid.ScrollIntoView(pegos[0]);
-            };
-            _gradeDesenho.Grid.SelectionChanged += (s, e) =>
-            {
-                if (_recalculando || !_gradeDesenho.Grid.IsKeyboardFocusWithin) return;
-                if (_gradeDesenho.Grid.SelectedItem is ItemDesenho i && i.RegraObj is MappingRow r)
-                {
-                    regras.SelectedItem = r;
-                    regras.ScrollIntoView(r);
-                }
-            };
-            p.Children.Add(_gradeDesenho);
-            return p;
-        }
-
-        /// <summary>Troca a lista da direita para a seção escolhida (lê o desenho na primeira vez).</summary>
-        void MostrarDesenho()
-        {
-            if (_gradeDesenho == null) return;
-            if (_desenho == null)
-            {
-                try { _desenho = ConteudoDesenho.Ler(); }
-                catch (Exception ex) { _desenho = new Dictionary<string, List<ItemDesenho>>(); Status("Não consegui ler o modelo: " + ex.Message); }
-            }
-            _itensDesenho.Clear();
-            var palavra = ConteudoDesenho.Palavra(_currentSection);
-            _tituloDesenho.Text = ConteudoDesenho.Le(_currentSection) ? "No modelo (" + palavra.Varios + ")" : "No modelo";
-            if (_currentSection != null && _desenho.TryGetValue(_currentSection, out var itens))
-                foreach (var i in itens) _itensDesenho.Add(i);
-            Recalcular();
-        }
-
-        /// <summary>
-        /// Para cada nome do desenho, a regra que vale (a primeira de cima para baixo que casa) e, para cada regra,
-        /// quantos nomes e objetos ela pega. Também liga o "Corrigir classes" quando há classe com correção óbvia.
-        /// </summary>
+        /// <summary>Lê o modelo (na primeira vez) e monta a lista da seção atual.</summary>
         void Recalcular()
         {
-            if (_gradeDesenho == null || _recalculando) return;
-            _recalculando = true;
-            try
+            if (_lista == null || _currentSection == null) return;
+            if (_modelo == null)
             {
-                var regras = _mappingRows.Where(r => !string.IsNullOrWhiteSpace(r.Name)).ToList();
-                var pega = regras.ToDictionary(r => r, r => (Nomes: 0, Objetos: 0, Cobertos: 0));
-                foreach (var i in _itensDesenho)
-                {
-                    var casam = regras.Where(r => Casa(r.Name, i.Nome)).ToList();
-                    var vale = casam.FirstOrDefault();
-                    string outras = string.Join("; ", casam.Skip(1).Select(r => r.Name));
-                    if (vale == null)
-                        i.Definir(null, "", "Sem regra (classe da Autodesk)", true, false, "");
-                    else
-                        i.Definir(vale, vale.Name, !vale.Export ? "Não exporta"
-                            : string.IsNullOrWhiteSpace(vale.IfcExportAs) ? "(classe da Autodesk)" : vale.IfcExportAs, false, !vale.Export, outras);
-                    if (vale != null)
-                    {
-                        var c = pega[vale];
-                        pega[vale] = (c.Nomes + 1, c.Objetos + i.Objetos, c.Cobertos);
-                    }
-                    foreach (var r in casam.Skip(1)) { var c = pega[r]; pega[r] = (c.Nomes, c.Objetos, c.Cobertos + 1); }
-                }
-                bool le = ConteudoDesenho.Le(_currentSection);
-                var palavra = ConteudoDesenho.Palavra(_currentSection);
-                foreach (var r in _mappingRows)
-                {
-                    if (!le || !pega.TryGetValue(r, out var c)) { r.DefinirUso("", "", true); continue; }
-                    if (c.Nomes > 0)
-                        r.DefinirUso($"{c.Nomes} · {c.Objetos} obj", $"Pega {c.Nomes} {(c.Nomes == 1 ? palavra.Um : palavra.Varios)} do modelo, com {c.Objetos} objeto(s)." +
-                            (c.Cobertos > 0 ? $" Casa também com {c.Cobertos} que ficam com uma regra de cima." : ""), true);
-                    else if (c.Cobertos > 0)
-                        r.DefinirUso("coberta", $"Casa com {c.Cobertos} {(c.Cobertos == 1 ? palavra.Um : palavra.Varios)}, mas uma regra de cima vale primeiro.", false);
-                    else
-                        r.DefinirUso("—", "Nenhum " + palavra.Um + " do modelo tem este nome.", false);
-                }
-
-                CommitMappingSection();   // só passa a tela para o JSON (não grava)
-                int corrigiveis = Corrigiveis().Count;
-                _corrigir.Visibility = corrigiveis > 0 ? Visibility.Visible : Visibility.Collapsed;
-                _corrigir.Content = corrigiveis == 1 ? "Corrigir 1 classe" : $"Corrigir {corrigiveis} classes";
-                _corrigir.ToolTip = "Troca as classes fora do esquema pela correção óbvia: " +
-                                    string.Join("; ", Corrigiveis().Take(4).Select(x => $"{x.De} → {x.Para}")) + ".";
+                try { _modelo = ConteudoDesenho.Ler(); }
+                catch (Exception ex) { _modelo = new Dictionary<string, List<ItemDesenho>>(); Status("Não consegui ler o modelo: " + ex.Message); }
             }
-            finally { _recalculando = false; }
-            _gradeDesenho.Refresh();
+            var selecionadas = new HashSet<string>(_lista.Grid.SelectedItems.OfType<LinhaClasse>().Select(l => l.Chave));
+            var regras = _mappingRows.Where(r => !string.IsNullOrWhiteSpace(r.Name)).ToList();
+            bool le = ConteudoDesenho.Le(_currentSection);
+            var usadas = new HashSet<MappingRow>();
+            var novas = new List<LinhaClasse>();
+            if (le && _modelo.TryGetValue(_currentSection, out var itens))
+                foreach (var i in itens)
+                {
+                    var vale = regras.FirstOrDefault(r => Casa(r.Name, i.Nome));
+                    if (vale != null) usadas.Add(vale);
+                    novas.Add(new LinhaClasse(this, i, vale, vale == null ? 0 : regras.IndexOf(vale) + 1));
+                }
+            foreach (var r in regras.Where(r => !usadas.Contains(r)))
+                novas.Add(new LinhaClasse(this, null, r, regras.IndexOf(r) + 1) { SoPadrao = le });
+
+            _linhas.Clear();
+            foreach (var l in novas) _linhas.Add(l);
+            _lista.Refresh();
+            foreach (var l in _lista.VisibleItems<LinhaClasse>().Where(l => selecionadas.Contains(l.Chave)))
+                _lista.Grid.SelectedItems.Add(l);
+
+            CommitMappingSection();   // só passa a tela para o JSON (não grava), para conferir as classes
+            var corrigiveis = Corrigiveis();
+            _corrigir.Visibility = corrigiveis.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            _corrigir.Content = corrigiveis.Count == 1 ? "Corrigir 1 classe" : $"Corrigir {corrigiveis.Count} classes";
+            _corrigir.ToolTip = "Troca as classes fora do esquema pela correção óbvia: " +
+                                string.Join("; ", corrigiveis.Take(4).Select(x => $"{x.De} → {x.Para}")) + ".";
         }
 
         void AtualizarResumo()
         {
-            if (_resumoDesenho == null) return;
+            if (_resumoLista == null) return;
+            var palavra = ConteudoDesenho.Palavra(_currentSection);
+            int regras = _mappingRows.Count(r => !string.IsNullOrWhiteSpace(r.Name));
             if (!ConteudoDesenho.Le(_currentSection))
             {
-                _resumoDesenho.Text = "O plugin lê do modelo só layers, blocos e baselines de corredor.";
+                _resumoLista.Text = $"{regras} regra(s). O plugin lê do modelo só layers, blocos e baselines de corredor.";
                 return;
             }
-            var palavra = ConteudoDesenho.Palavra(_currentSection);
-            var usados = _itensDesenho.Where(i => i.Objetos > 0).ToList();
-            int sem = usados.Count(i => i.SemRegra);
-            int naoExp = usados.Count(i => i.NaoExporta);
-            _resumoDesenho.Text = $"{usados.Count} {palavra.Varios} com objetos · {sem} sem regra · {naoExp} não exportados";
+            var usados = _linhas.Where(l => l.Item != null && l.Item.Objetos > 0).ToList();
+            int sem = usados.Count(l => l.SemRegra);
+            int soPadrao = _linhas.Count(l => l.SoPadrao);
+            _resumoLista.Text = $"{usados.Count} {palavra.Varios} com objetos no modelo · {sem} sem regra · {soPadrao} regra(s) só no padrão";
+        }
+
+        /// <summary>Linhas selecionadas, com aviso se não houver.</summary>
+        List<LinhaClasse> Selecionadas(string oQue)
+        {
+            var l = _lista.Grid.SelectedItems.OfType<LinhaClasse>().ToList();
+            if (l.Count == 0) Status("Selecione as linhas " + oQue + ".");
+            return l;
+        }
+
+        /// <summary>Regra só para este nome, no topo (vale primeiro).</summary>
+        MappingRow RegraPropria(ItemDesenho i, string classe, bool exportar)
+        {
+            var r = new MappingRow { Name = "^" + System.Text.RegularExpressions.Regex.Escape(i.Nome) + "$", IfcExportAs = classe, Export = exportar };
+            _mappingRows.Insert(0, r);
+            return r;
+        }
+
+        void AplicarClasse()
+        {
+            var escolhida = _classes.SelectedItem as string;
+            if (escolhida == null) { Status("Escolha uma classe da lista."); return; }
+            string classe = escolhida == SemClasse ? "" : escolhida;
+            var linhas = Selecionadas("que vão receber a classe");
+            if (linhas.Count == 0) return;
+            var mudadas = new HashSet<MappingRow>();
+            int novas = 0;
+            foreach (var l in linhas)
+            {
+                if (l.RegraObj != null) { l.RegraObj.IfcExportAs = classe; mudadas.Add(l.RegraObj); }
+                else { RegraPropria(l.Item, classe, true); novas++; }
+            }
+            int afetados = _linhas.Count(l => l.Item != null && l.RegraObj != null && mudadas.Contains(l.RegraObj));
+            Recalcular();
+            var partes = new List<string>();
+            if (mudadas.Count > 0) partes.Add($"{mudadas.Count} regra(s) mudada(s), {afetados} {ConteudoDesenho.Palavra(_currentSection).Varios} com a nova classe");
+            if (novas > 0) partes.Add($"{novas} regra(s) nova(s) no topo");
+            Status(string.Join(" · ", partes) + ". Clique Salvar.");
+        }
+
+        /// <summary>Marcar/desmarcar Exportar numa linha (chamado pela LinhaClasse).</summary>
+        internal void MudarExportar(LinhaClasse l, bool valor)
+        {
+            if (l.RegraObj != null) l.RegraObj.Export = valor;
+            else RegraPropria(l.Item, "", valor);
+            Dispatcher.BeginInvoke(new Action(Recalcular), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        void MoverRegra(int delta)
+        {
+            if (!(_lista.Grid.SelectedItem is LinhaClasse l) || l.RegraObj == null) { Status("Selecione uma linha com regra."); return; }
+            int i = _mappingRows.IndexOf(l.RegraObj), j = i + delta;
+            if (i < 0 || j < 0 || j >= _mappingRows.Count) return;
+            _mappingRows.Move(i, j);
+            Recalcular();
+        }
+
+        void NovaRegra()
+        {
+            string nome = PedirTexto("Nova regra", "Nome do layer ou expressão regular (ex.: ^U-3D-DORMENTE.*):", "");
+            if (string.IsNullOrWhiteSpace(nome)) return;
+            int pos = _lista.Grid.SelectedItem is LinhaClasse l && l.RegraObj != null ? _mappingRows.IndexOf(l.RegraObj) : 0;
+            var classe = _classes.SelectedItem as string;
+            _mappingRows.Insert(Math.Max(0, pos), new MappingRow { Name = nome.Trim(), IfcExportAs = classe == null || classe == SemClasse ? "" : classe, Export = true });
+            Recalcular();
+            Status("Regra criada. Clique Salvar.");
+        }
+
+        void EditarRegra()
+        {
+            if (!(_lista.Grid.SelectedItem is LinhaClasse l)) return;
+            if (l.RegraObj == null)
+            {
+                string novo = PedirTexto("Nova regra", "Regra para " + l.Nome + ":", "^" + System.Text.RegularExpressions.Regex.Escape(l.Nome) + "$");
+                if (string.IsNullOrWhiteSpace(novo)) return;
+                var r = RegraPropria(l.Item, "", true);
+                r.Name = novo.Trim();
+            }
+            else
+            {
+                string novo = PedirTexto("Editar regra", "Nome do layer ou expressão regular:", l.RegraObj.Name);
+                if (string.IsNullOrWhiteSpace(novo)) return;
+                l.RegraObj.Name = novo.Trim();
+            }
+            Recalcular();
+        }
+
+        void ExcluirRegras()
+        {
+            var regras = Selecionadas("cuja regra sai do padrão").Select(l => l.RegraObj).Where(r => r != null).Distinct().ToList();
+            if (regras.Count == 0) return;
+            int afetados = _linhas.Count(l => l.Item != null && regras.Contains(l.RegraObj));
+            if (MessageBox.Show(this, $"Excluir {regras.Count} regra(s) do padrão?" + (afetados > 0 ? $" {afetados} {ConteudoDesenho.Palavra(_currentSection).Varios} do modelo deixam de segui-la(s)." : ""),
+                    "MetroSP", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            foreach (var r in regras) _mappingRows.Remove(r);
+            Recalcular();
+        }
+
+        /// <summary>Caixinha para digitar um texto (nome de regra).</summary>
+        string PedirTexto(string titulo, string pergunta, string inicial)
+        {
+            var box = new TextBox { Text = inicial, MinWidth = 360, Margin = new Thickness(0, 6, 0, 0) };
+            var ok = new Button { Content = "OK", IsDefault = true, Style = Theme.PrimaryButton, MinWidth = 80, Margin = new Thickness(0, 0, 6, 0) };
+            var cancelar = new Button { Content = "Cancelar", IsCancel = true, MinWidth = 80 };
+            var w = new Window
+            {
+                Title = "MetroSP - " + titulo, Owner = this, SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.CanResizeWithGrip,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
+            };
+            ok.Click += (s, e) => w.DialogResult = true;
+            var corpo = new StackPanel { Margin = new Thickness(14) };
+            corpo.Children.Add(new TextBlock { Text = pergunta });
+            corpo.Children.Add(box);
+            var botoes = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
+            botoes.Children.Add(ok);
+            botoes.Children.Add(cancelar);
+            corpo.Children.Add(botoes);
+            w.Content = corpo;
+            w.Loaded += (s, e) => { box.Focus(); box.SelectAll(); };
+            return w.ShowDialog() == true ? box.Text : null;
         }
 
         static readonly Dictionary<string, System.Text.RegularExpressions.Regex> _regex = new Dictionary<string, System.Text.RegularExpressions.Regex>();
@@ -593,30 +589,6 @@ namespace MetroSP.Ui
                 _regex[regra] = re;
             }
             return re != null && re.IsMatch(nome);
-        }
-
-        /// <summary>Cria regras com o nome exato dos itens selecionados no desenho, no topo (para valerem primeiro).</summary>
-        void CriarRegras(ComboBox classes)
-        {
-            var itens = _gradeDesenho.Grid.SelectedItems.OfType<ItemDesenho>().ToList();
-            if (itens.Count == 0) { Status("Selecione no modelo os nomes que vão ganhar regra."); return; }
-            var escolhida = classes.SelectedItem as string;
-            string classe = escolhida == null || escolhida == SemClasse ? "" : escolhida;
-            _gradeRegras.CommitEdit(DataGridEditingUnit.Row, true);
-            var novas = new List<MappingRow>();
-            int pos = 0;
-            foreach (var i in itens)
-            {
-                var r = new MappingRow { Name = "^" + System.Text.RegularExpressions.Regex.Escape(i.Nome) + "$", IfcExportAs = classe, Export = true };
-                _mappingRows.Insert(pos++, r);
-                novas.Add(r);
-            }
-            _gradeRegras.SelectedItems.Clear();
-            foreach (var r in novas) _gradeRegras.SelectedItems.Add(r);
-            _gradeRegras.ScrollIntoView(novas[0]);
-            Status(novas.Count == 1 ? "1 regra criada no topo." : $"{novas.Count} regras criadas no topo." +
-                   (classe.Length == 0 ? " Escolha a classe e clique Aplicar." : ""));
-            Recalcular();
         }
 
         /// <summary>Classes fora do esquema com correção óbvia, em todas as seções.</summary>
@@ -716,7 +688,7 @@ namespace MetroSP.Ui
             _mappingRows.Clear();
             if (_mapping[_currentSection] is JsonArray arr)
                 foreach (var item in arr.OfType<JsonObject>()) _mappingRows.Add(MappingRow.From(item));
-            MostrarDesenho();
+            Recalcular();
         }
 
         void CommitMappingSection()
@@ -1121,24 +1093,8 @@ namespace MetroSP.Ui
 
     // ====================================================================== linhas das tabelas
 
-    public class MappingRow : System.ComponentModel.INotifyPropertyChanged
+    public class MappingRow
     {
-        string _noDesenho = "", _noDesenhoDica = "";
-        bool _usada = true;
-        /// <summary>Quantos nomes e objetos do desenho esta regra pega (ex.: "3 · 120 obj").</summary>
-        public string NoDesenho => _noDesenho;
-        public string NoDesenhoDica => _noDesenhoDica;
-        public bool UsadaNoDesenho => _usada;
-
-        public void DefinirUso(string texto, string dica, bool usada)
-        {
-            if (_noDesenho == texto && _noDesenhoDica == dica && _usada == usada) return;
-            _noDesenho = texto; _noDesenhoDica = dica; _usada = usada;
-            foreach (var p in new[] { nameof(NoDesenho), nameof(NoDesenhoDica), nameof(UsadaNoDesenho) })
-                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(p));
-        }
-
-        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
 
         public string Name { get; set; }
         public string IfcExportAs { get; set; }
@@ -1168,6 +1124,36 @@ namespace MetroSP.Ui
             var o = new JsonObject { ["Name"] = Name, ["IfcExportAs"] = IfcExportAs ?? "", ["Export"] = Export };
             if (_extra != null) foreach (var kv in _extra) o[kv.Key] = kv.Value?.DeepClone();
             return o;
+        }
+    }
+
+    /// <summary>Linha da lista única de Classes IFC: um nome do modelo com a regra que vale, ou uma regra só do padrão.</summary>
+    public class LinhaClasse
+    {
+        readonly ConfigWindow _janela;
+        public ItemDesenho Item { get; }
+        public MappingRow RegraObj { get; }
+        public bool SoPadrao { get; set; }
+
+        public LinhaClasse(ConfigWindow janela, ItemDesenho item, MappingRow regra, int ordem)
+        {
+            _janela = janela; Item = item; RegraObj = regra; Ordem = ordem > 0 ? ordem.ToString() : "";
+        }
+
+        public string Chave => Item != null ? "m:" + Item.Nome : "r:" + RegraObj?.Name;
+        public string Nome => Item?.Nome ?? RegraObj?.Name;
+        public string Onde => Item == null ? (SoPadrao ? "só no padrão" : "no padrão") : RegraObj == null ? "só no modelo" : "padrão e modelo";
+        public string Objetos => Item == null ? "—" : Item.Objetos.ToString("N0", CultureInfo.GetCultureInfo("pt-BR"));
+        public int ObjetosNum => Item?.Objetos ?? -1;
+        public string Classe => RegraObj == null ? "(classe da Autodesk)" : string.IsNullOrWhiteSpace(RegraObj.IfcExportAs) ? "(classe da Autodesk)" : RegraObj.IfcExportAs;
+        public bool ClasseInvalida => RegraObj != null && RegraObj.ClasseInvalida;
+        public string Regra => RegraObj == null ? "sem regra" : RegraObj.Name;
+        public string Ordem { get; }
+        public bool SemRegra => Item != null && RegraObj == null;
+        public bool Exportar
+        {
+            get => RegraObj?.Export ?? true;
+            set { if (value != Exportar) _janela.MudarExportar(this, value); }
         }
     }
 

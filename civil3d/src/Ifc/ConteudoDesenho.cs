@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
@@ -12,9 +11,9 @@ namespace MetroSP.Ifc
 {
     /// <summary>
     /// Um nome que existe no desenho (layer, bloco ou baseline de corredor), com quantos objetos do espaço do
-    /// modelo o usam. A aba Classes IFC mostra estes nomes ao lado das regras do padrão.
+    /// modelo o usam. A aba Classes IFC mostra estes nomes junto com as regras do padrão.
     /// </summary>
-    public sealed class ItemDesenho : INotifyPropertyChanged
+    public sealed class ItemDesenho
     {
         public string Nome { get; set; }
         public int Objetos { get; set; }
@@ -23,32 +22,6 @@ namespace MetroSP.Ifc
         /// <summary>Desligado / congelado (só layers).</summary>
         public string Situacao { get; set; } = "";
 
-        string _regra = "", _vaiComo = "", _outras = "";
-        bool _semRegra, _naoExporta;
-        public object RegraObj { get; private set; }
-
-        /// <summary>Regra do padrão que vale para este nome.</summary>
-        public string Regra => _regra;
-        /// <summary>Classe IFC que sai (ou "Não exporta", ou "Sem regra").</summary>
-        public string VaiComo => _vaiComo;
-        /// <summary>Outras regras que também casam, mas ficam abaixo da que vale.</summary>
-        public string Outras => _outras;
-        public bool SemRegra => _semRegra;
-        public bool NaoExporta => _naoExporta;
-
-        public void Definir(object regraObj, string regra, string vaiComo, bool semRegra, bool naoExporta, string outras)
-        {
-            RegraObj = regraObj;
-            _regra = regra ?? "";
-            _vaiComo = vaiComo ?? "";
-            _semRegra = semRegra;
-            _naoExporta = naoExporta;
-            _outras = outras ?? "";
-            foreach (var p in new[] { nameof(Regra), nameof(VaiComo), nameof(SemRegra), nameof(NaoExporta), nameof(Outras) })
-                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(p));
-        }
-
-        public event PropertyChangedEventHandler PropertyChanged;
     }
 
     /// <summary>
