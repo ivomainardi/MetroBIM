@@ -453,19 +453,24 @@ namespace MetroSP.Painel
                 if (!string.IsNullOrEmpty(p.Campo)) onde = p.Campo + (string.IsNullOrEmpty(p.Origem) ? "" : $" ← {p.Origem}") + (string.IsNullOrEmpty(p.Categoria) ? "" : " · " + p.Categoria);
                 var acoes = Decisoes(etapa, p).ToList();
                 if (p.QtdElementos > 0) acoes.Add(($"Selecionar ({p.QtdElementos})", "Seleciona esses elementos no Revit (aparecem selecionados ao fechar esta janela).", () => Selecionar(p.Elementos)));
-                _pendencias.Children.Add(Cartao(p.Sinal, onde, p.Problema, p.OQueFazer, acoes));
+                _pendencias.Children.Add(Cartao(p.Sinal, onde, p.Problema, p.OQueFazer, acoes, p.Detalhe));
             }
             if (pendencias.Count > Maximo)
                 _pendencias.Children.Add(Theme.Detalhe($"e mais {pendencias.Count - Maximo}. Veja todas na Conferência completa."));
         }
 
-        private FrameworkElement Cartao(Sinal sinal, string titulo, string texto, string fazer, List<(string Texto, string Dica, Action Acao)> acoes)
+        /// <summary>Dica com quebra de linha (texto longo não vira uma linha da largura da tela).</summary>
+        private static object DicaLonga(string texto) =>
+            string.IsNullOrEmpty(texto) ? null : new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, MaxWidth = 420 };
+
+        private FrameworkElement Cartao(Sinal sinal, string titulo, string texto, string fazer, List<(string Texto, string Dica, Action Acao)> acoes, string detalhe = null)
         {
             Color cor = sinal == Sinal.Vermelho ? Vermelho : sinal == Sinal.Verde ? Theme.Verde : Theme.Laranja;
+            // A explicação longa fica na dica do texto (na tela, só o curto).
             var conteudo = new StackPanel();
-            conteudo.Children.Add(new TextBlock { Text = titulo ?? "", FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap });
+            conteudo.Children.Add(new TextBlock { Text = titulo ?? "", FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, ToolTip = DicaLonga(detalhe) });
             if (!string.IsNullOrEmpty(texto))
-                conteudo.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0) });
+                conteudo.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0), ToolTip = DicaLonga(detalhe) });
             if (!string.IsNullOrEmpty(fazer))
                 conteudo.Children.Add(new TextBlock { Text = fazer, TextWrapping = TextWrapping.Wrap, FontSize = 11, Foreground = Theme.Solid(Color.FromRgb(0x66, 0x66, 0x66)), Margin = new Thickness(0, 3, 0, 0) });
             if (acoes.Count > 0)
@@ -544,7 +549,7 @@ namespace MetroSP.Painel
             {
                 case 2:
                 {
-                    var w = new Dados.GerenciarParametrosWindow(uidoc);
+                    var w = new Dados.GerenciarParametrosWindow(uidoc, naEntrega: true);
                     w.Abas.SelectedItem = w.AbaModelo;
                     return w;
                 }
