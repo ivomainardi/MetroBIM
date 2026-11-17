@@ -591,6 +591,9 @@ namespace MetroSP.Painel
             if (p.Correcao == Correcao.EditarPropertySets)
                 yield return ("Ajustar o .txt", "Abre o .txt de property sets dos padrões para trocar o tipo ou o parâmetro; ao salvar, confere de novo.",
                     () => { if (FecharFerramenta() && AcoesPendencia.EditarPropertySets(_doc, _efetivo ?? _pacote, this, IntPtr.Zero)) Conferir(); });
+            if (p.Correcao == Correcao.ObjetosMetroData)
+                yield return ("Escolher objeto...", $"Escolhe o objeto do MetroDATA de {p.Categoria}; a escolha fica salva com os padrões.",
+                    () => AbrirObjetosMetroData(p.Categoria));
             if (etapa.Numero == EtapaConferencia.ClassesIfc && p.Elementos.Count > 0)
                 yield return ("Escolher classe...", "Escolhe a classe IFC desses elementos e grava no \"Exportar para IFC como\" dos tipos.",
                     () => { if (FecharFerramenta()) AcoesPendencia.EscolherClasse(_doc, _res, p, this, IntPtr.Zero, () => Conferir()); });
@@ -710,7 +713,17 @@ namespace MetroSP.Painel
             var hospede = new Border { Child = conteudo };
             hospede.Resources.MergedDictionaries.Add(w.Resources);
             if (w.FontFamily != null) TextElementFonte(hospede, w);
-            _ferramenta.Child = hospede;
+            if (_passo == EtapaConferencia.MetroData)
+            {
+                // MetroDATA: em cima, a planilha e as escolhas (disciplina, etapa, classe e objetos); embaixo, o Editar em massa.
+                var dock = new DockPanel();
+                FrameworkElement barra = BarraMetroData();
+                DockPanel.SetDock(barra, Dock.Top);
+                dock.Children.Add(barra);
+                dock.Children.Add(hospede);
+                _ferramenta.Child = dock;
+            }
+            else _ferramenta.Child = hospede;
             _janelaFerramenta = w;
             AcompanharFerramenta();
             w.Closed += (s, e) =>
@@ -852,6 +865,8 @@ namespace MetroSP.Painel
                 pacote.PropertySets, new[] { "Property sets (.txt)" }, "3 e 4", pacote.PropertySets != _pacote.PropertySets ? doPerfil : null);
             Padrao("Padrões Metrô (.ids)", "Requisitos do Metrô (.ids): os valores aceitos em cada campo. Opcional.",
                 pacote.Ids, new[] { "Padrões Metrô (.ids)", "IDS" }, "4");
+            Padrao("MetroDATA", "Planilha do MetroDATA exportada do Airtable (.xlsx): as propriedades de cada objeto, por etapa e classe. Quando ela for atualizada, escolha o arquivo novo.",
+                pacote.MetroData, new[] { "MetroDATA (.xlsx)" }, "4");
             Padrao("Classificação", "Planilha de classificação (.xlsx ou .csv): os códigos aceitos.",
                 pacote.Planilha, new[] { "Planilha de classificação" }, "5");
             p.Children.Add(grade);
@@ -883,6 +898,98 @@ namespace MetroSP.Painel
             b.Click += (s, e) => EscolherPacote(true);
             p.Children.Add(b);
             return p;
+        }
+
+        // ================================================================== MetroDATA
+
+        /// <summary>Planilha do MetroDATA e as escolhas que valem na conferência: disciplina, etapa, classe e objetos.</summary>
+        private FrameworkElement BarraMetroData()
+        {
+            PacoteMetro efetivo = _efetivo ?? _pacote;
+            MetroData md = _res?.MetroData;
+            var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+            void Rotulo(string t, double esquerda) => barra.Children.Add(new TextBlock
+            {
+                Text = t, VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(esquerda, 4, 6, 4),
+            });
+
+            barra.Children.Add(new TextBlock { Text = "MetroDATA", FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 8, 4) });
+            Button arquivo = Theme.Link(md != null ? System.IO.Path.GetFileName(efetivo.MetroData) : "Escolher a planilha...");
+            arquivo.VerticalAlignment = VerticalAlignment.Center;
+            arquivo.ToolTip = "Planilha do MetroDATA exportada do Airtable (.xlsx). Quando ela for atualizada, escolha o arquivo novo." +
+                              (md != null ? "\n" + efetivo.MetroData : "");
+            arquivo.Click += (s, e) => EscolherPlanilhaMetroData();
+            barra.Children.Add(arquivo);
+            if (md == null)
+            {
+                Rotulo("Sem a planilha, valem os campos do .txt de property sets.", 12);
+                return barra;
+            }
+
+            var disciplinas = new List<string> { MetroData.Todas };
+            disciplinas.AddRange(md.Disciplinas());
+            Rotulo("Disciplina", 18);
+            barra.Children.Add(ListaDigitavel.Criar(disciplinas, efetivo.MetroDataDisciplina ?? MetroData.Todas,
+                v => MudarMetroData(p => p.MetroDataDisciplina = MetroData.EhTodas(v) ? null : v), 230,
+                "Tabela do MetroDATA (base e disciplina). Digite para filtrar."));
+
+            var etapas = new List<string> { MetroData.Todas };
+            etapas.AddRange(md.Etapas());
+            Rotulo("Etapa", 14);
+            barra.Children.Add(ListaDigitavel.Criar(etapas, efetivo.MetroDataEtapa ?? MetroData.Todas,
+                v => MudarMetroData(p => p.MetroDataEtapa = MetroData.EhTodas(v) ? null : v), 140,
+                "Etapa do projeto (coluna Fases). Propriedades sem fase na planilha valem em todas."));
+
+            var classes = new List<string> { MetroData.Todas };
+            classes.AddRange(md.Classes().Keys.Select(n => "até a Classe " + n));
+            Rotulo("Classe", 14);
+            barra.Children.Add(ListaDigitavel.Criar(classes, efetivo.MetroDataClasse > 0 ? "até a Classe " + efetivo.MetroDataClasse : MetroData.Todas,
+                v => MudarMetroData(p => p.MetroDataClasse = MetroData.NumeroClasse(v)), 140,
+                "Classe da propriedade: 1 Estruturante, 2 Especificação, 3 Detalhamento, 4 Contextual. Propriedades sem classe na planilha entram sempre."));
+
+            int semObjeto = _res.CategoriasMetroData.Count(c => c.SemObjeto.Count > 0);
+            Button objetos = Pilula(semObjeto > 0 ? $"Objetos ({semObjeto} sem)" : "Objetos...", primario: semObjeto > 0);
+            objetos.Margin = new Thickness(14, 0, 0, 0);
+            objetos.VerticalAlignment = VerticalAlignment.Center;
+            objetos.ToolTip = "O objeto do MetroDATA de cada categoria. Sem escolha, vale a Classe IFC do objeto na planilha.";
+            objetos.Click += (s, e) => AbrirObjetosMetroData(null);
+            barra.Children.Add(objetos);
+            return barra;
+        }
+
+        /// <summary>Muda uma escolha do MetroDATA, guarda e confere de novo.</summary>
+        private void MudarMetroData(Action<PacoteMetro> mudar)
+        {
+            // Depois do evento da lista: conferir fecha a ferramenta, que contém a lista.
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                mudar(_pacote);
+                _pacote.SalvarComoAtual();
+                if (FecharFerramenta()) Conferir();
+            }));
+        }
+
+        private void EscolherPlanilhaMetroData()
+        {
+            var d = new Microsoft.Win32.OpenFileDialog { Filter = "Planilha do Excel (*.xlsx)|*.xlsx", Title = "Planilha do MetroDATA (exportada do Airtable)" };
+            string atual = (_efetivo ?? _pacote).MetroData;
+            if (PacoteMetro.Existe(atual))
+            {
+                d.InitialDirectory = System.IO.Path.GetDirectoryName(atual);
+                d.FileName = System.IO.Path.GetFileName(atual);
+            }
+            if (d.ShowDialog(this) != true) return;
+            MudarMetroData(p => p.MetroData = d.FileName);
+        }
+
+        private void AbrirObjetosMetroData(string categoria)
+        {
+            if (_res?.MetroData == null) return;
+            PacoteMetro efetivo = _efetivo ?? _pacote;
+            var w = new ObjetosMetroDataWindow(_res.CategoriasMetroData, _res.MetroData.Objetos(efetivo.MetroDataDisciplina), efetivo.MetroDataObjetos, categoria) { Owner = this };
+            if (w.ShowDialog() != true) return;
+            var escolhidos = new Dictionary<string, string>(w.Objetos, StringComparer.OrdinalIgnoreCase);
+            MudarMetroData(p => p.MetroDataObjetos = escolhidos);
         }
 
         private static TextBlock Titulo(string texto, double acima) =>

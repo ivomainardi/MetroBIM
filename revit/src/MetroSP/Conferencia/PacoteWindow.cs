@@ -22,6 +22,10 @@ namespace MetroSP.Conferencia
         /// <summary>O pacote escolhido (válido depois de DialogResult = true).</summary>
         public PacoteMetro Pacote { get; private set; }
 
+        private readonly TextBox _metroData;
+        /// <summary>De onde vêm a disciplina, a etapa, a classe e os objetos do MetroDATA (escolhidos no passo MetroDATA).</summary>
+        private PacoteMetro _escolhas;
+
         public PacoteWindow(PacoteMetro atual, string pastaInicial)
         {
             Title = "MetroSP - Arquivos do Metrô";
@@ -54,9 +58,12 @@ namespace MetroSP.Conferencia
             _classes = Arquivo(painel, "Tabela de classes IFC (.txt) — opcional", "Texto (*.txt)|*.txt");
             _planilha = Arquivo(painel, "Planilha de classificação (.xlsx ou .csv)", "Planilha (*.xlsx;*.csv)|*.xlsx;*.csv");
             _metroShared = Arquivo(painel, "MetroShared — parâmetros compartilhados (.txt)", "Texto (*.txt)|*.txt");
+            _metroData = Arquivo(painel, "MetroDATA — planilha exportada do Airtable (.xlsx)", "Planilha do Excel (*.xlsx)|*.xlsx");
+            _metroData.ToolTip = "Planilha do MetroDATA exportada do Airtable. Quando ela for atualizada, é só escolher o arquivo novo (ou salvar por cima).";
             _parametro = Campo(painel, "Parâmetro da classificação");
 
             Preencher(atual);
+            _escolhas = atual;
             _arquivo = atual.Arquivo;
             _assinaturaArquivo = atual.Arquivo != null ? atual.Assinatura() : null;
             AtualizarOrigem();
@@ -71,6 +78,7 @@ namespace MetroSP.Conferencia
                 {
                     PacoteMetro p = PacoteMetro.LerArquivo(d.FileName);
                     Preencher(p);
+                    _escolhas = p;
                     _arquivo = p.Arquivo;
                     _assinaturaArquivo = p.Assinatura();
                     AtualizarOrigem();
@@ -140,13 +148,14 @@ namespace MetroSP.Conferencia
             _classes.Text = p.ClassesIfc ?? "";
             _planilha.Text = p.Planilha ?? "";
             _metroShared.Text = p.MetroShared ?? "";
+            _metroData.Text = p.MetroData ?? "";
             _parametro.Text = p.ParametroClassificacao ?? "ClassificationCode";
         }
 
         private PacoteMetro Ler()
         {
             string V(TextBox t) => string.IsNullOrWhiteSpace(t.Text) ? null : t.Text.Trim().Trim('"');
-            return new PacoteMetro
+            var p = new PacoteMetro
             {
                 Nome = V(_nome),
                 Ids = V(_ids),
@@ -156,7 +165,10 @@ namespace MetroSP.Conferencia
                 Planilha = V(_planilha),
                 MetroShared = V(_metroShared),
                 ParametroClassificacao = V(_parametro) ?? "ClassificationCode",
+                MetroData = V(_metroData),
             };
+            p.CopiarEscolhasMetroData(_escolhas);
+            return p;
         }
 
         private static string Limpar(string nome)

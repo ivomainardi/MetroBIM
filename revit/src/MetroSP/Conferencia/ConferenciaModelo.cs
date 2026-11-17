@@ -22,6 +22,30 @@ namespace MetroSP.Conferencia
         EditarEmMassa,
         CategoriasIfc,
         EditarPropertySets,
+        /// <summary>Escolher o objeto do MetroDATA de cada categoria.</summary>
+        ObjetosMetroData,
+    }
+
+    /// <summary>Como os elementos de uma categoria foram ligados a um objeto do MetroDATA.</summary>
+    public class CategoriaMetroData
+    {
+        public string Categoria { get; set; }
+        /// <summary>Objeto escolhido para a categoria (null = pela classe IFC).</summary>
+        public string Objeto { get; set; }
+        public bool Escolhido { get; set; }
+        /// <summary>Classes IFC dos elementos da categoria.</summary>
+        public List<string> Classes { get; } = new List<string>();
+        /// <summary>Objetos do MetroDATA com a classe IFC dos elementos (pela classe, quando não há escolha).</summary>
+        public List<string> Candidatos { get; } = new List<string>();
+        public List<ElementId> Elementos { get; } = new List<ElementId>();
+        /// <summary>Elementos sem objeto (nenhum ou mais de um objeto com a classe IFC): não conferidos.</summary>
+        public List<ElementId> SemObjeto { get; } = new List<ElementId>();
+
+        /// <summary>O que mostrar na coluna Objeto.</summary>
+        public string ObjetoExibido =>
+            Escolhido ? Objeto
+            : SemObjeto.Count == 0 && Candidatos.Count > 0 ? string.Join(", ", Candidatos)
+            : null;
     }
 
     /// <summary>Uma linha de pendência (ou de informação) de uma etapa.</summary>
@@ -155,6 +179,11 @@ namespace MetroSP.Conferencia
         /// <summary>Resultado completo do IDS (para abrir a janela de detalhes), se o pacote tem IDS.</summary>
         public IdsDocument Ids { get; set; }
         public List<CheckResult> ResultadosIds { get; set; }
+
+        /// <summary>Planilha do MetroDATA lida na conferência (null = sem MetroDATA nos padrões).</summary>
+        public MetroData MetroData { get; set; }
+        /// <summary>Categorias conferidas pelo MetroDATA e o objeto de cada uma.</summary>
+        public List<CategoriaMetroData> CategoriasMetroData { get; } = new List<CategoriaMetroData>();
 
         /// <summary>Quanto das verificações por elemento passou (0 a 1).</summary>
         public double Progresso { get; set; }
