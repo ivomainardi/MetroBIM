@@ -32,6 +32,22 @@
   Um botão **Criar e anexar o que falta** cria no modelo o que só está no perfil e anexa os property sets do perfil aos
   objetos que vão para o IFC. Saíram as abas Montar/Anexar e o painel à direita; importar/exportar planilha, modelo
   pronto e levar para o perfil ficam em **Mais ▾**.
+- **Property sets › Saída no IFC** (segunda vista do passo 3): cada propriedade que sai no IFC, agrupada pelo Pset de
+  saída, com o **nome no IFC** (editável), o tipo, Ativa e **Vem de**: de qual propriedade do modelo o valor é lido
+  (property set, propriedade do objeto, dados do modelo ou da peça), numa lista em que também se escreve. Mostra quantos
+  objetos estão preenchidos e vazios; sem origem fica laranja. **+ Pset no IFC**, **+ propriedade**, **Mapear do
+  modelo…** (várias propriedades de uma vez) e **Salvar no perfil** (grava o `.csv` e o `.json` do mapeamento).
+- **Passo 4 MetroDATA lê a planilha do Airtable** (`.xlsx`, aba "Propriedades x Objetos", mesma leitura do Revit):
+  Disciplina, Etapa e Classe em listas digitáveis, e **Objetos** liga cada layer (ou bloco) a um objeto do MetroDATA (pela
+  Classe IFC, ou escolhido). A tabela mostra, por objeto, cada Pset.propriedade pedida, a classe, quantos objetos e
+  quantos estão preenchidos ou vazios (lendo de onde a Saída no IFC diz que o valor vem). **Selecionar os vazios**,
+  **Preencher...** e, em Mais ▾, **Mapear na Saída no IFC** o que não sai. As escolhas ficam gravadas no DWG
+  (`MetroSP.MetroData`). Abas do passo: Propriedades, Escrita e Comparar com planilha.
+- **Passo 5 Classificação como no Revit**: perfil de classificação no alto, uma aba por classificação, tabela por valor
+  escrito (Está escrito, Na lista, O que muda, Objetos, Ação: Corrigir... ou Escolher...) com o detalhe ao lado (vai
+  ficar, layers, selecionar). Mostra o **caminho até o IFC** (`IfcClassification "Metrô SP" ← Classification ›
+  ClassificationCode`) e avisa, com o botão **Mapear**, se esse property set não está na Saída no IFC (sem ele não sai
+  IfcClassification).
 - **MetroDATA › Corrigir escrita mais enxuto**: abre já conferido; perfil, campos e regras (lista "7 de 9 ▾") numa
   linha; tabela com Objeto, Campo, Atual, Sugestão e O que tem (situação, motivo, categoria e Id ficam na dica da
   linha); botões Corrigir, Ignorar, Selecionar no modelo e **Mais ▾**.

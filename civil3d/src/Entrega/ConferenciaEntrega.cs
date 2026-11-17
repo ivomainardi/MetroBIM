@@ -382,15 +382,28 @@ namespace MetroSP.Entrega
                 foreach (var s in sistemas) linhas.AddRange(ClassificacaoCore.Verificar(db, tr, ids, s));
                 tr.Commit();
             }
-            foreach (var g in linhas.Where(l => l.Situacao != ClassificacaoCore.OK).GroupBy(l => l.Situacao)
-                         .OrderBy(g => Array.IndexOf(ClassificacaoCore.Ordem, g.Key)))
+            foreach (var s in sistemas)
+            {
+                var faltam = VerificarClassificacaoWindow.PropsQueFaltamNoIfc(s);
+                if (faltam.Count > 0)
+                    e.Pendencias.Add(new Pendencia
+                    {
+                        Sinal = Sinal.Vermelho, Titulo = $"{s.Nome} · não vai para o IFC",
+                        Texto = $"{string.Join(", ", faltam)} não está na Saída no IFC: sem ele, não sai IfcClassification. Use Mapear ao lado.",
+                    });
+            }
+            foreach (var g in linhas.Where(l => l.Situacao != ClassificacaoCore.OK).GroupBy(l => (l.Sistema, l.Situacao))
+                         .OrderBy(g => g.Key.Sistema).ThenBy(g => Array.IndexOf(ClassificacaoCore.Ordem, g.Key.Situacao)))
+            {
+                int valores = g.Select(l => l.Preenchido ?? "").Distinct().Count();
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = g.Key == ClassificacaoCore.DescricaoDiferente ? Sinal.Amarelo : Sinal.Vermelho,
-                    Titulo = $"{g.Key} · {g.Count()} objeto(s)",
-                    Texto = Tipos(g.Select(l => l.Tipo)),
+                    Sinal = g.Key.Situacao == ClassificacaoCore.DescricaoDiferente ? Sinal.Amarelo : Sinal.Vermelho,
+                    Titulo = (sistemas.Count > 1 ? g.Key.Sistema + " · " : "") + g.Key.Situacao,
+                    Texto = $"{g.Count():N0} objeto(s)" + (valores > 1 ? $" em {valores} valores" : "") + " · " + Tipos(g.Select(l => l.Tipo)),
                     Objetos = g.Select(l => l.Id).Distinct().ToList(),
                 });
+            }
             e.Resumo = $"Perfil \"{padrao.Nome}\": {linhas.Count} verificação(ões).";
         }
 
