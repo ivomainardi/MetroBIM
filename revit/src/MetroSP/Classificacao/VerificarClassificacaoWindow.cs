@@ -84,13 +84,18 @@ namespace MetroSP.Classificacao
         private List<GrupoVerificacao> _grupos = new List<GrupoVerificacao>();
         private FilterableGrid _tabela;
 
-        public VerificarClassificacaoWindow(Autodesk.Revit.UI.UIDocument uidoc, ClassSettings config)
+        /// <summary>Dentro da Entrega passo a passo: os erros ficam nos cartões ao lado (sem contadores aqui) e a verificação já roda ao abrir.</summary>
+        private readonly bool _naEntrega;
+
+        /// <param name="naEntrega">Embutida no passo Classificação da Entrega.</param>
+        public VerificarClassificacaoWindow(Autodesk.Revit.UI.UIDocument uidoc, ClassSettings config, bool naEntrega = false)
         {
             _uidoc = uidoc;
             _doc = uidoc.Document;
             _config = config;
+            _naEntrega = naEntrega;
             ICollection<ElementId> sel = uidoc.Selection.GetElementIds();
-            _selecao = sel.Count > 0 ? sel : null;
+            _selecao = sel.Count > 0 && !naEntrega ? sel : null;
 
             Title = "MetroSP - Verificar classificação";
             Width = 1200;
@@ -117,6 +122,8 @@ namespace MetroSP.Classificacao
             _escopo.Items.Add("Vista atual");
             _escopo.Items.Add("Todo o modelo");
             _escopo.SelectedIndex = 0;
+            // Na Entrega, o mesmo escopo da conferência (vista ativa ou modelo inteiro).
+            if (naEntrega && !Conferencia.PacoteMetro.Abrir().SoVistaAtiva) _escopo.SelectedItem = "Todo o modelo";
             barra.Children.Add(_escopo);
             var verificar = new Button { Content = "Verificar", Style = Theme.PrimaryButton, Margin = new Thickness(0, 0, 8, 0) };
             verificar.Click += (s, e) => Verificar();
@@ -205,6 +212,7 @@ namespace MetroSP.Classificacao
 
             Theme.Apply(this, "Verificar classificação", _doc.Title + " · confere a escrita com a planilha · só elementos que vão para o IFC", corpo, rodape);
             CarregarPadroes(config.Padrao);
+            if (naEntrega && _linhas == null && _padrao?.Sistemas.Any(x => x.Lista != null) == true) Verificar();
         }
 
         // ------------------------------------------------------------------ perfis
@@ -428,7 +436,7 @@ namespace MetroSP.Classificacao
         private void MostrarEtiquetas(List<LinhaVerificacao> daAba)
         {
             _resumo.Children.Clear();
-            foreach (var (s, rotulo) in Ordem)
+            foreach (var (s, rotulo) in _naEntrega ? Array.Empty<(string, string)>() : Ordem)
             {
                 int n = daAba.Count(l => l.Situacao == s);
                 if (n == 0 && s != ClassificationCore.OK) continue;
@@ -446,7 +454,7 @@ namespace MetroSP.Classificacao
                 _resumo.Children.Add(chip);
             }
 
-            foreach (var g in daAba.Where(l => l.Situacao == ClassificationCore.SemParametro).GroupBy(l => l.Parametro))
+            foreach (var g in daAba.Where(l => l.Situacao == ClassificationCore.SemParametro && !_naEntrega).GroupBy(l => l.Parametro))
             {
                 var cats = g.Select(l => l.Categoria).Distinct().ToList();
                 var criar = new Button
@@ -603,20 +611,21 @@ namespace MetroSP.Classificacao
             Verificar();
         }
 
-        private void CriarParametro(string parametro, List<string> categorias)
+        private bool CriarParametro(string parametro, List<string> categorias)
         {
             try
             {
                 string msg = ParametroClassificacao.Vincular(_doc, parametro, ParametroClassificacao.Categorias(_doc, categorias));
-                if (msg == null) return;
+                if (msg == null) return false;
                 MessageBox.Show(this, msg, Title);
             }
             catch (Exception ex)
             {
                 MessageBox.Show(this, "Não foi possível criar o parâmetro:\n" + ex.Message, Title);
-                return;
+                return false;
             }
             Verificar();
+            return true;
         }
 
         // ------------------------------------------------------------------ gravar
@@ -628,8 +637,13 @@ namespace MetroSP.Classificacao
             conflitos = 0;
             if (_tabela == null) return new List<LinhaVerificacao>();
             IEnumerable<GrupoVerificacao> origem = soSelecionadas ? Escolhidos() : _tabela.VisibleItems<GrupoVerificacao>();
-            var aceitas = origem.SelectMany(g => g.Linhas).Where(l => l.Gravacoes.Count > 0 && (l.PropostaSegura || soSelecionadas)).ToList();
-            // Um tipo compartilhado por elementos com propostas diferentes fica de fora.
+            return Propostas(origem.SelectMany(g => g.Linhas).Where(l => l.PropostaSegura || soSelecionadas), out conflitos);
+        }
+
+        /// <summary>Das linhas, as que têm o que gravar, uma por dono e parâmetro; tipos com propostas diferentes ficam de fora.</summary>
+        private static List<LinhaVerificacao> Propostas(IEnumerable<LinhaVerificacao> linhas, out int conflitos)
+        {
+            var aceitas = linhas.Where(l => l.Gravacoes.Count > 0).ToList();
             var conflitantes = aceitas.SelectMany(l => l.Gravacoes)
                 .GroupBy(g => (g.Dono, g.Parametro))
                 .Where(g => g.Select(x => x.Valor).Distinct().Count() > 1)
@@ -666,16 +680,18 @@ namespace MetroSP.Classificacao
             _aplicarSelecionadas.Content = n > 0 ? $"Aplicar selecionadas ({n:N0})" : "Aplicar selecionadas";
         }
 
-        private void Aplicar(bool soSelecionadas)
+        private void Aplicar(bool soSelecionadas) => GravarPropostas(Propostas(out _, soSelecionadas));
+
+        /// <summary>Confirma e grava as propostas numa operação só (Ctrl+Z desfaz). true = gravou.</summary>
+        private bool GravarPropostas(List<LinhaVerificacao> p)
         {
-            var p = Propostas(out _, soSelecionadas);
-            if (p.Count == 0) return;
+            if (p.Count == 0) return false;
             int tipos = p.Count(l => l.Onde == "tipo");
             string msg = $"Gravar {p.Count} correções em {string.Join(", ", p.SelectMany(l => l.Gravacoes).Select(g => g.Parametro).Distinct())}?" +
                          (tipos > 0 ? $"\n\n{tipos} delas são em tipos e valem para todas as instâncias desses tipos." : "") +
                          "\n\nExemplos:\n" + string.Join("\n", p.GroupBy(l => (l.Preenchido, l.ValorProposto)).Take(5).Select(g => $"• {g.Key.Preenchido}  →  {g.Key.ValorProposto}")) +
                          "\n\nÉ uma única operação: pode ser desfeita com Ctrl+Z.";
-            if (MessageBox.Show(this, msg, Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            if (MessageBox.Show(this, msg, Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return false;
             try
             {
                 ResultadoGravacao r = ClassificationCore.Gravar(_doc, p.SelectMany(l => l.Gravacoes), "Corrigir classificação", Confirmar);
@@ -684,9 +700,40 @@ namespace MetroSP.Classificacao
             catch (Exception ex)
             {
                 MessageBox.Show(this, "Não foi possível gravar. Nada foi alterado.\n\n" + ex.Message, Title);
-                return;
+                return false;
             }
             Verificar();
+            return true;
+        }
+
+        // ------------------------------------------------------------------ chamadas dos cartões da Entrega
+
+        private List<LinhaVerificacao> LinhasDe(string classificacao, string situacao)
+        {
+            if (_linhas == null) Verificar();
+            return _linhas?.Where(l => l.SistemaRef?.Nome == classificacao && (situacao == null || l.Situacao == situacao)).ToList() ?? new List<LinhaVerificacao>();
+        }
+
+        /// <summary>Corrige a escrita (correções seguras) de uma classificação. true = gravou.</summary>
+        public bool CorrigirEscrita(string classificacao) =>
+            GravarPropostas(Propostas(LinhasDe(classificacao, ClassificationCore.DescricaoDiferente).Where(l => l.PropostaSegura), out _));
+
+        /// <summary>Abre a lista de itens para os elementos de uma situação e grava o escolhido. true = gravou.</summary>
+        public bool EscolherPara(string classificacao, string situacao)
+        {
+            List<LinhaVerificacao> linhas = LinhasDe(classificacao, situacao);
+            if (linhas.Count == 0) return false;
+            var g = new GrupoVerificacao();
+            g.Linhas.AddRange(linhas);
+            return Escolher(g, linhas, linhas.Select(l => l.Item).Distinct().Count() == 1 ? g.Item ?? ItemProposto(g) : null);
+        }
+
+        /// <summary>Vincula o parâmetro às categorias dos elementos sem ele. true = criou.</summary>
+        public bool CriarParametroPara(string classificacao)
+        {
+            List<LinhaVerificacao> linhas = LinhasDe(classificacao, ClassificationCore.SemParametro);
+            if (linhas.Count == 0) return false;
+            return CriarParametro(linhas[0].Parametro, linhas.Select(l => l.Categoria).Distinct().ToList());
         }
 
         private bool Confirmar(string pergunta) =>
@@ -767,12 +814,12 @@ namespace MetroSP.Classificacao
             return cod != null && g.SistemaRef.Lista.PorCodigo.TryGetValue(cod, out ClassItem it) ? it : null;
         }
 
-        private void Escolher(GrupoVerificacao g, List<LinhaVerificacao> linhas, ClassItem sugerido)
+        private bool Escolher(GrupoVerificacao g, List<LinhaVerificacao> linhas, ClassItem sugerido)
         {
             SistemaClassificacao s = g.SistemaRef;
             var w = new EscolherItemWindow(s.Lista, s.Nome, null, $"{linhas.Count} {(linhas.Count == 1 ? "elemento" : "elementos")}",
                 linhas.Select(x => x.Preenchido).Distinct().Count() == 1 ? g.Preenchido : null, sugerido) { Owner = this };
-            if (w.ShowDialog() != true || w.Escolhido == null) return;
+            if (w.ShowDialog() != true || w.Escolhido == null) return false;
             ClassItem item = w.Escolhido;
             var gravar = new List<(ElementId, string, string)>();
             foreach (LinhaVerificacao x in linhas.Where(x => x.DonoId != null))
@@ -797,9 +844,10 @@ namespace MetroSP.Classificacao
             int tipos = linhas.Count(x => x.Onde == "tipo");
             if (tipos > 0 && MessageBox.Show(this, $"{s.ParametroCodigo} está no tipo em {tipos} {(tipos == 1 ? "elemento" : "elementos")}: " +
                     $"{item.Codigo} vai valer para todas as instâncias desses tipos. Continuar?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
-                return;
+                return false;
             MostrarResultado(ClassificationCore.Gravar(_doc, gravar, "Classificação " + item.Codigo, Confirmar), "gravações");
             Verificar();
+            return true;
         }
 
         /// <summary>Seleciona os elementos no Revit e explica por que não dá para gravar.</summary>

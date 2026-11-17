@@ -31,9 +31,13 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 - Revit, **Aplicar classificação** usa o mesmo perfil do Verificar: uma **aba por classificação** (✓ quando já tem item
   escolhido) e **Aplicar** grava todas de uma vez, cada uma no seu parâmetro e na sua escrita (com a descrição no outro
   parâmetro, se houver). Saiu o filtro por categoria da árvore.
+- Revit, **Entrega passo a passo › 5 Classificação** usa o perfil de classificação (antes, a planilha e o parâmetro do
+  pacote): um cartão por classificação e situação, sem separar por categoria, com o botão que resolve (**Criar
+  parâmetro**, **Escolher...**, **Corrigir escrita**) e Selecionar. Ao lado, o Verificar já conferido, sem os
+  contadores (os erros ficam só nos cartões). Sem perfil salvo, o passo continua com a planilha do pacote.
 - Testar no Revit: criar um perfil com Título e Descrição em colunas separadas e a descrição em outro parâmetro; Verificar
   num modelo com `[LMB3]...` e com valores escritos à mão (`Código - Título`, só o código); Corrigir... e Corrigir
-  escrita; Aplicar com duas classificações; abrir pelo botão Classificação... em Padrões; Entrega passo a passo › Classificação.
+  escrita; Aplicar com duas classificações; abrir pelo botão Classificação... em Padrões; Entrega passo a passo › Classificação (cartões e botões, e se os números batem com a tabela ao lado).
 
 ## 1.0.9 (17/11/2026)
 

@@ -43,6 +43,9 @@ namespace MetroSP.Conferencia
         public string Campo { get; set; }
         /// <summary>Arquivo que faz a exigência (ex.: o .txt de property sets dos padrões).</summary>
         public string Origem { get; set; }
+        /// <summary>Passo Classificação: nome da classificação do perfil e a situação (para os botões do cartão).</summary>
+        public string Classificacao { get; set; }
+        public string SituacaoClassificacao { get; set; }
 
         public int QtdElementos => Elementos.Count;
         public string Situacao =>
