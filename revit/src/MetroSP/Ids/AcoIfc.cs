@@ -44,6 +44,17 @@ namespace MetroSP.Ids
                 { BuiltInCategory.OST_StructConnectionProfiles, ("Perfil", "IfcMember", false, false) },
             };
 
+        /// <summary>Valores do "Exportar para IFC" (IFCExportElement: 0 pelo tipo, 1 sim, 2 não).</summary>
+        private const int ExportarSim = 1, ExportarNao = 2;
+
+        /// <summary>Parâmetro "Exportar para IFC" da instância. No Revit 2022 ele ainda não é parâmetro interno: fica sem.</summary>
+        private static Parameter ExportarParaIfc(Element e) =>
+#if REVIT_ANTES_2023
+            null;
+#else
+            e.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT);
+#endif
+
         /// <summary>true se o modelo tem ligações metálicas ou elementos de fabricação de aço (consulta rápida).</summary>
         public static bool TemAco(Document doc)
         {
@@ -163,11 +174,11 @@ namespace MetroSP.Ids
             else
             {
                 // Elemento de fabricação avulso: a forma temporária o substitui; o original não é exportado.
-                Parameter exp = origem.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT);
+                Parameter exp = ExportarParaIfc(origem);
                 if (exp != null && !exp.IsReadOnly)
                 {
                     _exportarOriginal.Add((origem, exp.AsInteger()));
-                    exp.Set((int)IFCExportElement.No);
+                    exp.Set(ExportarNao);
                 }
             }
             return criadas;
@@ -200,8 +211,8 @@ namespace MetroSP.Ids
 
             Parameter como = Compat.ExportarComo(ds, false);
             if (como != null && !como.IsReadOnly) como.Set(classe);
-            Parameter exp = ds.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT);
-            if (exp != null && !exp.IsReadOnly) exp.Set((int)IFCExportElement.Yes);
+            Parameter exp = ExportarParaIfc(ds);
+            if (exp != null && !exp.IsReadOnly) exp.Set(ExportarSim);
             return ds;
         }
 
@@ -231,7 +242,7 @@ namespace MetroSP.Ids
             foreach (ElementId c in _categoriasMostradas)
                 try { _vista.SetCategoryHidden(c, true); } catch { }
             foreach (var (e, valor) in _exportarOriginal)
-                try { e.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT)?.Set(valor); } catch { }
+                try { ExportarParaIfc(e)?.Set(valor); } catch { }
             try { if (_criadas.Count > 0) doc.Delete(_criadas); } catch { }
         }
 
