@@ -19,6 +19,7 @@ e instala só para o seu usuário, sem precisar de administrador. As novidades f
 ## Pastas
 
 - `revit/`, `civil3d/`, `navisworks/`: o código de cada plugin, com o histórico dos repositórios antigos.
+- `comum/`: código igual nos três plugins (o aviso de versão nova), incluído em cada projeto.
 - `instalador/`: o instalador único (Inno Setup) e as imagens dele.
 - `build.ps1`: compila os plugins e monta o instalador.
 

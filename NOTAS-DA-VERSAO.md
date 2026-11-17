@@ -4,6 +4,16 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.8 (em preparação)
+
+Revit 0.3.11 · Civil 3D 0.12.4 · Navisworks 1.0.1
+
+- Revit, Civil 3D e Navisworks, **aviso de versão nova**: ao abrir o programa, o MetroSP confere (no máximo uma vez
+  por dia, em segundo plano) se já saiu uma versão nova do instalador. Se saiu, mostra a versão, o que mudou e o botão
+  **Baixar instalador**. **Agora não** avisa de novo no dia seguinte e **Não avisar desta** só volta na próxima versão.
+  Sem internet ou com a rede bloqueando o GitHub, não aparece nada. No Navisworks, o aviso é uma pergunta simples.
+- Revit e Civil 3D, **Sobre**: botão **Procurar versão nova**, para conferir na hora.
+
 ## 1.0.7 (16/11/2026)
 
 Revit 0.3.10 · Civil 3D 0.12.3

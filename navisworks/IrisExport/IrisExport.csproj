@@ -13,7 +13,7 @@
     <OutputPath>bin\$(NavisVersion)\</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <Product>Iris</Product>
     <Description>Exporta o TimeLiner com os objetos (GlobalId do IFC) para o cronograma do Iris</Description>
   </PropertyGroup>
@@ -21,6 +21,9 @@
     <Reference Include="Autodesk.Navisworks.Api"><HintPath>$(NavisDir)\Autodesk.Navisworks.Api.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="Autodesk.Navisworks.Timeliner"><HintPath>$(NavisDir)\Autodesk.Navisworks.Timeliner.dll</HintPath><Private>false</Private></Reference>
     <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Net.Http" />
+    <!-- Aviso de versão nova, o mesmo do Revit e do Civil 3D (pasta comum/ da raiz). -->
+    <Compile Include="..\..\comum\VersaoNova.cs" Link="Comum\VersaoNova.cs" />
     <None Include="iris_16.png;iris_32.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <!-- .NET Framework 4.8: no Windows sem o Developer Pack, compila com o próprio framework do sistema (sem baixar nada);

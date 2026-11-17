@@ -65,7 +65,12 @@ namespace MetroSP
             }
 
             // As logos entram depois que a Ribbon do Revit está pronta (fica à direita, depois dos painéis).
-            application.ControlledApplication.ApplicationInitialized += (s, e) => Ui.MarcaRibbon.Adicionar(TabName);
+            application.ControlledApplication.ApplicationInitialized += (s, e) =>
+            {
+                Ui.MarcaRibbon.Adicionar(TabName);
+                // Aviso de versão nova (uma consulta por dia, em segundo plano; quieto sem internet).
+                try { Ui.JanelaVersaoNova.ProcurarAoAbrir("Revit"); } catch { }
+            };
 #if !REVIT_ANTES_2024
             try { application.ThemeChanged += (s, e) => Ui.MarcaRibbon.AtualizarTema(); } catch { }
 #endif

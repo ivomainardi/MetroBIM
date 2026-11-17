@@ -11,7 +11,7 @@
 
   <PropertyGroup>
     <AssemblyName>MetroSP</AssemblyName>
-    <Version>0.3.10</Version>
+    <Version>0.3.11</Version>
     <RootNamespace>MetroSP</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
@@ -70,6 +70,11 @@
       <_Parameter1>DataCompilacao</_Parameter1>
       <_Parameter2>$([System.DateTime]::Now.ToString("yyyy-MM-dd HH:mm"))</_Parameter2>
     </AssemblyAttribute>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Código comum aos plugins (aviso de versão nova), na pasta comum/ da raiz. -->
+    <Compile Include="..\..\..\comum\*.cs" Link="Comum\%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -28,6 +28,9 @@ namespace MetroSP
             {
                 if (string.Equals(e.Name, "WSCURRENT", StringComparison.OrdinalIgnoreCase)) CreateTab();
             };
+
+            // Aviso de versão nova (uma consulta por dia, em segundo plano; quieto sem internet).
+            try { JanelaVersaoNova.ProcurarAoAbrir("Civil 3D"); } catch { }
         }
 
         public void Terminate() { }

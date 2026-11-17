@@ -159,9 +159,11 @@ namespace MetroSP
                 body.Children.Add(Ui.Theme.Detalhe("Pasta Forma: " + cfg.FolderUrn));
             }
 
+            var atualizar = new System.Windows.Controls.Button { Content = "Procurar versão nova", ToolTip = "Confere no GitHub se já saiu uma versão mais nova do MetroSP." };
+            atualizar.Click += (s, e) => Ui.JanelaVersaoNova.ProcurarAgora("Civil 3D", w);
             var close = new System.Windows.Controls.Button { Content = "Fechar", Style = Ui.Theme.PrimaryButton, IsDefault = true, IsCancel = true };
             close.Click += (s, e) => w.Close();
-            Ui.Theme.Apply(w, "MetroSP para Civil 3D", "Ação BIM · Metrô SP", body, Ui.Theme.Buttons(close));
+            Ui.Theme.Apply(w, "MetroSP para Civil 3D", "Ação BIM · Metrô SP", body, Ui.Theme.Buttons(atualizar, close));
             AcApp.ShowModalWindow(AcApp.MainWindow.Handle, w, false);
         }
 
