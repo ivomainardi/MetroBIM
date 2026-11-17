@@ -82,7 +82,7 @@ namespace MetroSP.Coordenacao
             a.Perfis = (a.Perfis ?? new List<PerfilCoordenacao>()).Where(p => p != null).ToList();
             foreach (PerfilCoordenacao p in a.Perfis) p.Normalizar();
             a.Comum = a.Comum ?? new DadosComuns();
-            if (a.Perfis.Count == 0) throw new InvalidDataException("O arquivo de coordenação não tem nenhum padrão.");
+            if (a.Perfis.Count == 0) throw new InvalidDataException("O arquivo de coordenação não tem nenhum perfil.");
             return a;
         }
 

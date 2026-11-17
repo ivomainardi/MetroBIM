@@ -13,9 +13,10 @@ using DB = Autodesk.Revit.DB;
 namespace MetroSP.Ids
 {
     /// <summary>
-    /// Gestão dos arquivos da exportação IFC por classe: setups (.json) com as opções principais editáveis,
-    /// property sets (.txt) conferidos no modelo aberto e mapeamentos (.txt). Aceita vários arquivos de uma vez
-    /// (arrastando ou escolhendo) e mostra de onde vem cada um: seu, do Forma online ou instalado.
+    /// Os padrões de exportação IFC: escolhe-se um padrão na lista e aparecem juntos o setup (.json, com as opções
+    /// principais editáveis), os property sets (.txt, conferidos no modelo aberto) e o mapeamento (.txt) dele.
+    /// Trocar de padrão troca tudo. Aceita vários arquivos de uma vez (arrastando ou escolhendo) e mostra de onde
+    /// vem cada um: seu, do Forma online ou instalado.
     /// </summary>
     public class ArquivosIfcWindow : Window
     {
@@ -25,26 +26,32 @@ namespace MetroSP.Ids
         private ModeloIfc _modelo;
         private HashSet<string> _nomes;
         private DateTime _conferidoEm;
+        private readonly ListBox _lista;
         private readonly TabControl _abas;
-        private readonly Dictionary<ArquivosIfc.Tipo, ListBox> _listas = new Dictionary<ArquivosIfc.Tipo, ListBox>();
         private readonly Dictionary<ArquivosIfc.Tipo, ContentControl> _detalhes = new Dictionary<ArquivosIfc.Tipo, ContentControl>();
         private readonly Dictionary<ArquivosIfc.Tipo, TextBlock> _titulosAba = new Dictionary<ArquivosIfc.Tipo, TextBlock>();
+        private readonly Dictionary<ArquivosIfc.Tipo, ArquivosIfc.Arquivo> _doPadrao = new Dictionary<ArquivosIfc.Tipo, ArquivosIfc.Arquivo>();
+        private readonly TextBlock _nomePadrao, _infoPadrao;
+        private readonly StackPanel _selosPadrao;
+        private readonly Button _duplicar, _renomear;
         private readonly TextBlock _resumo;
         private OpcoesSetup _setup;
         private Button _salvarSetup, _descartarSetup;
         private bool _carregando;
+        private string _classe;
 
-        /// <summary>true se algum arquivo foi gravado, apagado ou trocado de classe (a janela de exportação recarrega).</summary>
+        /// <summary>true se algum arquivo foi gravado, apagado ou trocado de padrão (a janela de exportação recarrega).</summary>
         public bool Mudou { get; private set; }
 
         public ArquivosIfcWindow(DB.Document doc, string classe = null, ArquivosIfc.Tipo aba = ArquivosIfc.Tipo.Setup)
         {
             _doc = doc;
-            Title = "MetroSP - Padrões de exportação IFC";
-            Width = 900;
-            Height = 660;
-            MinWidth = 700;
+            Title = "MetroSP - Perfis de exportação IFC";
+            Width = 960;
+            Height = 680;
+            MinWidth = 720;
             MinHeight = 480;
+            ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
             AllowDrop = true;
             Drop += (s, e) =>
@@ -65,7 +72,7 @@ namespace MetroSP.Ids
                 BorderBrush = Theme.Solid(Color.FromRgb(0xC8, 0xC8, 0xC8)),
                 BorderThickness = new Thickness(1.5),
                 Background = Theme.Solid(Color.FromRgb(0xFC, 0xFC, 0xFC)),
-                Padding = new Thickness(10, 8, 10, 8),
+                Padding = new Thickness(10, 6, 10, 6),
                 Margin = new Thickness(0, 0, 0, 8),
             };
             var linhaSolta = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
@@ -74,30 +81,68 @@ namespace MetroSP.Ids
             escolher.Click += (s, e) => Escolher();
             linhaSolta.Children.Add(escolher);
             solta.Child = linhaSolta;
+            solta.ToolTip = "O MetroSP reconhece o tipo de cada arquivo e pergunta de qual perfil ele é.";
             DockPanel.SetDock(solta, Dock.Top);
             corpo.Children.Add(solta);
+
+            var grade = new Grid();
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(230), MinWidth = 160 });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 360 });
+            corpo.Children.Add(grade);
+
+            // Esquerda: a lista de padrões.
+            var esquerda = new DockPanel();
+            TextBlock titLista = Theme.Secao("Perfis");
+            titLista.Margin = new Thickness(0, 0, 0, 4);
+            titLista.ToolTip = "Cada perfil reúne o setup, os property sets e o mapeamento da exportação. Escolha um para ver tudo o que ele leva.";
+            DockPanel.SetDock(titLista, Dock.Top);
+            esquerda.Children.Add(titLista);
+            var botoes = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            _duplicar = new Button { Content = "Duplicar...", Margin = new Thickness(0, 0, 6, 0), ToolTip = "Cria um perfil novo com uma cópia sua dos arquivos deste." };
+            _duplicar.Click += (s, e) => Duplicar();
+            _renomear = new Button { Content = "Renomear...", ToolTip = "Muda o nome do perfil (os seus arquivos dele mudam de nome juntos)." };
+            _renomear.Click += (s, e) => Renomear();
+            botoes.Children.Add(_duplicar);
+            botoes.Children.Add(_renomear);
+            DockPanel.SetDock(botoes, Dock.Bottom);
+            esquerda.Children.Add(botoes);
+            _lista = new ListBox { BorderBrush = Theme.Solid(Theme.CinzaClaro), HorizontalContentAlignment = HorizontalAlignment.Stretch };
+            ScrollViewer.SetHorizontalScrollBarVisibility(_lista, ScrollBarVisibility.Disabled);
+            _lista.Resources[SystemColors.HighlightBrushKey] = Theme.Solid(Theme.LaranjaSelecao);
+            _lista.Resources[SystemColors.HighlightTextBrushKey] = Theme.Solid(Theme.Preto);
+            _lista.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = Theme.Solid(Theme.LaranjaSelecao);
+            _lista.SelectionChanged += (s, e) => TrocouPadrao(e);
+            esquerda.Children.Add(_lista);
+            grade.Children.Add(esquerda);
+
+            var divisor = new GridSplitter { Width = 12, HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.Transparent, ResizeBehavior = GridResizeBehavior.PreviousAndNext };
+            Grid.SetColumn(divisor, 1);
+            grade.Children.Add(divisor);
+
+            // Direita: tudo do padrão escolhido.
+            var direita = new DockPanel();
+            var cab = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            _selosPadrao = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+            DockPanel.SetDock(_selosPadrao, Dock.Right);
+            cab.Children.Add(_selosPadrao);
+            var nomes = new StackPanel();
+            _nomePadrao = new TextBlock { FontWeight = FontWeights.SemiBold, FontSize = 16, TextTrimming = TextTrimming.CharacterEllipsis };
+            _infoPadrao = Theme.Detalhe();
+            nomes.Children.Add(_nomePadrao);
+            nomes.Children.Add(_infoPadrao);
+            cab.Children.Add(nomes);
+            DockPanel.SetDock(cab, Dock.Top);
+            direita.Children.Add(cab);
 
             _abas = new TabControl();
             foreach (ArquivosIfc.Tipo t in Tipos)
             {
                 var titulo = new TextBlock();
                 _titulosAba[t] = titulo;
-                var grade = new Grid();
-                grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(190) });
-                grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-                var lista = new ListBox { Margin = new Thickness(0, 0, 12, 0), BorderBrush = Theme.Solid(Theme.CinzaClaro), HorizontalContentAlignment = HorizontalAlignment.Stretch };
-                lista.Resources[SystemColors.HighlightBrushKey] = Theme.Solid(Theme.LaranjaSelecao);
-                lista.Resources[SystemColors.HighlightTextBrushKey] = Theme.Solid(Theme.Preto);
-                lista.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = Theme.Solid(Theme.LaranjaSelecao);
-                ArquivosIfc.Tipo tipo = t;
-                lista.SelectionChanged += (s, e) => { if (!_carregando) MostrarDetalhe(tipo); };
-                _listas[t] = lista;
-                grade.Children.Add(lista);
-                var detalhe = new ContentControl();
-                Grid.SetColumn(detalhe, 1);
+                var detalhe = new ContentControl { Margin = new Thickness(4, 8, 4, 4) };
                 _detalhes[t] = detalhe;
-                grade.Children.Add(detalhe);
-                _abas.Items.Add(new TabItem { Header = titulo, Content = grade, Tag = t });
+                _abas.Items.Add(new TabItem { Header = titulo, Content = detalhe, Tag = t, ToolTip = DicaAba(t) });
             }
             _abas.SelectionChanged += (s, e) =>
             {
@@ -107,7 +152,9 @@ namespace MetroSP.Ids
                     t == ArquivosIfc.Tipo.PropertySets && _detalhes[t].Content == null)
                     MostrarDetalhe(t);
             };
-            corpo.Children.Add(_abas);
+            direita.Children.Add(_abas);
+            Grid.SetColumn(direita, 2);
+            grade.Children.Add(direita);
 
             _resumo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), Text = "Ordem de uso: seu › Forma online › instalado" };
             var pasta = new Button { Content = "Abrir pasta dos seus arquivos" };
@@ -119,65 +166,86 @@ namespace MetroSP.Ids
                 if (_setup != null && _setup.Alterado && !PerguntarDescartar()) e.Cancel = true;
             };
 
-            Theme.Apply(this, "Padrões de exportação IFC", "Cada padrão reúne o setup, os property sets e o mapeamento da exportação", corpo, Theme.Rodape(_resumo, pasta, fechar));
+            Theme.Apply(this, "Perfis de exportação IFC", "Escolha um perfil para ver tudo o que ele leva na exportação", corpo, Theme.Rodape(_resumo, pasta, fechar));
 
-            Recarregar(classe);
             _abas.SelectedIndex = Array.IndexOf(Tipos, aba);
+            Recarregar(classe);
         }
 
-        // ---------- listas ----------
+        private static string NomeAba(ArquivosIfc.Tipo t) =>
+            t == ArquivosIfc.Tipo.Setup ? "Configurações" : ArquivosIfc.Descricao(t);
+
+        private static string DicaAba(ArquivosIfc.Tipo t) =>
+            t == ArquivosIfc.Tipo.Setup ? "Setup da exportação IFC (.json): versão, fase e o que entra no IFC."
+            : t == ArquivosIfc.Tipo.PropertySets ? "Property sets do usuário (.txt): as propriedades que vão para o IFC, conferidas no modelo aberto."
+            : "Mapeamento de categorias (.txt), opcional: a classe IFC de cada categoria do Revit.";
+
+        // ---------- lista de padrões ----------
 
         private ArquivosIfc.Tipo AbaAtual => _abas.SelectedItem is TabItem ti && ti.Tag is ArquivosIfc.Tipo t ? t : ArquivosIfc.Tipo.Setup;
 
-        private ArquivosIfc.Arquivo Escolhido(ArquivosIfc.Tipo t) => (_listas[t].SelectedItem as ListBoxItem)?.Tag as ArquivosIfc.Arquivo;
+        private ArquivosIfc.Arquivo Escolhido(ArquivosIfc.Tipo t) => _doPadrao.TryGetValue(t, out ArquivosIfc.Arquivo a) ? a : null;
 
-        /// <summary>Relê as pastas e mantém a classe escolhida em cada aba (ou vai para a indicada).</summary>
+        /// <summary>Relê as pastas e mantém o padrão escolhido (ou vai para o indicado).</summary>
         private void Recarregar(string classe = null)
         {
+            string manter = classe ?? _classe;
+            Dictionary<ArquivosIfc.Tipo, List<ArquivosIfc.Arquivo>> porTipo = Tipos.ToDictionary(t => t, ArquivosIfc.Listar);
+            List<string> classes = porTipo.Values.SelectMany(l => l).Select(a => a.Classe)
+                .Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(c => c, StringComparer.CurrentCultureIgnoreCase).ToList();
             _carregando = true;
             try
             {
-                foreach (ArquivosIfc.Tipo t in Tipos)
+                _lista.Items.Clear();
+                foreach (string c in classes)
                 {
-                    string manter = classe ?? Escolhido(t)?.Classe;
-                    List<ArquivosIfc.Arquivo> arquivos = ArquivosIfc.Listar(t);
-                    _titulosAba[t].Text = $"{ArquivosIfc.Descricao(t)} ({ArquivosIfc.Extensao(t)})  {arquivos.Count}";
-                    ListBox lista = _listas[t];
-                    lista.Items.Clear();
-                    foreach (ArquivosIfc.Arquivo a in arquivos) lista.Items.Add(ItemDaLista(a));
-                    ListBoxItem sel = lista.Items.Cast<ListBoxItem>().FirstOrDefault(i => string.Equals(((ArquivosIfc.Arquivo)i.Tag).Classe, manter, StringComparison.CurrentCultureIgnoreCase))
-                                      ?? lista.Items.Cast<ListBoxItem>().FirstOrDefault();
-                    lista.SelectedItem = sel;
+                    Dictionary<ArquivosIfc.Tipo, ArquivosIfc.Arquivo> arquivos = Tipos.ToDictionary(t => t,
+                        t => porTipo[t].FirstOrDefault(a => string.Equals(a.Classe, c, StringComparison.CurrentCultureIgnoreCase)));
+                    _lista.Items.Add(ItemDaLista(c, arquivos));
                 }
+                _lista.SelectedItem = _lista.Items.Cast<ListBoxItem>().FirstOrDefault(i => string.Equals((string)i.Tag, manter, StringComparison.CurrentCultureIgnoreCase))
+                                      ?? _lista.Items.Cast<ListBoxItem>().FirstOrDefault();
             }
             finally { _carregando = false; }
             _setup = null;
-            foreach (ArquivosIfc.Tipo t in Tipos) MostrarDetalhe(t);
+            MostrarPadrao();
         }
 
-        private ListBoxItem ItemDaLista(ArquivosIfc.Arquivo a)
+        /// <summary>Um padrão na lista: o nome e uma marca para cada parte (configurações, psets, mapa).</summary>
+        private ListBoxItem ItemDaLista(string classe, Dictionary<ArquivosIfc.Tipo, ArquivosIfc.Arquivo> arquivos)
         {
-            var d = new DockPanel { Margin = new Thickness(2, 3, 2, 3) };
-            UIElement direita;
-            if (a.Tipo == ArquivosIfc.Tipo.PropertySets && SeloPsets(a) is Border selo) direita = selo;
-            else if (a.Tipo == ArquivosIfc.Tipo.Setup && !SetupAceito(a.Caminho)) direita = Theme.Selo("não é IFC4 nem 4.3", Theme.Estado.Aviso);
-            else direita = new TextBlock { Text = a.Origem, Foreground = Theme.Solid(Theme.Cinza), FontSize = 11, VerticalAlignment = VerticalAlignment.Center };
-            DockPanel.SetDock(direita, Dock.Right);
-            d.Children.Add(direita);
-            d.Children.Add(new TextBlock { Text = a.Classe, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
-            return new ListBoxItem { Content = d, Tag = a, ToolTip = $"{a.Caminho}\nOrigem: {a.Origem}" };
+            var p = new StackPanel { Margin = new Thickness(2, 3, 2, 3) };
+            p.Children.Add(new TextBlock { Text = classe, FontWeight = FontWeights.SemiBold, TextTrimming = TextTrimming.CharacterEllipsis });
+            var marcas = new WrapPanel { Margin = new Thickness(0, 1, 0, 0) };
+            var dica = new List<string> { classe };
+            foreach (ArquivosIfc.Tipo t in Tipos)
+            {
+                ArquivosIfc.Arquivo a = arquivos[t];
+                string curto = t == ArquivosIfc.Tipo.Setup ? "configurações" : t == ArquivosIfc.Tipo.PropertySets ? "psets" : "mapa";
+                Color cor = a == null ? Color.FromRgb(0xB8, 0xB8, 0xB8) : Theme.Verde;
+                string situacao = a == null ? (t == ArquivosIfc.Tipo.Mapeamento ? "nenhum (opcional)" : "nenhum") : $"{a.Nome} ({a.Origem})";
+                if (a != null && t == ArquivosIfc.Tipo.Setup && !SetupAceito(a.Caminho)) { cor = Theme.LaranjaTexto; situacao += ", não é IFC4 nem 4.3"; }
+                if (a != null && t == ArquivosIfc.Tipo.PropertySets && AusentesNoModelo(a) is int n && n != 0)
+                {
+                    cor = Theme.LaranjaTexto;
+                    situacao += n < 0 ? ", com erro" : n == 1 ? ", 1 parâmetro não encontrado no modelo" : $", {n} parâmetros não encontrados no modelo";
+                }
+                marcas.Children.Add(new TextBlock
+                {
+                    Text = (a == null ? "○ " : "● ") + curto, FontSize = 11, Foreground = Theme.Solid(cor), Margin = new Thickness(0, 0, 8, 0),
+                });
+                dica.Add($"{NomeAba(t)}: {situacao}");
+            }
+            p.Children.Add(marcas);
+            return new ListBoxItem { Content = p, Tag = classe, ToolTip = string.Join("\n", dica) };
         }
 
-        /// <summary>Selo da lista de property sets: parâmetros não encontrados no modelo (só pelo nome, é rápido).</summary>
-        private Border SeloPsets(ArquivosIfc.Arquivo a)
+        /// <summary>Parâmetros do .txt não encontrados no modelo (só pelo nome, é rápido); null sem modelo, -1 com erro.</summary>
+        private int? AusentesNoModelo(ArquivosIfc.Arquivo a)
         {
             if (_doc == null) return null;
-            try
-            {
-                ConferenciaPsets c = ConferenciaPsets.Fazer(a.Caminho, Nomes(), null);
-                return c.Ausentes.Count == 0 ? Theme.Selo("ok", Theme.Estado.Ok) : Theme.Selo(c.Ausentes.Count.ToString(), Theme.Estado.Aviso);
-            }
-            catch { return Theme.Selo("erro", Theme.Estado.Aviso); }
+            try { return ConferenciaPsets.Fazer(a.Caminho, Nomes(), null).Ausentes.Count; }
+            catch { return -1; }
         }
 
         private static bool SetupAceito(string caminho)
@@ -185,7 +253,7 @@ namespace MetroSP.Ids
             try { return OpcoesSetup.Ler(caminho).EhVersaoAceita; } catch { return false; }
         }
 
-        /// <summary>Só os nomes dos parâmetros do modelo (rápido), para os selos da lista.</summary>
+        /// <summary>Só os nomes dos parâmetros do modelo (rápido), para as marcas da lista.</summary>
         private HashSet<string> Nomes()
         {
             if (_nomes == null && _doc != null) _nomes = _modelo?.Parametros ?? ModeloIfc.NomesDosParametros(_doc);
@@ -204,22 +272,85 @@ namespace MetroSP.Ids
             return _modelo;
         }
 
+        private void TrocouPadrao(SelectionChangedEventArgs e)
+        {
+            if (_carregando) return;
+            if (_setup != null && _setup.Alterado && !PerguntarDescartar())
+            {
+                // Cancelou: volta para o padrão que estava.
+                _carregando = true;
+                try { _lista.SelectedItem = e.RemovedItems.Count > 0 ? e.RemovedItems[0] : null; }
+                finally { _carregando = false; }
+                return;
+            }
+            _setup = null;
+            MostrarPadrao();
+        }
+
+        /// <summary>Mostra o padrão escolhido na lista: cabeçalho e as três abas.</summary>
+        private void MostrarPadrao()
+        {
+            _classe = (_lista.SelectedItem as ListBoxItem)?.Tag as string;
+            _doPadrao.Clear();
+            if (_classe != null)
+                foreach (ArquivosIfc.Tipo t in Tipos) _doPadrao[t] = ArquivosIfc.Obter(t, _classe);
+
+            _selosPadrao.Children.Clear();
+            if (_classe == null)
+            {
+                _nomePadrao.Text = "Nenhum perfil";
+                _infoPadrao.Text = "Arraste ou escolha os arquivos (.json e .txt) para criar um perfil.";
+            }
+            else
+            {
+                _nomePadrao.Text = _classe;
+                List<ArquivosIfc.Arquivo> tem = _doPadrao.Values.Where(a => a != null).ToList();
+                string origens = string.Join(", ", tem.Select(a => a.Origem).Distinct());
+                DateTime alterado = tem.Select(a => File.GetLastWriteTime(a.Caminho)).DefaultIfEmpty().Max();
+                _infoPadrao.Text = tem.Count == 0 ? "" : $"{origens} · alterado em {alterado:dd/MM/yyyy HH:mm}";
+                _infoPadrao.ToolTip = string.Join("\n", tem.Select(a => a.Caminho));
+                ArquivosIfc.Arquivo setup = Escolhido(ArquivosIfc.Tipo.Setup);
+                if (setup == null) _selosPadrao.Children.Add(Theme.Selo("sem configurações", Theme.Estado.Aviso));
+                else if (!SetupAceito(setup.Caminho)) _selosPadrao.Children.Add(Theme.Selo("a exportação MetroSP exige " + OpcoesSetup.VersoesAceitas, Theme.Estado.Aviso));
+                else _selosPadrao.Children.Add(Theme.Selo("pronto para exportar", Theme.Estado.Ok));
+                ArquivosIfc.Arquivo psets = Escolhido(ArquivosIfc.Tipo.PropertySets);
+                if (psets != null && AusentesNoModelo(psets) is int n && n > 0)
+                {
+                    Border s = Theme.Selo(n == 1 ? "1 parâmetro não encontrado" : $"{n} parâmetros não encontrados", Theme.Estado.Aviso);
+                    s.Margin = new Thickness(6, 0, 0, 0);
+                    s.ToolTip = "Parâmetros do property set que não existem no modelo aberto (ficam vazios no IFC). Veja a aba Property sets.";
+                    _selosPadrao.Children.Add(s);
+                }
+            }
+            bool todosSeus = _doPadrao.Values.Any(a => a != null) && _doPadrao.Values.All(a => a == null || (a.DoUsuario && !a.TemPadrao));
+            _duplicar.IsEnabled = _doPadrao.Values.Any(a => a != null);
+            _renomear.IsEnabled = todosSeus;
+            _renomear.ToolTip = todosSeus ? "Muda o nome do perfil (os seus arquivos dele mudam de nome juntos)."
+                : "Só dá para renomear um perfil que é todo seu. Use Duplicar para criar uma cópia sua com outro nome.";
+            ToolTipService.SetShowOnDisabled(_renomear, true);
+
+            foreach (ArquivosIfc.Tipo t in Tipos)
+            {
+                ArquivosIfc.Arquivo a = Escolhido(t);
+                _titulosAba[t].Inlines.Clear();
+                _titulosAba[t].Inlines.Add(new System.Windows.Documents.Run(NomeAba(t)));
+                if (a == null)
+                    _titulosAba[t].Inlines.Add(new System.Windows.Documents.Run("  nenhum") { Foreground = Theme.Solid(Theme.Cinza), FontSize = 11 });
+                MostrarDetalhe(t);
+            }
+        }
+
         private void MostrarDetalhe(ArquivosIfc.Tipo t)
         {
             ArquivosIfc.Arquivo a = Escolhido(t);
-            if (t == ArquivosIfc.Tipo.Setup)
-            {
-                if (_setup != null && _setup.Alterado && a != null && !string.Equals(_setup.Arquivo, a.Caminho, StringComparison.OrdinalIgnoreCase))
-                    PerguntarDescartar(podeCancelar: false);
-                _setup = null;
-            }
+            if (t == ArquivosIfc.Tipo.Setup) _setup = null;
             if (a == null)
             {
-                _detalhes[t].Content = new TextBlock
-                {
-                    Text = $"Nenhum arquivo de {ArquivosIfc.Descricao(t).ToLowerInvariant()}. Arraste ou escolha arquivos para trazer.",
-                    Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap,
-                };
+                string texto = _classe == null
+                    ? "Escolha um perfil na lista."
+                    : $"O perfil {_classe} não tem {NomeAba(t).ToLowerInvariant()}" + (t == ArquivosIfc.Tipo.Mapeamento ? " (é opcional)." : ".") +
+                      $"\nArraste um {ArquivosIfc.Extensao(t)} para esta janela ou escolha os arquivos, e indique o perfil {_classe}.";
+                _detalhes[t].Content = new TextBlock { Text = texto, Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap };
                 return;
             }
             try
@@ -240,6 +371,37 @@ namespace MetroSP.Ids
             }
         }
 
+        /// <summary>Cria um padrão novo com uma cópia sua de cada arquivo do padrão escolhido.</summary>
+        private void Duplicar()
+        {
+            if (_classe == null || (_setup != null && _setup.Alterado && !PerguntarDescartar())) return;
+            string nova = PedirTexto("Duplicar perfil", $"Nome do novo perfil (cópia de {_classe}):", _classe + " - cópia");
+            if (nova == null) return;
+            if (!ArquivosIfc.NomeValido(nova)) { MessageBox.Show(this, "Nome de perfil inválido.", Title); return; }
+            if (Tipos.Any(t => ArquivosIfc.Obter(t, nova) != null) &&
+                MessageBox.Show(this, $"Já existe o perfil {nova}. Substituir os arquivos dele? (os seus atuais ficam em Anteriores)", Title,
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            List<ArquivosIfc.Arquivo> arquivos = _doPadrao.Values.Where(a => a != null).ToList();
+            Executar(() => { foreach (ArquivosIfc.Arquivo a in arquivos) ArquivosIfc.Gravar(a.Caminho, a.Tipo, nova); }, nova.Trim());
+            _resumo.Text = $"Perfil {nova.Trim()} criado a partir de {arquivos[0].Classe}.";
+        }
+
+        /// <summary>Muda o nome do padrão (só quando todos os arquivos dele são seus).</summary>
+        private void Renomear()
+        {
+            if (_classe == null || (_setup != null && _setup.Alterado && !PerguntarDescartar())) return;
+            string antigo = _classe;
+            string nova = PedirTexto("Renomear perfil", $"Novo nome para o perfil {antigo}:", antigo);
+            if (nova == null || string.Equals(nova, antigo, StringComparison.CurrentCulture)) return;
+            if (!ArquivosIfc.NomeValido(nova)) { MessageBox.Show(this, "Nome de perfil inválido.", Title); return; }
+            if (!string.Equals(nova, antigo, StringComparison.CurrentCultureIgnoreCase) && Tipos.Any(t => ArquivosIfc.Obter(t, nova) != null) &&
+                MessageBox.Show(this, $"Já existe o perfil {nova}. Substituir os arquivos dele? (os seus atuais ficam em Anteriores)", Title,
+                    MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+            List<ArquivosIfc.Arquivo> arquivos = _doPadrao.Values.Where(a => a != null).ToList();
+            Executar(() => { foreach (ArquivosIfc.Arquivo a in arquivos) ArquivosIfc.MudarClasse(a.Tipo, antigo, nova); }, nova.Trim());
+            _resumo.Text = $"Perfil {antigo} renomeado para {nova.Trim()}.";
+        }
+
         // ---------- painéis ----------
 
         private static DockPanel Cabecalho(ArquivosIfc.Arquivo a, params UIElement[] selos)
@@ -254,11 +416,11 @@ namespace MetroSP.Ids
             DockPanel.SetDock(direita, Dock.Right);
             d.Children.Add(direita);
             var nome = new StackPanel();
-            nome.Children.Add(new TextBlock { Text = a.Nome, FontWeight = FontWeights.SemiBold, FontSize = 13 });
+            nome.Children.Add(new TextBlock { Text = a.Nome, FontWeight = FontWeights.SemiBold });
             string origem = a.Origem == ArquivosIfc.Seu
-                ? (a.TemPadrao ? "seu (no lugar do padrão)" : "seu")
+                ? (a.TemPadrao ? "seu (no lugar do original)" : "seu")
                 : a.Origem;
-            nome.Children.Add(Theme.Detalhe($"Padrão {a.Classe} · {origem} · alterado em {File.GetLastWriteTime(a.Caminho):dd/MM/yyyy HH:mm}"));
+            nome.Children.Add(Theme.Detalhe($"{origem} · alterado em {File.GetLastWriteTime(a.Caminho):dd/MM/yyyy HH:mm}"));
             nome.ToolTip = a.Caminho;
             d.Children.Add(nome);
             return d;
@@ -272,24 +434,24 @@ namespace MetroSP.Ids
             foreach (Button b in antes) Add(b);
             if (a.DoUsuario)
             {
-                var apagar = new Button { Content = a.TemPadrao ? "Voltar ao padrão" : "Apagar" };
-                apagar.ToolTip = a.TemPadrao ? "Apaga a sua cópia; o padrão volta a usar o arquivo do Forma online ou instalado." : "Apaga o arquivo (ele fica guardado em Anteriores).";
+                var apagar = new Button { Content = a.TemPadrao ? "Voltar ao original" : "Apagar" };
+                apagar.ToolTip = a.TemPadrao ? "Apaga a sua cópia; o perfil volta a usar o arquivo do Forma online ou instalado." : "Apaga o arquivo (ele fica guardado em Anteriores).";
                 apagar.Click += (s, e) =>
                 {
-                    string pergunta = a.TemPadrao ? $"Apagar a sua cópia de {a.Nome} e voltar ao padrão?" : $"Apagar {a.Nome}?";
+                    string pergunta = a.TemPadrao ? $"Apagar a sua cópia de {a.Nome} e voltar ao original?" : $"Apagar {a.Nome}?";
                     if (MessageBox.Show(this, pergunta + "\n\nA versão atual fica guardada em " + ArquivosIfc.PastaAnteriores, Title,
                             MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
                     Executar(() => ArquivosIfc.ApagarDoUsuario(a.Tipo, a.Classe), a.Classe);
                 };
                 Add(apagar);
-                var classe = new Button { Content = "Mudar padrão..." };
+                var classe = new Button { Content = "Mover para outro perfil...", ToolTip = "Passa este arquivo para outro perfil (o arquivo muda de nome)." };
                 classe.Click += (s, e) =>
                 {
-                    string nova = PedirTexto("Mudar padrão", $"Novo padrão para {a.Nome}:", a.Classe);
+                    string nova = PedirTexto("Mover para outro perfil", $"Perfil para {a.Nome}:", a.Classe);
                     if (nova == null || string.Equals(nova, a.Classe, StringComparison.CurrentCulture)) return;
-                    if (!ArquivosIfc.NomeValido(nova)) { MessageBox.Show(this, "Nome de padrão inválido.", Title); return; }
+                    if (!ArquivosIfc.NomeValido(nova)) { MessageBox.Show(this, "Nome de perfil inválido.", Title); return; }
                     if (File.Exists(ArquivosIfc.Destino(a.Tipo, nova)) &&
-                        MessageBox.Show(this, $"Você já tem {ArquivosIfc.Descricao(a.Tipo).ToLowerInvariant()} do padrão {nova}. Substituir? (o atual fica em Anteriores)", Title,
+                        MessageBox.Show(this, $"Você já tem {ArquivosIfc.Descricao(a.Tipo).ToLowerInvariant()} do perfil {nova}. Substituir? (o atual fica em Anteriores)", Title,
                             MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
                     Executar(() => ArquivosIfc.MudarClasse(a.Tipo, a.Classe, nova), nova);
                 };
@@ -355,6 +517,23 @@ namespace MetroSP.Ids
                 c.Click += (s, e) => { mudar(c.IsChecked == true); Alterou(); };
                 return c;
             }
+            // Opção que o Exportar IFC sempre força (IfcExportSetup.Forcadas): mostra o valor do .json, sem editar.
+            UIElement Fixa(string texto, bool valorNoArquivo, bool naExportacao)
+            {
+                var p = new StackPanel { Orientation = Orientation.Horizontal };
+                p.Children.Add(new CheckBox { Content = texto, IsChecked = valorNoArquivo, IsEnabled = false, VerticalAlignment = VerticalAlignment.Center });
+                bool diferente = valorNoArquivo != naExportacao;
+                p.Children.Add(new TextBlock
+                {
+                    Text = "🔒 " + (naExportacao ? "sempre exporta" : "nunca exporta"),
+                    Margin = new Thickness(10, 0, 0, 0), FontSize = 11, VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = Theme.Solid(diferente ? Theme.LaranjaTexto : Theme.Cinza),
+                });
+                p.ToolTip = (diferente ? $"O arquivo diz {(valorNoArquivo ? "sim" : "não")}, mas o " : "O ") +
+                            $"Exportar IFC do MetroSP {(naExportacao ? "sempre exporta" : "nunca exporta")} esta opção, seja qual for o valor no arquivo.";
+                ToolTipService.SetShowOnDisabled(p, true);
+                return p;
+            }
 
             Titulo("Geral");
             var versao = new ComboBox();
@@ -387,18 +566,14 @@ namespace MetroSP.Ids
             Titulo("O que entra");
             Linha(null, Caixa("Só elementos visíveis na vista", o.SoVisiveis, v => o.SoVisiveis = v,
                 "Sugestão inicial da janela Exportar IFC; lá você escolhe a vista ou o modelo inteiro."));
-            Linha(null, Caixa("Exportar quantidades base", o.Quantidades, v => o.Quantidades = v));
+            Linha(null, Fixa("Exportar quantidades base", o.Quantidades, true));
             Linha(null, Caixa("Gravar o GUID IFC no elemento", o.GravaGuid, v => o.GravaGuid = v,
                 "Grava o IfcGUID nos elementos do Revit ao exportar (o modelo fica alterado)."));
 
             Titulo("Propriedades");
-            Linha(null, Caixa("Psets do IFC padrão (Pset_WallCommon...)", o.PsetsComuns, v => o.PsetsComuns = v));
-            Linha(null, Caixa("Psets internos do Revit", o.PsetsDoRevit, v => o.PsetsDoRevit = v));
-            Linha(null, Caixa("Psets de material", o.PsetsDeMaterial, v => o.PsetsDeMaterial = v));
-            ArquivosIfc.Arquivo psets = ArquivosIfc.Obter(ArquivosIfc.Tipo.PropertySets, a.Classe);
-            ArquivosIfc.Arquivo mapa = ArquivosIfc.Obter(ArquivosIfc.Tipo.Mapeamento, a.Classe);
-            Linha(Nome("Property sets"), Theme.Detalhe(psets != null ? $"{psets.Nome} ({psets.Origem}), do padrão {a.Classe}" : $"nenhum .txt com o nome {a.Classe}"));
-            Linha(Nome("Mapeamento"), Theme.Detalhe(mapa != null ? $"{mapa.Nome} ({mapa.Origem})" : "nenhum (opcional)"));
+            Linha(null, Fixa("Psets do IFC padrão (Pset_WallCommon...)", o.PsetsComuns, true));
+            Linha(null, Fixa("Psets internos do Revit", o.PsetsDoRevit, false));
+            Linha(null, Fixa("Psets de material", o.PsetsDeMaterial, true));
 
             Titulo("Localização");
             Linha(null, Theme.Detalhe("🔒 Shared Coordinates e EPSG: definidos pelo MetroSP na exportação (EPSG em branco por padrão)."));
@@ -631,7 +806,7 @@ namespace MetroSP.Ids
                 g.Children.Add(e);
             }
             g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            string[] titulos = { "Arquivo", "Padrão", "Tipo", "Situação" };
+            string[] titulos = { "Arquivo", "Perfil", "Tipo", "Situação" };
             for (int i = 0; i < titulos.Length; i++) Celula(Theme.Secao(titulos[i]), 0, i);
 
             var itens = new List<Trazido>();
@@ -647,7 +822,7 @@ namespace MetroSP.Ids
                     Theme.Estado estado;
                     string texto;
                     if (tipo == null) { texto = t.Tipo == null ? "fica de fora: " + t.Motivo : "fica de fora"; estado = Theme.Estado.Neutro; }
-                    else if (!ArquivosIfc.NomeValido(classe)) { texto = "indique o padrão"; estado = Theme.Estado.Aviso; }
+                    else if (!ArquivosIfc.NomeValido(classe)) { texto = "indique o perfil"; estado = Theme.Estado.Aviso; }
                     else
                     {
                         validos++;
@@ -694,7 +869,7 @@ namespace MetroSP.Ids
             ok.Click += (s, e) => janela.DialogResult = true;
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             Atualizar();
-            Theme.Apply(janela, "Trazer arquivos", "Confira o padrão e o tipo de cada arquivo antes de gravar",
+            Theme.Apply(janela, "Trazer arquivos", "Confira o perfil e o tipo de cada arquivo antes de gravar",
                 new ScrollViewer { Content = g, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, Theme.Rodape(resumo, cancelar, ok));
             if (janela.ShowDialog() != true) return;
 

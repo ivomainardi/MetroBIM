@@ -4,6 +4,24 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.9 (17/11/2026)
+
+Revit 0.3.12 · Civil 3D 0.12.4
+
+- Revit, **Perfil de exportação** no lugar de "Padrão": a configuração que se escolhe para exportar (setup, property sets
+  e mapeamento) passa a se chamar **perfil**, no Exportar IFC, na Entrega passo a passo, no arquivo de coordenação
+  (Exportar alterações, Abrir alterações e a faixa) e na janela dos perfis. **Padrões do Metrô** (.ids) e a janela
+  **Padrões** da Ribbon continuam com o mesmo nome.
+- Revit, janela **Perfis de exportação IFC** (Exportar IFC › Perfis... e Entrega › Editar perfis...): agora se escolhe
+  o perfil numa lista à esquerda e, à direita, aparecem juntos as **Configurações** (setup .json), os **Property sets** e
+  o **Mapeamento** dele. Trocar de perfil troca as três abas. Cada perfil da lista mostra o que tem (configurações, psets
+  e mapa) e avisa em laranja quando falta parâmetro no modelo ou o setup não é IFC4/4.3. Novos botões **Duplicar...** e
+  **Renomear...**. A divisão entre a lista e o detalhe pode ser arrastada.
+- Revit, **Exportar IFC**: quatro opções passam a ser fixas, seja qual for o valor no setup .json: **Psets do IFC padrão**,
+  **Psets de material** e **quantidades base** sempre saem; **Psets internos do Revit** nunca saem. Na janela dos perfis
+  essas caixas mostram o que está no .json, travadas, com 🔒 "sempre exporta" ou "nunca exporta" (em laranja quando o
+  arquivo diz o contrário).
+
 ## 1.0.8 (16/11/2026)
 
 Revit 0.3.11 · Civil 3D 0.12.4

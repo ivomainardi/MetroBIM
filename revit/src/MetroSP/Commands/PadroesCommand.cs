@@ -35,11 +35,11 @@ namespace MetroSP.Commands
             TipoPadrao Ifc(ArquivosIfc.Tipo t, string id, string nome, string filtro) => new TipoPadrao
             {
                 Id = id, Nome = "Exportação IFC · " + nome, Pasta = Path.Combine(ClassesIfc.PastaUsuario, ArquivosIfc.Sub(t)), Filtro = filtro,
-                Ferramenta = "Padrões › Exportação IFC (ou Exportar IFC › Padrões...)",
+                Ferramenta = "Padrões › Exportação IFC (ou Exportar IFC › Perfis...)",
                 Editar = (dono, item) => new ArquivosIfcWindow(doc, Path.GetFileNameWithoutExtension(item.Arquivo), t) { Owner = dono }.ShowDialog(),
                 Reconhece = f => ArquivosIfc.Detectar(f, out _) == t,
                 Trazer = trazerIfc,
-                TrazerTexto = "abre Exportação IFC para indicar o padrão",
+                TrazerTexto = "abre Exportação IFC para indicar o perfil",
             };
             return new List<TipoPadrao>
             {
@@ -92,7 +92,7 @@ namespace MetroSP.Commands
                         Coordenacao.AbrirAlteracoesWindow.Abrir(dono, doc, arquivos.Last());
                         return null;
                     },
-                    TrazerTexto = doc == null ? "precisa de um modelo aberto" : "abre Abrir alterações para escolher o padrão",
+                    TrazerTexto = doc == null ? "precisa de um modelo aberto" : "abre Abrir alterações para escolher o perfil",
                 },
                 new TipoPadrao
                 {
