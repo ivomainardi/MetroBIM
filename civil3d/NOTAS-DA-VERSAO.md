@@ -26,6 +26,16 @@
 - **Tabela de classes do IFC4 no perfil** (`IfcInfraExportMapping.IFC4.json`). Exportando em IFC4, é ela que vai para o
   exportador. Se o perfil ainda não tem, sai da do IFC 4.3 com as classes que não existem no IFC4 trocadas pela
   equivalente (sem o tipo, ou `IfcBuildingElementProxy`, como IfcTrackElement e IfcCourse).
+- **Property sets numa lista única** (passo 3 e botão Property sets): cada property set é um grupo com onde está
+  (perfil e modelo, só no perfil, só no modelo, montado aqui), **Aplica-se a ▾**, em quantos objetos do IFC já está
+  anexado e o que falta criar; embaixo, as propriedades com tipo, valor padrão e quantos objetos estão com ela vazia.
+  Um botão **Criar e anexar o que falta** cria no modelo o que só está no perfil e anexa os property sets do perfil aos
+  objetos que vão para o IFC. Saíram as abas Montar/Anexar e o painel à direita; importar/exportar planilha, modelo
+  pronto e levar para o perfil ficam em **Mais ▾**.
+- **MetroDATA › Corrigir escrita mais enxuto**: abre já conferido; perfil, campos e regras (lista "7 de 9 ▾") numa
+  linha; tabela com Objeto, Campo, Atual, Sugestão e O que tem (situação, motivo, categoria e Id ficam na dica da
+  linha); botões Corrigir, Ignorar, Selecionar no modelo e **Mais ▾**.
+- **"Modelo" no lugar de "desenho"** em todos os textos do plugin (fica só "Propriedades do desenho", nome do AutoCAD).
 - **Corrigir classes**: troca as classes fora do esquema pela correção óbvia (ex.: `IfcBuiltElement.USERDEFINED` →
   `IfcBuiltElement`, que não tem tipo no IFC 4.3). A pendência do passo 3 já diz a classe a usar.
 - **Latitude e longitude no IfcSite = origem do PTL** (150.000; 250.000): o IfcSite passa a ficar nesse ponto, sem

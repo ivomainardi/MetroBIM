@@ -61,7 +61,7 @@ namespace MetroSP.Ifc
         /// <summary>Por que o objeto não vai para o IFC, ou null se vai.</summary>
         public string MotivoFora(Entity e, Transaction tr)
         {
-            if (e == null) return "Não é objeto de desenho";
+            if (e == null) return "Não é objeto de modelo";
             Type t = e.GetType();
             if (Anotacoes.Any(a => a.IsAssignableFrom(t))) return "Anotação";
             if (_layerFora.TryGetValue(e.LayerId, out string m)) return m;

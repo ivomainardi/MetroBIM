@@ -68,7 +68,7 @@ namespace MetroSP.Ui
                 gh.Click += (s, e) => Open(github);
                 buttons.Add(gh);
             }
-            var pasta = new Button { Content = "Pasta", ToolTip = "Abre a pasta do desenho com os JSON de configuração aplicados na última exportação." };
+            var pasta = new Button { Content = "Pasta", ToolTip = "Abre a pasta do modelo com os JSON de configuração aplicados na última exportação." };
             pasta.Click += (s, e) =>
             {
                 var doc = AcApp.DocumentManager.MdiActiveDocument;
@@ -155,7 +155,7 @@ namespace MetroSP.Ui
             }
             body.Children.Add(new ScrollViewer { Content = grid, MaxHeight = 360, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
 
-            var rememberBox = new CheckBox { Content = "Lembrar para este desenho", IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
+            var rememberBox = new CheckBox { Content = "Lembrar para este modelo", IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
             body.Children.Add(rememberBox);
 
             bool accepted = false;

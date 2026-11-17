@@ -231,9 +231,9 @@ namespace MetroSP.Ui
             }
             if (found.Count == 0)
             {
-                Warn("Não achei IfcInfraConfiguration.json nem IfcInfraExportMapping.json na pasta do desenho nem em " +
+                Warn("Não achei IfcInfraConfiguration.json nem IfcInfraExportMapping.json na pasta do modelo nem em " +
                      Commands.ProgramDataDir + ".\n\nRode IFCInfraSaveConfig e IFCInfraSaveMappingConfig no Civil 3D " +
-                     "(eles gravam os modelos da Autodesk na pasta do desenho) e clique de novo.");
+                     "(eles gravam os modelos da Autodesk na pasta do modelo) e clique de novo.");
                 return;
             }
             if (MessageBox.Show(this, "Substituir no perfil de exportação ativo:\n\n" + string.Join("\n", found), "MetroSP",

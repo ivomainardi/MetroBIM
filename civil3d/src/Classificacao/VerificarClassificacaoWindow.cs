@@ -89,7 +89,7 @@ namespace MetroSP.Classificacao
             // Escopo
             _escopo = new ComboBox { Padding = new Thickness(4, 3, 4, 3), MinWidth = 220, Margin = new Thickness(0, 0, 12, 0), ToolTip = "Só objetos que vão para o IFC (layers ligados, fora das anotações e do que a exportação exclui)." };
             if (_selecao != null) _escopo.Items.Add($"Seleção atual ({_selecao.Count} objetos)");
-            _escopo.Items.Add("Todo o desenho");
+            _escopo.Items.Add("Todo o modelo");
             _escopo.SelectedIndex = 0;
             var verificar = new Button { Content = "Verificar", Style = Theme.PrimaryButton };
             verificar.Click += (s, e) => Verificar();
@@ -118,9 +118,9 @@ namespace MetroSP.Classificacao
             corpo.Children.Add(_areaTabela);
 
             _rodapeInfo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-            _reanalisar = new Button { Content = "Reanalisar", IsEnabled = false, ToolTip = "Lê o desenho de novo, mantendo escopo e filtros da tabela." };
+            _reanalisar = new Button { Content = "Reanalisar", IsEnabled = false, ToolTip = "Lê o modelo de novo, mantendo escopo e filtros da tabela." };
             _exportar = new Button { Content = "Exportar (.csv)", IsEnabled = false };
-            _selecionar = new Button { Content = "Selecionar no desenho", IsEnabled = false, ToolTip = "Seleciona no Civil 3D os objetos visíveis na tabela (fica selecionado ao fechar a janela)." };
+            _selecionar = new Button { Content = "Selecionar no modelo", IsEnabled = false, ToolTip = "Seleciona no Civil 3D os objetos visíveis na tabela (fica selecionado ao fechar a janela)." };
             _aplicarSelecionadas = new Button { Content = "Aplicar selecionadas", IsEnabled = false, ToolTip = "Aplica só as propostas das linhas selecionadas (Ctrl/Shift+clique). Inclui as que trocam o código." };
             _aplicar = new Button { Content = "Aplicar propostas", Style = Theme.PrimaryButton, IsEnabled = false };
             var fechar = new Button { Content = "Fechar", IsCancel = true };
@@ -472,7 +472,7 @@ namespace MetroSP.Classificacao
         {
             var lista = ids.Distinct().ToArray();
             try { _doc.Editor.SetImpliedSelection(lista); } catch { }
-            _rodapeInfo.Text = $"{lista.Length} objetos selecionados no desenho.";
+            _rodapeInfo.Text = $"{lista.Length} objetos selecionados no modelo.";
         }
 
         /// <summary>Seleciona o objeto e aproxima a vista dele.</summary>

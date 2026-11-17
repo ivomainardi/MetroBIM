@@ -73,7 +73,7 @@ namespace MetroSP.Ifc
                 if (a != null) used.Add(a);
                 if (a == null)
                 {
-                    _log($"IfcAlignment \"{name}\" sem alinhamento correspondente no desenho; mantido como veio.");
+                    _log($"IfcAlignment \"{name}\" sem alinhamento correspondente no modelo; mantido como veio.");
                     continue;
                 }
 
@@ -96,7 +96,7 @@ namespace MetroSP.Ifc
                 if (!hasHorizontal)
                 {
                     if (a.Horizontal.Count > 0) empty.Add((al, a));
-                    else _log($"{a.Name}: veio sem geometria e o desenho não tem horizontal; mantido como veio.");
+                    else _log($"{a.Name}: veio sem geometria e o modelo não tem horizontal; mantido como veio.");
                     continue;
                 }
                 if (a.Axis3D.Count < 2)
@@ -196,7 +196,7 @@ namespace MetroSP.Ifc
             }
             _m.SetArg(al.Id, 6, _m.Get(temp).Args[6]);
             _m.Remove(temp);
-            _log($"{a.Name}: veio vazio da Autodesk; preenchido com o desenho ({a.Horizontal.Count} segmento(s) horizontais, " +
+            _log($"{a.Name}: veio vazio da Autodesk; preenchido com o modelo ({a.Horizontal.Count} segmento(s) horizontais, " +
                  $"{a.Vertical.Count} vertical(is), {a.Axis3D.Count} pontos no eixo 3D, perfil {a.ProfileName}).");
             return 1;
         }
@@ -287,7 +287,7 @@ namespace MetroSP.Ifc
             var dy = ifc[1] - mine[1];
             if (Math.Abs(dx) < 1e-3 && Math.Abs(dy) < 1e-3) return zero;
 
-            _log($"{a.Name}: coordenadas do IFC deslocadas em ({dx:0.###}; {dy:0.###}) em relação ao desenho; deslocamento aplicado.");
+            _log($"{a.Name}: coordenadas do IFC deslocadas em ({dx:0.###}; {dy:0.###}) em relação ao modelo; deslocamento aplicado.");
             return new[] { dx, dy, 0.0 };
         }
 
@@ -872,7 +872,7 @@ namespace MetroSP.Ifc
             if (ifcCount == 1 && byName.Count == 1)
             {
                 var only = byName.Values.First();
-                _log($"IfcAlignment \"{ifcName}\" é o único do arquivo; usando {only.Name}, o único do desenho.");
+                _log($"IfcAlignment \"{ifcName}\" é o único do arquivo; usando {only.Name}, o único do modelo.");
                 return only;
             }
             return null;

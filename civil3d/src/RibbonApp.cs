@@ -89,7 +89,7 @@ namespace MetroSP
                         "Na setinha: Configurar IFC, Exportador e Forma."),
                     Button("Perfis", "Padroes", "MSP_PADROES", "Adicionar, editar e excluir perfis e levar tudo para a equipe num .zip."),
                     Button("Configurar IFC", "IfcConfigurar", "MSP_IFCCONFIG", "Classes IFC, propriedades, projeto, alinhamento e opções avançadas do perfil de exportação."),
-                    Button("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da IFC 4.3 Extension da Autodesk, atualizações e a pasta dos arquivos de configuração do desenho."),
+                    Button("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da IFC 4.3 Extension da Autodesk, atualizações e a pasta dos arquivos de configuração do modelo."),
                     Button("Forma", "IfcSincronizar", "MSP_FORMA", "Autodesk Forma: entrar, sair, sincronizar a configuração IFC e a conta (Client ID, projeto e pasta)."))));
 
             // Marca sempre por último, no lado direito da aba.
@@ -100,12 +100,12 @@ namespace MetroSP
         static RibbonSplitButton ExportSplit()
         {
             var tudo = Button("Exportar\nIFC", "Passo3", "MSP_IFCEXPORT",
-                "Exporta o desenho em IFC 4.3 com o exportador da Autodesk e completa o arquivo: alinhamento 3D, projeto, local e instalações.");
+                "Exporta o modelo em IFC 4.3 com o exportador da Autodesk e completa o arquivo: alinhamento 3D, projeto, local e instalações.");
             var selecao = Button("Só a seleção", "IfcSelecao", "MSP_IFCEXPORTSEL", "Exporta só os objetos selecionados.");
             var alinhamentos = Button("Só os alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D.");
             var projeto = Button("Projeto e Local", "Passo2", "MSP_IFCPROJETO",
                 "Preenche o IfcProject, o IfcSite, as instalações (a linha como IfcRailway e cada estação como IfcBuilding) " +
-                "e o Pset MetroSP_Projeto. Os dados podem ser salvos como perfil e usados em outros desenhos, também no Revit.");
+                "e o Pset MetroSP_Projeto. Os dados podem ser salvos como perfil e usados em outros modelos, também no Revit.");
             foreach (var b in new[] { selecao, alinhamentos, projeto })
             {
                 b.Size = RibbonItemSize.Standard;

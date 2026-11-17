@@ -82,7 +82,7 @@ namespace MetroSP.Ui
             Children.Add(colunas);
 
             StackPanel p = Coluna(colunas, 0, "IfcProject", "O projeto: um por arquivo IFC.");
-            _pNome = Campo(p, "Nome", dados.Projeto?.Nome, Dica("Projeto.Nome", "Código ou número do projeto (ex.: o número do contrato ou do desenho)."));
+            _pNome = Campo(p, "Nome", dados.Projeto?.Nome, Dica("Projeto.Nome", "Código ou número do projeto (ex.: o número do contrato ou do modelo)."));
             _pLongo = Campo(p, "Nome longo", dados.Projeto?.NomeLongo, Dica("Projeto.NomeLongo", "Nome por extenso (ex.: Linha 20-Rosa, trecho Lapa–Moema)."));
             _pDesc = Campo(p, "Descrição", dados.Projeto?.Descricao, Dica("Projeto.Descricao", "Uma frase sobre o projeto."));
             _pFase = Campo(p, "Fase", dados.Projeto?.Fase, Dica("Projeto.Fase", "Fase do projeto (ex.: Projeto Básico, Projeto Executivo)."));

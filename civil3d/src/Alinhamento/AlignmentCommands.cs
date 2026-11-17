@@ -64,7 +64,7 @@ namespace MetroSP.Alinhamento
             if (ids.Count == 0)
             {
                 // Pavimentação, interferências etc.: o IFC sai sem IfcAlignment e o resto do pós-processamento segue.
-                doc.Editor.WriteMessage("\nMetroSP: desenho sem alinhamento; o IFC vai com projeto, terreno, instalações e os objetos do desenho.");
+                doc.Editor.WriteMessage("\nMetroSP: modelo sem alinhamento; o IFC vai com projeto, terreno, instalações e os objetos do modelo.");
                 return new List<AlignmentModel>();
             }
             return Read(doc, ids, opts, interactive);
@@ -75,7 +75,7 @@ namespace MetroSP.Alinhamento
             var ed = doc.Editor;
             var db = doc.Database;
             if (db.Insunits != UnitsValue.Meters)
-                ed.WriteMessage($"\nMetroSP: aviso - unidade do desenho é {db.Insunits}; o IFC é gravado em metros.");
+                ed.WriteMessage($"\nMetroSP: aviso - unidade do modelo é {db.Insunits}; o IFC é gravado em metros.");
 
             var models = new List<AlignmentModel>();
             using (var tr = db.TransactionManager.StartTransaction())

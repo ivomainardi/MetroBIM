@@ -1,60 +1,48 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Input;
 using Autodesk.AutoCAD.DatabaseServices;
 using MetroSP.Ui;
 using Microsoft.Win32;
 using AcDocument = Autodesk.AutoCAD.ApplicationServices.Document;
-using Grid = System.Windows.Controls.Grid;
 
 namespace MetroSP.PropertySets
 {
     /// <summary>
-    /// Monta os property sets do Civil 3D (Style Manager › Property Set Definitions): lista de montagem com nome,
-    /// propriedades, tipos e a quais objetos se aplica; importa/exporta planilha; cria/completa no desenho; leva ao
-    /// mapeamento do exportador IFC; e anexa aos objetos que vão para o IFC.
+    /// Property sets numa lista única (perfil e modelo): cada property set é um grupo com onde está (perfil e modelo, só no
+    /// perfil, só no modelo), a quais objetos se aplica e em quantos já está anexado; embaixo, as propriedades com o tipo e
+    /// quantos objetos estão com ela vazia. "Criar e anexar o que falta" cria no modelo o que só está no perfil (ou foi
+    /// montado aqui) e anexa aos objetos que vão para o IFC.
     /// </summary>
     public class MontarPsetsWindow : Window
     {
-        private readonly AcDocument _doc;
-        private readonly Database _db;
-        private readonly List<ObjectId> _selecao;
+        const string NoModelo = "No modelo";   // situação que o PsetsCore.Comparar devolve
 
-        // Montar
-        private readonly ObservableCollection<PsetMontagem> _psets = new ObservableCollection<PsetMontagem>();
-        private readonly FilterableGrid _tabelaPsets;
-        private readonly StackPanel _detalhe;
-        private readonly TextBox _nome, _descricao;
-        private readonly RadioButton _todos, _alguns;
-        private readonly ListBox _classes;
-        private readonly CheckBox _levarIfc;
-        private readonly ComboBox _entidadeIfc;
-        private readonly DataGrid _props;
-        private readonly TextBlock _resumo;
-        private PsetMontagem _atual;
-        private bool _preenchendo;
+        readonly AcDocument _doc;
+        readonly Database _db;
+        readonly List<ObjectId> _selecao;
 
-        // Anexar
-        private readonly WrapPanel _escolhaPsets;
-        private readonly ComboBox _escopo;
-        private readonly DockPanel _areaObjetos;
-        private readonly TextBlock _infoAnexar;
-        private List<ObjetoAnexar> _objetos;
-        private FilterableGrid _tabelaObjetos;
-        private readonly HashSet<string> _escolhidos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        readonly List<PsetMontagem> _psets = new List<PsetMontagem>();
+        HashSet<string> _doPerfil = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        Dictionary<string, HashSet<string>> _propsPerfil = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+        List<ObjetoAnexar> _objetos = new List<ObjetoAnexar>();
+        Dictionary<string, int> _vazios = new Dictionary<string, int>();
+        List<string> _classesModelo;
 
-        private readonly TabControl _abas;
-
-        /// <summary>Abas Montar e Anexar (a Entrega passo a passo abre direto em Anexar quando falta anexar).</summary>
-        internal TabControl Abas => _abas;
-        private readonly Button _criar, _anexar;
-        private readonly CheckBox _anexarAoCriar;
+        readonly ObservableCollection<LinhaPropriedade> _linhas = new ObservableCollection<LinhaPropriedade>();
+        readonly FilterableGrid _lista;
+        readonly CheckBox _soIfc, _soPendencia;
+        readonly TextBlock _resumo = Theme.Detalhe();
+        readonly Button _criarAnexar;
 
         public MontarPsetsWindow(AcDocument doc, List<ObjectId> selecao)
         {
@@ -65,399 +53,379 @@ namespace MetroSP.PropertySets
             Title = "MetroSP - Property sets";
             Width = 1180;
             Height = 760;
-            MinWidth = 860;
-            MinHeight = 520;
+            MinWidth = 820;
+            MinHeight = 480;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            Resources[SystemColors.InactiveSelectionHighlightTextBrushKey] = Theme.Solid(Theme.Preto);
 
-            // ============================================================ aba Montar
-            var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
-            Button Acao(string texto, string dica, Action a)
+            // ---- barra
+            var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
+            DockPanel.SetDock(barra, Dock.Top);
+            Button Botao(string texto, string dica, Action a, bool primario = false)
             {
-                var b = new Button { Content = texto, ToolTip = dica, Margin = new Thickness(0, 0, 6, 4) };
+                var b = new Button { Content = texto, ToolTip = dica, Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 0, 6, 4), VerticalAlignment = VerticalAlignment.Center };
+                if (primario) b.Style = Theme.PrimaryButton;
                 b.Click += (s, e) => a();
                 barra.Children.Add(b);
                 return b;
             }
-            Acao("+ Property set", "Acrescenta um property set vazio à lista.", NovoPset);
-            Acao("Tirar da lista", "Tira o property set da lista. Não apaga do desenho (para isso, use o Style Manager).", TirarPset);
-            barra.Children.Add(new Border { Width = 12 });
-            Acao("Importar planilha...", "Cria a estrutura a partir de uma planilha (uma linha por propriedade). Você indica a coluna de cada informação:\n" +
-                "Property set, Propriedade, Tipo, Valor padrão, Aplica-se a, Descrição e IFC. Os valores dos objetos não são preenchidos.\n" +
-                "Também lê o IFCInfraExportPropertyMapping.csv da Autodesk (linhas com Source = PropertySet).", Importar);
-            Acao("Exportar planilha...", "Salva a lista em .csv para editar no Excel, levar a outro desenho ou mandar para a equipe.", Exportar);
-            Acao("Do mapeamento IFC", "Traz os property sets que o mapeamento do exportador IFC (Configurar IFC) espera encontrar no desenho.", DoMapeamento);
-            var modelos = new Button { Content = "Modelo pronto ▾", ToolTip = "Property sets prontos para começar.", Margin = new Thickness(0, 0, 6, 4) };
-            var menu = new ContextMenu();
-            foreach (var (rotulo, dica, criar) in PsetsCore.Modelos())
-            {
-                var item = new MenuItem { Header = rotulo, ToolTip = dica };
-                item.Click += (s, e) => Acrescentar(new[] { criar() }, rotulo);
-                menu.Items.Add(item);
-            }
-            modelos.Click += (s, e) => { menu.PlacementTarget = modelos; menu.IsOpen = true; };
-            barra.Children.Add(modelos);
-            Acao("Reler o desenho", "Descarta o que não foi criado e lê de novo os property sets do desenho.", () => Carregar(true));
+            _criarAnexar = Botao("Criar e anexar o que falta",
+                "Cria no modelo os property sets e as propriedades que só estão no perfil (ou que você montou aqui) e anexa os " +
+                "property sets do perfil aos objetos que vão para o IFC" + (_selecao != null ? " (só nos selecionados)" : "") + ", conforme o \"Aplica-se a\" de cada um. Nada é apagado.",
+                CriarEAnexar, primario: true);
+            Botao("Selecionar objetos", "Seleciona no modelo os objetos que vão para o IFC sem algum property set do perfil " +
+                "(ou, com uma linha escolhida, os objetos a que o property set dela se aplica).", SelecionarObjetos);
+            Botao("+ Property set", "Monta um property set novo na lista (fica \"só aqui\" até Criar).", NovoPset);
+            var mais = new Button { Content = "Mais ▾", Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 0, 14, 4), VerticalAlignment = VerticalAlignment.Center };
+            mais.Click += (s, e) => MenuMais(mais);
+            barra.Children.Add(mais);
+            _soIfc = new CheckBox { Content = "Só o que vai para o IFC", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 4),
+                ToolTip = "Esconde os property sets que só estão no modelo e não estão anexados a nenhum objeto que vai para o IFC." };
+            _soPendencia = new CheckBox { Content = "Só com pendência", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 4),
+                ToolTip = "Só o que falta criar, anexar ou preencher." };
+            _soIfc.Click += (s, e) => _lista.Refresh();
+            _soPendencia.Click += (s, e) => _lista.Refresh();
+            barra.Children.Add(_soIfc);
+            barra.Children.Add(_soPendencia);
 
-            _tabelaPsets = new FilterableGrid(_psets, typeof(PsetMontagem));
-            _tabelaPsets.AddColumn("Property set", nameof(PsetMontagem.Nome), 200, fill: true);
-            _tabelaPsets.AddColumn("Situação", nameof(PsetMontagem.Situacao), 170);
-            _tabelaPsets.AddColumn("Props.", nameof(PsetMontagem.NumeroPropriedades), 60);
-            _tabelaPsets.AddColumn("Aplica-se a", nameof(PsetMontagem.AplicaA), 150);
-            _tabelaPsets.Grid.SelectionMode = DataGridSelectionMode.Single;
-            _tabelaPsets.Grid.SelectionChanged += (s, e) => Mostrar(_tabelaPsets.Grid.SelectedItem as PsetMontagem);
-            _tabelaPsets.Grid.LoadingRow += (s, e) =>
+            // ---- lista
+            _lista = new FilterableGrid(_linhas, typeof(LinhaPropriedade));
+            _lista.Grid.IsReadOnly = false;
+            Theme.StyleSelection(_lista.Grid);
+            VirtualizingPanel.SetIsVirtualizingWhenGrouping(_lista.Grid, true);
+            _lista.AddColumn("Propriedade", nameof(LinhaPropriedade.Propriedade), 220, fill: true);
+            _lista.AddColumn("Onde", nameof(LinhaPropriedade.Onde), 120).IsReadOnly = true;
+            var tipo = _lista.AddColumn("Tipo", nameof(LinhaPropriedade.Tipo), 90);
+            int iTipo = _lista.Grid.Columns.IndexOf(tipo);
+            _lista.Grid.Columns.Remove(tipo);
+            _lista.Grid.Columns.Insert(iTipo, new DataGridComboBoxColumn
             {
-                var p = (PsetMontagem)e.Row.Item;
-                e.Row.Background = p.Situacao == "No desenho" ? Theme.LinhaNormal : Theme.LinhaProblema;
-            };
-            Theme.StyleSelection(_tabelaPsets.Grid);
-
-            // Detalhe
-            _detalhe = new StackPanel();
-            _nome = new TextBox { ToolTip = "Nome do property set no desenho (e do Pset no IFC)." };
-            _nome.TextChanged += (s, e) => { if (Editando()) { _atual.Nome = _nome.Text.Trim(); Alterou(); } };
-            _descricao = new TextBox { ToolTip = "Aparece no Style Manager." };
-            _descricao.TextChanged += (s, e) => { if (Editando()) { _atual.Descricao = _descricao.Text; Alterou(); } };
-            _detalhe.Children.Add(DuasColunas(Campo("Nome", _nome), Campo("Descrição", _descricao)));
-
-            _todos = new RadioButton { Content = "Todos os objetos", GroupName = "aplica", Margin = new Thickness(0, 0, 16, 0) };
-            _alguns = new RadioButton { Content = "Só estes tipos", GroupName = "aplica", ToolTip = "O property set só pode ser anexado aos tipos marcados." };
-            _todos.Checked += (s, e) => { if (Editando()) { _atual.TodosObjetos = true; _classes.IsEnabled = false; Alterou(); } };
-            _alguns.Checked += (s, e) => { if (Editando()) { _atual.TodosObjetos = false; _classes.IsEnabled = true; Alterou(); } };
-            var linhaAplica = new StackPanel { Orientation = Orientation.Horizontal };
-            linhaAplica.Children.Add(_todos);
-            linhaAplica.Children.Add(_alguns);
-            _detalhe.Children.Add(Campo("Aplica-se a", linhaAplica));
-            _classes = new ListBox { Height = 104, Margin = new Thickness(0, 6, 0, 0) };
-            ScrollViewer.SetHorizontalScrollBarVisibility(_classes, ScrollBarVisibility.Disabled);
-            _classes.ItemsPanel = new ItemsPanelTemplate(new FrameworkElementFactory(typeof(WrapPanel)));
-            _detalhe.Children.Add(_classes);
-
-            _levarIfc = new CheckBox
-            {
-                Content = "Levar para o IFC",
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0),
-                ToolTip = "Ao criar, acrescenta o Pset ao mapeamento do exportador IFC (Configurar IFC › Property sets), com a origem PropertySet.",
-            };
-            _levarIfc.Click += (s, e) => { if (Editando()) { _atual.LevarIfc = _levarIfc.IsChecked == true; _entidadeIfc.IsEnabled = _atual.LevarIfc; Alterou(); } };
-            _entidadeIfc = new ComboBox { IsEditable = true, MinWidth = 160, ToolTip = "Entidade IFC a que o Pset se aplica (ApplicableEntities)." };
-            foreach (string s in new[] { "IfcElement", "IfcProduct", "IfcAlignment", "IfcCourse", "IfcEarthworksElement", "IfcPipeSegment", "IfcSpatialElement" })
-                _entidadeIfc.Items.Add(s);
-            _entidadeIfc.AddHandler(TextBox.TextChangedEvent, new TextChangedEventHandler((s, e) =>
-            {
-                if (Editando()) { _atual.EntidadeIfc = _entidadeIfc.Text.Trim(); Alterou(); }
-            }));
-            var linhaIfc = new StackPanel { Orientation = Orientation.Horizontal };
-            linhaIfc.Children.Add(_levarIfc);
-            linhaIfc.Children.Add(_entidadeIfc);
-            _detalhe.Children.Add(Campo("IFC", linhaIfc));
-
-            var tituloProps = Theme.Label("Propriedades");
-            tituloProps.ToolTip = "Clique na célula para editar. Propriedades que já estão no desenho não mudam de tipo (os valores se perderiam).";
-            _detalhe.Children.Add(tituloProps);
-
-            _props = new DataGrid
-            {
-                AutoGenerateColumns = false,
-                CanUserAddRows = false,
-                CanUserSortColumns = false,
-                HeadersVisibility = DataGridHeadersVisibility.Column,
-                SelectionMode = DataGridSelectionMode.Extended,
-            };
-            _props.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding(nameof(PropriedadeMontagem.Nome)) { UpdateSourceTrigger = UpdateSourceTrigger.LostFocus }, Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            _props.Columns.Add(new DataGridComboBoxColumn
-            {
-                Header = "Tipo",
-                ItemsSource = PsetsCore.NomesTipos,
-                SelectedItemBinding = new Binding(nameof(PropriedadeMontagem.TipoTexto)),
-                Width = 90,
+                Header = tipo.Header, ItemsSource = PsetsCore.NomesTipos, Width = 90, SortMemberPath = nameof(LinhaPropriedade.Tipo),
+                SelectedItemBinding = new Binding(nameof(LinhaPropriedade.Tipo)) { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged },
             });
-            _props.Columns.Add(new DataGridTextColumn { Header = "Valor padrão", Binding = new Binding(nameof(PropriedadeMontagem.Padrao)), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            _props.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new Binding(nameof(PropriedadeMontagem.Situacao)), IsReadOnly = true, Width = new DataGridLength(1.3, DataGridLengthUnitType.Star) });
-            _props.CellEditEnding += (s, e) => Dispatcher.BeginInvoke(new Action(Alterou), System.Windows.Threading.DispatcherPriority.Background);
-            _props.BeginningEdit += (s, e) =>
-            {
-                if (e.Row.Item is PropriedadeMontagem p && p.Automatica) e.Cancel = true;
-            };
-            Theme.StyleSelection(_props);
+            _lista.AddColumn("Valor padrão", nameof(LinhaPropriedade.Padrao), 130);
+            var vaz = _lista.AddColumn("Vazios", nameof(LinhaPropriedade.VaziosTexto), 70);
+            vaz.IsReadOnly = true;
+            vaz.SortMemberPath = nameof(LinhaPropriedade.Vazios);
+            vaz.ElementStyle = new Style(typeof(TextBlock), vaz.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, System.Windows.TextAlignment.Right) } };
+            _lista.Grid.BeginningEdit += (s, e) => { if (e.Row.Item is LinhaPropriedade l && !l.Editavel) e.Cancel = true; };
+            _lista.Grid.CellEditEnding += (s, e) => Dispatcher.BeginInvoke(new Action(Atualizar), System.Windows.Threading.DispatcherPriority.Background);
+            _lista.ExtraFilter = o => o is LinhaPropriedade l && Passa(l);
+            _lista.Filtered += Resumo;
+            _lista.Grid.ToolTip = "Clique na célula para editar as propriedades que ainda não estão no modelo. No título do grupo: Aplica-se a, renomear e + propriedade.";
 
-            var botoesProps = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 6, 0, 0) };
-            var maisProp = new Button { Content = "+ Propriedade" };
-            maisProp.Click += (s, e) => NovaPropriedade();
-            var menosProp = new Button { Content = "Tirar", Margin = new Thickness(6, 0, 0, 0), ToolTip = "Tira as propriedades selecionadas da lista. Não apaga do desenho." };
-            menosProp.Click += (s, e) => TirarPropriedades();
-            botoesProps.Children.Add(maisProp);
-            botoesProps.Children.Add(menosProp);
+            var estilo = new Style(typeof(DataGridRow), _lista.Grid.RowStyle);
+            var pend = new DataTrigger { Binding = new Binding(nameof(LinhaPropriedade.Pendente)), Value = true };
+            pend.Setters.Add(new Setter(BackgroundProperty, Theme.LinhaProblema));
+            estilo.Triggers.Add(pend);
+            var soModelo = new DataTrigger { Binding = new Binding(nameof(LinhaPropriedade.SoNoModelo)), Value = true };
+            soModelo.Setters.Add(new Setter(ForegroundProperty, Theme.Solid(Theme.Cinza)));
+            estilo.Triggers.Add(soModelo);
+            _lista.Grid.RowStyle = estilo;
+            _lista.Grid.GroupStyle.Add(EstiloGrupo());
+            if (_lista.Grid.ItemsSource is ICollectionView v) v.GroupDescriptions.Add(new PropertyGroupDescription(nameof(LinhaPropriedade.Grupo)));
 
-            var direita = new DockPanel { Margin = new Thickness(14, 0, 0, 0) };
-            DockPanel.SetDock(_detalhe, Dock.Top);
-            direita.Children.Add(_detalhe);
-            DockPanel.SetDock(botoesProps, Dock.Bottom);
-            direita.Children.Add(botoesProps);
-            direita.Children.Add(_props);
+            _resumo.TextWrapping = TextWrapping.NoWrap;
+            _resumo.TextTrimming = TextTrimming.CharacterEllipsis;
+            _resumo.Margin = new Thickness(0, 4, 0, 0);
+            DockPanel.SetDock(_resumo, Dock.Bottom);
 
-            var miolo = new Grid();
-            miolo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 300 });
-            miolo.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            miolo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.2, GridUnitType.Star), MinWidth = 380 });
-            Grid.SetColumn(_tabelaPsets, 0);
-            miolo.Children.Add(_tabelaPsets);
-            var divisor = new GridSplitter { Width = 5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Stretch, Background = Theme.Solid(Theme.CinzaClaro), ShowsPreview = false };
-            Grid.SetColumn(divisor, 1);
-            miolo.Children.Add(divisor);
-            Grid.SetColumn(direita, 2);
-            miolo.Children.Add(direita);
+            var corpo = new DockPanel();
+            corpo.Children.Add(barra);
+            corpo.Children.Add(_resumo);
+            corpo.Children.Add(_lista);
 
-            var montar = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
-            DockPanel.SetDock(barra, Dock.Top);
-            montar.Children.Add(barra);
-            montar.Children.Add(miolo);
-
-            // ============================================================ aba Anexar
-            var anexar = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
-            var linhaEscopo = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
-            linhaEscopo.Children.Add(Theme.Rotulo("Objetos"));
-            _escopo = new ComboBox { MinWidth = 220, Margin = new Thickness(0, 0, 12, 0), ToolTip = "Só objetos que vão para o IFC (layers ligados, fora das anotações e do que a exportação exclui)." };
-            if (_selecao != null) _escopo.Items.Add($"Seleção atual ({_selecao.Count} objetos)");
-            _escopo.Items.Add("Todo o desenho");
-            _escopo.SelectedIndex = 0;
-            _escopo.SelectionChanged += (s, e) => { if (IsLoaded) LerObjetos(); };
-            linhaEscopo.Children.Add(_escopo);
-            var reler = new Button { Content = "Ler objetos", ToolTip = "Lê de novo os objetos e os property sets anexados." };
-            reler.Click += (s, e) => LerObjetos();
-            linhaEscopo.Children.Add(reler);
-            DockPanel.SetDock(linhaEscopo, Dock.Top);
-            anexar.Children.Add(linhaEscopo);
-
-            var rotEscolha = Theme.Label("Property sets a anexar");
-            rotEscolha.ToolTip = "Só os que já estão no desenho. Cada um vai só para os tipos de objeto a que se aplica.";
-            DockPanel.SetDock(rotEscolha, Dock.Top);
-            anexar.Children.Add(rotEscolha);
-            _escolhaPsets = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            DockPanel.SetDock(_escolhaPsets, Dock.Top);
-            anexar.Children.Add(_escolhaPsets);
-            _areaObjetos = new DockPanel();
-            anexar.Children.Add(_areaObjetos);
-
-            _abas = new TabControl();
-            _abas.Items.Add(new TabItem { Header = "Montar", Content = montar, ToolTip = "Nome, propriedades e tipos de objeto de cada property set." });
-            _abas.Items.Add(new TabItem { Header = "Anexar aos objetos", Content = anexar, ToolTip = "Anexa os property sets aos objetos que vão para o IFC." });
-            _abas.SelectionChanged += (s, e) => { if (e.Source == _abas) TrocouAba(); };
-
-            // ============================================================ rodapé
-            _resumo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-            _infoAnexar = _resumo;
-            _criar = new Button { Content = "Criar no desenho", Style = Theme.PrimaryButton, ToolTip = "Cria os property sets novos e completa os que mudaram. Nada é apagado do desenho.\nCom \"Já anexar aos objetos\", também anexa aos objetos que vão para o IFC." };
-            _criar.Click += (s, e) => Criar();
-            _anexar = new Button { Content = "Anexar", Style = Theme.PrimaryButton, Visibility = System.Windows.Visibility.Collapsed, ToolTip = "Anexa o que falta aos objetos visíveis na tabela (use os filtros das colunas para escolher)." };
-            _anexar.Click += (s, e) => Anexar();
             var fechar = new Button { Content = "Fechar", IsCancel = true };
             fechar.Click += (s, e) => Close();
-            var rodape = Theme.Rodape(_resumo, _criar, _anexar, fechar);
-            _anexarAoCriar = new CheckBox
+            Theme.Apply(this, "Property sets", Path.GetFileName(doc.Name) + " · o que o perfil pede e o que está no modelo", corpo, Theme.Rodape(null, fechar));
+            Loaded += (s, e) => Carregar();
+        }
+
+        // ================================================================== grupo (property set)
+
+        GroupStyle EstiloGrupo()
+        {
+            var cab = new FrameworkElementFactory(typeof(DockPanel));
+            cab.SetValue(MarginProperty, new Thickness(0, 4, 0, 2));
+            cab.SetBinding(DataContextProperty, new Binding("Name"));
+
+            FrameworkElementFactory Texto(string prop, bool negrito = false, double margem = 14)
             {
-                Content = "Já anexar aos objetos",
-                IsChecked = true,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(12, 0, 4, 0),
-                ToolTip = (_selecao != null ? "Anexa aos objetos selecionados" : "Anexa a todos os objetos do desenho") +
-                          " que vão para o IFC, conforme o \"Aplica-se a\" de cada property set.\n" +
-                          "Assim eles aparecem em Propriedades › Extended Data. Valem só os property sets criados ou alterados agora.",
-            };
-            DockPanel.SetDock(_anexarAoCriar, Dock.Right);
-            rodape.Children.Insert(1, _anexarAoCriar);
+                var t = new FrameworkElementFactory(typeof(TextBlock));
+                t.SetBinding(TextBlock.TextProperty, new Binding(prop));
+                t.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);
+                t.SetValue(MarginProperty, new Thickness(0, 0, margem, 0));
+                if (negrito) t.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+                return t;
+            }
+            FrameworkElementFactory Link(string texto, string dica, Action<PsetVista, FrameworkElement> acao)
+            {
+                var b = new FrameworkElementFactory(typeof(Button));
+                b.SetValue(ContentControl.ContentProperty, texto);
+                b.SetValue(ToolTipProperty, dica);
+                b.SetValue(Control.PaddingProperty, new Thickness(8, 0, 8, 1));
+                b.SetValue(MarginProperty, new Thickness(0, 0, 6, 0));
+                b.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+                b.AddHandler(ButtonBase.ClickEvent, new RoutedEventHandler((s, e) =>
+                {
+                    if (((FrameworkElement)s).DataContext is PsetVista p) acao(p, (FrameworkElement)s);
+                    e.Handled = true;
+                }));
+                return b;
+            }
 
-            Theme.Apply(this, "Property sets", Path.GetFileName(doc.Name) + " · monta os property sets do Civil 3D e anexa aos objetos", _abas, rodape);
-            Carregar(false);
+            var nome = Texto(nameof(PsetVista.Nome), negrito: true);
+            nome.SetValue(ToolTipProperty, "Clique duas vezes para renomear (só o que ainda não está no modelo).");
+            nome.AddHandler(MouseLeftButtonDownEvent, new MouseButtonEventHandler((s, e) =>
+            {
+                if (e.ClickCount == 2 && ((FrameworkElement)s).DataContext is PsetVista p) { Renomear(p); e.Handled = true; }
+            }));
+            var onde = Texto(nameof(PsetVista.Onde));
+            onde.SetValue(TextBlock.ForegroundProperty, Theme.Solid(Theme.Cinza));
+            var anexado = Texto(nameof(PsetVista.Anexado));
+            anexado.SetBinding(ToolTipProperty, new Binding(nameof(PsetVista.AnexadoDica)));
+            var ifc = Texto(nameof(PsetVista.Situacao));
+            ifc.SetValue(TextBlock.ForegroundProperty, Theme.Solid(Theme.LaranjaTexto));
+
+            foreach (var f in new[] { nome, onde, anexado })
+            {
+                f.SetValue(DockPanel.DockProperty, Dock.Left);
+                cab.AppendChild(f);
+            }
+            var aplica = Link("", "A quais tipos de objeto o property set se aplica (só eles podem recebê-lo).", (p, b) => EscolherAplica(p, b));
+            aplica.SetBinding(ContentControl.ContentProperty, new Binding(nameof(PsetVista.AplicaTexto)));
+            aplica.SetValue(DockPanel.DockProperty, Dock.Left);
+            cab.AppendChild(aplica);
+            var mais = Link("+ propriedade", "Acrescenta uma propriedade a este property set.", (p, b) => NovaPropriedade(p));
+            mais.SetValue(DockPanel.DockProperty, Dock.Left);
+            cab.AppendChild(mais);
+            var tirar = Link("tirar", "Tira da lista o que ainda não está no modelo (o que já está fica; para apagar, use o Style Manager).", (p, b) => Tirar(p));
+            tirar.SetBinding(VisibilityProperty, new Binding(nameof(PsetVista.PodeTirar)) { Converter = new BooleanToVisibilityConverter() });
+            tirar.SetValue(DockPanel.DockProperty, Dock.Left);
+            cab.AppendChild(tirar);
+            cab.AppendChild(ifc);
+
+            var exp = new FrameworkElementFactory(typeof(Expander));
+            exp.SetValue(Expander.IsExpandedProperty, true);
+            exp.SetValue(Control.BackgroundProperty, Theme.Solid(Theme.CinzaClaro));
+            exp.SetValue(Expander.HeaderTemplateProperty, new DataTemplate { VisualTree = cab });
+            exp.SetBinding(HeaderedContentControl.HeaderProperty, new Binding());
+            exp.AppendChild(new FrameworkElementFactory(typeof(ItemsPresenter)));
+            var cont = new Style(typeof(GroupItem));
+            cont.Setters.Add(new Setter(Control.TemplateProperty, new ControlTemplate(typeof(GroupItem)) { VisualTree = exp }));
+            return new GroupStyle { ContainerStyle = cont };
         }
 
-        // ------------------------------------------------------------------ layout
+        // ================================================================== dados
 
-        static UIElement Campo(string rotulo, UIElement conteudo)
+        void Carregar()
         {
-            var p = new StackPanel();
-            p.Children.Add(Theme.Label(rotulo));
-            p.Children.Add(conteudo);
-            return p;
-        }
-
-        static UIElement DuasColunas(UIElement a, UIElement b)
-        {
-            var g = new Grid();
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.4, GridUnitType.Star) });
-            Grid.SetColumn(a, 0);
-            Grid.SetColumn(b, 2);
-            g.Children.Add(a);
-            g.Children.Add(b);
-            return g;
-        }
-
-        bool Editando() => !_preenchendo && _atual != null;
-
-        // ------------------------------------------------------------------ montar
-
-        private void Carregar(bool perguntar)
-        {
-            if (perguntar && _psets.Any(p => p.Situacao != "No desenho") &&
-                MessageBox.Show(this, "O que ainda não foi criado no desenho sai da lista. Continuar?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes)
-                return;
+            Cursor = Cursors.Wait;
             try
             {
                 _psets.Clear();
-                foreach (PsetMontagem p in PsetsCore.LerDesenho(_db)) _psets.Add(p);
-                Atualizar();
-                if (_psets.Count > 0) _tabelaPsets.Grid.SelectedIndex = 0; else Mostrar(null);
+                _psets.AddRange(PsetsCore.LerDesenho(_db));
+                List<PsetMontagem> perfil;
+                try { perfil = PsetsCore.DoMapeamentoIfc(); } catch { perfil = new List<PsetMontagem>(); }
+                _doPerfil = new HashSet<string>(perfil.Select(p => p.Nome), StringComparer.OrdinalIgnoreCase);
+                _propsPerfil = perfil.GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => new HashSet<string>(g.SelectMany(p => p.Propriedades).Select(x => x.Nome), StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase);
+                Juntar(perfil);
+                LerObjetos();
             }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível ler os property sets do desenho:\n" + ex.Message, Title); }
-        }
-
-        /// <summary>Compara com o desenho e atualiza tabela e rodapé.</summary>
-        private void Atualizar()
-        {
-            try { PsetsCore.Comparar(_db, _psets); } catch { }
-            _tabelaPsets.Refresh();
-            _tabelaPsets.Grid.Items.Refresh();
-            _props.Items.Refresh();
-            int novos = _psets.Count(p => p.Situacao == "Novo");
-            int muda = _psets.Count(p => p.Situacao.StartsWith("Muda"));
-            int ifc = _psets.Count(p => p.LevarIfc);
-            _criar.IsEnabled = novos + muda > 0 || ifc > 0;
-            if (_abas == null || _abas.SelectedIndex == 0)
-            {
-                _resumo.Text = novos + muda == 0
-                    ? $"{_psets.Count} property set(s) · tudo igual ao desenho" + (ifc > 0 ? $" · {ifc} para levar ao IFC" : "")
-                    : $"{_psets.Count} property set(s) · {novos} novo(s) · {muda} com mudança" + (ifc > 0 ? $" · {ifc} para levar ao IFC" : "");
-                _resumo.Foreground = Theme.Solid(novos + muda == 0 ? Theme.Verde : Theme.LaranjaTexto);
-            }
-        }
-
-        private void Alterou()
-        {
-            var sel = _atual;
+            catch (Exception ex) { MessageBox.Show(this, "Não foi possível ler os property sets do modelo:\n" + ex.Message, Title); }
+            finally { Cursor = null; }
             Atualizar();
-            if (sel != null && _tabelaPsets.Grid.SelectedItem != sel) _tabelaPsets.Grid.SelectedItem = sel;
         }
 
-        private void Mostrar(PsetMontagem p)
+        void LerObjetos()
         {
-            _atual = p;
-            _preenchendo = true;
             try
             {
-                _detalhe.IsEnabled = p != null;
-                _props.IsEnabled = p != null;
-                _nome.Text = p?.Nome ?? "";
-                _descricao.Text = p?.Descricao ?? "";
-                _todos.IsChecked = p == null || p.TodosObjetos;
-                _alguns.IsChecked = p != null && !p.TodosObjetos;
-                _levarIfc.IsChecked = p?.LevarIfc == true;
-                _entidadeIfc.Text = p?.EntidadeIfc ?? "IfcElement";
-                _entidadeIfc.IsEnabled = p?.LevarIfc == true;
-                PreencherClasses(p);
-                _props.ItemsSource = p?.Propriedades;
+                _objetos = PsetsCore.Objetos(_db, _selecao);
+                _vazios = PsetsCore.Vazios(_db, _objetos, _psets);
             }
-            finally { _preenchendo = false; }
+            catch { _objetos = new List<ObjetoAnexar>(); _vazios = new Dictionary<string, int>(); }
         }
 
-        private List<string> _classesDesenho;
-
-        private void PreencherClasses(PsetMontagem p)
-        {
-            if (_classesDesenho == null)
-            {
-                try { _classesDesenho = PsetsCore.Objetos(_db, null).Select(o => o.Classe).Distinct().ToList(); }
-                catch { _classesDesenho = new List<string>(); }
-            }
-            _classes.Items.Clear();
-            _classes.IsEnabled = p != null && !p.TodosObjetos;
-            var marcadas = new HashSet<string>(p?.Classes ?? new List<string>(), StringComparer.OrdinalIgnoreCase);
-            var opcoes = PsetsCore.OpcoesClasses(_classesDesenho.Concat(marcadas));
-            foreach (var (rx, nome) in opcoes)
-            {
-                var c = new CheckBox { Content = nome, Tag = rx, IsChecked = marcadas.Contains(rx), Width = 170, Margin = new Thickness(0, 2, 0, 2), ToolTip = rx };
-                c.Click += (s, e) =>
-                {
-                    if (!Editando()) return;
-                    if (c.IsChecked == true) { if (!_atual.Classes.Contains(rx, StringComparer.OrdinalIgnoreCase)) _atual.Classes.Add(rx); }
-                    else _atual.Classes.RemoveAll(x => string.Equals(x, rx, StringComparison.OrdinalIgnoreCase));
-                    Alterou();
-                };
-                _classes.Items.Add(c);
-            }
-        }
-
-        private void NovoPset()
-        {
-            string nome = "Novo property set";
-            for (int i = 2; _psets.Any(p => string.Equals(p.Nome, nome, StringComparison.OrdinalIgnoreCase)); i++) nome = "Novo property set " + i;
-            var p = new PsetMontagem { Nome = nome, Propriedades = { new PropriedadeMontagem { Nome = "Propriedade" } } };
-            _psets.Add(p);
-            Atualizar();
-            _tabelaPsets.Grid.SelectedItem = p;
-            _nome.Focus();
-            _nome.SelectAll();
-        }
-
-        private void TirarPset()
-        {
-            if (_atual == null) return;
-            _psets.Remove(_atual);
-            Atualizar();
-            if (_psets.Count > 0) _tabelaPsets.Grid.SelectedIndex = 0; else Mostrar(null);
-        }
-
-        private void NovaPropriedade()
-        {
-            if (_atual == null) return;
-            var pr = new PropriedadeMontagem { Nome = "Propriedade " + (_atual.Propriedades.Count + 1) };
-            _atual.Propriedades.Add(pr);
-            Alterou();
-            _props.SelectedItem = pr;
-            _props.ScrollIntoView(pr);
-            _props.CurrentCell = new DataGridCellInfo(pr, _props.Columns[0]);
-            _props.BeginEdit();
-        }
-
-        private void TirarPropriedades()
-        {
-            if (_atual == null) return;
-            foreach (PropriedadeMontagem pr in _props.SelectedItems.Cast<object>().OfType<PropriedadeMontagem>().ToList()) _atual.Propriedades.Remove(pr);
-            Alterou();
-        }
-
-        /// <summary>Junta property sets à lista: os de mesmo nome ganham as propriedades que faltam.</summary>
-        private void Acrescentar(IEnumerable<PsetMontagem> novos, string origem)
+        /// <summary>Junta property sets à lista: os de mesmo nome ganham as propriedades que faltam. Devolve (psets, propriedades) novos.</summary>
+        (int, int) Juntar(IEnumerable<PsetMontagem> novos)
         {
             int ps = 0, props = 0;
-            PsetMontagem ultimo = null;
             foreach (PsetMontagem n in novos)
             {
-                PsetMontagem e = _psets.FirstOrDefault(x => string.Equals(x.Nome, n.Nome, StringComparison.OrdinalIgnoreCase));
-                if (e == null) { _psets.Add(n); ps++; props += n.Propriedades.Count; ultimo = n; continue; }
+                PsetMontagem e = _psets.FirstOrDefault(x => Igual(x.Nome, n.Nome));
+                if (e == null) { _psets.Add(n); ps++; props += n.Propriedades.Count; continue; }
                 foreach (PropriedadeMontagem pr in n.Propriedades)
-                    if (!e.Propriedades.Any(x => string.Equals(x.Nome, pr.Nome, StringComparison.OrdinalIgnoreCase))) { e.Propriedades.Add(pr); props++; }
+                    if (!e.Propriedades.Any(x => Igual(x.Nome, pr.Nome))) { e.Propriedades.Add(pr); props++; }
                 if (!n.TodosObjetos && !e.TodosObjetos)
                     foreach (string c in n.Classes) if (!e.Classes.Contains(c, StringComparer.OrdinalIgnoreCase)) e.Classes.Add(c);
-                if (n.LevarIfc) { e.LevarIfc = true; e.EntidadeIfc = n.EntidadeIfc; }
                 if (string.IsNullOrEmpty(e.Descricao)) e.Descricao = n.Descricao;
-                ultimo = e;
             }
-            Atualizar();
-            if (ultimo != null) _tabelaPsets.Grid.SelectedItem = ultimo;
-            _resumo.Text = $"{origem}: {ps} property set(s) e {props} propriedade(s) entraram na lista. Clique em \"Criar no desenho\".";
-            _resumo.Foreground = Theme.Solid(Theme.LaranjaTexto);
+            return (ps, props);
         }
 
-        private void Importar()
+        static bool Igual(string a, string b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+        bool Aplica(PsetMontagem p, ObjetoAnexar o) =>
+            p.TodosObjetos || p.Classes.Count == 0 || p.Classes.Any(c => o.Linhagem != null && o.Linhagem.Contains(c));
+
+        /// <summary>Compara com o modelo e monta as linhas de novo (guarda a seleção).</summary>
+        void Atualizar()
+        {
+            _lista.Grid.CommitEdit(DataGridEditingUnit.Row, true);
+            try { PsetsCore.Comparar(_db, _psets); } catch { }
+            var sel = new HashSet<string>(_lista.Grid.SelectedItems.OfType<LinhaPropriedade>().Select(l => l.Chave));
+            var linhas = new List<LinhaPropriedade>();
+            foreach (PsetMontagem p in _psets.OrderBy(p => Ordem(p)).ThenBy(p => p.Nome, StringComparer.CurrentCultureIgnoreCase))
+            {
+                var aplicaveis = _objetos.Where(o => Aplica(p, o)).ToList();
+                int anexados = aplicaveis.Count(o => o.Nomes.Contains(p.Nome));
+                int emQualquer = _objetos.Count(o => o.Nomes.Contains(p.Nome));
+                var g = new PsetVista(p, _doPerfil.Contains(p.Nome), aplicaveis.Count, anexados, emQualquer);
+                _propsPerfil.TryGetValue(p.Nome, out var doPerfil);
+                if (p.Propriedades.Count == 0) linhas.Add(new LinhaPropriedade(g, null, false, 0));
+                foreach (PropriedadeMontagem pr in p.Propriedades)
+                {
+                    _vazios.TryGetValue(p.Nome + "\u0001" + pr.Nome, out int vz);
+                    linhas.Add(new LinhaPropriedade(g, pr, doPerfil != null && doPerfil.Contains(pr.Nome), vz));
+                }
+            }
+            _linhas.Clear();
+            foreach (LinhaPropriedade l in linhas) _linhas.Add(l);
+            foreach (LinhaPropriedade l in _linhas.Where(l => sel.Contains(l.Chave))) _lista.Grid.SelectedItems.Add(l);
+            Resumo();
+        }
+
+        static int Ordem(PsetMontagem p) => p.NoDesenho ? 1 : 0;
+
+        bool Passa(LinhaPropriedade l)
+        {
+            if (_soIfc.IsChecked == true && !l.Grupo.DoPerfil && l.Grupo.EmQualquer == 0 && l.Grupo.M.NoDesenho) return false;
+            if (_soPendencia.IsChecked == true && !l.Pendente && !l.Grupo.Pendente) return false;
+            return true;
+        }
+
+        void Resumo()
+        {
+            var grupos = _linhas.Select(l => l.Grupo).Distinct().ToList();
+            int criar = grupos.Count(g => g.M.Situacao != NoModelo);
+            int faltaAnexar = grupos.Where(g => g.DoPerfil || !g.M.NoDesenho).Sum(g => g.Faltam);
+            int vazios = _linhas.Where(l => l.Vazios > 0).Select(l => l.Grupo).Distinct().Count();
+            var partes = new List<string> { $"{grupos.Count} property set(s)" };
+            if (criar > 0) partes.Add($"{criar} para criar ou completar no modelo");
+            if (faltaAnexar > 0) partes.Add($"falta anexar {faltaAnexar} vez(es)");
+            if (vazios > 0) partes.Add($"{vazios} com propriedade vazia (preencha no passo 4)");
+            if (criar + faltaAnexar == 0) partes.Add("tudo criado e anexado");
+            _resumo.Text = string.Join(" · ", partes) + $" · {_objetos.Count} objeto(s) que vão para o IFC" + (_selecao != null ? " (seleção)" : "");
+            _resumo.Foreground = Theme.Solid(criar + faltaAnexar == 0 ? Theme.Verde : Theme.LaranjaTexto);
+            _criarAnexar.IsEnabled = criar + faltaAnexar > 0;
+        }
+
+        // ================================================================== edição
+
+        void NovoPset()
+        {
+            string nome = Theme.PedirTexto(this, "Novo property set", "Nome do property set (o mesmo do Pset no IFC):", "Novo property set")?.Trim();
+            if (string.IsNullOrEmpty(nome)) return;
+            if (_psets.Any(p => Igual(p.Nome, nome))) { MessageBox.Show(this, "Já existe um property set com esse nome.", Title); return; }
+            _psets.Add(new PsetMontagem { Nome = nome, Propriedades = { new PropriedadeMontagem { Nome = "Propriedade" } } });
+            _soIfc.IsChecked = false;
+            Atualizar();
+        }
+
+        void Renomear(PsetVista g)
+        {
+            if (g.M.NoDesenho) { MessageBox.Show(this, "Este property set já está no modelo: renomeie no Style Manager.", Title); return; }
+            string nome = Theme.PedirTexto(this, "Renomear property set", "Nome novo:", g.M.Nome)?.Trim();
+            if (string.IsNullOrEmpty(nome) || Igual(nome, g.M.Nome)) return;
+            if (_psets.Any(p => Igual(p.Nome, nome))) { MessageBox.Show(this, "Já existe um property set com esse nome.", Title); return; }
+            g.M.Nome = nome;
+            Atualizar();
+        }
+
+        void NovaPropriedade(PsetVista g)
+        {
+            string nome = Theme.PedirTexto(this, "Nova propriedade", "Nome da propriedade em " + g.M.Nome + ":", "")?.Trim();
+            if (string.IsNullOrEmpty(nome)) return;
+            if (g.M.Propriedades.Any(x => Igual(x.Nome, nome))) { MessageBox.Show(this, "Essa propriedade já existe.", Title); return; }
+            g.M.Propriedades.Add(new PropriedadeMontagem { Nome = nome });
+            Atualizar();
+        }
+
+        void Tirar(PsetVista g)
+        {
+            if (!g.M.NoDesenho) _psets.Remove(g.M);
+            else g.M.Propriedades.RemoveAll(pr => !(pr.Situacao ?? "").StartsWith(NoModelo, StringComparison.Ordinal));
+            Atualizar();
+        }
+
+        void EscolherAplica(PsetVista g, FrameworkElement alvo)
+        {
+            if (_classesModelo == null) _classesModelo = _objetos.Select(o => o.Classe).Distinct().ToList();
+            var painel = new StackPanel { Margin = new Thickness(10) };
+            var todos = new CheckBox { Content = "Todos os objetos", IsChecked = g.M.TodosObjetos || g.M.Classes.Count == 0, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) };
+            painel.Children.Add(todos);
+            var lista = new WrapPanel { Width = 380 };
+            var marcadas = new HashSet<string>(g.M.Classes, StringComparer.OrdinalIgnoreCase);
+            foreach (var (rx, nome) in PsetsCore.OpcoesClasses(_classesModelo.Concat(marcadas)))
+            {
+                var c = new CheckBox { Content = nome, Tag = rx, IsChecked = marcadas.Contains(rx), Width = 185, Margin = new Thickness(0, 2, 0, 2), ToolTip = rx };
+                lista.Children.Add(c);
+            }
+            lista.IsEnabled = todos.IsChecked != true;
+            todos.Click += (s, e) => lista.IsEnabled = todos.IsChecked != true;
+            painel.Children.Add(lista);
+            var ok = new Button { Content = "Aplicar", Style = Theme.PrimaryButton, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 8, 0, 0), MinWidth = 80 };
+            painel.Children.Add(ok);
+            var pop = new Popup
+            {
+                PlacementTarget = alvo, Placement = PlacementMode.Bottom, StaysOpen = false, AllowsTransparency = true,
+                Child = new Border { Background = System.Windows.Media.Brushes.White, BorderBrush = Theme.Solid(Theme.Cinza), BorderThickness = new Thickness(1), Child = painel },
+            };
+            ok.Click += (s, e) =>
+            {
+                g.M.TodosObjetos = todos.IsChecked == true;
+                g.M.Classes = g.M.TodosObjetos ? new List<string>() : lista.Children.OfType<CheckBox>().Where(c => c.IsChecked == true).Select(c => (string)c.Tag).ToList();
+                if (!g.M.TodosObjetos && g.M.Classes.Count == 0) g.M.TodosObjetos = true;
+                pop.IsOpen = false;
+                Atualizar();
+            };
+            pop.IsOpen = true;
+        }
+
+        void MenuMais(Button botao)
+        {
+            var m = new ContextMenu { PlacementTarget = botao, Placement = PlacementMode.Bottom };
+            MenuItem Item(string texto, string dica, Action a)
+            {
+                var i = new MenuItem { Header = texto, ToolTip = dica };
+                i.Click += (s, e) => a();
+                m.Items.Add(i);
+                return i;
+            }
+            var modelos = new MenuItem { Header = "Modelo pronto" };
+            foreach (var (rotulo, dica, criar) in PsetsCore.Modelos())
+            {
+                var i = new MenuItem { Header = rotulo, ToolTip = dica };
+                i.Click += (s, e) => { Juntar(new[] { criar() }); _soIfc.IsChecked = false; Atualizar(); };
+                modelos.Items.Add(i);
+            }
+            m.Items.Add(modelos);
+            Item("Importar planilha...", "Cria a estrutura a partir de uma planilha (uma linha por propriedade). Também lê o IFCInfraExportPropertyMapping.csv da Autodesk.", Importar);
+            Item("Exportar planilha...", "Salva a lista em .csv para editar no Excel ou mandar para a equipe.", Exportar);
+            m.Items.Add(new Separator());
+            Item("Levar para o perfil IFC os só no modelo", "Acrescenta ao mapeamento do perfil (Configurar IFC › Propriedades) os property sets que estão no modelo mas o perfil não pede.", LevarParaPerfil);
+            Item("Ler o modelo de novo", "Descarta o que não foi criado e lê de novo os property sets e os objetos.", Carregar);
+            m.IsOpen = true;
+        }
+
+        void Importar()
         {
             var dlg = new OpenFileDialog { Title = "Importar property sets", Filter = Planilha.LeitorPlanilha.Filtro };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
-                // O mapeamento da Autodesk tem formato fixo; as outras planilhas passam pela escolha das colunas.
                 List<PsetMontagem> lidos = PsetsCore.SeMapeamentoAutodesk(dlg.FileName);
                 if (lidos == null)
                 {
@@ -466,183 +434,152 @@ namespace MetroSP.PropertySets
                     lidos = w.Resultado;
                 }
                 if (lidos.Count == 0) { MessageBox.Show(this, "Nenhum property set encontrado na planilha.", Title); return; }
-                Acrescentar(lidos, Path.GetFileName(dlg.FileName));
+                var (ps, props) = Juntar(lidos);
+                _soIfc.IsChecked = false;
+                Atualizar();
+                _resumo.Text = $"{Path.GetFileName(dlg.FileName)}: {ps} property set(s) e {props} propriedade(s) entraram na lista. Clique em \"Criar e anexar o que falta\".";
             }
             catch (Exception ex) { MessageBox.Show(this, "Não foi possível ler a planilha:\n" + ex.Message, Title); }
         }
 
-        private void Exportar()
+        void Exportar()
         {
             if (_psets.Count == 0) return;
             var dlg = new SaveFileDialog { Title = "Exportar property sets", Filter = "Planilha CSV (*.csv)|*.csv", FileName = Path.GetFileNameWithoutExtension(_doc.Name) + " - property sets.csv" };
             if (dlg.ShowDialog(this) != true) return;
             try
             {
-                PsetsCore.ExportarPlanilha(dlg.FileName, _tabelaPsets.VisibleItems<PsetMontagem>());
+                var visiveis = new HashSet<PsetMontagem>(_lista.VisibleItems<LinhaPropriedade>().Select(l => l.Grupo.M));
+                PsetsCore.ExportarPlanilha(dlg.FileName, _psets.Where(visiveis.Contains));
                 _resumo.Text = "Planilha salva: " + dlg.FileName;
-                _resumo.Foreground = Theme.Solid(Theme.Verde);
             }
             catch (Exception ex) { MessageBox.Show(this, "Não foi possível salvar:\n" + ex.Message, Title); }
         }
 
-        private void DoMapeamento()
+        void LevarParaPerfil()
         {
-            try
-            {
-                List<PsetMontagem> lidos = PsetsCore.DoMapeamentoIfc();
-                if (lidos.Count == 0)
-                {
-                    MessageBox.Show(this, "O mapeamento IFC ativo não tem propriedades vindas de property sets (Source = PropertySet).\nVeja em Configurar IFC › Property sets.", Title);
-                    return;
-                }
-                Acrescentar(lidos, "Mapeamento IFC");
-            }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível ler o mapeamento IFC:\n" + ex.Message, Title); }
+            var so = _psets.Where(p => p.NoDesenho && !_doPerfil.Contains(p.Nome) && _objetos.Any(o => o.Nomes.Contains(p.Nome))).ToList();
+            if (so.Count == 0) { MessageBox.Show(this, "Nenhum property set anexado a objetos do IFC está fora do perfil.", Title); return; }
+            foreach (PsetMontagem p in so) { p.LevarIfc = true; p.EntidadeIfc = "IfcProduct"; }
+            string msg;
+            try { msg = PsetsCore.LevarParaIfc(so) ?? ""; }
+            catch (Exception ex) { msg = ex.Message; }
+            MessageBox.Show(this, msg, Title);
+            Carregar();
         }
 
-        private void Criar()
+        // ================================================================== criar, anexar, selecionar
+
+        void CriarEAnexar()
         {
-            _props.CommitEdit(DataGridEditingUnit.Row, true);
-            var nomes = _psets.Select(p => (p.Nome ?? "").Trim()).ToList();
-            if (nomes.Any(n => n.Length == 0)) { MessageBox.Show(this, "Há property set sem nome.", Title); return; }
-            var dup = nomes.GroupBy(n => n, StringComparer.OrdinalIgnoreCase).FirstOrDefault(g => g.Count() > 1);
-            if (dup != null) { MessageBox.Show(this, $"O nome \"{dup.Key}\" aparece mais de uma vez.", Title); return; }
-            var semProps = _psets.Where(p => p.Propriedades.Count == 0).Select(p => p.Nome).ToList();
+            _lista.Grid.CommitEdit(DataGridEditingUnit.Row, true);
             var dupProp = _psets.SelectMany(p => p.Propriedades.GroupBy(x => (x.Nome ?? "").Trim(), StringComparer.OrdinalIgnoreCase).Where(g => g.Count() > 1).Select(g => p.Nome + " › " + g.Key)).FirstOrDefault();
             if (dupProp != null) { MessageBox.Show(this, $"Propriedade repetida: {dupProp}.", Title); return; }
+            if (_psets.Any(p => p.Propriedades.Any(x => string.IsNullOrWhiteSpace(x.Nome)))) { MessageBox.Show(this, "Há propriedade sem nome.", Title); return; }
 
-            var alvo = _psets.Where(p => p.Situacao != "No desenho").ToList();
+            var criar = _psets.Where(p => p.Situacao != NoModelo).ToList();
+            var anexar = new HashSet<string>(_psets.Where(p => _doPerfil.Contains(p.Nome) || !p.NoDesenho).Select(p => p.Nome.Trim()), StringComparer.OrdinalIgnoreCase);
             Cursor = Cursors.Wait;
-            string msg;
+            var msg = new List<string>();
             try
             {
                 using (_doc.LockDocument())
                 {
-                    msg = alvo.Count > 0 ? PsetsCore.CriarNoDesenho(_db, alvo) : "Os property sets já estavam iguais no desenho.";
-                    if (alvo.Count > 0 && _anexarAoCriar.IsChecked == true)
-                    {
-                        List<ObjetoAnexar> objs = PsetsCore.Objetos(_db, _selecao);
-                        PsetsCore.CalcularFaltas(_db, objs, alvo.Select(p => p.Nome.Trim()).ToList());
-                        msg += "\n\n" + (objs.Any(o => !string.IsNullOrEmpty(o.Faltam))
-                            ? PsetsCore.Anexar(_db, objs) + "\nOs valores ficam em Propriedades › Extended Data."
-                            : "Os objetos que vão para o IFC já tinham esses property sets (ou nenhum é do tipo a que se aplicam).");
-                        _objetos = null;
-                    }
+                    if (criar.Count > 0) msg.Add(PsetsCore.CriarNoDesenho(_db, criar));
+                    List<ObjetoAnexar> objs = PsetsCore.Objetos(_db, _selecao);
+                    PsetsCore.CalcularFaltas(_db, objs, anexar.ToList());
+                    msg.Add(objs.Any(o => !string.IsNullOrEmpty(o.Faltam))
+                        ? PsetsCore.Anexar(_db, objs) + "\nOs valores ficam em Propriedades › Extended Data."
+                        : "Os objetos que vão para o IFC já tinham os property sets do perfil.");
                 }
-                string ifc = PsetsCore.LevarParaIfc(_psets);
-                if (ifc != null) msg += "\n\n" + ifc;
-                if (semProps.Count > 0) msg += "\n\nSem propriedades: " + string.Join(", ", semProps) + ".";
+                // O que foi montado aqui (fora do perfil) entra no mapeamento IFC do perfil.
+                foreach (PsetMontagem p in criar) p.LevarIfc = !_doPerfil.Contains(p.Nome);
+                string ifc = PsetsCore.LevarParaIfc(criar.Where(p => p.LevarIfc));
+                if (ifc != null) msg.Add(ifc);
             }
-            catch (Exception ex) { msg = "Não foi possível criar:\n" + ex.Message; }
+            catch (Exception ex) { msg.Add("Não foi possível terminar:\n" + ex.Message); }
             finally { Cursor = null; }
-            var sel = _atual;
-            Atualizar();
-            if (sel != null) _tabelaPsets.Grid.SelectedItem = sel;
-            MessageBox.Show(this, msg, Title);
+            Carregar();
+            MessageBox.Show(this, string.Join("\n\n", msg), Title);
         }
 
-        // ------------------------------------------------------------------ anexar
-
-        private void TrocouAba()
+        void SelecionarObjetos()
         {
-            bool anexar = _abas.SelectedIndex == 1;
-            _criar.Visibility = anexar ? System.Windows.Visibility.Collapsed : System.Windows.Visibility.Visible;
-            _anexarAoCriar.Visibility = _criar.Visibility;
-            _anexar.Visibility = anexar ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
-            if (!anexar) { Atualizar(); return; }
-            PreencherEscolha();
-            if (_objetos == null) LerObjetos(); else AtualizarFaltas();
-        }
-
-        private void PreencherEscolha()
-        {
-            _escolhaPsets.Children.Clear();
-            var noDesenho = PsetsCore.LerDesenho(_db);
-            if (noDesenho.Count == 0)
+            var grupos = _lista.Grid.SelectedItems.OfType<LinhaPropriedade>().Select(l => l.Grupo.M).Distinct().ToList();
+            List<ObjectId> ids;
+            if (grupos.Count > 0)
+                ids = _objetos.Where(o => grupos.Any(p => Aplica(p, o))).Select(o => o.Id).ToList();
+            else
             {
-                _escolhaPsets.Children.Add(new TextBlock { Text = "Nenhum property set no desenho. Monte e crie na aba Montar.", Foreground = Theme.Solid(Theme.Cinza) });
-                return;
+                var perfil = _psets.Where(p => _doPerfil.Contains(p.Nome)).ToList();
+                ids = _objetos.Where(o => perfil.Any(p => Aplica(p, o) && !o.Nomes.Contains(p.Nome))).Select(o => o.Id).ToList();
             }
-            _escolhidos.IntersectWith(noDesenho.Select(p => p.Nome));
-            foreach (PsetMontagem p in noDesenho)
-            {
-                var c = new CheckBox
-                {
-                    Content = p.Nome,
-                    IsChecked = _escolhidos.Contains(p.Nome),
-                    Margin = new Thickness(0, 2, 16, 2),
-                    ToolTip = $"{p.Propriedades.Count} propriedade(s) · aplica-se a: {p.AplicaA}",
-                };
-                c.Click += (s, e) =>
-                {
-                    if (c.IsChecked == true) _escolhidos.Add(p.Nome); else _escolhidos.Remove(p.Nome);
-                    AtualizarFaltas();
-                };
-                _escolhaPsets.Children.Add(c);
-            }
+            try { _doc.Editor.SetImpliedSelection(ids.Where(id => id.IsValid && !id.IsErased).ToArray()); } catch { }
+            _resumo.Text = $"{ids.Count} objeto(s) selecionado(s) no modelo.";
         }
+    }
 
-        private void LerObjetos()
+    /// <summary>Um property set na lista (o cabeçalho do grupo).</summary>
+    public class PsetVista
+    {
+        public PsetMontagem M { get; }
+        public bool DoPerfil { get; }
+        public int Aplicaveis { get; }
+        public int Anexados { get; }
+        public int EmQualquer { get; }
+
+        public PsetVista(PsetMontagem m, bool doPerfil, int aplicaveis, int anexados, int emQualquer)
         {
-            Cursor = Cursors.Wait;
-            try
-            {
-                bool selecao = (_escopo.SelectedItem as string ?? "").StartsWith("Seleção");
-                _objetos = PsetsCore.Objetos(_db, selecao ? _selecao : null);
-            }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível ler os objetos:\n" + ex.Message, Title); _objetos = new List<ObjetoAnexar>(); }
-            finally { Cursor = null; }
-
-            var estado = _tabelaObjetos?.Estado();
-            _tabelaObjetos = new FilterableGrid(_objetos, typeof(ObjetoAnexar));
-            _tabelaObjetos.AddColumn("Tipo", nameof(ObjetoAnexar.Tipo), 150);
-            _tabelaObjetos.AddColumn("Nome", nameof(ObjetoAnexar.Nome), 200);
-            _tabelaObjetos.AddColumn("Layer", nameof(ObjetoAnexar.Layer), 180);
-            _tabelaObjetos.AddColumn("Já anexados", nameof(ObjetoAnexar.Anexados), 220, fill: true);
-            _tabelaObjetos.AddColumn("Falta anexar", nameof(ObjetoAnexar.Faltam), 220);
-            _tabelaObjetos.Grid.LoadingRow += (s, e) =>
-                e.Row.Background = string.IsNullOrEmpty(((ObjetoAnexar)e.Row.Item).Faltam) ? Theme.LinhaNormal : Theme.LinhaProblema;
-            _tabelaObjetos.Filtered += AtualizarInfoAnexar;
-            Theme.StyleSelection(_tabelaObjetos.Grid);
-            if (estado != null) _tabelaObjetos.Restaurar(estado);
-            _areaObjetos.Children.Clear();
-            _areaObjetos.Children.Add(_tabelaObjetos);
-            AtualizarFaltas();
+            M = m; DoPerfil = doPerfil; Aplicaveis = aplicaveis; Anexados = anexados; EmQualquer = emQualquer;
         }
 
-        private void AtualizarFaltas()
+        public string Nome => M.Nome;
+        public string Onde => DoPerfil ? (M.NoDesenho ? "perfil e modelo" : "só no perfil") : M.NoDesenho ? "só no modelo" : "montado aqui";
+        public string AplicaTexto => "Aplica-se a: " + M.AplicaA + " ▾";
+        public int Faltam => M.NoDesenho ? Math.Max(0, Aplicaveis - Anexados) : Aplicaveis;
+        public string Anexado => !M.NoDesenho ? "" : $"anexado em {Anexados.ToString("N0", CultureInfo.GetCultureInfo("pt-BR"))} de {Aplicaveis.ToString("N0", CultureInfo.GetCultureInfo("pt-BR"))}";
+        public string AnexadoDica => $"{Aplicaveis} objeto(s) que vão para o IFC são de um tipo a que este property set se aplica; {Anexados} já têm ele anexado.";
+        public string Situacao => M.Situacao == "No modelo" ? "" : M.Situacao == "Novo" ? "falta criar no modelo" : M.Situacao.Replace("Muda: ", "falta no modelo: ");
+        public bool Pendente => M.Situacao != "No modelo" || ((DoPerfil || !M.NoDesenho) && Faltam > 0);
+        public bool PodeTirar => !M.NoDesenho || M.Propriedades.Any(p => !(p.Situacao ?? "").StartsWith("No modelo", StringComparison.Ordinal));
+        public override string ToString() => Nome;
+    }
+
+    /// <summary>Uma propriedade de um property set na lista.</summary>
+    public class LinhaPropriedade
+    {
+        readonly PropriedadeMontagem _p;
+        readonly bool _doPerfil;
+
+        public LinhaPropriedade(PsetVista grupo, PropriedadeMontagem p, bool doPerfil, int vazios)
         {
-            if (_objetos == null) return;
-            try { PsetsCore.CalcularFaltas(_db, _objetos, _escolhidos); } catch { }
-            _tabelaObjetos?.Refresh();
-            _tabelaObjetos?.Grid.Items.Refresh();
-            AtualizarInfoAnexar();
+            Grupo = grupo; _p = p; _doPerfil = doPerfil; Vazios = vazios;
         }
 
-        private void AtualizarInfoAnexar()
-        {
-            if (_abas.SelectedIndex != 1 || _tabelaObjetos == null) return;
-            var vis = _tabelaObjetos.VisibleItems<ObjetoAnexar>().ToList();
-            int faltam = vis.Count(o => !string.IsNullOrEmpty(o.Faltam));
-            _anexar.IsEnabled = faltam > 0;
-            _anexar.Content = faltam > 0 ? $"Anexar em {faltam}" : "Anexar";
-            _infoAnexar.Text = _escolhidos.Count == 0
-                ? $"{_objetos.Count} objeto(s) que vão para o IFC · marque os property sets a anexar"
-                : $"{vis.Count} objeto(s) na tabela · {faltam} sem algum dos property sets marcados";
-            _infoAnexar.Foreground = Theme.Solid(faltam > 0 || _escolhidos.Count == 0 ? Theme.LaranjaTexto : Theme.Verde);
-        }
+        public PsetVista Grupo { get; }
+        public string Chave => Grupo.Nome + "\u0001" + (_p?.Nome ?? "");
+        bool NoModelo => _p != null && (_p.Situacao ?? "").StartsWith("No modelo", StringComparison.Ordinal);
+        public bool Editavel => _p != null && !NoModelo && !_p.Automatica;
 
-        private void Anexar()
+        public string Propriedade
         {
-            var alvo = _tabelaObjetos.VisibleItems<ObjetoAnexar>().Where(o => !string.IsNullOrEmpty(o.Faltam)).ToList();
-            if (alvo.Count == 0) return;
-            Cursor = Cursors.Wait;
-            string msg;
-            try { using (_doc.LockDocument()) msg = PsetsCore.Anexar(_db, alvo); }
-            catch (Exception ex) { msg = "Não foi possível anexar:\n" + ex.Message; }
-            finally { Cursor = null; }
-            AtualizarFaltas();
-            MessageBox.Show(this, msg + "\n\nOs valores ficam na paleta Propriedades › Extended Data.", Title);
+            get => _p?.Nome ?? "(sem propriedades)";
+            set { if (Editavel && !string.IsNullOrWhiteSpace(value)) _p.Nome = value.Trim(); }
         }
+        public string Tipo
+        {
+            get => _p == null ? "" : _p.TipoTexto;
+            set { if (Editavel && value != null) _p.TipoTexto = value; }
+        }
+        public string Padrao
+        {
+            get => _p?.Padrao ?? "";
+            set { if (Editavel) _p.Padrao = value ?? ""; }
+        }
+        public string Onde => _p == null ? "" : _doPerfil ? (NoModelo ? "perfil e modelo" : "só no perfil") : NoModelo ? "só no modelo" : "montada aqui";
+        public int Vazios { get; }
+        public string VaziosTexto => !NoModelo ? "—" : Vazios.ToString("N0", CultureInfo.GetCultureInfo("pt-BR"));
+        public bool Pendente => _p != null && (!NoModelo || (Vazios > 0 && _doPerfil));
+        public bool SoNoModelo => !Grupo.DoPerfil && Grupo.M.NoDesenho;
     }
 }

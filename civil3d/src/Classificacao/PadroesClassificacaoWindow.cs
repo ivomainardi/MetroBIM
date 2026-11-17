@@ -136,7 +136,7 @@ namespace MetroSP.Classificacao
             };
             _detalhe.Children.Add(Campo("Como fica no modelo", _formato));
 
-            _pset = new ComboBox { IsEditable = true, IsTextSearchEnabled = true, ToolTip = "Property set onde fica a classificação. Se não existir no desenho, é criado ao gravar (vale para todos os objetos)." };
+            _pset = new ComboBox { IsEditable = true, IsTextSearchEnabled = true, ToolTip = "Property set onde fica a classificação. Se não existir no modelo, é criado ao gravar (vale para todos os objetos)." };
             foreach (string p in _psets) _pset.Items.Add(p);
             _pset.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler((s, e) =>
             {
@@ -213,7 +213,7 @@ namespace MetroSP.Classificacao
             rodape.Children.Add(botoes);
             rodape.Children.Add(_info);
 
-            Theme.Apply(this, "Perfis de classificação", "Classificações a conferir, onde ficam no desenho e de qual planilha vem cada lista", corpo, rodape);
+            Theme.Apply(this, "Perfis de classificação", "Classificações a conferir, onde ficam no modelo e de qual planilha vem cada lista", corpo, rodape);
             Closing += (s, e) =>
             {
                 if (!_alterado) return;

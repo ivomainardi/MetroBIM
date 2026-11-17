@@ -52,7 +52,7 @@ namespace MetroSP.PropertySets
             corpo.Children.Add(_painel);
 
             _resumo = new TextBlock();
-            _importar = new Button { Content = "Importar", Style = Theme.PrimaryButton, ToolTip = "Põe os property sets na lista. Depois, \"Criar no desenho\"." };
+            _importar = new Button { Content = "Importar", Style = Theme.PrimaryButton, ToolTip = "Põe os property sets na lista. Depois, \"Criar no modelo\"." };
             _importar.Click += (s, e) => Importar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             cancelar.Click += (s, e) => Close();

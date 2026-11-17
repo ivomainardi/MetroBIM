@@ -91,7 +91,7 @@ namespace MetroSP.Entrega
             marca.Inlines.Add(new System.Windows.Documents.Run("MetroSP") { Foreground = Theme.Solid(Theme.Laranja), FontWeight = FontWeights.SemiBold });
             marca.Inlines.Add(new System.Windows.Documents.Run(" · Entrega · " + nome));
             _escopo = new TextBlock { Foreground = Theme.Solid(Color.FromRgb(0xBB, 0xBB, 0xBB)), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0) };
-            var conferir = BotaoEscuro("⟳ Conferir", "Confere o desenho de novo e atualiza as etapas.");
+            var conferir = BotaoEscuro("⟳ Conferir", "Confere o modelo de novo e atualiza as etapas.");
             conferir.Click += (s, e) => { if (FecharFerramenta()) Conferir(); };
             var direita = new StackPanel { Orientation = Orientation.Horizontal };
             direita.Children.Add(_escopo);
@@ -136,7 +136,7 @@ namespace MetroSP.Entrega
             _proximo = Pilula("Próximo passo ›");
             _proximo.Click += (s, e) => IrPara(_passo + 1);
             var salvar = Pilula("Salvar e conferir", primario: true);
-            salvar.ToolTip = "Grava o que foi alterado na ferramenta desta etapa e confere o desenho de novo.";
+            salvar.ToolTip = "Grava o que foi alterado na ferramenta desta etapa e confere o modelo de novo.";
             salvar.Margin = new Thickness(0, 0, 8, 0);
             salvar.Click += (s, e) => SalvarEConferir();
             _rodapeTexto = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(12, 0, 12, 0) };
@@ -191,7 +191,7 @@ namespace MetroSP.Entrega
             catch (Exception ex)
             {
                 Log.Erro("conferência da entrega", ex);
-                MessageBox.Show("Não foi possível conferir o desenho:\n" + ex.Message, "MetroSP");
+                MessageBox.Show("Não foi possível conferir o modelo:\n" + ex.Message, "MetroSP");
                 return false;
             }
             finally { Cursor = null; }
@@ -349,7 +349,7 @@ namespace MetroSP.Entrega
             {
                 var acoes = Acoes(p).ToList();
                 if (p.Objetos.Count > 0)
-                    acoes.Add(($"Selecionar ({p.Objetos.Count})", "Seleciona esses objetos no desenho (aparecem selecionados ao fechar esta janela).", () => Selecionar(p.Objetos)));
+                    acoes.Add(($"Selecionar ({p.Objetos.Count})", "Seleciona esses objetos no modelo (aparecem selecionados ao fechar esta janela).", () => Selecionar(p.Objetos)));
                 _pendencias.Children.Add(Cartao(p.Sinal, p.Titulo, p.Texto, acoes));
             }
             if (abertas.Count > Maximo)
@@ -415,10 +415,10 @@ namespace MetroSP.Entrega
                     });
                     break;
                 case Acao.SalvarDesenho:
-                    yield return ("Salvar o desenho", "Fecha esta janela e salva o DWG.", () => FecharE("QSAVE"));
+                    yield return ("Salvar o modelo", "Fecha esta janela e salva o DWG.", () => FecharE("QSAVE"));
                     break;
                 case Acao.CriarPset:
-                    yield return ("Criar no desenho", $"Cria o property set {p.Alvo} como está no mapeamento IFC. Pode ser ajustado depois em Property sets.", () =>
+                    yield return ("Criar no modelo", $"Cria o property set {p.Alvo} como está no mapeamento IFC. Pode ser ajustado depois em Property sets.", () =>
                     {
                         if (!FecharFerramenta()) return;
                         Executar(() => PsetsCore.CriarNoDesenho(_doc.Database, new[] { (PsetMontagem)p.Dados }));
@@ -434,7 +434,7 @@ namespace MetroSP.Entrega
                     });
                     break;
                 case Acao.UsarPerfil:
-                    yield return ($"Usar {p.Valor}", "Guarda este perfil para o alinhamento neste desenho; a exportação não pergunta mais.", () =>
+                    yield return ($"Usar {p.Valor}", "Guarda este perfil para o alinhamento neste modelo; a exportação não pergunta mais.", () =>
                     {
                         if (!FecharFerramenta()) return;
                         AlignmentCommands.GuardarPerfis(_doc, new[] { (p.Alvo, p.Valor) });
@@ -484,10 +484,7 @@ namespace MetroSP.Entrega
                     return new ClassesIfcWindow();
                 case 3:
                 {
-                    var w = new MontarPsetsWindow(_doc, null);
-                    // Faltando anexar: abre direto na aba Anexar.
-                    if (_res.Etapa(3).Abertas.Any(p => p.Acao == Acao.AnexarPset)) w.Abas.SelectedIndex = 1;
-                    return w;
+                    return new MontarPsetsWindow(_doc, null);
                 }
                 case 4:
                     return _abaDados == 0
@@ -900,7 +897,7 @@ namespace MetroSP.Entrega
                 Situacao = s.Origem switch
                 {
                     "Único" => "Um perfil",
-                    "Guardado" => "Escolhido para este desenho",
+                    "Guardado" => "Escolhido para este modelo",
                     "Preferido" => "Pela lista de preferidos",
                     "Sugerido" => $"{s.Perfis.Count} perfis: escolha",
                     _ => "Sem perfil: vai só a planta",
@@ -910,7 +907,7 @@ namespace MetroSP.Entrega
             var topo = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
             var soPendentes = new CheckBox { Content = $"Só os pendentes ({linhas.Count(l => l.Pendente)})", IsChecked = linhas.Any(l => l.Pendente), VerticalAlignment = VerticalAlignment.Center };
             var opcoes = Pilula("Opções do alinhamento...");
-            opcoes.ToolTip = "Eixo 3D no IFC, passo das estacas e a lista de perfis preferidos (vale para todos os desenhos).";
+            opcoes.ToolTip = "Eixo 3D no IFC, passo das estacas e a lista de perfis preferidos (vale para todos os modelos).";
             opcoes.Click += (s, e) =>
             {
                 var w = new ConfigWindow(Commands.DrawingFolder(_doc)) { Owner = this };
@@ -926,7 +923,7 @@ namespace MetroSP.Entrega
 
             if (linhas.Count == 0)
             {
-                p.Children.Add(Theme.Detalhe("Este desenho não tem alinhamento: o IFC vai com projeto, terreno, instalações e os objetos do desenho."));
+                p.Children.Add(Theme.Detalhe("Este modelo não tem alinhamento: o IFC vai com projeto, terreno, instalações e os objetos do modelo."));
                 return p;
             }
 
@@ -985,7 +982,7 @@ namespace MetroSP.Entrega
             p.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
             var botoes = new WrapPanel();
             var tudo = Pilula("Exportar IFC", primario: _res.Etapa(Ultima).Abertas.All(x => x.Sinal != Sinal.Vermelho));
-            tudo.ToolTip = "Fecha esta janela e exporta o desenho todo (IFC 4.3).";
+            tudo.ToolTip = "Fecha esta janela e exporta o modelo todo (IFC 4.3).";
             tudo.Click += (s, e) => FecharE("MSP_IFCEXPORT");
             var sel = Pilula("Só a seleção");
             sel.ToolTip = "Fecha esta janela e exporta só os objetos selecionados.";

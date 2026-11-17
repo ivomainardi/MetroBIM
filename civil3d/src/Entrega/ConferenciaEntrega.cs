@@ -188,7 +188,7 @@ namespace MetroSP.Entrega
             foreach (var p in esperados.Where(p => !noDesenho.Contains(p.Nome)))
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Amarelo, Titulo = p.Nome + " · não está no desenho",
+                    Sinal = Sinal.Amarelo, Titulo = p.Nome + " · não está no modelo",
                     Texto = $"O mapeamento IFC pede {p.Propriedades.Count} propriedade(s) dele.",
                     Acao = Acao.CriarPset, Alvo = p.Nome, Dados = p,
                 });
@@ -357,7 +357,7 @@ namespace MetroSP.Entrega
             var e = r.Etapa(6);
             var metro = ConfigPackage.LoadMetroSp();
             r.Perfis = AlignmentCommands.Situacao(doc, metro.Alinhamento);
-            if (r.Perfis.Count == 0) { e.Resumo = "Desenho sem alinhamento."; return; }
+            if (r.Perfis.Count == 0) { e.Resumo = "Modelo sem alinhamento."; return; }
             if (!metro.Alinhamento.AplicarNoIfc)
                 e.Pendencias.Add(new Pendencia
                 {

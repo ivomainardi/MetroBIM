@@ -23,6 +23,8 @@ namespace MetroSP.Escrita
         public string Elemento { get; set; }
         public string Id { get; set; }
         public string Categoria { get; set; }
+        /// <summary>Dica da linha: o que saiu das colunas (situação, motivo, categoria e Id).</summary>
+        public string Detalhe => string.Join(" · ", new[] { Situacao, Motivo, Categoria, string.IsNullOrEmpty(Id) ? null : "Id " + Id }.Where(x => !string.IsNullOrEmpty(x)));
         public string Campo { get; set; }
         public string Atual { get; set; }
         /// <summary>O valor atual com os espaços sobrando e os caracteres invisíveis à mostra.</summary>
@@ -88,6 +90,7 @@ namespace MetroSP.Escrita
         private readonly ComboBox _padroes;
         private readonly ComboBox _campo;
         private readonly WrapPanel _regras;
+        private readonly Button _botaoRegras;
         private readonly WrapPanel _chips;
         private readonly DockPanel _areaTabela;
         private readonly CheckBox _verResolvidos;
@@ -124,24 +127,36 @@ namespace MetroSP.Escrita
                 ToolTip = "Procure em todos os campos de texto ou só em um (mais rápido em modelos grandes)." };
             TextSearch.SetTextPath(_campo, nameof(CampoConfronto.Rotulo));
             _campo.ItemsPanel = new ItemsPanelTemplate(new FrameworkElementFactory(typeof(VirtualizingStackPanel)));
-            var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            // Perfil, campos e regras numa linha; as regras abrem numa lista.
+            var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
             barra.Children.Add(Theme.Rotulo("Perfil"));
             barra.Children.Add(_padroes);
-            barra.Children.Add(termos);
-            barra.Children.Add(novo);
-            barra.Children.Add(excluir);
-            var barraCampo = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
-            barraCampo.Children.Add(Theme.Rotulo("Procurar em"));
-            barraCampo.Children.Add(_campo);
+            _campo.MinWidth = 200;
+            barra.Children.Add(Theme.Rotulo("Campos"));
+            barra.Children.Add(_campo);
 
             // ---- regras
-            _regras = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            _regras = new WrapPanel { Width = 420, Margin = new Thickness(10) };
             foreach (RegraEscrita r in CorretorEscrita.Regras)
             {
-                var cb = new CheckBox { Content = r.Nome, Tag = r.Id, ToolTip = r.Dica, Margin = new Thickness(0, 0, 16, 4) };
-                cb.Click += (s, e) => MudouRegra((CheckBox)s);
+                var cb = new CheckBox { Content = r.Nome, Tag = r.Id, ToolTip = r.Dica, Width = 200, Margin = new Thickness(0, 2, 0, 2) };
+                cb.Click += (s, e) => { MudouRegra((CheckBox)s); ContarRegras(); };
                 _regras.Children.Add(cb);
             }
+            _botaoRegras = new Button { Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Quais regras de escrita conferir (passe o mouse em cada uma para ver exemplos)." };
+            var popRegras = new System.Windows.Controls.Primitives.Popup
+            {
+                PlacementTarget = _botaoRegras, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom, StaysOpen = false,
+                Child = new Border { Background = System.Windows.Media.Brushes.White, BorderBrush = Theme.Solid(Theme.Cinza), BorderThickness = new Thickness(1), Child = _regras },
+            };
+            popRegras.Closed += (s, e) => { if (_linhas != null) Procurar(); };
+            _botaoRegras.Click += (s, e) => popRegras.IsOpen = true;
+            barra.Children.Add(Theme.Rotulo("Regras"));
+            barra.Children.Add(_botaoRegras);
+            var procurar = new Button { Content = "⟳ Procurar", Padding = new Thickness(10, 2, 10, 2), VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Confere de novo (por exemplo, depois de mudar o modelo)." };
+            barra.Children.Add(procurar);
 
             // ---- resultado
             _chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
@@ -153,20 +168,38 @@ namespace MetroSP.Escrita
                 ToolTip = "Guarda as palavras que a correção mudou (sigla, código, nome próprio) como termos do perfil: elas não mudam mais em nenhum valor." };
             _selecionar = new Button { Content = "Selecionar no modelo", IsEnabled = false, ToolTip = $"Seleciona e mostra os {_fonte.Termo}s das linhas selecionadas (ou de todas as visíveis)." };
             _verResolvidos = new CheckBox { Content = "Mostrar ignorados e corrigidos", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
+            var mais = new Button { Content = "Mais ▾" };
+            mais.Click += (s, e) =>
+            {
+                var m = new ContextMenu { PlacementTarget = mais, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
+                void Item(string texto, object dica, bool ativo, Action a)
+                {
+                    var i = new MenuItem { Header = texto, ToolTip = dica, IsEnabled = ativo };
+                    i.Click += (s2, e2) => a();
+                    m.Items.Add(i);
+                }
+                Item("Não mexer na palavra...", _termo.ToolTip, _termo.IsEnabled, NaoMexer);
+                Item("Voltar a conferir", _desfazer.ToolTip, _desfazer.IsEnabled, () => Ignorar(false));
+                m.Items.Add(new Separator());
+                Item("Termos e correções...", termos.ToolTip, true, () => { if (EditarPadrao(this, _padrao)) { Guardar(); Reanalisar(); } });
+                Item("Novo perfil...", novo.ToolTip, true, Novo);
+                Item("Excluir o perfil " + _padrao?.Nome, null, _padroes.Items.Count > 1, Excluir);
+                m.IsOpen = true;
+            };
             var acoes = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
-            foreach (Button b in new[] { _corrigir, _ignorar, _desfazer, _termo, _selecionar }) { b.Margin = new Thickness(0, 0, 6, 0); acoes.Children.Add(b); }
+            foreach (Button b in new[] { _corrigir, _ignorar, _selecionar, mais }) { b.Margin = new Thickness(0, 0, 6, 0); b.Padding = new Thickness(10, 2, 10, 2); acoes.Children.Add(b); }
             acoes.Children.Add(_verResolvidos);
             _areaTabela = new DockPanel();
-            _areaTabela.Children.Add(Theme.Detalhe("Escolha as regras e clique em \"Procurar\". Passe o mouse em cada regra para ver exemplos."));
+            _areaTabela.Children.Add(Theme.Detalhe("Conferindo..."));
 
             var corpo = new DockPanel();
             var topo = new List<UIElement> { barra };
             if (_fonte.PainelEscopo != null)
             {
-                _fonte.PainelEscopo.Margin = new Thickness(0, 0, 0, 8);
+                _fonte.PainelEscopo.Margin = new Thickness(0, 0, 0, 6);
                 topo.Add(_fonte.PainelEscopo);
             }
-            topo.AddRange(new UIElement[] { barraCampo, _regras, _chips, acoes });
+            topo.AddRange(new UIElement[] { _chips, acoes });
             foreach (UIElement el in topo)
             {
                 DockPanel.SetDock(el, Dock.Top);
@@ -175,10 +208,9 @@ namespace MetroSP.Escrita
             corpo.Children.Add(_areaTabela);
 
             _resumo = Theme.Detalhe();
-            var procurar = new Button { Content = "Procurar", Style = Theme.PrimaryButton, IsDefault = true };
             var fechar = new Button { Content = "Fechar", IsCancel = true };
             Theme.Apply(this, "Corrigir escrita", _fonte.NomeDocumento + " · espaços, acentos e caracteres estranhos nos dados que vão para o IFC",
-                corpo, Theme.Rodape(_resumo, procurar, fechar));
+                corpo, Theme.Rodape(_resumo, fechar));
 
             // ---- eventos
             _padroes.SelectionChanged += (s, e) => { if (!_carregando && _padroes.SelectedItem is PadraoEscrita p) Usar(p); };
@@ -191,6 +223,7 @@ namespace MetroSP.Escrita
             _corrigir.Click += (s, e) => CorrigirSelecionadas();
             _ignorar.Click += (s, e) => Ignorar(true);
             _desfazer.Click += (s, e) => Ignorar(false);
+            Loaded += (s, e) => Dispatcher.BeginInvoke(new Action(Procurar), System.Windows.Threading.DispatcherPriority.Background);
             _termo.Click += (s, e) => NaoMexer();
             _selecionar.Click += (s, e) => Selecionar(Selecionadas().Count > 0 ? Selecionadas() : Visiveis());
             _verResolvidos.Click += (s, e) => { _tabela?.Refresh(); Contar(); };
@@ -217,6 +250,14 @@ namespace MetroSP.Escrita
             _padrao = p;
             foreach (CheckBox cb in _regras.Children.OfType<CheckBox>())
                 cb.IsChecked = !_padrao.RegrasDesligadas.Contains((string)cb.Tag);
+            ContarRegras();
+        }
+
+        private void ContarRegras()
+        {
+            if (_botaoRegras == null) return;
+            var cbs = _regras.Children.OfType<CheckBox>().ToList();
+            _botaoRegras.Content = $"{cbs.Count(c => c.IsChecked == true)} de {cbs.Count} ▾";
         }
 
         private void MudouRegra(CheckBox cb)
@@ -225,7 +266,7 @@ namespace MetroSP.Escrita
             _padrao.RegrasDesligadas.Remove(id);
             if (cb.IsChecked != true) _padrao.RegrasDesligadas.Add(id);
             Guardar();
-            if (_linhas != null) _resumo.Text = "As regras mudaram: clique em \"Procurar\" de novo.";
+            
         }
 
         /// <summary>O padrão fica salvo a cada mudança.</summary>
@@ -422,15 +463,11 @@ namespace MetroSP.Escrita
         {
             _areaTabela.Children.Clear();
             _tabela = new FilterableGrid(_linhas, typeof(LinhaEscrita));
-            _tabela.AddColumn("Situação", nameof(LinhaEscrita.Situacao), 95);
             _tabela.AddColumn(Primeira(_fonte.Termo), nameof(LinhaEscrita.Elemento), 200);
             _tabela.AddColumn("Campo", nameof(LinhaEscrita.Campo), 160);
             _tabela.AddColumn("Atual", nameof(LinhaEscrita.AtualVisivel), 200);
             var sugestao = _tabela.AddColumn("Sugestão", nameof(LinhaEscrita.Sugestao), 200);
             _tabela.AddColumn("O que tem", nameof(LinhaEscrita.Problemas), 200, fill: true);
-            _tabela.AddColumn("Motivo", nameof(LinhaEscrita.Motivo), 160);
-            _tabela.AddColumn("Categoria", nameof(LinhaEscrita.Categoria), 110);
-            _tabela.AddColumn("Id", nameof(LinhaEscrita.Id), 80);
             // Só a sugestão é editável (duplo clique ou F2 na célula).
             _tabela.Grid.IsReadOnly = false;
             foreach (DataGridColumn col in _tabela.Grid.Columns) col.IsReadOnly = col != sugestao;
@@ -447,7 +484,7 @@ namespace MetroSP.Escrita
                 }), System.Windows.Threading.DispatcherPriority.Background);
             };
             _tabela.ExtraFilter = o => _verResolvidos.IsChecked == true || !Resolvida((LinhaEscrita)o);
-            _tabela.Grid.LoadingRow += (s, e) => Pintar(e.Row);
+            _tabela.Grid.LoadingRow += (s, e) => { Pintar(e.Row); e.Row.ToolTip = (e.Row.Item as LinhaEscrita)?.Detalhe; };
             _tabela.Grid.SelectionChanged += (s, e) => Habilitar();
             _tabela.Filtered += Contar;
             Theme.StyleSelection(_tabela.Grid);
