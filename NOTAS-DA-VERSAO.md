@@ -4,7 +4,7 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## Próxima versão (em preparação)
+## 1.0.10 (teste, ainda não publicada)
 
 - Revit, **Entrega passo a passo › MetroDATA** (passo 4, antes Dados): confere as propriedades pedidas pela planilha do
   **MetroDATA exportada do Airtable** (.xlsx, aba "Propriedades x Objetos"). A planilha é escolhida em Padrões (ou no
