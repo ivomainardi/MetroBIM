@@ -25,6 +25,15 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   - **Fase** numa linha própria, logo abaixo de Elementos. **Extras** passa a se chamar **Projeto e local**, e EPSG em
     branco e Eixos sempre ficam numa linha de opções (também no Exportar IFC da Ribbon).
   - Perfil e Elementos são listas digitáveis.
+- Revit, **Exportar IFC: quantidades das armaduras**. O exportador da Autodesk não grava as quantidades das barras
+  (IfcReinforcingBar) e, nos conjuntos de **comprimento variável**, nem o comprimento de cada barra. Agora o MetroSP
+  completa o IFC com o `Qto_ReinforcingElementBaseQuantities` de cada barra:
+  - **Count** (número de barras), **Length** (comprimento) e **Weight** (peso, pelo diâmetro nominal e a densidade do
+    material; aço 7850 kg/m³ quando o material não tem densidade);
+  - no conjunto variável, cada barra sai com o comprimento dela (o "Bar Length" da posição no Revit);
+  - no conjunto uniforme exportado como uma peça só, Count é o número de barras e Length e Weight são os totais;
+  - no IFC 2x3, o atributo BarLength também é corrigido (no variável o exportador gravava em pés).
+  - O resumo da exportação mostra em quantas barras as quantidades foram gravadas.
 
 ## 1.0.9 (17/11/2026)
 
