@@ -35,7 +35,7 @@ namespace MetroSP.Ui
         readonly ObservableCollection<LinhaIfc> _linhas = new ObservableCollection<LinhaIfc>();
         readonly FilterableGrid _lista;
         readonly ComboBox _secaoCombo;
-        readonly CheckBox _soUsados, _soDiferentes;
+        readonly CheckBox _soUsados, _soDiferentes, _soErros;
         readonly TextBlock _resumo = Theme.Detalhe();
         readonly Button _corrigir;
         readonly string _versaoExportacao;
@@ -78,15 +78,19 @@ namespace MetroSP.Ui
             _soDiferentes = new CheckBox { Content = "Só os diferentes entre IFC4 e IFC 4.3", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 4) };
             _soUsados.Click += (s, e) => _lista.Refresh();
             _soDiferentes.Click += (s, e) => _lista.Refresh();
+            _soErros = new CheckBox { Content = "Só os erros", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 4),
+                ToolTip = "Só as linhas exportadas sem classe ou com classe que não existe no esquema da coluna." };
+            _soErros.Click += (s, e) => _lista.Refresh();
             topo.Children.Add(_soUsados);
             topo.Children.Add(_soDiferentes);
+            topo.Children.Add(_soErros);
             corpo.Children.Add(topo);
 
             _lista = new FilterableGrid(_linhas, typeof(LinhaIfc));
             _lista.Grid.IsReadOnly = false;
             _lista.Grid.FrozenColumnCount = 1;
             Theme.StyleSelection(_lista.Grid);
-            _lista.AddColumn("Nome", nameof(LinhaIfc.Nome), 200, fill: true).IsReadOnly = true;
+            _lista.AddColumn("Nome", nameof(LinhaIfc.NomeTexto), 200, fill: true).IsReadOnly = true;
             var obj = _lista.AddColumn("No modelo", nameof(LinhaIfc.NoModelo), 80);
             obj.IsReadOnly = true;
             obj.SortMemberPath = nameof(LinhaIfc.Objetos);
@@ -95,7 +99,7 @@ namespace MetroSP.Ui
             ColunaClasse("Classe IFC4", nameof(LinhaIfc.Classe4), nameof(LinhaIfc.Texto4), nameof(LinhaIfc.Invalida4), nameof(LinhaIfc.Dica4), IfcCatalog.Ifc4);
             ColunaExportar("Exp. IFC 4.3", nameof(LinhaIfc.Exportar43));
             ColunaClasse("Classe IFC 4.3", nameof(LinhaIfc.Classe43), nameof(LinhaIfc.Texto43), nameof(LinhaIfc.Invalida43), nameof(LinhaIfc.Dica43), IfcCatalog.Ifc4x3);
-            _lista.ExtraFilter = o => o is LinhaIfc l && (_soUsados.IsChecked != true || l.Objetos > 0) && (_soDiferentes.IsChecked != true || l.Diferente);
+            _lista.ExtraFilter = o => o is LinhaIfc l && (_soUsados.IsChecked != true || l.Objetos > 0) && (_soDiferentes.IsChecked != true || l.Diferente) && (_soErros.IsChecked != true || l.Erro);
             _lista.Filtered += AtualizarResumo;
             _lista.Grid.ToolTip = "Clique duas vezes na classe para escolher da lista (digite parte do nome para filtrar). " +
                                   "Mudar a classe de um nome que segue uma regra geral (ex.: ^A-.*) cria uma regra só para ele.";
@@ -498,6 +502,17 @@ namespace MetroSP.Ui
         }
 
         public string Nome { get; }
+        /// <summary>O nome e, se ele segue uma regra geral, a regra entre parênteses.</summary>
+        public string NomeTexto
+        {
+            get
+            {
+                JsonObject r = _r43 ?? _r4;
+                return r != null && DoModelo && !Propria(r) ? $"{Nome}  (regra {(string)r["Name"]})" : Nome;
+            }
+        }
+        /// <summary>Exportado sem classe, ou com classe fora do esquema, em algum dos dois.</summary>
+        public bool Erro => (Exportar4 && (Invalida4 || string.IsNullOrWhiteSpace(Classe4))) || (Exportar43 && (Invalida43 || string.IsNullOrWhiteSpace(Classe43)));
         public int Objetos { get; }
         public bool DoModelo { get; }
         public string NoModelo => Objetos > 0 ? Objetos.ToString("N0", CultureInfo.GetCultureInfo("pt-BR")) : DoModelo ? "0" : "—";
