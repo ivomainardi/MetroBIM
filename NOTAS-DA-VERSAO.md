@@ -16,6 +16,16 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
     categoria não tenha classe na tabela: não aparecem mais como pendência. O resumo do passo mostra quantos são.
 - Revit, **Categorias IFC › Copiar entre IFC schemas**: o menu agora separa **só as linhas selecionadas** e a
   **tabela inteira**, nos dois sentidos (IFC4 → IFC 4.3 e IFC 4.3 → IFC4).
+- Revit e Civil 3D, **Exportar IFC mais rápido em modelos grandes**: a etapa em que o MetroSP completa o IFC depois do
+  exportador (classificação, status de fase, dados do projeto) ficava muito mais lenta conforme o modelo crescia. Num IFC
+  de teste com 20 mil paredes em fases diferentes ela levava 2 min 30 s e agora leva menos de 2 s.
+- Revit, **Exportar IFC**:
+  - O IFC é gravado e completado numa pasta temporária do computador e só no fim vai para a pasta escolhida. Numa pasta
+    do Desktop Connector ou da rede o arquivo é enviado uma vez só, e não a cada etapa.
+  - A janela de andamento fica aberta também enquanto o IFC é completado e conferido.
+  - O resumo e o registro (.log.txt) mostram quanto tempo levou cada parte: preparação, exportador do Revit e o
+    complemento do MetroSP.
+  - A conferência de elementos fora da fase exportada ficou mais leve.
 - Revit e Civil 3D, **Entrega passo a passo**: abre sempre no passo 1. Antes abria na primeira etapa com pendência
   (ou no último passo, com tudo certo). Quem abre por um atalho (clique numa etapa do Painel MetroSP ou
   **Passo a passo...** do Exportar IFC) continua indo direto para a etapa escolhida.
