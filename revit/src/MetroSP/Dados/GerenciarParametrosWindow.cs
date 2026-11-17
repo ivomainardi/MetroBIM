@@ -48,7 +48,7 @@ namespace MetroSP.Dados
         };
 
         private readonly Document _doc;
-        /// <summary>Embutida no passo 2 da Entrega: as pendências já aparecem no painel "O que falta", então não se repetem aqui.</summary>
+        /// <summary>Embutida no passo Parâmetros compartilhados da Entrega: as pendências já aparecem no painel "O que falta", então não se repetem aqui.</summary>
         private readonly bool _naEntrega;
         private readonly Autodesk.Revit.UI.UIDocument _uidoc;
         private readonly StackPanel _mapeamento = new StackPanel();
@@ -430,7 +430,7 @@ namespace MetroSP.Dados
         private void MostrarMapeamento()
         {
             _mapeamento.Children.Clear();
-            if (_naEntrega) return; // na Entrega, o painel "O que falta no passo 2" já mostra estas pendências, com os mesmos botões
+            if (_naEntrega) return; // na Entrega, o painel "O que falta no passo 3" já mostra estas pendências, com os mesmos botões
             List<Conferencia.Pendencia> lista = Conferencia.UltimaConferencia.PendenciasDoMapeamento(_doc);
             if (lista.Count == 0) return;
             var caixa = new StackPanel();
@@ -466,7 +466,7 @@ namespace MetroSP.Dados
                 linha.Children.Add(texto);
                 caixa.Children.Add(linha);
             }
-            if (lista.Count > 8) caixa.Children.Add(Theme.Detalhe($"e mais {lista.Count - 8}. Veja todas no painel MetroSP (passo 2)."));
+            if (lista.Count > 8) caixa.Children.Add(Theme.Detalhe($"e mais {lista.Count - 8}. Veja todas no painel MetroSP (passo 3)."));
             _mapeamento.Children.Add(new Border
             {
                 Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFD, 0xEC, 0xEC)),

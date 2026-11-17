@@ -11,10 +11,10 @@ namespace MetroSP.Conferencia
 {
     /// <summary>
     /// Confere, numa passada só, o que o Metrô pede para a entrega:
-    ///   1. Arquivos do pacote (IDS, setup, psets, classes, planilha, MetroShared) achados e válidos;
-    ///   2. Parâmetros e mapeamento (o parâmetro de cada campo existe nas categorias, com tipo compatível e GUID do MetroShared);
-    ///   3. Classe IFC dos elementos (proxies e elementos sem nenhum campo do Metrô);
-    ///   4. Dados preenchidos (matriz categoria × campo exigido);
+    ///   1. Padrões em uso (IDS, setup, psets, classes, planilha, MetroShared) achados e válidos;
+    ///   2. Classe IFC dos elementos (proxies e elementos sem nenhum campo do Metrô);
+    ///   3. Parâmetros compartilhados e mapeamento (o parâmetro de cada campo existe nas categorias, com tipo compatível e GUID do MetroShared);
+    ///   4. MetroDATA: dados preenchidos (matriz categoria × campo exigido);
     ///   5. Classificação (preenchida, no formato e na planilha).
     /// Reaproveita os leitores e regras das outras ferramentas (MappingAnalyzer, ClassificationCore, ReferenceLibrary).
     /// Só lê o modelo; nada é gravado.
@@ -76,7 +76,7 @@ namespace MetroSP.Conferencia
             Ui.Progresso.Atual?.Etapa("Separando os elementos que vão para o IFC");
             List<(Element E, string Entidade)> exportados = ElementosExportados();
             // Regra de todas as ferramentas: só entram na conferência os elementos de classes que fazem parte dos padrões
-            // (com algum campo exigido). Os demais aparecem só na etapa 3, para trocar a classe se for o caso.
+            // (com algum campo exigido). Os demais aparecem só no passo Classes IFC, para trocar a classe se for o caso.
             bool temPadrao = _temPsets || _ids != null;
             List<(Element E, string Entidade)> elementos = temPadrao ? exportados.Where(x => Exigencias(x.Entidade).Count > 0).ToList() : exportados;
             List<(Element E, string Entidade)> foraDoPadrao = temPadrao ? exportados.Where(x => Exigencias(x.Entidade).Count == 0).ToList() : new List<(Element, string)>();
@@ -88,7 +88,7 @@ namespace MetroSP.Conferencia
 
             EtapaConferencia parametros = new EtapaConferencia
             {
-                Numero = 2, Titulo = "Parâmetros e mapeamento",
+                Numero = EtapaConferencia.Parametros, Titulo = "Parâmetros compartilhados e mapeamento",
                 Descricao = "Cada campo exigido sai de um parâmetro que existe nas categorias, com tipo compatível e o GUID do MetroShared.",
                 Correcao = Correcao.ParametrosDeProjeto,
             };
@@ -114,8 +114,8 @@ namespace MetroSP.Conferencia
             }
 
             r.Etapas.Add(arquivos);
-            r.Etapas.Add(parametros);
             r.Etapas.Add(classes);
+            r.Etapas.Add(parametros);
             r.Etapas.Add(dados);
             r.Etapas.Add(classificacao);
 
@@ -139,13 +139,13 @@ namespace MetroSP.Conferencia
             return (c._ids, res);
         }
 
-        // ================================================================== 1. arquivos
+        // ================================================================== 1. padrões
 
         private EtapaConferencia ConferirArquivos()
         {
             var etapa = new EtapaConferencia
             {
-                Numero = 1, Titulo = "Arquivos do Metrô",
+                Numero = EtapaConferencia.Padroes, Titulo = "Padrões em uso",
                 Descricao = "Os arquivos dos padrões foram achados neste computador e estão no formato certo.",
                 Correcao = Correcao.EditarPacote,
             };
@@ -278,7 +278,7 @@ namespace MetroSP.Conferencia
             etapa.CalcularSinal();
             etapa.Contagem = etapa.Pendencias.Count(p => p.Sinal == Sinal.Vermelho || p.Sinal == Sinal.Amarelo);
             etapa.Resumo = etapa.Contagem == 0
-                ? "Arquivos encontrados e válidos."
+                ? "Padrões encontrados e válidos."
                 : $"{etapa.Pendencias.Count(p => p.Sinal == Sinal.Vermelho)} problema(s) e {etapa.Pendencias.Count(p => p.Sinal == Sinal.Amarelo)} aviso(s) nos arquivos.";
             return etapa;
         }
@@ -307,30 +307,32 @@ namespace MetroSP.Conferencia
 
         private readonly Dictionary<ElementId, bool> _tipoComClasse = new Dictionary<ElementId, bool>();
 
-        // ================================================================== 3. classes IFC
+        // ================================================================== 2. classes IFC
 
         private EtapaConferencia ConferirClasses(List<(Element E, string Entidade)> elementos, List<(Element E, string Entidade)> foraDoPadrao)
         {
             var etapa = new EtapaConferencia
             {
-                Numero = 3, Titulo = "Classe IFC dos elementos",
+                Numero = EtapaConferencia.ClassesIfc, Titulo = "Classe IFC dos elementos",
                 Descricao = "Só entram na conferência os elementos de classes que fazem parte dos padrões. Os que saem como proxy ou numa " +
                             "classe sem campos do Metrô aparecem aqui: escolha a classe certa e clique em Definir classe.",
                 Correcao = Correcao.CategoriasIfc,
             };
 
-            // Classe escolhida no tipo ou na instância ("Exportar para IFC como") é decisão do projetista: não é erro.
-            foreach (var g in foraDoPadrao.GroupBy(x => (Cat: x.E.Category.Name, x.Entidade, NoElemento: CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse)))
+            // Classe escolhida no tipo ou na instância ("Exportar para IFC como") é decisão do projetista: está certo,
+            // mesmo que a categoria não tenha classe na tabela. Esses elementos não viram pendência; só os demais da
+            // categoria (sem classe própria) aparecem.
+            int comClasseNoElemento = foraDoPadrao.Count(x => CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse));
+            foreach (var g in foraDoPadrao.Where(x => !CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse))
+                         .GroupBy(x => (Cat: x.E.Category.Name, x.Entidade))
                          .OrderByDescending(g => g.Count()))
             {
-                bool proxy = !g.Key.NoElemento && g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
+                bool proxy = g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
                 etapa.Pendencias.Add(new Pendencia
                 {
                     Sinal = proxy ? Sinal.Amarelo : Sinal.Cinza, Categoria = g.Key.Cat, Assunto = g.Key.Entidade,
                     Problema = proxy
                         ? $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida): ficam fora da conferência."
-                        : g.Key.NoElemento
-                        ? $"{g.Count()} elemento(s) com a classe {g.Key.Entidade} definida no tipo ou na instância; fora dos padrões, ficam fora da conferência."
                         : $"{g.Key.Entidade} não faz parte dos padrões: {g.Count()} elemento(s) ficam fora da conferência.",
                     OQueFazer = proxy
                         ? "Defina a classe certa (grava o \"Exportar para IFC como\" do tipo) ou mude a categoria inteira em Categorias IFC."
@@ -358,10 +360,11 @@ namespace MetroSP.Conferencia
             etapa.CalcularSinal();
             int proxies = etapa.Pendencias.Where(p => p.Sinal == Sinal.Amarelo).Sum(p => p.QtdElementos);
             etapa.Contagem = proxies;
-            int outros = foraDoPadrao.Count - proxies;
-            etapa.Resumo = foraDoPadrao.Count == 0
-                ? $"{elementos.Count} elementos em classes dos padrões."
-                : $"{elementos.Count} nos padrões; {proxies} proxy(s) e {outros} em classes fora dos padrões.";
+            int outros = foraDoPadrao.Count - proxies - comClasseNoElemento;
+            etapa.Resumo = proxies + outros == 0
+                ? $"{elementos.Count} elementos em classes dos padrões" + (comClasseNoElemento > 0 ? $"; {comClasseNoElemento} com classe própria (tipo ou instância)." : ".")
+                : $"{elementos.Count} nos padrões; {proxies} proxy(s) e {outros} em classes fora dos padrões" +
+                  (comClasseNoElemento > 0 ? $"; {comClasseNoElemento} com classe própria (tipo ou instância)." : ".");
             return etapa;
         }
 
@@ -383,13 +386,13 @@ namespace MetroSP.Conferencia
         private static bool EhEspaco(string entidade) =>
             entidade.Equals("IfcSpace", StringComparison.OrdinalIgnoreCase) || entidade.Equals("IfcZone", StringComparison.OrdinalIgnoreCase);
 
-        // ================================================================== 4. dados (e 2. parâmetros)
+        // ================================================================== 4. MetroDATA (e 3. parâmetros)
 
         private EtapaConferencia ConferirDados(List<(Element E, string Entidade)> elementos, ResultadoConferencia r, EtapaConferencia parametros)
         {
             var etapa = new EtapaConferencia
             {
-                Numero = 4, Titulo = "Dados preenchidos",
+                Numero = EtapaConferencia.MetroData, Titulo = "Dados preenchidos",
                 Descricao = "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelos padrões." : "."),
                 Correcao = Correcao.EditarEmMassa,
             };
@@ -467,7 +470,7 @@ namespace MetroSP.Conferencia
             }
             r.Campos.AddRange(OrdemDosCampos(campos));
 
-            // Pendências da etapa 4: uma por célula com problema.
+            // Pendências do passo MetroDATA: uma por célula com problema.
             foreach (CelulaMatriz c in r.Matriz.Values.Where(c => c.TemPendencia && !c.SemMapeamento)
                                                        .OrderBy(c => c.Percentual).ThenBy(c => c.Categoria))
             {
@@ -671,7 +674,7 @@ namespace MetroSP.Conferencia
             string parametro = string.IsNullOrWhiteSpace(_pacote.ParametroClassificacao) ? "ClassificationCode" : _pacote.ParametroClassificacao;
             var etapa = new EtapaConferencia
             {
-                Numero = 5, Titulo = "Classificação",
+                Numero = EtapaConferencia.Classificacao, Titulo = "Classificação",
                 Descricao = $"O parâmetro {parametro} está preenchido no formato Código:Descrição" + (_planilha != null ? " e com um item da planilha." : "."),
                 Correcao = Correcao.VerificarClassificacao,
             };

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows.Interop;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
@@ -60,7 +61,13 @@ namespace MetroSP.Commands
         {
             Document doc = janela.Documento;
             IfcExportSetup setup = janela.Setup;
-            string arquivo = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
+            string destino = Path.Combine(janela.PastaSaida, janela.NomeArquivo + ".ifc");
+            // O exportador grava e o MetroSP completa o IFC numa pasta temporária local; no fim o arquivo vai para a pasta
+            // escolhida de uma vez. Numa pasta do Desktop Connector ou da rede, cada gravação seria um envio inteiro.
+            string pastaTemp = Path.Combine(Path.GetTempPath(), "MetroSP-IFC-" + Guid.NewGuid().ToString("N"));
+            string arquivo = Path.Combine(pastaTemp, janela.NomeArquivo + ".ifc");
+            Stopwatch relogio = Stopwatch.StartNew();
+            TimeSpan tPreparo = TimeSpan.Zero, tExportador = TimeSpan.Zero;
 
             // A localização é gravada na etapa 1 (Localização IFC); aqui o IFC sai com o que está no Revit.
             LocalizacaoIfc local = janela.Localizacao;
@@ -73,6 +80,7 @@ namespace MetroSP.Commands
             EixosIfc eixos = null;
             try
             {
+                Directory.CreateDirectory(pastaTemp);
                 IFCExportOptions opcoes = setup.CriarOpcoes(doc, janela.PropertySetsEscolhido, janela.MapeamentoEscolhido, janela.Vista, janela.EpsgEmBranco, janela.Fase);
 
                 // O exportador precisa de uma transação aberta; ela é desfeita no fim,
@@ -109,7 +117,9 @@ namespace MetroSP.Commands
                         progresso.Etapa($"Exportando {janela.NomeArquivo}.ifc com o setup {setup.Nome}");
                         progresso.Item("O exportador do Revit não informa o andamento; em modelos grandes pode levar alguns minutos.");
                         passo = "exportar (exportador do Revit)";
-                        exportou = doc.Export(janela.PastaSaida, janela.NomeArquivo + ".ifc", opcoes);
+                        tPreparo = relogio.Elapsed;
+                        exportou = doc.Export(pastaTemp, janela.NomeArquivo + ".ifc", opcoes);
+                        tExportador = relogio.Elapsed - tPreparo;
                     }
                     eixos?.Restaurar();
 
@@ -124,6 +134,7 @@ namespace MetroSP.Commands
             }
             catch (Exception ex)
             {
+                ApagarTemp(pastaTemp);
                 TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message +
                     (avisoCategorias != null ? "\n\n" + avisoCategorias : ""));
                 return Result.Failed;
@@ -131,80 +142,106 @@ namespace MetroSP.Commands
 
             if (!exportou || !File.Exists(arquivo))
             {
+                ApagarTemp(pastaTemp);
                 TaskDialog.Show("MetroSP", "O Revit não conseguiu exportar o IFC. Confira o setup e tente pela janela de exportação do Revit para ver a mensagem do exportador.");
                 return Result.Failed;
             }
 
-            // Sem EPSG: se o exportador criou IfcMapConversion/IfcProjectedCRS (sistema GIS no Location), saem do arquivo.
-            string georref = null;
-            if (janela.EpsgEmBranco)
-            {
-                try { georref = LocalizacaoIfc.RemoverGeorreferencia(arquivo); }
-                catch (Exception ex) { georref = "Não foi possível tirar o EPSG do IFC: " + ex.Message; }
-            }
-            // O IfcSite sai sempre com a lat/long do Project Base Point, mesmo que o Revit não tenha aceitado no Location.
-            string latLong;
-            try { latLong = local.CorrigirLatLongIfc(arquivo); }
-            catch (Exception ex) { latLong = "Não foi possível corrigir a latitude/longitude do IfcSite: " + ex.Message; }
-            // Classificação dos padrões (e Classification Manager) que o exportador deixou só em property set → IfcClassificationReference.
-            // Dados do IfcProject, IfcSite e IfcBuilding (etapa 1) e Pset MetroSP_Projeto: completa o que o exportador não grava.
-            var avisosClassificacao = new List<string>();
-            var linhasDados = new List<string>();
-            var linhasElementos = new List<string>();
-            bool dadosComProblema = false, semElementos = false;
+            // Completar e conferir o IFC também leva tempo num modelo grande: a janela de andamento fica aberta.
+            LocalizacaoIfc.Conferencia conferencia;
+            bool semElementos = false;
+            int gridsNoIfc = -1;
+            var progressoIfc = Ui.Progresso.Abrir("Exportar IFC");
             try
             {
-                var modelo = Ifc.StepModel.Load(arquivo);
-                bool salvar = false;
-                // O que saiu: elementos por classe e, se o IFC saiu só com ambientes, a causa provável (fase ou vista).
-                try
+                progressoIfc.Etapa($"Completando e conferindo {janela.NomeArquivo}.ifc");
+                progressoIfc.Item("Localização, classificação, status de fase e dados do projeto.");
+                // Sem EPSG: se o exportador criou IfcMapConversion/IfcProjectedCRS (sistema GIS no Location), saem do arquivo.
+                string georref = null;
+                if (janela.EpsgEmBranco)
                 {
-                    linhasElementos = ElementosNoIfc.Conferir(doc, ElementosNoIfc.Contar(modelo), janela.Vista,
-                        FiltroIfc.Fase(doc, janela.Fase, janela.Vista), out semElementos);
+                    try { georref = LocalizacaoIfc.RemoverGeorreferencia(arquivo); }
+                    catch (Exception ex) { georref = "Não foi possível tirar o EPSG do IFC: " + ex.Message; }
                 }
-                catch (Exception ex) { linhasElementos.Add("Não foi possível contar os elementos do IFC: " + ex.Message); }
-                try { salvar = Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0; }
-                catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
-                // Status de fase (Pset_*Common.Status e Estado do Pset Metro) na fase exportada.
+                // O IfcSite sai sempre com a lat/long do Project Base Point, mesmo que o Revit não tenha aceitado no Location.
+                string latLong;
+                try { latLong = local.CorrigirLatLongIfc(arquivo); }
+                catch (Exception ex) { latLong = "Não foi possível corrigir a latitude/longitude do IfcSite: " + ex.Message; }
+                // Classificação dos padrões (e Classification Manager) que o exportador deixou só em property set → IfcClassificationReference.
+                // Dados do IfcProject, IfcSite e IfcBuilding (etapa 1) e Pset MetroSP_Projeto: completa o que o exportador não grava.
+                var avisosClassificacao = new List<string>();
+                var linhasDados = new List<string>();
+                var linhasElementos = new List<string>();
+                bool dadosComProblema = false;
                 try
                 {
-                    ElementId faseIfc = FiltroIfc.Fase(doc, janela.Fase, janela.Vista);
-                    string nomeFase = doc.GetElement(faseIfc)?.Name ?? "?";
-                    var (comStatus, comEstado) = Ifc.StatusFaseIfc.Aplicar(modelo, id => StatusNaFase(doc, id, faseIfc),
-                        Ifc.StatusFaseIfc.ClassesComPsetMetro(janela.PropertySetsEscolhido), avisosClassificacao.Add);
-                    if (comStatus + comEstado > 0)
+                    var modelo = Ifc.StepModel.Load(arquivo);
+                    bool salvar = false;
+                    gridsNoIfc = modelo.OfType("IFCGRID").Count();
+                    // O que saiu: elementos por classe e, se o IFC saiu só com ambientes, a causa provável (fase ou vista).
+                    try
                     {
-                        salvar = true;
-                        avisosClassificacao.Add($"Fase {nomeFase}: Status em {comStatus} elemento(s) (Pset_*Common) e Estado em {comEstado} (Pset Metro).");
+                        linhasElementos = ElementosNoIfc.Conferir(doc, ElementosNoIfc.Contar(modelo), janela.Vista,
+                            FiltroIfc.Fase(doc, janela.Fase, janela.Vista), out semElementos);
                     }
+                    catch (Exception ex) { linhasElementos.Add("Não foi possível contar os elementos do IFC: " + ex.Message); }
+                    try { salvar = Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0; }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
+                    // Status de fase (Pset_*Common.Status e Estado do Pset Metro) na fase exportada.
+                    try
+                    {
+                        ElementId faseIfc = FiltroIfc.Fase(doc, janela.Fase, janela.Vista);
+                        string nomeFase = doc.GetElement(faseIfc)?.Name ?? "?";
+                        var (comStatus, comEstado) = Ifc.StatusFaseIfc.Aplicar(modelo, id => StatusNaFase(doc, id, faseIfc),
+                            Ifc.StatusFaseIfc.ClassesComPsetMetro(janela.PropertySetsEscolhido), avisosClassificacao.Add);
+                        if (comStatus + comEstado > 0)
+                        {
+                            salvar = true;
+                            avisosClassificacao.Add($"Fase {nomeFase}: Status em {comStatus} elemento(s) (Pset_*Common) e Estado em {comEstado} (Pset Metro).");
+                        }
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar o status da fase: " + ex.Message); }
+                    try
+                    {
+                        escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);
+                        salvar |= alterouDados;
+                        linhasDados = escolha.Dados.Conferir(modelo, out dadosComProblema);
+                    }
+                    catch (Exception ex) { linhasDados.Add("Não foi possível gravar os dados do IfcProject/IfcSite/IfcBuilding: " + ex.Message); dadosComProblema = true; }
+                    // Por último: Plugin e VersaoPlugin no Pset MetroSP_Projeto e a marca no cabeçalho.
+                    try { Ifc.OrigemIfc.Marcar(modelo, "MetroSP Revit"); salvar = true; }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a origem MetroSP no IFC: " + ex.Message); }
+                    if (salvar) modelo.Save(arquivo);
                 }
-                catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar o status da fase: " + ex.Message); }
-                try
+                catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar o IFC (classificação e dados do projeto): " + ex.Message); }
+                if (local.Erro == null)
                 {
-                    escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);
-                    salvar |= alterouDados;
-                    linhasDados = escolha.Dados.Conferir(modelo, out dadosComProblema);
+                    escolha.Latitude = local.Latitude;
+                    escolha.Longitude = local.Longitude;
                 }
-                catch (Exception ex) { linhasDados.Add("Não foi possível gravar os dados do IfcProject/IfcSite/IfcBuilding: " + ex.Message); dadosComProblema = true; }
-                // Por último: Plugin e VersaoPlugin no Pset MetroSP_Projeto e a marca no cabeçalho.
-                try { Ifc.OrigemIfc.Marcar(modelo, "MetroSP Revit"); salvar = true; }
-                catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a origem MetroSP no IFC: " + ex.Message); }
-                if (salvar) modelo.Save(arquivo);
+                conferencia = local.ConferirIfc(arquivo, escolha, janela.EpsgEmBranco);
+                if (latLong != null) conferencia.Linhas.Insert(0, latLong);
+                conferencia.Linhas.InsertRange(0, linhasElementos);
+                if (semElementos) conferencia.TemProblema = true;
+                conferencia.Linhas.AddRange(linhasDados);
+                if (dadosComProblema) conferencia.TemProblema = true;
+                foreach (string a in avisosClassificacao) conferencia.Linhas.Add(char.ToUpper(a[0]) + a.Substring(1));
+                if (georref != null) conferencia.Linhas.Insert(0, georref);
             }
-            catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar o IFC (classificação e dados do projeto): " + ex.Message); }
-            if (local.Erro == null)
+            finally { progressoIfc.Dispose(); }
+
+            // O IFC pronto vai para a pasta escolhida (com os IFCs dos vínculos, se o setup exporta vínculos).
+            string erroCopia = MoverParaDestino(pastaTemp, janela.PastaSaida);
+            if (erroCopia != null)
             {
-                escolha.Latitude = local.Latitude;
-                escolha.Longitude = local.Longitude;
+                TaskDialog.Show("MetroSP", "O IFC foi exportado, mas não deu para gravá-lo na pasta escolhida:\n" + erroCopia +
+                    "\n\nO arquivo ficou em:\n" + arquivo + "\n\nFeche o IFC se ele estiver aberto em outro programa e copie de lá.");
+                return Result.Failed;
             }
-            LocalizacaoIfc.Conferencia conferencia = local.ConferirIfc(arquivo, escolha, janela.EpsgEmBranco);
-            if (latLong != null) conferencia.Linhas.Insert(0, latLong);
-            conferencia.Linhas.InsertRange(0, linhasElementos);
-            if (semElementos) conferencia.TemProblema = true;
-            conferencia.Linhas.AddRange(linhasDados);
-            if (dadosComProblema) conferencia.TemProblema = true;
-            foreach (string a in avisosClassificacao) conferencia.Linhas.Add(char.ToUpper(a[0]) + a.Substring(1));
-            if (georref != null) conferencia.Linhas.Insert(0, georref);
+            arquivo = destino;
+            TimeSpan tTotal = relogio.Elapsed;
+            conferencia.Linhas.Add($"Tempo: {Duracao(tTotal)} no total ({Duracao(tPreparo)} de preparação, {Duracao(tExportador)} no exportador do Revit, " +
+                                   $"{Duracao(tTotal - tPreparo - tExportador)} para completar e conferir o IFC).");
             string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
                 uiapp.Application.VersionName, Ui.SobreWindow.Versao);
             string avisosSetup =
@@ -219,7 +256,7 @@ namespace MetroSP.Commands
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoCategorias == null ? "" : "\n" + avisoCategorias) +
                     (avisoCoordenacao == null ? "" : "\n" + avisoCoordenacao) +
-                    TextoEixos(eixos, arquivo) +
+                    TextoEixos(eixos, gridsNoIfc) +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
                     "\n\nLocalização: " + (local.LocationCorreto ? "Location confere com o Project Base Point." :
@@ -240,15 +277,43 @@ namespace MetroSP.Commands
         }
 
         /// <summary>Linha do resumo sobre os eixos: quantos IfcGrid saíram e o que foi preciso mudar.</summary>
-        private static string TextoEixos(EixosIfc eixos, string arquivo)
+        private static string TextoEixos(EixosIfc eixos, int n)
         {
             if (eixos == null || eixos.Total == 0) return "";
-            int n = EixosIfc.ContarNoIfc(arquivo);
             string linha = n > 0 ? $"\nEixos: {n} IfcGrid no IFC ({eixos.Total} eixos no modelo)."
                 : n == 0 ? $"\nATENÇÃO: nenhum IfcGrid no IFC, embora o modelo tenha {eixos.Total} eixos. Tente exportar o modelo inteiro (sem filtrar pela vista)."
                 : "";
             return linha + (eixos.Aviso == null ? "" : "\n" + eixos.Aviso);
         }
+
+        /// <summary>
+        /// Move os arquivos da pasta temporária para a pasta escolhida, substituindo os de mesmo nome, e apaga a temporária.
+        /// Retorna null, ou o erro.
+        /// </summary>
+        private static string MoverParaDestino(string pastaTemp, string pastaSaida)
+        {
+            try
+            {
+                Directory.CreateDirectory(pastaSaida);
+                foreach (string origem in Directory.GetFiles(pastaTemp))
+                {
+                    string alvo = Path.Combine(pastaSaida, Path.GetFileName(origem));
+                    if (File.Exists(alvo)) File.Delete(alvo);
+                    File.Move(origem, alvo);
+                }
+                ApagarTemp(pastaTemp);
+                return null;
+            }
+            catch (Exception ex) { return ex.Message; }
+        }
+
+        private static void ApagarTemp(string pastaTemp)
+        {
+            try { if (Directory.Exists(pastaTemp)) Directory.Delete(pastaTemp, true); } catch { /* fica no temp do Windows */ }
+        }
+
+        private static string Duracao(TimeSpan t) =>
+            t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes} min {t.Seconds:00} s" : $"{Math.Max(1, (int)Math.Round(t.TotalSeconds))} s";
 
         /// <summary>Status de fase do elemento na fase exportada, como no IFC (PEnum_ElementStatus), ou null.</summary>
         private static string StatusNaFase(Document doc, long id, ElementId fase)

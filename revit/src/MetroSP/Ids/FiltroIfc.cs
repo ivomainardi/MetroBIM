@@ -38,6 +38,26 @@ namespace MetroSP.Ids
             return doc.Phases.Size > 0 ? doc.Phases.get_Item(doc.Phases.Size - 1).Id : ElementId.InvalidElementId;
         }
 
+        /// <summary>Categorias de partes de guarda-corpo que o exportador leva dentro do IfcRailing.</summary>
+        private static readonly HashSet<BuiltInCategory> PartesDeGuardaCorpo = new HashSet<BuiltInCategory>
+        {
+            BuiltInCategory.OST_StairsRailingBaluster, BuiltInCategory.OST_RailingTopRail, BuiltInCategory.OST_RailingHandRail,
+            BuiltInCategory.OST_RailingSupport, BuiltInCategory.OST_RailingTermination,
+        };
+
+        /// <summary>
+        /// Elemento que o exportador IFC da Autodesk não exporta sozinho, porque é parte de outro (revit-ifc:
+        /// RailingExporter junta corrimão, corrimão superior e suportes no IfcRailing; balaústres já são geometria do
+        /// guarda-corpo; linhas de grade de parede cortina ficam fora da exportação). Retorna o motivo ou null.
+        /// </summary>
+        public static string ParteDe(Element e)
+        {
+            if (e is CurtainGridLine) return "Parte da parede cortina (sai dentro do IfcCurtainWall)";
+            if (e is Autodesk.Revit.DB.Architecture.ContinuousRail || (e.Category != null && PartesDeGuardaCorpo.Contains(e.Category.BuiltInCategory)))
+                return "Parte do guarda-corpo (sai dentro do IfcRailing)";
+            return null;
+        }
+
         /// <summary>Por que o elemento não vai para o IFC, ou null se vai.</summary>
         /// <param name="tiposComSolido">
         /// Opcional: tipos de família já vistos com sólido. Instâncias do mesmo tipo têm a mesma geometria,
@@ -51,6 +71,11 @@ namespace MetroSP.Ids
                 || e is AssemblyInstance || e is RevitLinkInstance || e is ImportInstance)
                 return "Não é elemento de modelo";
             if (NaoExportadas.Contains(e.Category.BuiltInCategory)) return "Categoria que não vai para o IFC";
+            // Partes de guarda-corpo e de parede cortina: o exportador junta a geometria no elemento-pai (IfcRailing,
+            // IfcCurtainWall) e não cria um elemento próprio para elas. Se ninguém escolheu uma classe para elas,
+            // não são proxy nem erro: fazem parte do pai.
+            string pai = ParteDe(e);
+            if (pai != null && !CategoriasIfc.TemClasseNoElemento(doc, e)) return pai;
             // Origem interna, ponto base e ponto de levantamento só posicionam o modelo (vão para o IfcSite, não como elemento).
             if (e is BasePoint || e is InternalOrigin) return "Ponto de referência";
             // Aberturas (shaft, por face, corte de abertura estrutural) saem como vazio dentro do elemento que cortam.

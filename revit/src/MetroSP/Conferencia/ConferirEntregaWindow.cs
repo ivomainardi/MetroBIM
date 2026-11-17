@@ -21,7 +21,7 @@ namespace MetroSP.Conferencia
 {
     /// <summary>
     /// Janela não modal "Conferir Entrega Metrô": cartões das etapas com semáforo à esquerda e, à direita, o detalhe
-    /// da etapa (matriz categoria × campo na etapa 4). Tudo que usa a API (conferir, selecionar, pintar, abrir as outras
+    /// da etapa (matriz categoria × campo no passo MetroDATA). Tudo que usa a API (conferir, selecionar, pintar, abrir as outras
     /// ferramentas, exportar) passa por um ExternalEvent, porque a janela fica aberta enquanto se trabalha no Revit.
     /// </summary>
     public class ConferirEntregaWindow : Window
@@ -196,7 +196,7 @@ namespace MetroSP.Conferencia
             _res = res;
             _celula = _celula != null && res.Matriz.TryGetValue(chave, out CelulaMatriz mesma) && mesma.TemPendencia ? mesma : null;
             _pacoteNome.Text = "Arquivos: " + _pacote.NomeExibido;
-            _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos nos padrões" + (res.ForaDoPadrao > 0 ? $" (+{res.ForaDoPadrao} fora, na etapa 3)" : "") +
+            _pacoteInfo.Text = $"{res.Documento} · {res.TotalElementos} elementos nos padrões" + (res.ForaDoPadrao > 0 ? $" (+{res.ForaDoPadrao} fora, no passo Classes IFC)" : "") +
                                $" ({res.Escopo}) · conferido às {res.Quando:HH:mm}";
             _pacoteInfo.ToolTip = _pacote.Arquivo;
 
@@ -236,7 +236,7 @@ namespace MetroSP.Conferencia
             bool pronto = _res.ProntoParaExportar;
             var exportar = Cartao(new EtapaConferencia
             {
-                Numero = 6, Titulo = "Exportar IFC",
+                Numero = EtapaConferencia.Exportar, Titulo = "Exportar IFC",
                 Resumo = pronto ? "Pode exportar com o setup e o .txt dos padrões." : "Exporta mesmo com pendências, mas avisa antes.",
                 Sinal = pronto ? Sinal.Verde : Sinal.Cinza,
             }, clicavel: false);
@@ -302,7 +302,7 @@ namespace MetroSP.Conferencia
             DockPanel.SetDock(cabecalho, Dock.Top);
             dock.Children.Add(cabecalho);
 
-            if (etapa.Numero == 4 && _res.Matriz.Count > 0)
+            if (etapa.Numero == EtapaConferencia.MetroData && _res.Matriz.Count > 0)
             {
                 var abas = new TabControl();
                 abas.Items.Add(new TabItem { Header = "Matriz", Content = MontarMatriz() });
@@ -325,7 +325,7 @@ namespace MetroSP.Conferencia
             var tabela = new FilterableGrid(itens, typeof(Pendencia));
             tabela.AddColumn("Situação", nameof(Pendencia.Situacao), 80);
             if (etapa.Numero != 1) tabela.AddColumn("Categoria", nameof(Pendencia.Categoria), 130);
-            tabela.AddColumn(etapa.Numero == 1 ? "Arquivo" : etapa.Numero == 5 ? "Situação da classificação" : etapa.Numero == 3 ? "Classe IFC" : "Campo / parâmetro",
+            tabela.AddColumn(etapa.Numero == EtapaConferencia.Padroes ? "Arquivo" : etapa.Numero == EtapaConferencia.Classificacao ? "Situação da classificação" : etapa.Numero == EtapaConferencia.ClassesIfc ? "Classe IFC" : "Campo / parâmetro",
                 nameof(Pendencia.Assunto), 170, wrap: true);
             tabela.AddColumn("O que foi encontrado", nameof(Pendencia.Problema), 280, wrap: true);
             if (etapa.Numero != 1) tabela.AddColumn("Elem.", nameof(Pendencia.QtdElementos), 55);
@@ -361,7 +361,7 @@ namespace MetroSP.Conferencia
                     : BotaoCorrecao(c, () => grid.SelectedItems.Count > 0 ? Escolhidos() : null);
                 if (b != null) botoes.Children.Add(b);
             }
-            if (etapa.Numero == 3 && itens.Any(p => p.Elementos.Count > 0))
+            if (etapa.Numero == EtapaConferencia.ClassesIfc && itens.Any(p => p.Elementos.Count > 0))
             {
                 // Corrigir aqui: grava a classe no "Exportar para IFC como" dos tipos (ou da instância, se ela já tiver um valor).
                 // Lista: primeiro as classes dos padrões, depois todas as do esquema do setup (Classe e Classe.TIPO). Digitar só filtra.
@@ -383,7 +383,7 @@ namespace MetroSP.Conferencia
                 DockPanel.SetDock(linhaClasse, Dock.Bottom);
                 dock.Children.Add(linhaClasse);
             }
-            if (etapa.Numero == 2 && _res.Ids != null && !itens.Any(p => p.Correcao == Correcao.DetalhesIds))
+            if (etapa.Numero == EtapaConferencia.Parametros && _res.Ids != null && !itens.Any(p => p.Correcao == Correcao.DetalhesIds))
                 botoes.Children.Add(BotaoCorrecao(Correcao.DetalhesIds, () => null));
             grid.MouseDoubleClick += (s, e) =>
             {

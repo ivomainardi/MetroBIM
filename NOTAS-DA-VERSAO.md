@@ -4,12 +4,40 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## Próxima versão
+## 1.0.9 (17/11/2026)
 
+Revit 0.3.12 · Civil 3D 0.12.5
+
+- Revit, **Entrega passo a passo › Classes IFC** sem falsos proxies:
+  - **Balaústres, corrimãos (Top Rails, Handrails), suportes e terminações** de guarda-corpo e **linhas de grade de
+    parede cortina** (Curtain Wall Grids) não aparecem mais como proxy. O exportador IFC da Autodesk não cria um
+    elemento para eles: a geometria vai dentro do IfcRailing ou do IfcCurtainWall. Vale para todas as ferramentas
+    (ficam de fora como os demais elementos que não vão para o IFC). Se alguém escolher uma classe para eles no
+    "Exportar para IFC como", continuam contando.
+  - Elementos com a classe definida no tipo ou na instância ("Exportar para IFC como") estão certos, mesmo que a
+    categoria não tenha classe na tabela: não aparecem mais como pendência. O resumo do passo mostra quantos são.
+- Revit, **Categorias IFC › Copiar entre IFC schemas**: o menu agora separa **só as linhas selecionadas** e a
+  **tabela inteira**, nos dois sentidos (IFC4 → IFC 4.3 e IFC 4.3 → IFC4).
+- Revit e Civil 3D, **Exportar IFC mais rápido em modelos grandes**: a etapa em que o MetroSP completa o IFC depois do
+  exportador (classificação, status de fase, dados do projeto) ficava muito mais lenta conforme o modelo crescia. Num IFC
+  de teste com 20 mil paredes em fases diferentes ela levava 2 min 30 s e agora leva menos de 2 s.
+- Revit, **Exportar IFC**:
+  - O IFC é gravado e completado numa pasta temporária do computador e só no fim vai para a pasta escolhida. Numa pasta
+    do Desktop Connector ou da rede o arquivo é enviado uma vez só, e não a cada etapa.
+  - A janela de andamento fica aberta também enquanto o IFC é completado e conferido.
+  - O resumo e o registro (.log.txt) mostram quanto tempo levou cada parte: preparação, exportador do Revit e o
+    complemento do MetroSP.
+  - A conferência de elementos fora da fase exportada ficou mais leve.
 - Revit e Civil 3D, **Entrega passo a passo**: abre sempre no passo 1. Antes abria na primeira etapa com pendência
   (ou no último passo, com tudo certo). Quem abre por um atalho (clique numa etapa do Painel MetroSP ou
   **Passo a passo...** do Exportar IFC) continua indo direto para a etapa escolhida.
-- Revit, **Entrega passo a passo › Parâmetros** mais fácil de ler:
+- Revit, **Entrega passo a passo** com nova sequência: **1 Padrões**, **2 Classes IFC**, **3 Parâmetros compartilhados**,
+  **4 MetroDATA**, **5 Classificação** e **6 Exportar**. Classes IFC vem antes dos parâmetros porque o que cada elemento
+  precisa ter depende da classe dele.
+- Revit, **Entrega › Padrões** (antes Arquivos): além do perfil de exportação, mostra os padrões em uso numa tabela, com o
+  arquivo, o que ele traz (por exemplo "12 property sets, 140 propriedades") e o passo que o usa, e um resumo do modelo
+  (elementos nos padrões, fora dos padrões, classes IFC e esquema).
+- Revit, **Entrega passo a passo › Parâmetros compartilhados** mais fácil de ler:
   - Os erros do .txt de property sets aparecem uma vez só, no painel **O que falta** à esquerda. A caixa rosa repetida
     em cima da tabela saiu (na ferramenta **Parâmetros** aberta sozinha, ela continua, com uma linha por erro).
   - Textos dos erros curtos, por exemplo "2093 elemento(s) sem o parâmetro "Length"." A explicação completa fica na

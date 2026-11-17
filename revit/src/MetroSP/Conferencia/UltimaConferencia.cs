@@ -24,11 +24,11 @@ namespace MetroSP.Conferencia
         public static ResultadoConferencia De(Document doc) =>
             doc != null && _resultado != null && _chave == Chave(doc) ? _resultado : null;
 
-        /// <summary>Problemas do passo "Parâmetros e mapeamento" por nome de parâmetro (texto pronto para uma coluna).</summary>
+        /// <summary>Problemas do passo "Parâmetros compartilhados e mapeamento" por nome de parâmetro (texto pronto para uma coluna).</summary>
         public static Dictionary<string, string> ProblemasDeParametro(Document doc)
         {
             var r = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            EtapaConferencia etapa = De(doc)?.Etapas.FirstOrDefault(e => e.Numero == 2);
+            EtapaConferencia etapa = De(doc)?.Etapas.FirstOrDefault(e => e.Numero == EtapaConferencia.Parametros);
             if (etapa == null) return r;
             foreach (var g in etapa.Pendencias.Where(p => (p.Sinal == Sinal.Vermelho || p.Sinal == Sinal.Amarelo) && !string.IsNullOrEmpty(p.Assunto))
                                               .GroupBy(p => p.Assunto, StringComparer.OrdinalIgnoreCase))
@@ -44,11 +44,11 @@ namespace MetroSP.Conferencia
         }
 
         /// <summary>
-        /// Pendências do passo 2 que vêm do .txt de property sets (parâmetro que os elementos não têm, ou tipo diferente):
+        /// Pendências do passo Parâmetros compartilhados que vêm do .txt de property sets (parâmetro que os elementos não têm, ou tipo diferente):
         /// o caminho é ajustar o .txt, não os parâmetros de projeto.
         /// </summary>
         public static List<Pendencia> PendenciasDoMapeamento(Document doc) =>
-            De(doc)?.Etapas.FirstOrDefault(e => e.Numero == 2)?.Pendencias
+            De(doc)?.Etapas.FirstOrDefault(e => e.Numero == EtapaConferencia.Parametros)?.Pendencias
                 .Where(p => p.Correcao == Correcao.EditarPropertySets && (p.Sinal == Sinal.Vermelho || p.Sinal == Sinal.Amarelo))
                 .OrderByDescending(p => p.QtdElementos).ToList() ?? new List<Pendencia>();
 

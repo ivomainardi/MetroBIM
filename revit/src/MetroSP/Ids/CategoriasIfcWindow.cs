@@ -158,10 +158,22 @@ namespace MetroSP.Ids
             corpo.Children.Add(_grade);
 
             _resumo = new TextBlock();
-            var copiar = new Button { Content = "Copiar entre IFC schemas ▾", ToolTip = "Copia classe, tipo e Exportar de um IFC schema para o outro, nas linhas selecionadas ou em todas." };
-            copiar.Click += (s, e) => Menu(copiar,
-                ("IFC4 → IFC 4.3", () => Copiar(CategoriasIfc.Ifc4, CategoriasIfc.Ifc4x3)),
-                ("IFC 4.3 → IFC4", () => Copiar(CategoriasIfc.Ifc4x3, CategoriasIfc.Ifc4)));
+            var copiar = new Button { Content = "Copiar entre IFC schemas ▾", ToolTip = "Copia classe, tipo e Exportar de um IFC schema para o outro: só nas linhas selecionadas (Ctrl ou Shift + clique para escolher várias) ou na tabela inteira." };
+            copiar.Click += (s, e) =>
+            {
+                _grade.CommitEdit(DataGridEditingUnit.Row, true);
+                int n = _grade.SelectedItems.OfType<Par>().Count();
+                var itens = new List<(string, Action)>();
+                if (n > 0)
+                {
+                    string sel = n == 1 ? "só a linha selecionada" : $"só as {n} linhas selecionadas";
+                    itens.Add(($"IFC4 → IFC 4.3: {sel}", () => Copiar(CategoriasIfc.Ifc4, CategoriasIfc.Ifc4x3, true)));
+                    itens.Add(($"IFC 4.3 → IFC4: {sel}", () => Copiar(CategoriasIfc.Ifc4x3, CategoriasIfc.Ifc4, true)));
+                }
+                itens.Add(("IFC4 → IFC 4.3: tabela inteira", () => Copiar(CategoriasIfc.Ifc4, CategoriasIfc.Ifc4x3, false)));
+                itens.Add(("IFC 4.3 → IFC4: tabela inteira", () => Copiar(CategoriasIfc.Ifc4x3, CategoriasIfc.Ifc4, false)));
+                Menu(copiar, itens.ToArray());
+            };
             var importar = new Button { Content = "Importar .txt ▾" };
             importar.Click += (s, e) => Menu(importar,
                 ("Para a coluna IFC4...", () => Importar(CategoriasIfc.Ifc4)),
@@ -386,13 +398,14 @@ namespace MetroSP.Ids
             return true;
         }
 
-        private void Copiar(string de, string para)
+        private void Copiar(string de, string para, bool soSelecionadas)
         {
             _grade.CommitEdit(DataGridEditingUnit.Row, true);
-            List<Par> sel = _grade.SelectedItems.OfType<Par>().ToList();
-            string alvo = sel.Count > 0 ? $"as {sel.Count} linhas selecionadas" : "a tabela inteira";
+            List<Par> linhas = soSelecionadas ? _grade.SelectedItems.OfType<Par>().ToList() : _pares.ToList();
+            if (linhas.Count == 0) return;
+            string alvo = !soSelecionadas ? "a tabela inteira" : linhas.Count == 1 ? $"a linha {linhas[0].Categoria}" : $"as {linhas.Count} linhas selecionadas";
             if (MessageBox.Show(this, $"Copiar do {NomeEsquema(de)} para o {NomeEsquema(para)} {alvo}?", Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-            foreach (Par p in sel.Count > 0 ? sel : _pares.ToList())
+            foreach (Par p in linhas)
             {
                 CategoriasIfc.Linha o = p.De(de), d = p.De(para);
                 d.Classe = o.Classe;

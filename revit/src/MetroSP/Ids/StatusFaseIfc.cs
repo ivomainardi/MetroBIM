@@ -203,8 +203,13 @@ namespace MetroSP.Ifc
                 if (ficam.Count > 0) m.SetArg(rel.Id, 4, StepModel.RefListText(ficam));
                 else m.Remove(rel.Id);
             }
-            foreach (int pset in mover.Keys)
-                if (!m.OfType("IFCRELDEFINESBYPROPERTIES").Any(r => StepModel.Ref(r.Args[5]) == pset)) m.Remove(pset);
+            // Property set antigo que ficou sem nenhum elemento sai (uma passada só pelos IfcRelDefinesByProperties).
+            if (mover.Count > 0)
+            {
+                var emUso = new HashSet<int>(m.OfType("IFCRELDEFINESBYPROPERTIES").Select(r => StepModel.Ref(r.Args[5])));
+                foreach (int pset in mover.Keys)
+                    if (!emUso.Contains(pset)) m.Remove(pset);
+            }
 
             // Elementos sem o property set: um novo para cada (property set, status).
             foreach (var g in alvo.Where(a => !psetDoObjeto.ContainsKey(a.Key)).GroupBy(a => a.Value))
