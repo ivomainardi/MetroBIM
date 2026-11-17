@@ -18,7 +18,7 @@ namespace MetroSP.Entrega
 {
     public class EntregaCommands
     {
-        /// <summary>Etapa pedida pelo Painel MetroSP (0 = a primeira com pendência).</summary>
+        /// <summary>Etapa pedida pelo Painel MetroSP (0 = o passo 1).</summary>
         internal static int PassoPedido;
 
         /// <summary>Entrega passo a passo: janela única da entrega.</summary>
@@ -135,7 +135,7 @@ namespace MetroSP.Entrega
             conferir.Margin = new Thickness(0, 0, 6, 4);
             conferir.Click += (s, e) => Conferir();
             var abrir = EntregaWindow.Pilula("Abrir a entrega");
-            abrir.ToolTip = "Abre a Entrega passo a passo na primeira etapa com pendência.";
+            abrir.ToolTip = "Abre a Entrega passo a passo no passo 1.";
             abrir.Margin = new Thickness(0, 0, 6, 4);
             abrir.Click += (s, e) => AbrirEtapa(0);
             botoes.Children.Add(conferir);

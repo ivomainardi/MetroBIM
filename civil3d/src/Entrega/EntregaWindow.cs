@@ -197,8 +197,8 @@ namespace MetroSP.Entrega
             finally { Cursor = null; }
             if (primeira || _passo == 0)
             {
-                // Começa pela primeira etapa com pendência (ou pela última, se está tudo certo).
-                _passo = _res.Etapas.FirstOrDefault(e => e.Numero < Ultima && e.Abertas.Count > 0)?.Numero ?? Ultima;
+                // Sempre começa no passo 1; as setinhas em cima mostram onde há pendência.
+                _passo = 1;
             }
             Mostrar();
             return true;

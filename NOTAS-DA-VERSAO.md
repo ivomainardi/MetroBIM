@@ -4,6 +4,12 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## Próxima versão
+
+- Revit e Civil 3D, **Entrega passo a passo**: abre sempre no passo 1. Antes abria na primeira etapa com pendência
+  (ou no último passo, com tudo certo). Quem abre por um atalho (clique numa etapa do Painel MetroSP ou
+  **Passo a passo...** do Exportar IFC) continua indo direto para a etapa escolhida.
+
 ## 1.0.8 (16/11/2026)
 
 Revit 0.3.11 · Civil 3D 0.12.4

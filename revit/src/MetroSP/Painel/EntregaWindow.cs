@@ -56,7 +56,7 @@ namespace MetroSP.Painel
         private bool _formaSincronizado;
 
         /// <summary>Confere o modelo ativo e abre a janela. Chamar no contexto da API (comando ou ExternalEvent).</summary>
-        /// <param name="passo">Passo para abrir (0 = o primeiro com pendência).</param>
+        /// <param name="passo">Passo para abrir (0 = o passo 1).</param>
         public static Result Abrir(UIApplication app, int passo = 0)
         {
             DB.Document doc = app.ActiveUIDocument?.Document;
@@ -240,9 +240,8 @@ namespace MetroSP.Painel
             MostrarPerfil();
             if (primeira || _passo == 0)
             {
-                // Começa pela primeira etapa com pendência (ou pela última, se está tudo certo).
-                EtapaConferencia aberta = _res.Etapas.FirstOrDefault(e => Pendentes(e).Count > 0);
-                _passo = aberta?.Numero ?? PassoLocal;
+                // Sempre começa no passo 1; as setinhas em cima mostram onde há pendência.
+                _passo = 1;
             }
             Mostrar();
             return true;
