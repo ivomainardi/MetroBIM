@@ -207,7 +207,7 @@ namespace MetroSP.Painel
             _pacote.SoVistaAtiva = _soVista.IsChecked == true;
             _pacote = _pacote.SemPadrao;
             _pacote.SalvarComoAtual();
-            // O padrão do modelo (o mesmo do Exportar IFC e do passo Arquivos) vale sobre o setup e os property sets.
+            // O padrão do modelo (o mesmo do Exportar IFC e do passo Padrões) vale sobre o setup e os property sets.
             PacoteMetro efetivo = _pacote.ComPadrao(doc);
             efetivo.AplicarNasOutrasFerramentas();
 
@@ -473,7 +473,7 @@ namespace MetroSP.Painel
             if (p.Correcao == Correcao.ListarCompartilhados)
                 yield return ("Ver em Compartilhados", "Abre Parâmetros › Compartilhados, onde a coluna Padrão mostra o parâmetro do MetroShared.",
                     () => AbrirFerramenta(Correcao.ListarCompartilhados, p.Elementos));
-            if (etapa.Numero == 3 && p.Elementos.Count > 0)
+            if (etapa.Numero == EtapaConferencia.ClassesIfc && p.Elementos.Count > 0)
                 yield return ("Escolher classe...", "Escolhe a classe IFC desses elementos e grava no \"Exportar para IFC como\" dos tipos.",
                     () => Revit(app => EscolherClasse(app, p)));
             if (p.Correcao == Correcao.EditarEmMassa && p.Elementos.Count > 0)

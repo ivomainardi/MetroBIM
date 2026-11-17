@@ -396,7 +396,7 @@ namespace MetroSP.Ids
         /// <summary>Se o nome do modelo indica uma classe (Nomenclatura.txt ou trecho do nome), ela é escolhida.</summary>
         private void ClasseDoNome()
         {
-            // Padrão escolhido para este modelo (aqui ou no passo Arquivos da Entrega) vale antes da regra do nome.
+            // Padrão escolhido para este modelo (aqui ou no passo Padrões da Entrega) vale antes da regra do nome.
             string guardado = _settings.PadraoDo(_doc.Title);
             if (guardado != null)
             {
@@ -949,7 +949,7 @@ namespace MetroSP.Ids
             DialogResult = true;
         }
 
-        /// <summary>O padrão escolhido fica valendo para este modelo (também no passo Arquivos da Entrega).</summary>
+        /// <summary>O padrão escolhido fica valendo para este modelo (também no passo Padrões da Entrega).</summary>
         private void GuardarPadraoDoModelo()
         {
             ClassesIfc.Classe c = ClasseEscolhida;

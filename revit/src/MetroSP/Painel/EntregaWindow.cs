@@ -25,7 +25,7 @@ namespace MetroSP.Painel
     /// </summary>
     public class EntregaWindow : Window
     {
-        private const int PassoLocal = 6;
+        private const int PassoLocal = EtapaConferencia.Exportar;
         /// <summary>Último passo: projeto e local, opções e exportação do IFC.</summary>
         public const int PassoExportar = PassoLocal;
         private static readonly Color Vermelho = Color.FromRgb(0xB2, 0x22, 0x22);
@@ -321,11 +321,11 @@ namespace MetroSP.Painel
         {
             switch (numero)
             {
-                case 1: return "Arquivos";
-                case 2: return "Parâmetros";
-                case 3: return "Classe IFC";
-                case 4: return "Dados";
-                case 5: return "Classificação";
+                case EtapaConferencia.Padroes: return "Padrões";
+                case EtapaConferencia.ClassesIfc: return "Classes IFC";
+                case EtapaConferencia.Parametros: return "Parâmetros compartilhados";
+                case EtapaConferencia.MetroData: return "MetroDATA";
+                case EtapaConferencia.Classificacao: return "Classificação";
                 default: return titulo;
             }
         }
@@ -515,7 +515,7 @@ namespace MetroSP.Painel
             if (p.Correcao == Correcao.EditarPropertySets)
                 yield return ("Ajustar o .txt", "Abre o .txt de property sets dos padrões para trocar o tipo ou o parâmetro; ao salvar, confere de novo.",
                     () => { if (FecharFerramenta() && AcoesPendencia.EditarPropertySets(_doc, _efetivo ?? _pacote, this, IntPtr.Zero)) Conferir(); });
-            if (etapa.Numero == 3 && p.Elementos.Count > 0)
+            if (etapa.Numero == EtapaConferencia.ClassesIfc && p.Elementos.Count > 0)
                 yield return ("Escolher classe...", "Escolhe a classe IFC desses elementos e grava no \"Exportar para IFC como\" dos tipos.",
                     () => { if (FecharFerramenta()) AcoesPendencia.EscolherClasse(_doc, _res, p, this, IntPtr.Zero, () => Conferir()); });
             if (p.Correcao == Correcao.EditarEmMassa && p.Elementos.Count > 0)
@@ -546,25 +546,25 @@ namespace MetroSP.Painel
             UIDocument uidoc = _app.ActiveUIDocument;
             switch (_passo)
             {
-                case 2:
+                case EtapaConferencia.Parametros:
                 {
                     var w = new Dados.GerenciarParametrosWindow(uidoc, naEntrega: true);
                     w.Abas.SelectedItem = w.AbaModelo;
                     return w;
                 }
-                case 3:
+                case EtapaConferencia.ClassesIfc:
                     return new Ids.CategoriasIfcWindow(_doc);
-                case 4:
+                case EtapaConferencia.MetroData:
                 {
                     // O Editar em massa trabalha na seleção: começa pelos elementos com dado faltando, se nada estiver selecionado.
                     if (uidoc.Selection.GetElementIds().Count == 0)
                     {
-                        EtapaConferencia etapa = _res.Etapas.FirstOrDefault(e => e.Numero == 4);
+                        EtapaConferencia etapa = _res.Etapas.FirstOrDefault(e => e.Numero == EtapaConferencia.MetroData);
                         if (etapa != null) Selecionar(Pendentes(etapa).SelectMany(p => p.Elementos).Distinct().ToList());
                     }
                     return new Dados.EdicaoMassaWindow(uidoc);
                 }
-                case 5:
+                case EtapaConferencia.Classificacao:
                     return new Classificacao.VerificarClassificacaoWindow(uidoc, Classificacao.ClassSettings.Abrir());
                 case PassoLocal:
                 {
@@ -588,7 +588,7 @@ namespace MetroSP.Painel
         {
             if (_janelaFerramenta != null) return;
             _ferramenta.Child = null;
-            if (_passo == 1) { _ferramenta.Child = PainelArquivos(); return; }
+            if (_passo == EtapaConferencia.Padroes) { _ferramenta.Child = PainelPadroes(); return; }
 
             Window w;
             try { w = CriarFerramenta(); }
@@ -649,50 +649,137 @@ namespace MetroSP.Painel
             return _janelaFerramenta == null;
         }
 
-        private UIElement PainelArquivos()
+        /// <summary>
+        /// Passo 1, Padrões: o perfil de exportação e uma visão dos padrões em uso (cada arquivo, o que traz e em que passo vale),
+        /// com o resumo do modelo conferido.
+        /// </summary>
+        private UIElement PainelPadroes()
         {
             PacoteMetro pacote = _efetivo ?? _pacote;
             var p = new StackPanel { Margin = new Thickness(4) };
+            EtapaConferencia etapa = _res?.Etapas.FirstOrDefault(e => e.Numero == EtapaConferencia.Padroes);
 
-            // ---- padrão: a configuração inteira (setup, property sets e mapeamento), a mesma do Exportar IFC
-            p.Children.Add(new TextBlock { Text = "Perfil", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 6) });
+            // ---- perfil: a configuração inteira (setup, property sets e mapeamento), a mesma do Exportar IFC
+            p.Children.Add(Titulo("Perfil de exportação", 0));
             p.Children.Add(SeletorPadrao(pacote));
 
-            // ---- arquivos do Metrô (pacote)
-            p.Children.Add(new TextBlock { Text = "Arquivos do Metrô", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 22, 0, 4) });
-            p.Children.Add(new TextBlock { Text = _pacote.NomeExibido, FontSize = 13, Margin = new Thickness(0, 0, 0, 10) });
-            string doPadrao = pacote.Padrao == null ? null : "do perfil " + pacote.Padrao.Padrao.Nome;
-            void Arquivo(string rotulo, string caminho, string origem = null)
+            // ---- padrões em uso
+            p.Children.Add(Titulo("Padrões em uso", 22));
+            p.Children.Add(new TextBlock { Text = _pacote.NomeExibido, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 0, 8) });
+            string doPerfil = pacote.Padrao == null ? null : "do perfil " + pacote.Padrao.Padrao.Nome;
+
+            var grade = new Grid();
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                       // bolinha
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                       // padrão
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });  // arquivo
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) }); // o que traz
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                       // passo
+
+            void Celula(UIElement e, int linha, int coluna)
             {
-                bool existe = PacoteMetro.Existe(caminho);
-                var l = new DockPanel { Margin = new Thickness(0, 2, 0, 2) };
-                var r = new TextBlock { Text = rotulo, Width = 190, Foreground = Theme.Solid(Theme.Cinza) };
-                DockPanel.SetDock(r, Dock.Left);
-                l.Children.Add(r);
-                l.Children.Add(new TextBlock
-                {
-                    Text = (string.IsNullOrEmpty(caminho) ? "não escolhido" : System.IO.Path.GetFileName(caminho) + (existe ? "" : " (não encontrado)")) +
-                           (origem != null && existe ? "  ·  " + origem : ""),
-                    ToolTip = caminho,
-                    Foreground = Theme.Solid(existe ? Theme.Preto : Vermelho),
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                });
-                p.Children.Add(l);
+                Grid.SetRow(e, linha);
+                Grid.SetColumn(e, coluna);
+                grade.Children.Add(e);
             }
-            Arquivo("Property sets (.txt)", pacote.PropertySets, pacote.PropertySets != _pacote.PropertySets ? doPadrao : null);
-            Arquivo("Requisitos (.ids)", pacote.Ids);
-            Arquivo("Setup de exportação (.json)", pacote.Setup, pacote.Setup != _pacote.Setup ? doPadrao : null);
-            Arquivo("Classes IFC", pacote.ClassesIfc);
-            Arquivo("Planilha de classificação", pacote.Planilha);
-            Arquivo("MetroShared (.txt)", pacote.MetroShared);
+
+            void Cabecalho(string texto, int coluna, string dica)
+            {
+                var t = new TextBlock { Text = texto, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 14, 4), ToolTip = dica };
+                Celula(t, 0, coluna);
+            }
+            grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            Cabecalho("Padrão", 1, null);
+            Cabecalho("Arquivo", 2, "Passe o mouse no nome para ver o caminho completo.");
+            Cabecalho("O que traz", 3, "Resumo lido do arquivo na última conferência.");
+            Cabecalho("Passo", 4, "Passo da Entrega que usa este padrão.");
+
+            void Padrao(string rotulo, string dica, string caminho, string[] assuntos, string passo, string origem = null)
+            {
+                int linha = grade.RowDefinitions.Count;
+                grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                bool escolhido = !string.IsNullOrWhiteSpace(caminho);
+                bool existe = PacoteMetro.Existe(caminho);
+
+                // Situação e resumo vêm da conferência do passo 1 (linhas desse arquivo).
+                List<Pendencia> linhas = etapa?.Pendencias.Where(x => assuntos.Contains(x.Assunto)).ToList() ?? new List<Pendencia>();
+                Sinal sinal = !escolhido ? Sinal.Cinza
+                    : !existe || linhas.Any(x => x.Sinal == Sinal.Vermelho) ? Sinal.Vermelho
+                    : linhas.Any(x => x.Sinal == Sinal.Amarelo) ? Sinal.Amarelo
+                    : Sinal.Verde;
+                Pendencia ok = linhas.FirstOrDefault(x => x.Sinal == Sinal.Verde);
+                string resumo = ok?.Problema;
+                if (resumo != null && resumo.Contains(": ")) resumo = resumo.Substring(resumo.IndexOf(": ", StringComparison.Ordinal) + 2);
+                if (resumo == null) resumo = !escolhido ? "não usado" : !existe ? "arquivo não encontrado" : linhas.FirstOrDefault()?.Problema ?? "";
+                if (origem != null && existe) resumo += "  ·  " + origem;
+
+                Color cor = sinal == Sinal.Vermelho ? Vermelho : sinal == Sinal.Amarelo ? Theme.Laranja : sinal == Sinal.Verde ? Theme.Verde : Theme.CinzaClaro;
+                Celula(new Ellipse { Width = 9, Height = 9, Fill = Theme.Solid(cor), Margin = new Thickness(0, 6, 8, 0), VerticalAlignment = VerticalAlignment.Top,
+                    ToolTip = sinal == Sinal.Amarelo ? "Tem aviso: veja O que falta, à esquerda." : null }, linha, 0);
+                Celula(new TextBlock { Text = rotulo, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 3, 14, 3), ToolTip = DicaLonga(dica) }, linha, 1);
+                Celula(new TextBlock
+                {
+                    Text = escolhido ? System.IO.Path.GetFileName(caminho) : "—",
+                    ToolTip = caminho,
+                    Foreground = Theme.Solid(!escolhido ? Theme.Cinza : existe ? Theme.Preto : Vermelho),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    Margin = new Thickness(0, 3, 14, 3),
+                }, linha, 2);
+                Celula(new TextBlock
+                {
+                    Text = resumo,
+                    ToolTip = DicaLonga(resumo),
+                    Foreground = Theme.Solid(Theme.Cinza),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    Margin = new Thickness(0, 3, 14, 3),
+                }, linha, 3);
+                Celula(new TextBlock { Text = passo, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, 0, 3) }, linha, 4);
+            }
+
+            Padrao("Setup de exportação", "Configuração do exportador IFC do Revit (.json): versão do IFC, fase, o que exportar.",
+                pacote.Setup, new[] { "Setup de exportação (.json)" }, "6", pacote.Setup != _pacote.Setup ? doPerfil : null);
+            Padrao("Classes IFC", "Tabela de classes IFC (.txt): a classe de cada categoria do Revit no IFC.",
+                pacote.ClassesIfc, new[] { "Tabela de classes IFC (.txt)" }, "2");
+            Padrao("MetroShared", "Base de parâmetros compartilhados do Metrô (.txt): confere o GUID de cada parâmetro.",
+                pacote.MetroShared, new[] { "MetroShared (.txt)" }, "3");
+            Padrao("Property sets", "Property sets do Metrô (.txt): os campos que vão para o IFC e o parâmetro do Revit de cada um.",
+                pacote.PropertySets, new[] { "Property sets (.txt)" }, "3 e 4", pacote.PropertySets != _pacote.PropertySets ? doPerfil : null);
+            Padrao("Padrões Metrô (.ids)", "Requisitos do Metrô (.ids): os valores aceitos em cada campo. Opcional.",
+                pacote.Ids, new[] { "Padrões Metrô (.ids)", "IDS" }, "4");
+            Padrao("Classificação", "Planilha de classificação (.xlsx ou .csv): os códigos aceitos.",
+                pacote.Planilha, new[] { "Planilha de classificação" }, "5");
+            p.Children.Add(grade);
+
+            // ---- o modelo visto pelos padrões
+            if (_res != null)
+            {
+                p.Children.Add(Titulo("No modelo", 22));
+                string esquema = _res.Esquema == Ids.CategoriasIfc.Ifc4 ? "IFC4" : "IFC 4.3";
+                var resumoModelo = new WrapPanel();
+                void Numero(string valor, string rotulo, string dica)
+                {
+                    var bloco = new StackPanel { Margin = new Thickness(0, 0, 26, 4), ToolTip = dica };
+                    bloco.Children.Add(new TextBlock { Text = valor, FontSize = 20, FontWeight = FontWeights.SemiBold });
+                    bloco.Children.Add(new TextBlock { Text = rotulo, FontSize = 11, Foreground = Theme.Solid(Theme.Cinza) });
+                    resumoModelo.Children.Add(bloco);
+                }
+                Numero(_res.TotalElementos.ToString("N0"), "elementos nos padrões", "Elementos que vão para o IFC numa classe que os padrões conferem.");
+                Numero(_res.ForaDoPadrao.ToString("N0"), "fora dos padrões", "Vão para o IFC numa classe sem campos do Metrô. Confira no passo 2, Classes IFC.");
+                Numero(_res.ClassesDoPadrao.Count.ToString("N0"), "classes IFC nos padrões", "Classes IFC que têm campos exigidos pelo Metrô.");
+                Numero(esquema, "esquema", "Versão do IFC do setup de exportação.");
+                p.Children.Add(resumoModelo);
+            }
+
             var b = Pilula("Escolher arquivos...", primario: true);
             b.HorizontalAlignment = HorizontalAlignment.Left;
-            b.Margin = new Thickness(0, 14, 0, 0);
+            b.Margin = new Thickness(0, 16, 0, 0);
             b.ToolTip = "Escolher o pacote .metrosp ou os arquivos um a um. O setup e os property sets do perfil valem sobre os daqui.";
             b.Click += (s, e) => EscolherPacote(true);
             p.Children.Add(b);
             return p;
         }
+
+        private static TextBlock Titulo(string texto, double acima) =>
+            new TextBlock { Text = texto, FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, acima, 0, 6) };
 
         private class OpcaoPadrao
         {
