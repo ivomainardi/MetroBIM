@@ -14,6 +14,17 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   property sets e valores, classificação e material), só com os elementos que vão para o IFC. O resultado abre numa
   tabela com filtro em cada coluna; duplo clique seleciona os elementos e **Exportar CSV...** salva a lista. O cartão
   só aparece quando os padrões têm um .ids (passo 1).
+- Revit, **Entrega passo a passo › Exportar** mais simples:
+  - Erros e avisos só nos cartões **O que falta no passo 6**, cada um com o botão que resolve (Gravar localização,
+    Editar property sets, Perfis...). Os selos de dentro da ferramenta saíram.
+  - O cartão **Requisitos (.ids)** mostra o resultado da última verificação ("3 regras com falha").
+  - Um botão **Exportar IFC** só, no rodapé (no lugar de "Salvar e conferir"). Ao sair do passo, as escolhas ficam
+    guardadas como antes.
+  - Com um perfil, os arquivos (setup, property sets e mapeamento) viram um resumo ao lado dele; os caminhos ficam na
+    dica. Em "Outros arquivos" a lista volta.
+  - **Fase** numa linha própria, logo abaixo de Elementos. **Extras** passa a se chamar **Projeto e local**, e EPSG em
+    branco e Eixos sempre ficam numa linha de opções (também no Exportar IFC da Ribbon).
+  - Perfil e Elementos são listas digitáveis.
 
 ## 1.0.9 (17/11/2026)
 
