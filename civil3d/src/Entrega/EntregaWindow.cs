@@ -48,6 +48,8 @@ namespace MetroSP.Entrega
         readonly TextBlock _rodapeTexto;
         readonly Button _anterior;
         readonly Button _proximo;
+        readonly Button _exportarRodape, _salvarRodape;
+        string _comandoExportar = "MSP_IFCEXPORT";
         readonly TextBlock _escopo;
 
         Window _janelaFerramenta;
@@ -139,10 +141,16 @@ namespace MetroSP.Entrega
             salvar.ToolTip = "Grava o que foi alterado na ferramenta desta etapa e confere o modelo de novo.";
             salvar.Margin = new Thickness(0, 0, 8, 0);
             salvar.Click += (s, e) => SalvarEConferir();
+            _salvarRodape = salvar;
+            _exportarRodape = Pilula("Exportar IFC", primario: true);
+            _exportarRodape.ToolTip = "Grava o que foi alterado, fecha esta janela e exporta com as opções da Saída.";
+            _exportarRodape.Visibility = Visibility.Collapsed;
+            _exportarRodape.Click += (s, e) => FecharE(_comandoExportar);
             _rodapeTexto = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(12, 0, 12, 0) };
             var direitaRodape = new StackPanel { Orientation = Orientation.Horizontal };
             direitaRodape.Children.Add(salvar);
             direitaRodape.Children.Add(_proximo);
+            direitaRodape.Children.Add(_exportarRodape);
             var rodape = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
             DockPanel.SetDock(_anterior, Dock.Left);
             DockPanel.SetDock(direitaRodape, Dock.Right);
@@ -245,8 +253,12 @@ namespace MetroSP.Entrega
             MostrarPendencias();
             if (IsLoaded) MostrarFerramenta();   // antes de abrir, espera o Loaded (a ferramenta precisa desta janela como dona)
             _anterior.Visibility = _passo > 1 ? Visibility.Visible : Visibility.Hidden;
-            _proximo.Visibility = _passo < Ultima ? Visibility.Visible : Visibility.Hidden;
-            _rodapeTexto.Text = "Ao salvar, a etapa é conferida de novo e fica verde se estiver tudo certo.";
+            _proximo.Visibility = _passo < Ultima ? Visibility.Visible : Visibility.Collapsed;
+            _exportarRodape.Visibility = _passo == Ultima ? Visibility.Visible : Visibility.Collapsed;
+            var modelo = Pilula("", primario: _passo != Ultima);
+            _salvarRodape.Template = modelo.Template;
+            _salvarRodape.FontWeight = modelo.FontWeight;
+            _rodapeTexto.Text = _passo == Ultima ? ResumoExportar() : "Ao salvar, a etapa é conferida de novo e fica verde se estiver tudo certo.";
         }
 
         void MostrarEtapas()
@@ -571,7 +583,7 @@ namespace MetroSP.Entrega
             hospede.Resources.MergedDictionaries.Add(w.Resources);
             System.Windows.Documents.TextElement.SetFontFamily(hospede, w.FontFamily);
             System.Windows.Documents.TextElement.SetFontSize(hospede, w.FontSize);
-            _ferramenta.Child = hospede;
+            _ferramenta.Child = _passo == Ultima ? CabecalhoExportar(hospede) : (UIElement)hospede;
             _janelaFerramenta = w;
             AcompanharFerramenta();
             w.Closed += (s, e) =>
@@ -1085,25 +1097,95 @@ namespace MetroSP.Entrega
 
         UIElement PainelExportar()
         {
-            var p = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
-            p.Children.Add(new TextBlock { Text = "Exportar IFC", FontSize = 14, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
             string texto = _res.Vermelhas > 0
                 ? $"Ainda há {_res.Vermelhas} etapa(s) com pendência. Dá para exportar, mas o IFC sai incompleto."
                 : _res.Amarelas > 0 ? "Pronto para exportar, com avisos nas etapas em laranja." : "Tudo certo para exportar.";
-            p.Children.Add(new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 8) });
-            var botoes = new WrapPanel();
-            var tudo = Pilula("Exportar IFC", primario: _res.Etapa(Ultima).Abertas.All(x => x.Sinal != Sinal.Vermelho));
-            tudo.ToolTip = "Fecha esta janela e exporta o modelo todo (IFC 4.3).";
-            tudo.Click += (s, e) => FecharE("MSP_IFCEXPORT");
-            var sel = Pilula("Só a seleção");
-            sel.ToolTip = "Fecha esta janela e exporta só os objetos selecionados.";
-            sel.Click += (s, e) => FecharE("MSP_IFCEXPORTSEL");
-            var ali = Pilula("Só os alinhamentos");
-            ali.ToolTip = "Fecha esta janela e grava um IFC separado só com os alinhamentos 3D.";
-            ali.Click += (s, e) => FecharE("MSP_IFCALINHAMENTO");
-            foreach (var b in new[] { tudo, sel, ali }) { b.Margin = new Thickness(0, 0, 6, 4); botoes.Children.Add(b); }
-            p.Children.Add(botoes);
-            return p;
+            var t = Theme.Detalhe(texto + " O botão Exportar IFC fica no rodapé.");
+            t.Margin = new Thickness(0, 10, 0, 0);
+            return t;
+        }
+
+        string ResumoExportar()
+        {
+            string objetos = _comandoExportar == "MSP_IFCEXPORTSEL" ? "só a seleção" : _comandoExportar == "MSP_IFCALINHAMENTO" ? "só os alinhamentos" : "modelo inteiro";
+            return $"Perfil {ConfigPackage.PerfilAtivo} · {Ifc.IfcCatalog.Label(ConfigPackage.IfcVersionDoPerfil())} · {objetos}";
+        }
+
+        /// <summary>
+        /// Passo 7 (mesmo desenho do Exportar do Revit): Perfil em uma linha e Saída (esquema e objetos) no alto; embaixo,
+        /// Projeto e local (a aba Projeto do Configurar IFC). Os avisos ficam nos cartões; Exportar IFC, no rodapé.
+        /// </summary>
+        UIElement CabecalhoExportar(UIElement projeto)
+        {
+            var topo = new StackPanel { Margin = new Thickness(0, 0, 0, 6) };
+            TextBlock Secao(string t) => new TextBlock { Text = t, FontWeight = FontWeights.Bold, Foreground = Theme.Solid(Theme.Preto), FontSize = 11, Margin = new Thickness(0, 8, 0, 4) };
+            Grid Linha(string rotulo, UIElement campo, UIElement extra = null)
+            {
+                var g = new Grid { Margin = new Thickness(0, 2, 0, 2) };
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(110) });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                var r = new TextBlock { Text = rotulo, Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
+                g.Children.Add(r);
+                Grid.SetColumn((FrameworkElement)campo, 1);
+                g.Children.Add(campo);
+                if (extra != null) { Grid.SetColumn((FrameworkElement)extra, 2); ((FrameworkElement)extra).Margin = new Thickness(12, 0, 0, 0); g.Children.Add(extra); }
+                return g;
+            }
+            TextBlock Info(string t) => new TextBlock { Text = t, Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+
+            // ---- Perfil
+            string versao = ConfigPackage.IfcVersionDoPerfil();
+            int regras = 0, psets = 0;
+            try { regras = ConfigPackage.LoadMapping(versao).Select(kv => (kv.Value as System.Text.Json.Nodes.JsonArray)?.Count ?? 0).Sum(); } catch { }
+            try
+            {
+                var raiz = ConfigPackage.LoadJson(ConfigKind.PropertyTemplates);
+                psets = ((raiz as System.Text.Json.Nodes.JsonArray) ?? raiz?["PropertySetTemplates"] as System.Text.Json.Nodes.JsonArray)?.Count ?? 0;
+            }
+            catch { }
+            topo.Children.Add(Secao("PERFIL"));
+            var perfilInfo = new StackPanel { Orientation = Orientation.Horizontal };
+            perfilInfo.Children.Add(Info($"{Ifc.IfcCatalog.Label(versao)} · {regras} regras de classe · {psets} psets  "));
+            var irPerfis = Theme.Link("Perfis...");
+            irPerfis.ToolTip = "Vai para o passo 1 (perfil de exportação deste modelo).";
+            irPerfis.Click += (s, e) => IrPara(1);
+            perfilInfo.Children.Add(irPerfis);
+            topo.Children.Add(Linha("Perfil", new TextBlock { Text = ConfigPackage.PerfilAtivo, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 200 }, perfilInfo));
+
+            // ---- Saída
+            topo.Children.Add(Secao("SAÍDA"));
+            var esquema = new ComboBox { Width = 220, ItemsSource = new[] { "IFC 4.3", "IFC4" }, SelectedIndex = ConfigPackage.EhIfc4(versao) ? 1 : 0,
+                ToolTip = "Esquema do IFC. Gravado no perfil de exportação (configuração da Autodesk)." };
+            esquema.SelectionChanged += (s, e) =>
+            {
+                try
+                {
+                    ConfigPackage.EnsureActive();
+                    var cfg = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig) as System.Text.Json.Nodes.JsonObject ?? new System.Text.Json.Nodes.JsonObject();
+                    if (!(cfg["Export"] is System.Text.Json.Nodes.JsonObject exp)) cfg["Export"] = exp = new System.Text.Json.Nodes.JsonObject();
+                    exp["IfcVersion"] = esquema.SelectedIndex == 1 ? ConfigPackage.IfcVersionIfc4 : ConfigPackage.IfcVersionIfc43;
+                    ConfigPackage.SaveJson(ConfigKind.AutodeskConfig, cfg);
+                    _rodapeTexto.Text = ResumoExportar() + " (esquema gravado no perfil; confira de novo para ver as classes)";
+                }
+                catch (Exception ex) { MessageBox.Show(this, "Não foi possível gravar o esquema:\n" + ex.Message, "MetroSP"); }
+            };
+            topo.Children.Add(Linha("Esquema", esquema, Info("IFC4 usa a tabela de classes do IFC4 do perfil.")));
+            var objetos = new ComboBox { Width = 220, ItemsSource = new[] { "Modelo inteiro", "Só a seleção", "Só os alinhamentos (IFC separado)" },
+                SelectedIndex = _comandoExportar == "MSP_IFCEXPORTSEL" ? 1 : _comandoExportar == "MSP_IFCALINHAMENTO" ? 2 : 0 };
+            objetos.SelectionChanged += (s, e) =>
+            {
+                _comandoExportar = objetos.SelectedIndex == 1 ? "MSP_IFCEXPORTSEL" : objetos.SelectedIndex == 2 ? "MSP_IFCALINHAMENTO" : "MSP_IFCEXPORT";
+                _rodapeTexto.Text = ResumoExportar();
+            };
+            topo.Children.Add(Linha("Objetos", objetos, Info("O exportador da Autodesk pergunta onde salvar o arquivo.")));
+
+            topo.Children.Add(Secao("PROJETO E LOCAL"));
+            var d = new DockPanel();
+            DockPanel.SetDock(topo, Dock.Top);
+            d.Children.Add(topo);
+            d.Children.Add(projeto);
+            return d;
         }
 
         // ================================================================== visual
