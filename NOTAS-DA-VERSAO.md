@@ -6,6 +6,16 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 
 ## Próxima versão
 
+- Revit, **Entrega passo a passo › Classe IFC** sem falsos proxies:
+  - **Balaústres, corrimãos (Top Rails, Handrails), suportes e terminações** de guarda-corpo e **linhas de grade de
+    parede cortina** (Curtain Wall Grids) não aparecem mais como proxy. O exportador IFC da Autodesk não cria um
+    elemento para eles: a geometria vai dentro do IfcRailing ou do IfcCurtainWall. Vale para todas as ferramentas
+    (ficam de fora como os demais elementos que não vão para o IFC). Se alguém escolher uma classe para eles no
+    "Exportar para IFC como", continuam contando.
+  - Elementos com a classe definida no tipo ou na instância ("Exportar para IFC como") estão certos, mesmo que a
+    categoria não tenha classe na tabela: não aparecem mais como pendência. O resumo do passo mostra quantos são.
+- Revit, **Categorias IFC › Copiar entre IFC schemas**: o menu agora separa **só as linhas selecionadas** e a
+  **tabela inteira**, nos dois sentidos (IFC4 → IFC 4.3 e IFC 4.3 → IFC4).
 - Revit e Civil 3D, **Entrega passo a passo**: abre sempre no passo 1. Antes abria na primeira etapa com pendência
   (ou no último passo, com tudo certo). Quem abre por um atalho (clique numa etapa do Painel MetroSP ou
   **Passo a passo...** do Exportar IFC) continua indo direto para a etapa escolhida.

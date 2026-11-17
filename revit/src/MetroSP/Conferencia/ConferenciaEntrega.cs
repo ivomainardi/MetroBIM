@@ -319,18 +319,20 @@ namespace MetroSP.Conferencia
                 Correcao = Correcao.CategoriasIfc,
             };
 
-            // Classe escolhida no tipo ou na instância ("Exportar para IFC como") é decisão do projetista: não é erro.
-            foreach (var g in foraDoPadrao.GroupBy(x => (Cat: x.E.Category.Name, x.Entidade, NoElemento: CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse)))
+            // Classe escolhida no tipo ou na instância ("Exportar para IFC como") é decisão do projetista: está certo,
+            // mesmo que a categoria não tenha classe na tabela. Esses elementos não viram pendência; só os demais da
+            // categoria (sem classe própria) aparecem.
+            int comClasseNoElemento = foraDoPadrao.Count(x => CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse));
+            foreach (var g in foraDoPadrao.Where(x => !CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse))
+                         .GroupBy(x => (Cat: x.E.Category.Name, x.Entidade))
                          .OrderByDescending(g => g.Count()))
             {
-                bool proxy = !g.Key.NoElemento && g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
+                bool proxy = g.Key.Entidade.Equals("IfcBuildingElementProxy", StringComparison.OrdinalIgnoreCase);
                 etapa.Pendencias.Add(new Pendencia
                 {
                     Sinal = proxy ? Sinal.Amarelo : Sinal.Cinza, Categoria = g.Key.Cat, Assunto = g.Key.Entidade,
                     Problema = proxy
                         ? $"{g.Count()} elemento(s) vão para o IFC como proxy (sem classe definida): ficam fora da conferência."
-                        : g.Key.NoElemento
-                        ? $"{g.Count()} elemento(s) com a classe {g.Key.Entidade} definida no tipo ou na instância; fora dos padrões, ficam fora da conferência."
                         : $"{g.Key.Entidade} não faz parte dos padrões: {g.Count()} elemento(s) ficam fora da conferência.",
                     OQueFazer = proxy
                         ? "Defina a classe certa (grava o \"Exportar para IFC como\" do tipo) ou mude a categoria inteira em Categorias IFC."
@@ -358,10 +360,11 @@ namespace MetroSP.Conferencia
             etapa.CalcularSinal();
             int proxies = etapa.Pendencias.Where(p => p.Sinal == Sinal.Amarelo).Sum(p => p.QtdElementos);
             etapa.Contagem = proxies;
-            int outros = foraDoPadrao.Count - proxies;
-            etapa.Resumo = foraDoPadrao.Count == 0
-                ? $"{elementos.Count} elementos em classes dos padrões."
-                : $"{elementos.Count} nos padrões; {proxies} proxy(s) e {outros} em classes fora dos padrões.";
+            int outros = foraDoPadrao.Count - proxies - comClasseNoElemento;
+            etapa.Resumo = proxies + outros == 0
+                ? $"{elementos.Count} elementos em classes dos padrões" + (comClasseNoElemento > 0 ? $"; {comClasseNoElemento} com classe própria (tipo ou instância)." : ".")
+                : $"{elementos.Count} nos padrões; {proxies} proxy(s) e {outros} em classes fora dos padrões" +
+                  (comClasseNoElemento > 0 ? $"; {comClasseNoElemento} com classe própria (tipo ou instância)." : ".");
             return etapa;
         }
 
