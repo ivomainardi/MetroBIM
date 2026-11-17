@@ -507,12 +507,18 @@ namespace MetroSP.Conferencia
                 parametros.Pendencias.Add(new Pendencia
                 {
                     Sinal = Sinal.Vermelho, Categoria = k.Key.Cat, Assunto = k.Key.Param, Campo = lidos, Origem = txt,
-                    Problema = $"O .txt lê \"{k.Key.Param}\" para {lidos}, mas {k.Value.Count} elemento(s) não têm parâmetro com esse nome." +
-                               (importados > 0 ? $" {importados} são DirectShape (geometria importada), que não têm os parâmetros das famílias." : ""),
+                    Problema = $"{k.Value.Count} elemento(s) sem o parâmetro \"{k.Key.Param}\"." +
+                               (importados > 0 ? $" {importados} são geometria importada." : ""),
                     OQueFazer = projeto
-                        ? $"\"{k.Key.Param}\" é parâmetro de projeto, mas não está vinculado a {k.Key.Cat}: vincule à categoria."
-                        : $"\"{k.Key.Param}\" não é parâmetro de projeto (é interno do Revit ou de família) e esses elementos não o têm. " +
-                          $"Aponte {lidos} para um parâmetro que eles têm (Ajustar o .txt), ou crie um parâmetro de projeto com esse nome e vincule a {k.Key.Cat}.",
+                        ? $"Vincule \"{k.Key.Param}\" a {k.Key.Cat}."
+                        : "Aponte o campo para outro parâmetro (Ajustar o .txt) ou crie esse parâmetro de projeto.",
+                    Detalhe = $"O .txt de property sets ({txt}) lê o parâmetro \"{k.Key.Param}\" do Revit para {lidos}, " +
+                              $"mas {k.Value.Count} elemento(s) de {k.Key.Cat} não têm parâmetro com esse nome." +
+                              (importados > 0 ? $" {importados} são DirectShape (geometria importada), que não têm os parâmetros das famílias." : "") +
+                              (projeto
+                                  ? $" \"{k.Key.Param}\" é parâmetro de projeto, mas não está vinculado a {k.Key.Cat}."
+                                  : $" \"{k.Key.Param}\" não é parâmetro de projeto (é interno do Revit ou de família). Aponte {lidos} para um parâmetro " +
+                                    $"que esses elementos têm (Ajustar o .txt), ou crie um parâmetro de projeto com esse nome e vincule a {k.Key.Cat}."),
                     Elementos = k.Value,
                     Correcao = projeto ? Correcao.ParametrosDeProjeto : Correcao.EditarPropertySets,
                 });
@@ -546,8 +552,9 @@ namespace MetroSP.Conferencia
                 parametros.Pendencias.Add(new Pendencia
                 {
                     Sinal = Sinal.Vermelho, Assunto = x.Parametro, Campo = x.Campo, Origem = Path.GetFileName(_pacote.PropertySets ?? ""),
-                    Problema = $"No Revit o parâmetro é {MappingAnalyzer.RevitTypeName(prm)}, mas o .txt exporta como \"{x.TipoArquivo}\" ({x.Campo}).",
-                    OQueFazer = "Ajuste o tipo no .txt de property sets ou use um parâmetro do tipo certo.",
+                    Problema = $"Tipo diferente: {MappingAnalyzer.RevitTypeName(prm)} no Revit, \"{x.TipoArquivo}\" no .txt.",
+                    OQueFazer = "Ajuste o tipo no .txt ou use um parâmetro do tipo certo.",
+                    Detalhe = $"No Revit o parâmetro \"{x.Parametro}\" é {MappingAnalyzer.RevitTypeName(prm)}, mas o .txt de property sets exporta {x.Campo} como \"{x.TipoArquivo}\".",
                     Correcao = Correcao.EditarPropertySets,
                 });
             }
@@ -606,8 +613,10 @@ namespace MetroSP.Conferencia
                                 _problemasMapeamento[campo] = new Pendencia
                                 {
                                     Sinal = Sinal.Vermelho, Assunto = campo,
-                                    Problema = $"O padrão Metrô exige {campo}, mas nenhuma linha do .txt de property sets gera esse campo para {entidade}.",
-                                    OQueFazer = "Inclua a propriedade no .txt de property sets (com o parâmetro do Revit de onde ela sai).",
+                                    Problema = $"Exigido pelo padrão, mas o .txt não gera para {entidade}.",
+                                    OQueFazer = "Inclua a propriedade no .txt (Ajustar o .txt).",
+                                    Detalhe = $"O padrão Metrô exige {campo}, mas nenhuma linha do .txt de property sets gera esse campo para {entidade}. " +
+                                              "Inclua a propriedade no .txt, com o parâmetro do Revit de onde ela sai.",
                                     Correcao = Correcao.EditarPropertySets,
                                 };
                             continue;
@@ -618,8 +627,9 @@ namespace MetroSP.Conferencia
                             _problemasMapeamento[campo + "|tipo"] = new Pendencia
                             {
                                 Sinal = Sinal.Vermelho, Assunto = campo,
-                                Problema = $"O padrão Metrô pede {p.DataType}, mas o .txt exporta {map.IfcType} (tipo \"{map.FileType}\").",
-                                OQueFazer = "Ajuste o tipo da propriedade no .txt de property sets.",
+                                Problema = $"Tipo diferente: o padrão pede {p.DataType}, o .txt exporta {map.IfcType}.",
+                                OQueFazer = "Ajuste o tipo no .txt (Ajustar o .txt).",
+                                Detalhe = $"O padrão Metrô pede {p.DataType} para {campo}, mas o .txt de property sets exporta {map.IfcType} (tipo \"{map.FileType}\").",
                                 Correcao = Correcao.EditarPropertySets,
                             };
                         }

@@ -48,6 +48,8 @@ namespace MetroSP.Dados
         };
 
         private readonly Document _doc;
+        /// <summary>Embutida no passo 2 da Entrega: as pendências já aparecem no painel "O que falta", então não se repetem aqui.</summary>
+        private readonly bool _naEntrega;
         private readonly Autodesk.Revit.UI.UIDocument _uidoc;
         private readonly StackPanel _mapeamento = new StackPanel();
         private readonly Autodesk.Revit.ApplicationServices.Application _app;
@@ -81,8 +83,9 @@ namespace MetroSP.Dados
         internal TabItem AbaCriar { get; }
         internal TabItem AbaFamilias { get; }
 
-        public GerenciarParametrosWindow(Autodesk.Revit.UI.UIDocument uidoc)
+        public GerenciarParametrosWindow(Autodesk.Revit.UI.UIDocument uidoc, bool naEntrega = false)
         {
+            _naEntrega = naEntrega;
             _uidoc = uidoc;
             _doc = uidoc.Document;
             _app = _doc.Application;
@@ -106,7 +109,11 @@ namespace MetroSP.Dados
 
             // ---- aba 1: parâmetros do modelo
             _areaModelo = new DockPanel();
-            var exportar = new Button { Content = "Exportar planilha...", Style = Theme.PrimaryButton };
+            var exportar = new Button
+            {
+                Content = "Exportar planilha...", Style = Theme.PrimaryButton,
+                ToolTip = "Grava os parâmetros de projeto numa planilha do Excel. Ela tem as mesmas colunas da aba Criar pela planilha: serve de modelo para levar os parâmetros a outro projeto.",
+            };
             exportar.Click += (s, e) => ExportarModelo();
             var barraModelo = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
             barraModelo.Children.Add(exportar);
@@ -117,7 +124,7 @@ namespace MetroSP.Dados
             };
             _soErros.Click += (s, e) => _gradeModelo?.Refresh();
             barraModelo.Children.Add(_soErros);
-            _notaModelo = Theme.Detalhe("A planilha exportada tem as mesmas colunas da criação: serve de modelo para levar parâmetros a outro projeto.");
+            _notaModelo = Theme.Detalhe();
             _notaModelo.Margin = new Thickness(12, 0, 0, 0);
             _notaModelo.VerticalAlignment = VerticalAlignment.Center;
             barraModelo.Children.Add(_notaModelo);
@@ -381,8 +388,19 @@ namespace MetroSP.Dados
             var t = new FilterableGrid(l, typeof(LinhaParametro));
             t.ExtraFilter = o => _soErros.IsChecked != true || ((LinhaParametro)o).TemProblema;
             _gradeModelo = t;
-            DataGridTextColumn nome = t.AddColumn("Nome", nameof(LinhaParametro.Nome), 220);
-            DataGridTextColumn problema = t.AddColumn("Problema", nameof(LinhaParametro.Problema), 360, wrap: true);
+            // Colunas com largura mínima: a tabela rola para o lado em vez de espremer as colunas até ficarem ilegíveis.
+            DataGridTextColumn Coluna(string titulo, string prop, double largura, string dica, bool fill = false)
+            {
+                DataGridTextColumn c = t.AddColumn(titulo, prop, largura, fill: fill);
+                c.MinWidth = fill ? 160 : largura;
+                if (c.Header is FrameworkElement h) h.ToolTip = dica;
+                return c;
+            }
+            DataGridTextColumn nome = Coluna("Nome", nameof(LinhaParametro.Nome), 220, "Nome do parâmetro de projeto.");
+            // Problema só aparece quando a última conferência apontou algum (senão é uma coluna vazia ocupando espaço).
+            DataGridTextColumn problema = comProblema > 0
+                ? Coluna("Problema", nameof(LinhaParametro.Problema), 260, "O que a última conferência apontou. Passe o mouse na célula para ler o texto todo.")
+                : null;
             // Problema em vermelho: fundo na célula do nome e do problema.
             var vermelho = new Style(typeof(DataGridCell));
             var gatilho = new DataTrigger { Binding = new System.Windows.Data.Binding(nameof(LinhaParametro.TemProblema)), Value = true };
@@ -391,13 +409,13 @@ namespace MetroSP.Dados
             gatilho.Setters.Add(new Setter(System.Windows.Controls.Control.BorderBrushProperty, System.Windows.Media.Brushes.Transparent));
             vermelho.Triggers.Add(gatilho);
             nome.CellStyle = vermelho;
-            problema.CellStyle = vermelho;
-            t.AddColumn("Tipo de dado", nameof(LinhaParametro.TipoDeDado), 120);
-            t.AddColumn("Instância ou tipo", nameof(LinhaParametro.Vinculo), 100);
-            t.AddColumn("Grupo", nameof(LinhaParametro.Grupo), 140);
-            t.AddColumn("Compartilhado", nameof(LinhaParametro.Compartilhado), 90);
-            t.AddColumn("GUID", nameof(LinhaParametro.Guid), 140);
-            t.AddColumn("Categorias", nameof(LinhaParametro.Categorias), 200, fill: true);
+            if (problema != null) problema.CellStyle = vermelho;
+            Coluna("Tipo de dado", nameof(LinhaParametro.TipoDeDado), 110, "Tipo de dado do parâmetro (Texto, Comprimento, Sim/Não...).");
+            Coluna("Instância ou tipo", nameof(LinhaParametro.Vinculo), 110, "Se o valor é preenchido em cada elemento (instância) ou no tipo.");
+            Coluna("Grupo", nameof(LinhaParametro.Grupo), 130, "Grupo de propriedades onde o parâmetro aparece no Revit.");
+            Coluna("Compartilhado", nameof(LinhaParametro.Compartilhado), 100, "Sim: vem de um arquivo de parâmetros compartilhados (tem GUID).");
+            Coluna("Categorias", nameof(LinhaParametro.Categorias), 240, "Categorias às quais o parâmetro está vinculado.", fill: true);
+            Coluna("GUID", nameof(LinhaParametro.Guid), 140, "Identificador do parâmetro compartilhado.");
             Theme.StyleSelection(t.Grid);
             _areaModelo.Children.Add(t);
             int doProjeto = l.Count(x => x.Existente != null);
@@ -412,38 +430,40 @@ namespace MetroSP.Dados
         private void MostrarMapeamento()
         {
             _mapeamento.Children.Clear();
+            if (_naEntrega) return; // na Entrega, o painel "O que falta no passo 2" já mostra estas pendências, com os mesmos botões
             List<Conferencia.Pendencia> lista = Conferencia.UltimaConferencia.PendenciasDoMapeamento(_doc);
             if (lista.Count == 0) return;
             var caixa = new StackPanel();
             caixa.Children.Add(new TextBlock
             {
-                Text = $"Do mapeamento ({lista.Count}): campos do .txt de property sets que não saem destes elementos",
+                Text = $"Campos do .txt de property sets com problema ({lista.Count})",
                 FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 2),
+                ToolTip = Dica("Não é problema de parâmetro de projeto: o .txt dos padrões manda ler um parâmetro do Revit pelo nome, " +
+                               "e estes elementos não têm esse parâmetro (ou ele é de outro tipo). Passe o mouse em cada linha para ver o motivo."),
             });
-            caixa.Children.Add(Theme.Detalhe("Não é problema de parâmetro de projeto: o .txt dos padrões manda ler um parâmetro do Revit pelo nome, e estes elementos não têm esse parâmetro (ou ele é de outro tipo)."));
+            // Uma linha por pendência: campo, o que falta e os botões. O motivo e o que fazer ficam na dica.
             foreach (Conferencia.Pendencia p in lista.Take(8))
             {
-                var linha = new DockPanel { Margin = new Thickness(0, 6, 0, 0) };
-                var botoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Top };
+                var linha = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
+                var botoes = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
                 var ajustar = new Button { Content = "Ajustar o .txt", MinWidth = 0, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(6, 0, 0, 0), ToolTip = "Abre o .txt de property sets dos padrões no editor." };
                 ajustar.Click += (s, e) => AjustarTxt();
                 botoes.Children.Add(ajustar);
                 if (p.QtdElementos > 0)
                 {
-                    var sel = new Button { Content = $"Selecionar ({p.QtdElementos})", MinWidth = 0, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(6, 0, 0, 0) };
+                    var sel = new Button { Content = $"Selecionar ({p.QtdElementos})", MinWidth = 0, Padding = new Thickness(8, 1, 8, 1), Margin = new Thickness(6, 0, 0, 0), ToolTip = "Seleciona esses elementos no Revit." };
                     sel.Click += (s, e) => { try { _uidoc.Selection.SetElementIds(p.Elementos.Where(id => _doc.GetElement(id) != null).ToList()); } catch { } };
                     botoes.Children.Add(sel);
                 }
                 DockPanel.SetDock(botoes, Dock.Right);
                 linha.Children.Add(botoes);
-                var textos = new StackPanel();
-                string onde = (string.IsNullOrEmpty(p.Campo) ? "" : p.Campo + " ← ") + $"\"{p.Assunto}\"" +
-                              (string.IsNullOrEmpty(p.Categoria) ? "" : " · " + p.Categoria) + (string.IsNullOrEmpty(p.Origem) ? "" : " · " + p.Origem);
-                textos.Children.Add(new TextBlock { Text = onde, FontWeight = FontWeights.SemiBold, Foreground = System.Windows.Media.Brushes.Firebrick, TextWrapping = TextWrapping.Wrap });
-                textos.Children.Add(new TextBlock { Text = p.Problema, TextWrapping = TextWrapping.Wrap });
-                if (!string.IsNullOrEmpty(p.OQueFazer))
-                    textos.Children.Add(new TextBlock { Text = "→ " + p.OQueFazer, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.Cinza) });
-                linha.Children.Add(textos);
+                string campo = string.IsNullOrEmpty(p.Campo) ? p.Assunto : p.Campo;
+                var texto = new TextBlock { TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
+                texto.Inlines.Add(new System.Windows.Documents.Run(campo) { FontWeight = FontWeights.SemiBold, Foreground = System.Windows.Media.Brushes.Firebrick });
+                if (!string.IsNullOrEmpty(p.Categoria)) texto.Inlines.Add(new System.Windows.Documents.Run(" · " + p.Categoria) { Foreground = Theme.Solid(Theme.Cinza) });
+                texto.Inlines.Add(new System.Windows.Documents.Run("   " + p.Problema));
+                texto.ToolTip = Dica(string.Join("\n\n", new[] { p.Detalhe ?? p.Problema, p.OQueFazer }.Where(x => !string.IsNullOrEmpty(x))));
+                linha.Children.Add(texto);
                 caixa.Children.Add(linha);
             }
             if (lista.Count > 8) caixa.Children.Add(Theme.Detalhe($"e mais {lista.Count - 8}. Veja todas no painel MetroSP (passo 2)."));
@@ -451,10 +471,14 @@ namespace MetroSP.Dados
             {
                 Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFD, 0xEC, 0xEC)),
                 BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xE8, 0xB4, 0xB4)),
-                BorderThickness = new Thickness(1), Padding = new Thickness(10, 8, 10, 8), Margin = new Thickness(0, 0, 0, 8),
-                Child = new ScrollViewer { MaxHeight = 220, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = caixa },
+                BorderThickness = new Thickness(1), Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 0, 0, 8),
+                Child = new ScrollViewer { MaxHeight = 130, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = caixa },
             });
         }
+
+        /// <summary>Dica com quebra de linha (texto longo não vira uma linha da largura da tela).</summary>
+        private static object Dica(string texto) =>
+            string.IsNullOrEmpty(texto) ? null : new TextBlock { Text = texto, TextWrapping = TextWrapping.Wrap, MaxWidth = 420 };
 
         private void AjustarTxt()
         {
