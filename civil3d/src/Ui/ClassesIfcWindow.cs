@@ -110,6 +110,11 @@ namespace MetroSP.Ui
             estilo.Triggers.Add(soPerfil);
             _lista.Grid.RowStyle = estilo;
             _lista.Grid.CellEditEnding += (s, e) => Dispatcher.BeginInvoke(new Action(Recalcular), System.Windows.Threading.DispatcherPriority.Background);
+            _resumo.TextWrapping = TextWrapping.NoWrap;
+            _resumo.TextTrimming = TextTrimming.CharacterEllipsis;
+            _resumo.Margin = new Thickness(0, 4, 0, 0);
+            DockPanel.SetDock(_resumo, Dock.Bottom);
+            corpo.Children.Add(_resumo);
             corpo.Children.Add(_lista);
 
             var copiar = new Button { Content = "Copiar entre IFC schemas ▾", ToolTip = "Copia classe e Exportar de um IFC schema para o outro: só nas linhas selecionadas (Ctrl ou Shift + clique para escolher várias) ou na tabela inteira." };
@@ -149,6 +154,13 @@ namespace MetroSP.Ui
                 ("Excluir a regra das linhas selecionadas", ExcluirRegras));
             _corrigir = new Button { Content = "Corrigir classes" };
             _corrigir.Click += (s, e) => CorrigirClasses();
+            foreach (Button b in new[] { copiar, padrao, regras, _corrigir })
+            {
+                b.Padding = new Thickness(10, 2, 10, 2);
+                b.Margin = new Thickness(0, 0, 6, 4);
+                b.VerticalAlignment = VerticalAlignment.Center;
+                topo.Children.Add(b);
+            }
             var salvar = new Button { Content = "Salvar", Style = Theme.PrimaryButton, IsDefault = true, ToolTip = "Grava as duas tabelas no perfil e fecha." };
             salvar.Click += (s, e) => { if (Salvar()) Close(); };
             var fechar = new Button { Content = "Fechar", IsCancel = true };
@@ -162,7 +174,7 @@ namespace MetroSP.Ui
 
             Theme.Apply(this, "Classes IFC", $"Perfil {perfil}: em que classe cada nome do perfil e do modelo sai no IFC4 e no IFC 4.3. " +
                                              $"A exportação usa o {IfcCatalog.Label(_versaoExportacao)}.",
-                corpo, Theme.Rodape(_resumo, copiar, padrao, regras, _corrigir, fechar, salvar));
+                corpo, Theme.Rodape(null, fechar, salvar));
             _secaoCombo.SelectedIndex = 0;
         }
 
@@ -297,9 +309,9 @@ namespace MetroSP.Ui
         {
             var vis = _lista.VisibleItems<LinhaIfc>().ToList();
             var (um, varios) = ConteudoDesenho.Palavra(_secao);
-            int doModelo = _linhas.Count(l => l.DoModelo), semRegra = _linhas.Count(l => l.SemRegra), dif = _linhas.Count(l => l.Diferente);
+            int doModelo = _linhas.Count(l => l.DoModelo && l.Objetos > 0), semRegra = _linhas.Count(l => l.SemRegra && l.Objetos > 0), dif = _linhas.Count(l => l.Diferente);
             int invalidas = _linhas.Count(l => l.Invalida4 || l.Invalida43);
-            _resumo.Text = $"{doModelo} {(doModelo == 1 ? um : varios)} no modelo · {semRegra} sem regra · {dif} diferente(s) entre IFC4 e IFC 4.3" +
+            _resumo.Text = $"{doModelo} {(doModelo == 1 ? um : varios)} com objetos no modelo · {semRegra} sem regra · {dif} diferente(s) entre IFC4 e IFC 4.3" +
                            (invalidas > 0 ? $" · {invalidas} com classe fora do esquema" : "") + (vis.Count < _linhas.Count ? $" · mostrando {vis.Count}" : "");
             int corrigiveis = Corrigiveis().Count;
             _corrigir.Visibility = corrigiveis > 0 ? Visibility.Visible : Visibility.Collapsed;
