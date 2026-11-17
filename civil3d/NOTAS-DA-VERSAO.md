@@ -2,17 +2,17 @@
 
 ## Próxima versão (em teste)
 
-- **Entrega passo a passo na ordem do Revit**: **1 Padrões**, **2 Classes IFC**, **3 Property sets**, **4 MetroDATA**,
+- **Entrega passo a passo na ordem do Revit**: **1 Perfis**, **2 Classes IFC**, **3 Property sets**, **4 MetroDATA**,
   **5 Classificação**, **6 Alinhamentos** e **7 Exportar**. Classes IFC vem antes dos property sets porque o que cada
   objeto precisa ter depende da classe dele.
-- **Entrega › Padrões** (antes Exportador): o perfil de exportação, os padrões em uso numa tabela (arquivo, o que traz e
+- **Entrega › Perfis** (antes Exportador): o perfil de exportação, os perfis em uso numa tabela (arquivo, o que traz e
   o passo que usa: exportador da Autodesk, configurações, classes IFC, property sets, escrita, confronto, classificação,
   projeto e alinhamento) e o resumo do modelo (objetos que vão para o IFC, que ficam fora, alinhamentos e esquema).
 
-- **Classes IFC: padrão e modelo numa lista única** (passo 3 da Entrega e Configurar IFC). Cada layer do modelo (ou
+- **Classes IFC: perfil e modelo numa lista única** (passo 3 da Entrega e Configurar IFC). Cada layer do modelo (ou
   bloco, ou baseline de corredor, conforme a seção) é uma linha, com nº de objetos do espaço do modelo (sem anotações),
-  a classe IFC, Exportar, a regra que vale e a ordem dela. A coluna **Onde** separa "padrão e modelo", "só no modelo"
-  (sem regra, em laranja) e "só no padrão" (regra que não pega nada, no fim). Filtro no título de cada coluna e
+  a classe IFC, Exportar, a regra que vale e a ordem dela. A coluna **Onde** separa "perfil e modelo", "só no modelo"
+  (sem regra, em laranja) e "só no perfil" (regra que não pega nada, no fim). Filtro no título de cada coluna e
   "Só usados no modelo". **Aplicar** e **Exportar** mudam a regra da linha (todos os layers dela); layer sem regra ganha
   uma regra só para ele, no topo. Clique duplo edita a regra; ↑ ↓ mudam a ordem; + cria; ✕ exclui.
 - **Corrigir classes**: troca as classes fora do esquema pela correção óbvia (ex.: `IfcBuiltElement.USERDEFINED` →
@@ -22,8 +22,14 @@
   ponto que o exportador da Autodesk escolhia para deslocar a geometria. Nenhum objeto muda de lugar (as colocações
   relativas ao site são compensadas). Latitude e longitude digitadas em Projeto continuam valendo por cima.
 - **"Perfil de exportação"** no lugar de "pacote" (de configuração IFC), como no Revit.
+- **"Perfil" no lugar de "padrão" em todo o plugin**: botão Perfis no ribbon, janela Perfis, perfis de escrita, de
+  confronto, de classificação e de dados do projeto. Os arquivos em `%AppData%\MetroSP` continuam os mesmos.
+- **Listas em que também se escreve**: a escolha de perfil (escrita, confronto, classificação, dados do projeto), a seção
+  de Classes IFC, o tipo de fonte e as colunas da planilha abrem a lista e aceitam digitar para filtrar.
+- **Configurar IFC › Propriedades**: as colunas Property set, Propriedade, Origem, Grupo e Nome no Civil 3D abrem uma
+  lista com os property sets e as propriedades que existem no modelo (e as já usadas no perfil); também dá para digitar.
 - A dica da tabela de regras passou a dizer "vale a primeira regra que casar, de cima para baixo" (era "de baixo para
-  cima"), como a ordem do padrão da equipe pressupõe (U-3D-TRILHO_AMV antes de U-3D-TRILHO). Conferir no Civil 3D.
+  cima"), como a ordem do perfil da equipe pressupõe (U-3D-TRILHO_AMV antes de U-3D-TRILHO). Conferir no Civil 3D.
 
 ## 0.12.0 (12/11/2026)
 

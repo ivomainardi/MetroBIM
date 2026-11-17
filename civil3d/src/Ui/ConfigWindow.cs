@@ -718,12 +718,21 @@ namespace MetroSP.Ui
             var tabs = new TabControl { Margin = new Thickness(0, 8, 0, 0) };
 
             var grid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _propertyRows, Margin = new Thickness(0, 8, 0, 0) };
-            grid.Columns.Add(new DataGridTextColumn { Header = "Property set", Binding = new Binding("PropertySet"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding("Property"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            // Cada coluna de texto é uma lista em que dá para digitar: o que existe no modelo (property sets e propriedades
+            // do Civil 3D) mais o que já está no mapeamento.
+            grid.Columns.Add(ColunaLista("Property set", nameof(PropertyRow.PropertySet), 2, r =>
+                PsetsDoModelo().Select(x => x.Nome).Concat(_propertyRows.Select(x => x.PropertySet))));
+            grid.Columns.Add(ColunaLista("Propriedade", nameof(PropertyRow.Property), 2, r =>
+                PropsDoModelo(r.PropertySet).Concat(_propertyRows.Where(x => Igual(x.PropertySet, r.PropertySet)).Select(x => x.Property))));
             grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Ativa", Binding = new Binding("Active"), Width = 50 });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Origem", Binding = new Binding("Source"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Grupo", Binding = new Binding("Group"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Nome no Civil 3D", Binding = new Binding("CivilName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(ColunaLista("Origem", nameof(PropertyRow.Source), 1, r =>
+                new[] { "PropertySet", "Properties", "General", "PartData", "DrawingProperties" }.Concat(_propertyRows.Select(x => x.Source))));
+            grid.Columns.Add(ColunaLista("Grupo", nameof(PropertyRow.Group), 1, r =>
+                (Igual(r.Source, "PropertySet") ? PsetsDoModelo().Select(x => x.Nome) : Enumerable.Empty<string>())
+                    .Concat(_propertyRows.Where(x => Igual(x.Source, r.Source)).Select(x => x.Group))));
+            grid.Columns.Add(ColunaLista("Nome no Civil 3D", nameof(PropertyRow.CivilName), 2, r =>
+                (Igual(r.Source, "PropertySet") ? PropsDoModelo(r.Group) : Enumerable.Empty<string>())
+                    .Concat(_propertyRows.Where(x => Igual(x.Source, r.Source) && Igual(x.Group, r.Group)).Select(x => x.CivilName))));
             grid.ToolTip = "Origem: Properties, PartData, General ou PropertySet.";
             tabs.Items.Add(new TabItem { Header = "De onde vem cada uma", Content = WithTools(grid, _propertyRows, "propriedade") });
 
@@ -743,6 +752,61 @@ namespace MetroSP.Ui
             };
             tabs.Items.Add(new TabItem { Header = "Property sets (JSON)", Content = _templatesText });
             return tabs;
+        }
+
+        static bool Igual(string a, string b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+        List<PropertySets.PsetMontagem> _psetsModelo;
+
+        /// <summary>Property sets definidos no modelo (lidos uma vez por janela).</summary>
+        List<PropertySets.PsetMontagem> PsetsDoModelo()
+        {
+            if (_psetsModelo != null) return _psetsModelo;
+            try
+            {
+                var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                using (doc.LockDocument()) _psetsModelo = PropertySets.PsetsCore.LerDesenho(doc.Database);
+            }
+            catch { _psetsModelo = new List<PropertySets.PsetMontagem>(); }
+            return _psetsModelo;
+        }
+
+        IEnumerable<string> PropsDoModelo(string pset) =>
+            PsetsDoModelo().Where(x => Igual(x.Nome, pset)).SelectMany(x => x.Propriedades.Select(pr => pr.Nome));
+
+        /// <summary>
+        /// Coluna de texto que, ao editar, vira lista suspensa em que dá para digitar (regra de todas as telas).
+        /// As opções são montadas na hora, a partir da linha (ex.: as propriedades do property set escolhido).
+        /// </summary>
+        static DataGridTemplateColumn ColunaLista(string titulo, string prop, double peso, Func<PropertyRow, IEnumerable<string>> opcoes)
+        {
+            var ver = new FrameworkElementFactory(typeof(TextBlock));
+            ver.SetBinding(TextBlock.TextProperty, new Binding(prop));
+            ver.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            ver.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 2, 0));
+
+            var editar = new FrameworkElementFactory(typeof(ComboBox));
+            editar.SetValue(ComboBox.IsEditableProperty, true);
+            editar.SetValue(ComboBox.IsTextSearchEnabledProperty, true);
+            editar.SetValue(ComboBox.StaysOpenOnEditProperty, true);
+            editar.SetValue(ComboBox.MaxDropDownHeightProperty, 320.0);
+            editar.SetBinding(ComboBox.TextProperty, new Binding(prop) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus });
+            editar.AddHandler(FrameworkElement.LoadedEvent, new RoutedEventHandler((s, e) =>
+            {
+                var c = (ComboBox)s;
+                if (!(c.DataContext is PropertyRow r)) return;
+                var texto = c.Text;
+                c.ItemsSource = opcoes(r).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase).ToList();
+                c.Text = texto;
+                c.Focus();
+            }));
+            return new DataGridTemplateColumn
+            {
+                Header = titulo, SortMemberPath = prop, Width = new DataGridLength(peso, DataGridLengthUnitType.Star),
+                CellTemplate = new DataTemplate { VisualTree = ver },
+                CellEditingTemplate = new DataTemplate { VisualTree = editar },
+            };
         }
 
         void LoadCsv()
