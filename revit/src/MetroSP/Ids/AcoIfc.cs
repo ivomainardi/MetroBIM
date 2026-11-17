@@ -1,0 +1,448 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using System.Text;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.DB.Structure;
+using MetroSP.Ifc;
+
+namespace MetroSP.Ids
+{
+    /// <summary>
+    /// Parafusos, chumbadores, conectores, chapas e soldas das ligações metálicas como elementos próprios no IFC4/4.3.
+    /// <para>
+    /// O exportador da Autodesk só separa essas peças no IFC 2x3 (com "Incluir elementos de aço", pelo módulo do
+    /// Advance Steel). No IFC4 a ligação sai como um corpo só e os elementos de fabricação avulsos saem sem geometria.
+    /// Aqui, dentro da transação da exportação (que é desfeita no fim), cada peça vira uma forma direta temporária com a
+    /// geometria dela e "Exportar para IFC como" a classe certa (IfcMechanicalFastener.BOLT etc.). O exportador cuida da
+    /// posição e da representação; depois o <see cref="FixadoresIfc"/> grava os dados e agrupa as peças na ligação.
+    /// </para>
+    /// </summary>
+    internal sealed class AcoIfc
+    {
+        /// <summary>Forma temporária (ElementId) → dados da peça, para o pós-processamento.</summary>
+        public Dictionary<long, PecaAco> Pecas { get; } = new Dictionary<long, PecaAco>();
+        /// <summary>Ligações e elementos avulsos encontrados.</summary>
+        public int Origens { get; private set; }
+        /// <summary>O que não deu certo (para o resumo), ou vazio.</summary>
+        public List<string> Avisos { get; } = new List<string>();
+
+        private readonly List<ElementId> _criadas = new List<ElementId>();
+        private readonly List<(Element Elemento, int Valor)> _exportarOriginal = new List<(Element, int)>();
+        private View _vista;
+        private readonly List<ElementId> _categoriasMostradas = new List<ElementId>();
+
+        private static readonly Dictionary<BuiltInCategory, (string Peca, string Classe, bool Parafuso, bool Separar)> Categorias =
+            new Dictionary<BuiltInCategory, (string, string, bool, bool)>
+            {
+                { BuiltInCategory.OST_StructConnectionBolts, ("Parafuso", "IfcMechanicalFastener.BOLT", true, true) },
+                { BuiltInCategory.OST_StructConnectionAnchors, ("Chumbador", "IfcMechanicalFastener.ANCHORBOLT", true, true) },
+                { BuiltInCategory.OST_StructConnectionShearStuds, ("Conector de cisalhamento", "IfcMechanicalFastener.SHEARCONNECTOR", false, true) },
+                { BuiltInCategory.OST_StructConnectionPlates, ("Chapa", "IfcPlate", false, false) },
+                { BuiltInCategory.OST_StructConnectionWelds, ("Solda", "IfcFastener.WELD", false, false) },
+                { BuiltInCategory.OST_StructConnectionProfiles, ("Perfil", "IfcMember", false, false) },
+            };
+
+        /// <summary>true se o modelo tem ligações metálicas ou elementos de fabricação de aço (consulta rápida).</summary>
+        public static bool TemAco(Document doc)
+        {
+            if (new FilteredElementCollector(doc).OfClass(typeof(StructuralConnectionHandler)).FirstElementId() != null) return true;
+            return new FilteredElementCollector(doc).WherePasses(new ElementMulticategoryFilter(Categorias.Keys.ToList()))
+                .WhereElementIsNotElementType().FirstElementId() != null;
+        }
+
+        /// <summary>
+        /// Cria as formas temporárias. Chamar dentro da transação da exportação, antes do exportador.
+        /// vista: vista que filtra a exportação (ou InvalidElementId). fase: fase exportada.
+        /// </summary>
+        public static AcoIfc Preparar(Document doc, ElementId vistaId, ElementId fase)
+        {
+            var r = new AcoIfc();
+            bool porVista = vistaId != null && vistaId != ElementId.InvalidElementId && doc.GetElement(vistaId) is View;
+            if (porVista) r._vista = (View)doc.GetElement(vistaId);
+            FilteredElementCollector Coletor() => porVista ? new FilteredElementCollector(doc, vistaId) : new FilteredElementCollector(doc);
+
+            var origens = new List<Element>();
+            origens.AddRange(Coletor().OfClass(typeof(StructuralConnectionHandler)).ToElements());
+            origens.AddRange(Coletor().WherePasses(new ElementMulticategoryFilter(Categorias.Keys.ToList()))
+                .WhereElementIsNotElementType().ToElements().Where(e => !(e is StructuralConnectionHandler)));
+            int semGeometria = 0, falhas = 0;
+            foreach (Element origem in origens)
+            {
+                if (FiltroIfc.MotivoFora(doc, origem, fase) is string motivo && motivo != "Sem geometria 3D") continue;
+                r.Origens++;
+                try
+                {
+                    int n = r.Separar(doc, origem);
+                    if (n == 0) semGeometria++;
+                }
+                catch (Exception ex)
+                {
+                    falhas++;
+                    if (falhas <= 3) r.Avisos.Add($"Ligações metálicas: não deu para separar o elemento {Compat.Numero(origem.Id)} ({ex.Message}).");
+                }
+            }
+            if (semGeometria > 0)
+                r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
+            if (r._vista != null) r.MostrarCategorias(doc);
+            return r;
+        }
+
+        /// <summary>Separa as peças de uma ligação (ou de um elemento de fabricação avulso). Devolve quantas formas criou.</summary>
+        private int Separar(Document doc, Element origem)
+        {
+            bool ehLigacao = origem is StructuralConnectionHandler;
+            string ligacao = ehLigacao ? doc.GetElement(origem.GetTypeId())?.Name : null;
+
+            // Cada subelemento é uma peça (ou um grupo de parafusos). Um elemento de fabricação avulso pode não ter
+            // subelementos: aí ele próprio é a peça.
+            var itens = new List<(string Chave, Category Categoria, GeometryObject Geometria, Subelement Sub)>();
+            IList<Subelement> subs = null;
+            try { subs = origem.GetSubelements(); } catch { /* elemento sem subelementos */ }
+            if (subs != null)
+                foreach (Subelement s in subs)
+                {
+                    GeometryObject g = null;
+                    try { g = s.GetGeometryObject(null); } catch { }
+                    itens.Add((s.UniqueId, s.Category, g, s));
+                }
+            if (!ehLigacao && itens.All(i => i.Categoria == null || !Categorias.ContainsKey(i.Categoria.BuiltInCategory)))
+            {
+                itens.Clear();
+                itens.Add((origem.UniqueId, origem.Category, origem.get_Geometry(new Options { DetailLevel = ViewDetailLevel.Fine }), null));
+            }
+
+            int criadas = 0, previstas = 0, separadas = 0;
+            var novas = new List<PecaAco>();
+            foreach (var item in itens)
+            {
+                if (item.Categoria == null || !Categorias.TryGetValue(item.Categoria.BuiltInCategory, out var info)) continue;
+                List<Solid> solidos = Solidos(item.Geometria);
+                if (solidos.Count == 0) continue;
+                previstas++;
+
+                Dados dados = item.Sub != null ? LerDados(doc, item.Sub) : LerDados(doc, origem);
+                // Grupo de parafusos: cada conjunto de sólidos que se tocam (parafuso, porca, arruelas) é um parafuso.
+                List<List<Solid>> pecas = info.Separar ? Agrupar(solidos) : new List<List<Solid>> { solidos };
+                int antes = criadas;
+                for (int i = 0; i < pecas.Count; i++)
+                {
+                    DirectShape ds = CriarForma(doc, origem, item.Categoria, pecas[i], info.Classe);
+                    if (ds == null) continue;
+                    var p = new PecaAco
+                    {
+                        HostId = Compat.Numero(origem.Id),
+                        Chave = item.Chave + "|" + i.ToString(CultureInfo.InvariantCulture),
+                        Peca = info.Peca,
+                        Ligacao = ligacao,
+                        Norma = dados.Norma,
+                        Classe = dados.Classe,
+                        Diametro = dados.Diametro,
+                        Comprimento = dados.Comprimento,
+                        EhParafuso = info.Parafuso,
+                        Tipo = dados.Tipo,
+                        Propriedades = dados.Propriedades,
+                    };
+                    p.Nome = NomePeca(p);
+                    Pecas[Compat.Numero(ds.Id)] = p;
+                    novas.Add(p);
+                    criadas++;
+                }
+                if (criadas == antes + pecas.Count) separadas++;
+            }
+            if (criadas == 0) return 0;
+
+            if (ehLigacao)
+            {
+                // A ligação continua no IFC (como conjunto) e as peças ficam dentro dela. Se tudo foi separado,
+                // o corpo único dela sai, para a geometria não ficar duplicada.
+                bool tudo = separadas == previstas;
+                foreach (PecaAco p in novas) p.TirarCorpoDoHost = tudo;
+            }
+            else
+            {
+                // Elemento de fabricação avulso: a forma temporária o substitui; o original não é exportado.
+                Parameter exp = origem.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT);
+                if (exp != null && !exp.IsReadOnly)
+                {
+                    _exportarOriginal.Add((origem, exp.AsInteger()));
+                    exp.Set((int)IFCExportElement.No);
+                }
+            }
+            return criadas;
+        }
+
+        private DirectShape CriarForma(Document doc, Element origem, Category categoria, List<Solid> solidos, string classe)
+        {
+            ElementId cat = new[]
+            {
+                categoria?.Id, categoria?.Parent?.Id, origem.Category?.Id,
+                new ElementId(BuiltInCategory.OST_StructConnections), new ElementId(BuiltInCategory.OST_GenericModel),
+            }.FirstOrDefault(c => c != null && DirectShape.IsValidCategoryId(c, doc));
+            if (cat == null) return null;
+
+            var formas = solidos.Cast<GeometryObject>().ToList();
+            DirectShape ds = DirectShape.CreateElement(doc, cat);
+            ds.ApplicationId = "MetroSP";
+            ds.ApplicationDataId = origem.UniqueId;
+            try { ds.SetShape(formas); }
+            catch
+            {
+                doc.Delete(ds.Id);
+                return null;
+            }
+            _criadas.Add(ds.Id);
+
+            // Mesma fase do elemento de origem, para sair na fase exportada como ele.
+            try { ds.CreatedPhaseId = origem.CreatedPhaseId; } catch { }
+            try { if (origem.DemolishedPhaseId != ElementId.InvalidElementId) ds.DemolishedPhaseId = origem.DemolishedPhaseId; } catch { }
+
+            Parameter como = Compat.ExportarComo(ds, false);
+            if (como != null && !como.IsReadOnly) como.Set(classe);
+            Parameter exp = ds.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT);
+            if (exp != null && !exp.IsReadOnly) exp.Set((int)IFCExportElement.Yes);
+            return ds;
+        }
+
+        /// <summary>Na exportação por vista, mostra as categorias das formas temporárias se a vista as esconde.</summary>
+        private void MostrarCategorias(Document doc)
+        {
+            foreach (ElementId cat in _criadas.Select(id => doc.GetElement(id)?.Category?.Id).Where(c => c != null).Distinct().ToList())
+            {
+                try
+                {
+                    if (_vista.CanCategoryBeHidden(cat) && _vista.GetCategoryHidden(cat))
+                    {
+                        _vista.SetCategoryHidden(cat, false);
+                        _categoriasMostradas.Add(cat);
+                    }
+                }
+                catch (Exception ex) { Avisos.Add($"Ligações metálicas: a vista \"{_vista.Name}\" não deixou mostrar as peças ({ex.Message})."); }
+            }
+        }
+
+        /// <summary>
+        /// Desfaz o que foi mudado no modelo, ainda dentro da transação: apaga as formas temporárias, devolve
+        /// "Exportar para IFC" dos originais e a vista. Necessário quando a transação é gravada (setup que grava o GUID).
+        /// </summary>
+        public void Restaurar(Document doc)
+        {
+            foreach (ElementId c in _categoriasMostradas)
+                try { _vista.SetCategoryHidden(c, true); } catch { }
+            foreach (var (e, valor) in _exportarOriginal)
+                try { e.get_Parameter(BuiltInParameter.IFC_EXPORT_ELEMENT)?.Set(valor); } catch { }
+            try { if (_criadas.Count > 0) doc.Delete(_criadas); } catch { }
+        }
+
+        // ------------------------------------------------------------------ geometria
+
+        private static List<Solid> Solidos(GeometryObject g)
+        {
+            var r = new List<Solid>();
+            Juntar(g, r, 0);
+            return r;
+        }
+
+        private static void Juntar(GeometryObject g, List<Solid> r, int nivel)
+        {
+            switch (g)
+            {
+                case Solid s when s.Volume > 1e-9: r.Add(s); break;
+                case GeometryElement ge:
+                    foreach (GeometryObject o in ge) Juntar(o, r, nivel + 1);
+                    break;
+                case GeometryInstance gi when nivel < 8:
+                    Juntar(gi.GetInstanceGeometry(), r, nivel + 1);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Separa os volumes e junta os que se tocam (parafuso + porca + arruelas), para cada parafuso de um grupo
+        /// virar um elemento. A ordem segue a posição, para a numeração das peças (e o GlobalId) não mudar à toa.
+        /// </summary>
+        private static List<List<Solid>> Agrupar(List<Solid> solidos)
+        {
+            var volumes = new List<Solid>();
+            foreach (Solid s in solidos)
+            {
+                try { volumes.AddRange(SolidUtils.SplitVolumes(s).Where(v => v.Volume > 1e-9)); }
+                catch { volumes.Add(s); }
+            }
+            var caixas = volumes.Select(Caixa).ToList();
+            int[] pai = Enumerable.Range(0, volumes.Count).ToArray();
+            int Raiz(int i) { while (pai[i] != i) i = pai[i] = pai[pai[i]]; return i; }
+            const double folga = 0.5 / 304.8;   // 0,5 mm
+            for (int i = 0; i < volumes.Count; i++)
+                for (int j = i + 1; j < volumes.Count; j++)
+                    if (Tocam(caixas[i], caixas[j], folga)) pai[Raiz(i)] = Raiz(j);
+            return Enumerable.Range(0, volumes.Count).GroupBy(Raiz)
+                .Select(g => g.ToList())
+                .OrderBy(l => Math.Round(l.Min(i => caixas[i].Min.Z), 3))
+                .ThenBy(l => Math.Round(l.Min(i => caixas[i].Min.X), 3))
+                .ThenBy(l => Math.Round(l.Min(i => caixas[i].Min.Y), 3))
+                .Select(l => l.Select(i => volumes[i]).ToList()).ToList();
+        }
+
+        private static (XYZ Min, XYZ Max) Caixa(Solid s)
+        {
+            BoundingBoxXYZ b = s.GetBoundingBox();
+            Transform t = b.Transform;
+            double[] x = new double[8], y = new double[8], z = new double[8];
+            int k = 0;
+            foreach (double a in new[] { b.Min.X, b.Max.X })
+                foreach (double c in new[] { b.Min.Y, b.Max.Y })
+                    foreach (double d in new[] { b.Min.Z, b.Max.Z })
+                    {
+                        XYZ p = t.OfPoint(new XYZ(a, c, d));
+                        x[k] = p.X; y[k] = p.Y; z[k] = p.Z; k++;
+                    }
+            return (new XYZ(x.Min(), y.Min(), z.Min()), new XYZ(x.Max(), y.Max(), z.Max()));
+        }
+
+        private static bool Tocam((XYZ Min, XYZ Max) a, (XYZ Min, XYZ Max) b, double f) =>
+            a.Min.X <= b.Max.X + f && b.Min.X <= a.Max.X + f &&
+            a.Min.Y <= b.Max.Y + f && b.Min.Y <= a.Max.Y + f &&
+            a.Min.Z <= b.Max.Z + f && b.Min.Z <= a.Max.Z + f;
+
+        // ------------------------------------------------------------------ dados
+
+        private class Dados
+        {
+            public string Norma, Classe, Tipo;
+            public double? Diametro, Comprimento;   // metros
+            public Dictionary<string, string> Propriedades = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        /// <summary>Parâmetros do subelemento (grupo de parafusos, chapa...) e do tipo dele.</summary>
+        private static Dados LerDados(Document doc, Subelement s)
+        {
+            var d = new Dados();
+            try
+            {
+                foreach (ElementId pid in s.GetAllParameters())
+                {
+                    string nome = NomeParametro(doc, pid);
+                    if (string.IsNullOrWhiteSpace(nome)) continue;
+                    ParameterValue v = null;
+                    try { v = s.GetParameterValue(pid); } catch { }
+                    if (v == null) continue;
+                    double? pes = (v as DoubleParameterValue)?.Value;
+                    string texto = TextoValor(doc, v, nome);
+                    Guardar(d, nome, texto, pes);
+                }
+            }
+            catch { /* subelemento sem parâmetros */ }
+            if (s.TypeId != null && s.TypeId != ElementId.InvalidElementId && doc.GetElement(s.TypeId) is Element tipo)
+            {
+                d.Tipo = tipo.Name;
+                LerParametros(d, tipo);
+            }
+            return d;
+        }
+
+        private static Dados LerDados(Document doc, Element e)
+        {
+            var d = new Dados();
+            LerParametros(d, e);
+            if (doc.GetElement(e.GetTypeId()) is Element tipo)
+            {
+                d.Tipo = tipo.Name;
+                LerParametros(d, tipo);
+            }
+            return d;
+        }
+
+        private static void LerParametros(Dados d, Element e)
+        {
+            foreach (Parameter p in e.Parameters)
+            {
+                if (p?.Definition == null || !p.HasValue) continue;
+                string nome = p.Definition.Name;
+                if (Ignorar(nome)) continue;
+                double? pes = null;
+                if (p.StorageType == StorageType.Double)
+                {
+                    try { if (p.Definition.GetDataType() == SpecTypeId.Length) pes = p.AsDouble(); } catch { }
+                }
+                string texto = p.StorageType == StorageType.String ? p.AsString() : p.AsValueString();
+                if (p.StorageType == StorageType.ElementId && string.IsNullOrEmpty(texto))
+                    texto = e.Document.GetElement(p.AsElementId())?.Name;
+                Guardar(d, nome, texto, pes);
+            }
+        }
+
+        private static void Guardar(Dados d, string nome, string texto, double? pes)
+        {
+            if (string.IsNullOrWhiteSpace(texto) || Ignorar(nome)) return;
+            string n = SemAcento(nome).ToLowerInvariant();
+            bool furo = n.Contains("hole") || n.Contains("furo") || n.Contains("thread") || n.Contains("rosca") || n.Contains("grip") || n.Contains("aperto");
+            if (!furo && d.Diametro == null && pes > 0 && (n.Contains("diameter") || n.Contains("diametro"))) d.Diametro = pes * 0.3048;
+            else if (!furo && d.Comprimento == null && pes > 0 && (n.Contains("length") || n.Contains("comprimento"))) d.Comprimento = pes * 0.3048;
+            if (d.Norma == null && (n.Contains("standard") || n.Contains("norma"))) d.Norma = texto.Trim();
+            if (d.Classe == null && (n.Contains("grade") || n.Contains("classe"))) d.Classe = texto.Trim();
+            if (!d.Propriedades.ContainsKey(nome)) d.Propriedades[nome] = texto.Trim();
+        }
+
+        private static readonly string[] Ignorados =
+        {
+            "IfcGUID", "IfcExportAs", "IfcExportType", "IFC Predefined Type", "Export to IFC", "Export to IFC As", "Type IfcGUID",
+            "Type Image", "Image", "URL", "Keynote", "Phase Created", "Phase Demolished", "Design Option", "Workset", "Edited by",
+            "Exportar para IFC", "Exportar para IFC como", "Tipo predefinido IFC", "Fase de criação", "Fase de demolição",
+            "Imagem do tipo", "Imagem", "Opção de projeto", "Subprojeto", "Editado por",
+        };
+
+        private static bool Ignorar(string nome) =>
+            string.IsNullOrWhiteSpace(nome) || Ignorados.Any(i => string.Equals(i, nome, StringComparison.OrdinalIgnoreCase)) ||
+            nome.StartsWith("Ifc", StringComparison.OrdinalIgnoreCase);
+
+        private static string NomeParametro(Document doc, ElementId pid)
+        {
+            long n = Compat.Numero(pid);
+            if (n < 0)
+            {
+                try { return LabelUtils.GetLabelFor((BuiltInParameter)(int)n); } catch { return null; }
+            }
+            return (doc.GetElement(pid) as ParameterElement)?.GetDefinition()?.Name;
+        }
+
+        /// <summary>Valor do parâmetro do subelemento como texto. Comprimentos (pelo nome) em mm.</summary>
+        private static string TextoValor(Document doc, ParameterValue v, string nome)
+        {
+            switch (v)
+            {
+                case StringParameterValue s: return s.Value;
+                case IntegerParameterValue i: return i.Value.ToString(CultureInfo.InvariantCulture);
+                case ElementIdParameterValue e: return e.Value == ElementId.InvalidElementId ? null : doc.GetElement(e.Value)?.Name;
+                case DoubleParameterValue d:
+                    string n = SemAcento(nome).ToLowerInvariant();
+                    bool comprimento = new[] { "diameter", "diametro", "length", "comprimento", "thickness", "espessura", "width", "largura", "height", "altura", "size", "tamanho" }.Any(n.Contains);
+                    return comprimento
+                        ? Math.Round(d.Value * 304.8, 1).ToString("0.#", CultureInfo.GetCultureInfo("pt-BR")) + " mm"
+                        : Math.Round(d.Value, 4).ToString("0.####", CultureInfo.GetCultureInfo("pt-BR"));
+                default: return null;
+            }
+        }
+
+        private static string NomePeca(PecaAco p)
+        {
+            var sb = new StringBuilder(p.Peca);
+            if (p.Diametro > 0) sb.Append(" Ø").Append(Mm(p.Diametro.Value));
+            if (p.Comprimento > 0 && p.EhParafuso) sb.Append(" x ").Append(Mm(p.Comprimento.Value));
+            if (!string.IsNullOrWhiteSpace(p.Classe) && p.EhParafuso) sb.Append(" - ").Append(p.Classe.Trim());
+            return sb.ToString();
+        }
+
+        private static string Mm(double metros) => Math.Round(metros * 1000, 1).ToString("0.#", CultureInfo.GetCultureInfo("pt-BR"));
+
+        private static string SemAcento(string s)
+        {
+            string n = s.Normalize(NormalizationForm.FormD);
+            var sb = new StringBuilder(n.Length);
+            foreach (char c in n)
+                if (CharUnicodeInfo.GetUnicodeCategory(c) != UnicodeCategory.NonSpacingMark) sb.Append(c);
+            return sb.ToString();
+        }
+    }
+}

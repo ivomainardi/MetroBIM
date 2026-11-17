@@ -25,6 +25,15 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   - **Fase** numa linha própria, logo abaixo de Elementos. **Extras** passa a se chamar **Projeto e local**, e EPSG em
     branco e Eixos sempre ficam numa linha de opções (também no Exportar IFC da Ribbon).
   - Perfil e Elementos são listas digitáveis.
+- Revit, **Exportar IFC com as peças das ligações metálicas**: parafusos, chumbadores, conectores de cisalhamento,
+  chapas e soldas das ligações (Steel Connections) e dos elementos de fabricação de aço saem no IFC4 e no IFC 4.3 como
+  elementos próprios: **IfcMechanicalFastener** (BOLT, ANCHORBOLT, SHEARCONNECTOR), **IfcPlate** e **IfcFastener**
+  (WELD). Cada parafuso de um grupo vira um elemento, com diâmetro e comprimento nominais, o
+  Pset_MechanicalFastenerBolt e o Pset **MetroSP_LigacaoMetalica** (peça, ligação, norma, classe, diâmetro,
+  comprimento e os demais parâmetros do Revit). As peças ficam agrupadas dentro da ligação (IfcElementAssembly) e
+  têm GlobalId fixo entre exportações. Antes só o IFC 2x3 separava essas peças: no IFC4 a ligação saía como um corpo
+  só e os parafusos avulsos não saíam. É automático, sem opção nova na tela; o resumo da exportação diz quantas peças
+  saíram.
 
 ## 1.0.9 (17/11/2026)
 
