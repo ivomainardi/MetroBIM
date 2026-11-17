@@ -16,6 +16,12 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
     dica (passe o mouse no cartão).
   - A tabela de parâmetros de projeto ganha a altura toda. A coluna **Problema** só aparece quando há problema, e as
     colunas não ficam mais espremidas: com pouco espaço, a tabela rola para o lado. Cada título tem uma dica.
+- Revit, **Aplicar classificação abre na hora**: a janela não varre mais os elementos da vista antes de aparecer.
+  - As categorias de **Selecionar no Revit por categoria** só são contadas quando você abre a lista de categorias
+    (trocar entre Vista atual e Todo o modelo também não conta mais na hora).
+  - A planilha é lida depois que a janela aparece, sem travar a tela, e só a primeira aba do .xlsx.
+    Reabrindo a janela, a planilha não é lida de novo enquanto o arquivo não mudar (**Recarregar** sempre lê).
+  - A árvore só desenha os itens que aparecem na tela (planilhas grandes).
 
 ## 1.0.8 (16/11/2026)
 

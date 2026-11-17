@@ -87,7 +87,7 @@ namespace MetroSP.Classificacao
         /// <summary>Lê a planilha achando sozinho a linha dos títulos e as colunas (Código, Descrição, Código pai, Categorias).</summary>
         public static ClassificationList Ler(string caminho)
         {
-            Tabela t = LeitorPlanilha.Ler(caminho);
+            Tabela t = LeitorPlanilha.Ler(caminho, soPrimeiraAba: true);
             var mapa = new MapaColunas { Arquivo = caminho, Aba = t.NomesAbas[0] };
             var campos = SistemaClassificacao.Campos.Append(SistemaClassificacao.CampoEdicao).ToList();
             mapa.LinhaCabecalho = MapaColunas.AcharCabecalho(t, mapa.Aba, campos);
