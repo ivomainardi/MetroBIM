@@ -238,7 +238,41 @@ namespace MetroSP.Entrega
                             Sugestao(i > 0 ? linha.Substring(i + 3).Trim('"') : null, versao),
                 });
             }
+            SemClasse(e, mapping, versao);
             e.Resumo = "Esquema " + Ifc.IfcCatalog.Label(versao) + ".";
+        }
+
+        /// <summary>
+        /// Layers, blocos e baselines com objetos que vão para o IFC sem classe: sem regra no perfil, ou com regra de classe
+        /// vazia. Saem com a classe que a Autodesk escolher (em geral IfcBuildingElementProxy).
+        /// </summary>
+        static void SemClasse(EtapaEntrega e, JsonObject mapping, string versao)
+        {
+            Dictionary<string, List<Ifc.ItemDesenho>> modelo;
+            try { modelo = Ifc.ConteudoDesenho.Ler(); }
+            catch { return; }
+            foreach (var kv in modelo)
+            {
+                var regras = (mapping[kv.Key] as JsonArray)?.OfType<JsonObject>().ToList() ?? new List<JsonObject>();
+                var faltam = new List<Ifc.ItemDesenho>();
+                foreach (var it in kv.Value.Where(i => i.Objetos > 0 && string.IsNullOrEmpty(i.Situacao)))
+                {
+                    var r = regras.FirstOrDefault(x => Ui.ClassesIfcWindow.Casa((string)x["Name"], it.Nome));
+                    if (r != null && ((bool?)r["Export"] ?? true) == false) continue;
+                    if (r == null || string.IsNullOrWhiteSpace((string)r["IfcExportAs"])) faltam.Add(it);
+                }
+                if (faltam.Count == 0) continue;
+                var (um, varios) = Ifc.ConteudoDesenho.Palavra(kv.Key);
+                int objetos = faltam.Sum(i => i.Objetos);
+                string nomes = string.Join(", ", faltam.OrderByDescending(i => i.Objetos).Take(5).Select(i => i.Nome)) + (faltam.Count > 5 ? $" e mais {faltam.Count - 5}" : "");
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo,
+                    Titulo = $"{faltam.Count} {(faltam.Count == 1 ? um : varios)} sem classe IFC ({objetos:N0} objetos)",
+                    Texto = $"Vão para o IFC com a classe que a Autodesk escolher (em geral IfcBuildingElementProxy): {nomes}. " +
+                            "Escolha a classe ou desmarque Exportar na tabela.",
+                });
+            }
         }
 
         static string Sugestao(string classe, string versao)

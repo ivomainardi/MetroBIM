@@ -92,9 +92,9 @@ namespace MetroSP.Ui
             obj.SortMemberPath = nameof(LinhaIfc.Objetos);
             obj.ElementStyle = new Style(typeof(TextBlock), obj.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
             ColunaExportar("Exp. IFC4", nameof(LinhaIfc.Exportar4));
-            ColunaClasse("Classe IFC4", nameof(LinhaIfc.Classe4), nameof(LinhaIfc.Invalida4), nameof(LinhaIfc.Dica4), IfcCatalog.Ifc4);
+            ColunaClasse("Classe IFC4", nameof(LinhaIfc.Classe4), nameof(LinhaIfc.Texto4), nameof(LinhaIfc.Invalida4), nameof(LinhaIfc.Dica4), IfcCatalog.Ifc4);
             ColunaExportar("Exp. IFC 4.3", nameof(LinhaIfc.Exportar43));
-            ColunaClasse("Classe IFC 4.3", nameof(LinhaIfc.Classe43), nameof(LinhaIfc.Invalida43), nameof(LinhaIfc.Dica43), IfcCatalog.Ifc4x3);
+            ColunaClasse("Classe IFC 4.3", nameof(LinhaIfc.Classe43), nameof(LinhaIfc.Texto43), nameof(LinhaIfc.Invalida43), nameof(LinhaIfc.Dica43), IfcCatalog.Ifc4x3);
             _lista.ExtraFilter = o => o is LinhaIfc l && (_soUsados.IsChecked != true || l.Objetos > 0) && (_soDiferentes.IsChecked != true || l.Diferente);
             _lista.Filtered += AtualizarResumo;
             _lista.Grid.ToolTip = "Clique duas vezes na classe para escolher da lista (digite parte do nome para filtrar). " +
@@ -192,14 +192,14 @@ namespace MetroSP.Ui
         }
 
         /// <summary>Coluna de classe com filtro no título; edita numa lista em que também se escreve.</summary>
-        void ColunaClasse(string titulo, string prop, string invalida, string dica, string[] catalogo)
+        void ColunaClasse(string titulo, string prop, string mostrar, string invalida, string dica, string[] catalogo)
         {
             DataGridTextColumn texto = _lista.AddColumn(titulo, prop, 240);
             int i = _lista.Grid.Columns.IndexOf(texto);
             _lista.Grid.Columns.Remove(texto);
 
             var ver = new FrameworkElementFactory(typeof(TextBlock));
-            ver.SetBinding(TextBlock.TextProperty, new Binding(prop) { TargetNullValue = "" });
+            ver.SetBinding(TextBlock.TextProperty, new Binding(mostrar));
             ver.SetBinding(ToolTipProperty, new Binding(dica));
             ver.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
             ver.SetValue(MarginProperty, new Thickness(2, 0, 2, 0));
@@ -208,6 +208,13 @@ namespace MetroSP.Ui
             t.Setters.Add(new Setter(TextBlock.ForegroundProperty, System.Windows.Media.Brushes.Firebrick));
             t.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
             estilo.Triggers.Add(t);
+            var vazia = new DataTrigger { Binding = new Binding(prop), Value = null };
+            vazia.Setters.Add(new Setter(TextBlock.ForegroundProperty, Theme.Solid(Theme.LaranjaTexto)));
+            vazia.Setters.Add(new Setter(TextBlock.FontStyleProperty, FontStyles.Italic));
+            estilo.Triggers.Add(vazia);
+            var vazia2 = new DataTrigger { Binding = new Binding(prop), Value = "" };
+            foreach (var st in vazia.Setters) vazia2.Setters.Add(st);
+            estilo.Triggers.Add(vazia2);
             ver.SetValue(StyleProperty, estilo);
 
             var editar = new FrameworkElementFactory(typeof(ComboBox));
@@ -514,6 +521,10 @@ namespace MetroSP.Ui
         public string Classe43 { get => Classe(ClassesIfcWindow.V43); set { if ((value ?? "") != (Classe43 ?? "")) _janela.Definir(this, ClassesIfcWindow.V43, value ?? "", null); } }
         public bool Exportar4 { get => Exporta(ClassesIfcWindow.V4); set { if (value != Exportar4) _janela.Definir(this, ClassesIfcWindow.V4, null, value); } }
         public bool Exportar43 { get => Exporta(ClassesIfcWindow.V43); set { if (value != Exportar43) _janela.Definir(this, ClassesIfcWindow.V43, null, value); } }
+        static string Texto(string classe, bool exporta) => !exporta ? (string.IsNullOrWhiteSpace(classe) ? "(não exporta)" : classe)
+            : string.IsNullOrWhiteSpace(classe) ? "sem classe (Autodesk escolhe)" : classe;
+        public string Texto4 => Texto(Classe4, Exportar4);
+        public string Texto43 => Texto(Classe43, Exportar43);
         public bool Invalida4 => !IfcCatalog.IsValid(Classe4, IfcCatalog.Ifc4);
         public bool Invalida43 => !IfcCatalog.IsValid(Classe43, IfcCatalog.Ifc4x3);
         public string Dica4 => (Invalida4 ? "Esta classe não existe no IFC4. " : "") + Dica(ClassesIfcWindow.V4);
