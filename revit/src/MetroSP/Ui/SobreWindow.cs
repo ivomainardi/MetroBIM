@@ -112,10 +112,12 @@ namespace MetroSP.Ui
                 try { Clipboard.SetText(Resumo()); copiar.Content = "Copiado"; }
                 catch { /* área de transferência ocupada */ }
             };
+            var atualizar = new Button { Content = "Procurar versão nova", ToolTip = "Confere no GitHub se já saiu uma versão mais nova do MetroSP." };
+            atualizar.Click += (s, e) => JanelaVersaoNova.ProcurarAgora("Revit", this);
             var fechar = new Button { Content = "Fechar", IsDefault = true, IsCancel = true, Style = Theme.PrimaryButton };
             fechar.Click += (s, e) => Close();
 
-            Theme.Apply(this, "MetroSP para Revit", $"Versão {Versao} · {DataCompilacao}", corpo, Theme.Buttons(pasta, copiar, fechar));
+            Theme.Apply(this, "MetroSP para Revit", $"Versão {Versao} · {DataCompilacao}", corpo, Theme.Buttons(pasta, copiar, atualizar, fechar));
         }
 
         /// <summary>Texto para colar num e-mail ou chamado de suporte.</summary>

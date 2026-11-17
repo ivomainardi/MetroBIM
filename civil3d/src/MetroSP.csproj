@@ -17,7 +17,7 @@
     <RootNamespace>MetroSP</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
-    <Version>0.12.3</Version>
+    <Version>0.12.4</Version>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <BundleContents>$(MSBuildProjectDirectory)\..\MetroSP.bundle\Contents</BundleContents>
@@ -47,6 +47,11 @@
     </ItemGroup>
     <Copy SourceFiles="@(BundleFiles)" DestinationFolder="$(BundleContents)\$(AcadSeries)" SkipUnchangedFiles="true" />
   </Target>
+
+  <ItemGroup>
+    <!-- Código comum aos plugins (aviso de versão nova), na pasta comum/ da raiz. -->
+    <Compile Include="..\..\comum\*.cs" Link="Comum\%(Filename)%(Extension)" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- Ícones, logos e selo da identidade Ação BIM · Metrô SP, embutidos na DLL. -->
