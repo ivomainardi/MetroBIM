@@ -34,6 +34,8 @@ namespace MetroSP.Classificacao
     {
         public enum Acao { Resumo, Aplicar, Selecionar, Categorias, Vincular }
         public Acao Pedido { get; set; }
+        /// <summary>Contagem por categoria pedida pelo clique no botão Categorias (não se perde se outro pedido vier antes).</summary>
+        public bool ContarPendente { get; set; }
         public AplicarClassificacaoWindow Janela { get; set; }
 
         public void Execute(UIApplication app)
@@ -42,9 +44,18 @@ namespace MetroSP.Classificacao
             if (uidoc == null || Janela == null) return;
             try
             {
+                if (ContarPendente)
+                {
+                    ContarPendente = false;
+                    Janela.Status("Contando os elementos por categoria...");
+                    Dictionary<string, int> contagem = ContarCategorias(uidoc);
+                    Janela.Status($"{contagem.Values.Sum()} elementos em {contagem.Count} categorias ({(Janela.SelecaoNaVista ? "vista atual" : "todo o modelo")}).");
+                    Janela.DefinirCategorias(contagem, abrir: true);
+                    if (Pedido == Acao.Categorias) return;
+                }
                 if (Pedido == Acao.Aplicar) Aplicar(uidoc);
                 else if (Pedido == Acao.Selecionar) SelecionarPorCategoria(uidoc);
-                else if (Pedido == Acao.Categorias) { Janela.DefinirCategorias(ContarCategorias(uidoc)); return; }
+                else if (Pedido == Acao.Categorias) return;
                 else if (Pedido == Acao.Vincular) Vincular(uidoc);
                 Janela.MostrarResumo(Resumir(uidoc));
             }
@@ -232,6 +243,9 @@ namespace MetroSP.Classificacao
             _soCategorias = new CheckBox { Content = "Mostrar só o que vale para as categorias selecionadas", IsChecked = true, Margin = new Thickness(0, 6, 0, 6) };
             _soCategorias.Click += (s, e) => MontarArvore();
             _arvore = new TreeView { BorderBrush = Theme.Solid(Theme.CinzaClaro) };
+            // Planilhas grandes: só os itens visíveis na tela são desenhados.
+            VirtualizingPanel.SetIsVirtualizing(_arvore, true);
+            VirtualizingPanel.SetVirtualizationMode(_arvore, VirtualizationMode.Standard);
             _arvore.SelectedItemChanged += (s, e) =>
             {
                 if (_montandoArvore) return; // a árvore está sendo remontada (ex.: busca): o item é conferido no fim
@@ -260,7 +274,10 @@ namespace MetroSP.Classificacao
             _escopoSelecao.Items.Add("Vista atual");
             _escopoSelecao.Items.Add("Todo o modelo");
             _escopoSelecao.SelectedIndex = 0;
-            _escopoSelecao.SelectionChanged += (s, e) => Pedir(AplicarHandler.Acao.Categorias);
+            // Trocar o escopo não varre o modelo: a contagem é refeita quando a lista de categorias for aberta.
+            _escopoSelecao.SelectionChanged += (s, e) => Categorias.Invalidar();
+            Categorias.ToolTip = "Escolha as categorias a selecionar. Os elementos são contados ao abrir a lista.";
+            Categorias.PedirContagem = () => { _handler.ContarPendente = true; Pedir(AplicarHandler.Acao.Categorias); };
             _soSem = new CheckBox { Content = "Só os sem classificação", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
             var selecionar = new Button { Content = "Selecionar", Padding = new Thickness(10, 2, 10, 2) };
             selecionar.Click += (s, e) => Pedir(AplicarHandler.Acao.Selecionar);
@@ -322,9 +339,17 @@ namespace MetroSP.Classificacao
             Theme.Apply(this, "Aplicar classificação", $"grava em {config.Parametro} no formato Código:Descrição", tudo, rodape);
             Closed += (s, e) => _evento.Dispose();
 
-            _planilha.Carregar();
+            // Abrir rápido: nada de varrer o modelo antes de mostrar a janela. A planilha é lida depois que a janela
+            // aparece (fora da tela, e só uma vez enquanto o arquivo não mudar) e as categorias são contadas só quando
+            // o projetista abre a lista de categorias.
             MostrarDetalhe();
-            DefinirCategorias(_handler.ContarCategorias(uidoc));
+            ContentRendered += PrimeiroDesenho;
+        }
+
+        private void PrimeiroDesenho(object sender, EventArgs e)
+        {
+            ContentRendered -= PrimeiroDesenho;
+            _planilha.CarregarEmSegundoPlano();
         }
 
         private void Pedir(AplicarHandler.Acao acao)
@@ -333,7 +358,7 @@ namespace MetroSP.Classificacao
             _evento.Raise();
         }
 
-        public void DefinirCategorias(Dictionary<string, int> contagem) => Categorias.Definir(contagem);
+        public void DefinirCategorias(Dictionary<string, int> contagem, bool abrir = false) => Categorias.Definir(contagem, abrir);
 
         /// <summary>Chamado pelo comando quando a seleção do Revit muda (contexto da API).</summary>
         public void SelecaoMudou(UIApplication app)

@@ -6,6 +6,9 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 
 ## Próxima versão
 
+- Revit e Civil 3D, **Entrega passo a passo**: abre sempre no passo 1. Antes abria na primeira etapa com pendência
+  (ou no último passo, com tudo certo). Quem abre por um atalho (clique numa etapa do Painel MetroSP ou
+  **Passo a passo...** do Exportar IFC) continua indo direto para a etapa escolhida.
 - Revit, **Entrega passo a passo › Parâmetros** mais fácil de ler:
   - Os erros do .txt de property sets aparecem uma vez só, no painel **O que falta** à esquerda. A caixa rosa repetida
     em cima da tabela saiu (na ferramenta **Parâmetros** aberta sozinha, ela continua, com uma linha por erro).
@@ -26,6 +29,12 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   **Psets de material** e **quantidades base** sempre saem; **Psets internos do Revit** nunca saem. Na janela dos perfis
   essas caixas mostram o que está no .json, travadas, com 🔒 "sempre exporta" ou "nunca exporta" (em laranja quando o
   arquivo diz o contrário).
+- Revit, **Aplicar classificação abre na hora**: a janela não varre mais os elementos da vista antes de aparecer.
+  - As categorias de **Selecionar no Revit por categoria** só são contadas quando você abre a lista de categorias
+    (trocar entre Vista atual e Todo o modelo também não conta mais na hora).
+  - A planilha é lida depois que a janela aparece, sem travar a tela, e só a primeira aba do .xlsx.
+    Reabrindo a janela, a planilha não é lida de novo enquanto o arquivo não mudar (**Recarregar** sempre lê).
+  - A árvore só desenha os itens que aparecem na tela (planilhas grandes).
 
 ## 1.0.8 (16/11/2026)
 

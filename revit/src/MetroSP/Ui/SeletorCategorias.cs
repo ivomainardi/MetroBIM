@@ -29,7 +29,12 @@ namespace MetroSP.Ui
             Padding = new Thickness(8, 3, 8, 3);
             Background = Brushes.White;
             ToolTip = "Escolha as categorias a considerar.";
-            Click += (s, e) => Abrir();
+            Click += (s, e) =>
+            {
+                // Contagem sob demanda: a janela só varre o modelo quando o projetista abre a lista.
+                if (PedirContagem != null && !Contado) { Content = "Contando...  ▾"; PedirContagem(); }
+                else Abrir();
+            };
             AtualizarTexto();
         }
 
@@ -41,10 +46,31 @@ namespace MetroSP.Ui
 
         public IEnumerable<string> Marcadas => _marcadas == null ? _contagem.Keys : _contagem.Keys.Where(_marcadas.Contains);
 
+        /// <summary>
+        /// Opcional: quem conta os elementos por categoria (ex.: um ExternalEvent do Revit). Quando definido, a contagem
+        /// só é feita no primeiro clique; quem conta chama Definir(contagem, abrir: true) para mostrar a lista.
+        /// </summary>
+        public Action PedirContagem { get; set; }
+
+        /// <summary>As contagens atuais valem para o escopo atual.</summary>
+        public bool Contado { get; private set; }
+
         /// <summary>Define as categorias disponíveis (nome → elementos), mantendo a escolha anterior quando possível.</summary>
-        public void Definir(IDictionary<string, int> contagem)
+        public void Definir(IDictionary<string, int> contagem) => Definir(contagem, false);
+
+        /// <param name="abrir">true abre a lista logo depois (contagem pedida pelo clique).</param>
+        public void Definir(IDictionary<string, int> contagem, bool abrir)
         {
             _contagem = new Dictionary<string, int>(contagem);
+            Contado = true;
+            AtualizarTexto();
+            if (abrir) Abrir();
+        }
+
+        /// <summary>O escopo mudou: a contagem é refeita no próximo clique (a escolha feita é mantida).</summary>
+        public void Invalidar()
+        {
+            Contado = false;
             AtualizarTexto();
         }
 
@@ -52,7 +78,7 @@ namespace MetroSP.Ui
         {
             int total = _contagem.Count;
             int marcadas = Marcadas.Count();
-            string texto = total == 0 ? "Categorias" : Todas ? $"Categorias: todas ({total})"
+            string texto = total == 0 || (PedirContagem != null && !Contado && _marcadas == null) ? "Categorias" : Todas ? $"Categorias: todas ({total})"
                 : marcadas == 0 ? "Categorias: nenhuma"
                 : marcadas <= 2 ? "Categorias: " + string.Join(", ", Marcadas)
                 : $"Categorias: {marcadas} de {total}";
