@@ -4,10 +4,15 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## 1.0.9 (17/11/2026)
+## Próxima versão
 
-Revit 0.3.12 · Civil 3D 0.12.4
-
+- Revit, **Entrega passo a passo › Parâmetros** mais fácil de ler:
+  - Os erros do .txt de property sets aparecem uma vez só, no painel **O que falta** à esquerda. A caixa rosa repetida
+    em cima da tabela saiu (na ferramenta **Parâmetros** aberta sozinha, ela continua, com uma linha por erro).
+  - Textos dos erros curtos, por exemplo "2093 elemento(s) sem o parâmetro "Length"." A explicação completa fica na
+    dica (passe o mouse no cartão).
+  - A tabela de parâmetros de projeto ganha a altura toda. A coluna **Problema** só aparece quando há problema, e as
+    colunas não ficam mais espremidas: com pouco espaço, a tabela rola para o lado. Cada título tem uma dica.
 - Revit, **Perfil de exportação** no lugar de "Padrão": a configuração que se escolhe para exportar (setup, property sets
   e mapeamento) passa a se chamar **perfil**, no Exportar IFC, na Entrega passo a passo, no arquivo de coordenação
   (Exportar alterações, Abrir alterações e a faixa) e na janela dos perfis. **Padrões do Metrô** (.ids) e a janela
