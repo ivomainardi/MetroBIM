@@ -370,7 +370,7 @@ namespace MetroSP.Confronto
                             }
                         }
                         d.Original = (d.Situacao, d.OQueFazer, d.PodeAplicar);
-                        if (ignorados.Contains(d.ChaveIgnorar)) { d.Situacao = LinhaConfronto.Ignorado; d.OQueFazer = "Ignorado neste padrão"; d.PodeAplicar = false; }
+                        if (ignorados.Contains(d.ChaveIgnorar)) { d.Situacao = LinhaConfronto.Ignorado; d.OQueFazer = "Ignorado neste perfil"; d.PodeAplicar = false; }
 
                         // Uma linha por tipo.
                         if (g != null)

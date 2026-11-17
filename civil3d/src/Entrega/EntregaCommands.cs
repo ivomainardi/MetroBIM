@@ -131,7 +131,7 @@ namespace MetroSP.Entrega
 
             var botoes = new WrapPanel { Margin = new Thickness(12, 8, 12, 12) };
             var conferir = EntregaWindow.Pilula("⟳ Conferir", primario: true);
-            conferir.ToolTip = "Confere o desenho ativo nas 7 etapas.";
+            conferir.ToolTip = "Confere o modelo ativo nas 7 etapas.";
             conferir.Margin = new Thickness(0, 0, 6, 4);
             conferir.Click += (s, e) => Conferir();
             var abrir = EntregaWindow.Pilula("Abrir a entrega");
@@ -183,7 +183,7 @@ namespace MetroSP.Entrega
         {
             if (_ps == null || _etapas == null) return;
             var doc = AcApp.DocumentManager.MdiActiveDocument;
-            _desenho.Text = doc == null ? "Nenhum desenho aberto" : System.IO.Path.GetFileNameWithoutExtension(doc.Name);
+            _desenho.Text = doc == null ? "Nenhum modelo aberto" : System.IO.Path.GetFileNameWithoutExtension(doc.Name);
             var r = ConferenciaEntrega.Ultima(doc);
             _quando.Text = r == null ? "Ainda não conferido. Clique em Conferir." : $"Conferido às {r.Quando:HH:mm}";
             _etapas.Children.Clear();

@@ -35,18 +35,19 @@ namespace MetroSP.Classificacao
         private readonly ComboBox _formato;
         private readonly ComboBox _pCodigo;
         private readonly ComboBox _pDescricao;
-        private readonly CheckBox _gravarNome;
+        private readonly ComboBox _pLonga;
+        private readonly TextBlock _exemplo;
         private readonly MapaColunasPainel _mapa;
         private readonly TextBlock _info;
         private readonly Button _remover;
 
-        /// <summary>Nome do padrão aberto ao fechar (para a janela de verificação já usá-lo).</summary>
+        /// <summary>Nome do perfil aberto ao fechar (para a janela de verificação já usá-lo).</summary>
         public string Escolhido { get; private set; }
 
         public PadroesClassificacaoWindow(Document doc, string abrir)
         {
             _parametrosModelo = ParametrosDeTexto(doc);
-            Title = "MetroSP - Padrões de classificação";
+            Title = "MetroSP - Perfis de classificação";
             Width = 1000;
             Height = 760;
             MinWidth = 760;
@@ -54,9 +55,9 @@ namespace MetroSP.Classificacao
             ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-            // Padrão
+            // Perfil
             var barra = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            var rotulo = Theme.Rotulo("Padrão");
+            var rotulo = Theme.Rotulo("Perfil");
             DockPanel.SetDock(rotulo, Dock.Left);
             barra.Children.Add(rotulo);
             var acoes = new StackPanel { Orientation = Orientation.Horizontal };
@@ -67,12 +68,13 @@ namespace MetroSP.Classificacao
                 acoes.Children.Add(b);
                 return b;
             }
-            Acao("Novo", "Cria um padrão vazio.", Novo);
-            Acao("Duplicar", "Copia o padrão aberto com outro nome.", Duplicar);
-            Acao("Excluir", "Apaga o padrão aberto deste computador (as planilhas não são apagadas).", Excluir);
+            Acao("Novo", "Cria um perfil vazio.", Novo);
+            Acao("Duplicar", "Copia o perfil aberto com outro nome.", Duplicar);
+            Acao("Excluir", "Apaga o perfil aberto deste computador (as planilhas não são apagadas).", Excluir);
             DockPanel.SetDock(acoes, Dock.Right);
             barra.Children.Add(acoes);
-            _lista = new ComboBox { MinWidth = 200, ToolTip = "Padrões salvos neste computador. Para trazer um padrão recebido ou levar para a equipe: Coordenação › Padrões." };
+            _lista = new ComboBox { MinWidth = 200, IsEditable = true, IsTextSearchEnabled = true, ToolTip = "Perfis salvos neste computador. Digite para procurar. Para trazer um perfil recebido ou levar para a equipe: Coordenação › Padrões." };
+            TextSearch.SetTextPath(_lista, nameof(PadraoClassificacao.Nome));
             _lista.SelectionChanged += (s, e) => { if (!_preenchendo && _lista.SelectedItem is PadraoClassificacao p) Abrir(p); };
             barra.Children.Add(_lista);
 
@@ -80,19 +82,19 @@ namespace MetroSP.Classificacao
             var rotNome = Theme.Rotulo("Nome");
             DockPanel.SetDock(rotNome, Dock.Left);
             linhaNome.Children.Add(rotNome);
-            _nome = new TextBox { ToolTip = "Nome do padrão (também é o nome do arquivo salvo)." };
+            _nome = new TextBox { ToolTip = "Nome do perfil (também é o nome do arquivo salvo)." };
             _nome.TextChanged += (s, e) => { if (!_preenchendo && _atual != null) { _atual.Nome = _nome.Text.Trim(); Alterou(); } };
             linhaNome.Children.Add(_nome);
 
             // Classificações (esquerda)
             var esquerda = new DockPanel { Margin = new Thickness(0, 0, 14, 0) };
             var tituloSis = Theme.Secao("Classificações");
-            tituloSis.ToolTip = "Cada elemento pode ter mais de uma classificação (ex.: Metrô SP em ClassificationCode e Uniformat em ClassificationCode(2)).";
+            tituloSis.ToolTip = "Cada elemento pode ter mais de uma classificação, cada uma no seu parâmetro (ex.: Metrô SP em ClassificationCode e Uniformat em ClassificationCode(2)).";
             tituloSis.Margin = new Thickness(0, 0, 0, 5);
             DockPanel.SetDock(tituloSis, Dock.Top);
             esquerda.Children.Add(tituloSis);
             var botoesSis = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
-            var adicionar = new Button { Content = "+ Adicionar", ToolTip = "Acrescenta uma classificação ao padrão." };
+            var adicionar = new Button { Content = "+ Adicionar", ToolTip = "Acrescenta uma classificação ao perfil." };
             adicionar.Click += (s, e) => Adicionar();
             _remover = new Button { Content = "Remover", Margin = new Thickness(6, 0, 0, 0) };
             _remover.Click += (s, e) => Remover();
@@ -115,26 +117,28 @@ namespace MetroSP.Classificacao
             _modelo.SelectionChanged += (s, e) => AplicarModelo();
             _detalhe.Children.Add(Campo("Modelo da Autodesk", _modelo));
 
-            _sisNome = new TextBox { ToolTip = "Nome da classificação. Com \"Gravar com [Nome]\", vira o nome da IfcClassification no IFC." };
+            _sisNome = new TextBox { ToolTip = "Nome da classificação. Na escrita [Nome]Código:Título, vira o nome da IfcClassification no IFC." };
             _edicao = new TextBox { ToolTip = "Opcional: edição ou versão da lista (ex.: 2026)." };
             _sisNome.TextChanged += (s, e) => { if (!Preenchendo()) { _sis.Nome = _sisNome.Text.Trim(); AtualizarLista(); Alterou(); } };
             _edicao.TextChanged += (s, e) => { if (!Preenchendo()) { _sis.Edicao = _edicao.Text.Trim(); Alterou(); } };
             _detalhe.Children.Add(DuasColunas(Campo("Nome", _sisNome), Campo("Edição", _edicao)));
 
             _formato = new ComboBox();
-            _formato.Items.Add(new ComboBoxItem { Content = "Código:Descrição num parâmetro", ToolTip = "Como o ClassificationCode do exportador IFC: \"EST.02.01:Laje\"." });
-            _formato.Items.Add(new ComboBoxItem { Content = "Código e descrição separados", ToolTip = "Um parâmetro para o código e outro (opcional) para a descrição, como no Classification Manager." });
+            _formato.Items.Add(new ComboBoxItem { Content = "Código:Título", ToolTip = "Um parâmetro com \"EST.02.01:Laje maciça\", como o ClassificationCode do exportador IFC." });
+            _formato.Items.Add(new ComboBoxItem { Content = "[Nome]Código:Título", ToolTip = "Igual, com o nome da classificação no começo: \"[Metrô SP]EST.02.01:Laje maciça\". O exportador IFC usa o nome como IfcClassification; sem ele, usa a classificação configurada na exportação." });
+            _formato.Items.Add(new ComboBoxItem { Content = "Código e título em parâmetros separados", ToolTip = "Um parâmetro para o código e outro (opcional) para o título, como no Classification Manager." });
             _formato.SelectionChanged += (s, e) =>
             {
                 if (Preenchendo()) return;
-                _sis.Formato = _formato.SelectedIndex == 1 ? FormatoClassificacao.Separados : FormatoClassificacao.CodigoDescricao;
+                _sis.Formato = _formato.SelectedIndex == 2 ? FormatoClassificacao.Separados : FormatoClassificacao.CodigoDescricao;
+                _sis.GravarNome = _formato.SelectedIndex == 1;
                 AtualizarHabilitados();
                 Alterou();
             };
-            _detalhe.Children.Add(Campo("Como fica no modelo", _formato));
 
-            _pCodigo = ComboParametros("Parâmetro de texto com o código (ou Código:Descrição). Instância ou tipo.");
-            _pDescricao = ComboParametros("Parâmetro de texto com a descrição. Vazio = só o código é conferido.");
+            _pCodigo = ComboParametros("Parâmetro de texto que recebe Código:Título (ou só o código, na escrita separada). Instância ou tipo. Digite para procurar.");
+            _pDescricao = ComboParametros("Só na escrita separada: parâmetro de texto com o título. Vazio = só o código é conferido.");
+            _pLonga = ComboParametros("Opcional: outro parâmetro que recebe a coluna Descrição (texto longo). Vazio = a descrição não é gravada.");
             _pCodigo.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler((s, e) =>
             {
                 if (Preenchendo()) return;
@@ -148,23 +152,31 @@ namespace MetroSP.Classificacao
                 _sis.ParametroDescricao = _pDescricao.Text.Trim();
                 Alterou();
             }));
-            _detalhe.Children.Add(DuasColunas(Campo("Parâmetro do código", _pCodigo), Campo("Parâmetro da descrição", _pDescricao)));
-
-            _gravarNome = new CheckBox
+            _pLonga.AddHandler(System.Windows.Controls.Primitives.TextBoxBase.TextChangedEvent, new TextChangedEventHandler((s, e) =>
             {
-                Content = "Gravar com [Nome] no começo",
-                Margin = new Thickness(0, 8, 0, 0),
-                ToolTip = "As correções gravam \"[Nome]Código:Descrição\". O exportador IFC da Autodesk usa o nome como IfcClassification; " +
-                          "sem ele, usa a classificação configurada na exportação.",
+                if (Preenchendo()) return;
+                _sis.ParametroDescricaoLonga = _pLonga.Text.Trim();
+                Alterou();
+            }));
+            _detalhe.Children.Add(Campo("Escrita", _formato));
+            _detalhe.Children.Add(DuasColunas(Campo("Parâmetro do código", _pCodigo), Campo("Parâmetro do título", _pDescricao)));
+            _detalhe.Children.Add(Campo("Descrição em outro parâmetro (opcional)", _pLonga));
+            _detalhe.Children.Add(Theme.Label("Como fica no elemento"));
+            _exemplo = new TextBlock
+            {
+                FontFamily = new System.Windows.Media.FontFamily("Consolas"),
+                Background = Theme.Solid(Theme.CinzaFundo),
+                Padding = new Thickness(8, 5, 8, 5),
+                TextWrapping = TextWrapping.Wrap,
+                ToolTip = "Com o primeiro item da planilha. O plugin também reconhece \"Código - Título\", só o código e outra pontuação no código, e propõe corrigir para esta escrita.",
             };
-            _gravarNome.Click += (s, e) => { if (!Preenchendo()) { _sis.GravarNome = _gravarNome.IsChecked == true; Alterou(); } };
-            _detalhe.Children.Add(_gravarNome);
+            _detalhe.Children.Add(_exemplo);
 
             var tituloPlanilha = Theme.Secao("Planilha com a lista");
             tituloPlanilha.ToolTip = "Escolha a planilha e indique em qual coluna está cada dado. Pode ser a mesma planilha para várias classificações, em abas ou colunas diferentes.";
             _detalhe.Children.Add(tituloPlanilha);
             _mapa = new MapaColunasPainel(new MapaColunas(), SistemaClassificacao.Campos);
-            _mapa.Mudou += () => { if (!_preenchendo) Alterou(); };
+            _mapa.Mudou += () => { if (!_preenchendo) { _exemploItem = null; Alterou(); } };
             _detalhe.Children.Add(_mapa);
             // A planilha vem primeiro: é o que o usuário precisa escolher; o resto já vem preenchido.
             _detalhe.Children.Remove(tituloPlanilha);
@@ -191,7 +203,7 @@ namespace MetroSP.Classificacao
             corpo.Children.Add(principal);
 
             _info = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
-            var salvar = new Button { Content = "Salvar", Style = Theme.PrimaryButton, ToolTip = "Grava o padrão neste computador (" + PadraoClassificacao.Pasta + ")." };
+            var salvar = new Button { Content = "Salvar", Style = Theme.PrimaryButton, ToolTip = "Grava o perfil neste computador (" + PadraoClassificacao.Pasta + ")." };
             salvar.Click += (s, e) => Salvar();
             var fechar = new Button { Content = "Fechar", IsCancel = true };
             fechar.Click += (s, e) => Close();
@@ -201,7 +213,7 @@ namespace MetroSP.Classificacao
             rodape.Children.Add(botoes);
             rodape.Children.Add(_info);
 
-            Theme.Apply(this, "Padrões de classificação", "Classificações a conferir, onde ficam no modelo e de qual planilha vem cada lista", corpo, rodape);
+            Theme.Apply(this, "Perfis de classificação", "Planilha, colunas e parâmetro de cada classificação", corpo, rodape);
             Closing += (s, e) =>
             {
                 if (!_alterado) return;
@@ -333,7 +345,7 @@ namespace MetroSP.Classificacao
         private void Novo()
         {
             if (!PodeTrocar()) return;
-            var p = new PadraoClassificacao { Nome = NomeLivre("Novo padrão"), Sistemas = { new SistemaClassificacao() } };
+            var p = new PadraoClassificacao { Nome = NomeLivre("Novo perfil"), Sistemas = { new SistemaClassificacao() } };
             _padroes.Add(p);
             _atual = null;
             PreencherLista(p);
@@ -364,7 +376,7 @@ namespace MetroSP.Classificacao
         private void Excluir()
         {
             if (_atual == null) return;
-            if (MessageBox.Show(this, $"Excluir o padrão \"{_atual.Nome}\" deste computador?\n\nAs planilhas que ele usa não são apagadas.",
+            if (MessageBox.Show(this, $"Excluir o perfil \"{_atual.Nome}\" deste computador?\n\nAs planilhas que ele usa não são apagadas.",
                     Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             try { _atual.Excluir(); }
             catch (Exception ex) { MessageBox.Show(this, "Não foi possível excluir:\n" + ex.Message, Title); return; }
@@ -378,10 +390,10 @@ namespace MetroSP.Classificacao
         private bool Salvar()
         {
             if (_atual == null) return true;
-            if (string.IsNullOrWhiteSpace(_atual.Nome)) { MessageBox.Show(this, "Dê um nome ao padrão.", Title); return false; }
+            if (string.IsNullOrWhiteSpace(_atual.Nome)) { MessageBox.Show(this, "Dê um nome ao perfil.", Title); return false; }
             if (_padroes.Any(p => p != _atual && string.Equals(p.Nome, _atual.Nome, StringComparison.CurrentCultureIgnoreCase)))
             {
-                MessageBox.Show(this, $"Já existe outro padrão chamado \"{_atual.Nome}\".", Title);
+                MessageBox.Show(this, $"Já existe outro perfil chamado \"{_atual.Nome}\".", Title);
                 return false;
             }
             var semParametro = _atual.Sistemas.Where(s => string.IsNullOrWhiteSpace(s.ParametroCodigo)).Select(s => s.Nome).ToList();
@@ -472,10 +484,11 @@ namespace MetroSP.Classificacao
             _modelo.SelectedItem = modelo == null ? _modelo.Items[0] : _modelo.Items.OfType<ComboBoxItem>().FirstOrDefault(i => ((ModeloAutodesk)i.Tag).Rotulo == modelo.Rotulo);
             _sisNome.Text = s.Nome ?? "";
             _edicao.Text = s.Edicao ?? "";
-            _formato.SelectedIndex = s.Formato == FormatoClassificacao.Separados ? 1 : 0;
+            _formato.SelectedIndex = s.Formato == FormatoClassificacao.Separados ? 2 : s.GravarNome ? 1 : 0;
             _pCodigo.Text = s.ParametroCodigo ?? "";
             _pDescricao.Text = s.ParametroDescricao ?? "";
-            _gravarNome.IsChecked = s.GravarNome;
+            _pLonga.Text = s.ParametroDescricaoLonga ?? "";
+            _exemploItem = null;
             _mapa.DefinirMapa(s.Planilha ??= new MapaColunas(), SistemaClassificacao.Campos);
             _preenchendo = false;
             AtualizarHabilitados();
@@ -498,13 +511,34 @@ namespace MetroSP.Classificacao
 
         private void AtualizarHabilitados()
         {
-            bool separados = _formato.SelectedIndex == 1;
+            bool separados = _formato.SelectedIndex == 2;
             _pDescricao.IsEnabled = separados;
-            _gravarNome.IsEnabled = !separados;
+        }
+
+        private ClassItem _exemploItem;
+
+        /// <summary>Primeiro item da planilha com título, para o exemplo (lido de novo só quando as colunas mudam).</summary>
+        private ClassItem ItemExemplo()
+        {
+            if (_exemploItem != null || _sis == null || _mapa.Tabela == null) return _exemploItem;
+            try
+            {
+                if (_sis.Planilha?.Coluna(SistemaClassificacao.CampoCodigo.Chave) == null) return null;
+                ClassificationList l = ClassificationList.De(_mapa.Tabela, _sis.Planilha, _sis.Nome);
+                _exemploItem = l.Itens.FirstOrDefault(i => i.Descricao.Length > 0 && i.Pai != null) ?? l.Itens.FirstOrDefault();
+            }
+            catch { }
+            return _exemploItem;
         }
 
         private void AtualizarInfo()
         {
+            if (_exemplo != null && _sis != null)
+            {
+                ClassItem it = ItemExemplo();
+                _exemplo.Text = _sis.Exemplo(it) +
+                    (!string.IsNullOrWhiteSpace(_sis.ParametroDescricaoLonga) && !string.IsNullOrEmpty(it?.DescricaoLonga) ? $"\n{_sis.ParametroDescricaoLonga} = {it.DescricaoLonga}" : "");
+            }
             if (_atual == null) { _info.Text = ""; return; }
             string pend = _sis == null ? null : _mapa.Pendencia();
             int n = _atual.Sistemas.Count;

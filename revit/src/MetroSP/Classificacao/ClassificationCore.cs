@@ -59,21 +59,45 @@ namespace MetroSP.Classificacao
         public string Sistema { get; set; }
         public string Codigo { get; set; }
         public string Descricao { get; set; }
+        /// <summary>true = "Código:Título" (com ou sem [Nome]), como o exportador IFC lê.</summary>
         public bool Valido { get; set; }
+        /// <summary>Código e título reconhecidos, mas com outro separador ("Código - Título", tabulação, ";").</summary>
+        public bool OutroSeparador { get; set; }
+        /// <summary>O texto sem o [Nome] do começo.</summary>
+        public string Resto { get; set; }
 
-        private static readonly Regex Formato = new Regex(@"^\s*(?:\[(?<s>[^\]]*)\])?\s*(?<c>[^:]+?)\s*:\s*(?<d>.*?)\s*$");
+        private static readonly Regex Formato = new Regex(@"^\s*(?:\[(?<s>[^\]]*)\])?\s*(?<c>[^:]+?)\s*:\s*(?<d>.*?)\s*$", RegexOptions.Singleline);
+        private static readonly Regex Nome = new Regex(@"^\s*\[(?<s>[^\]]*)\]\s*(?<r>.*)$", RegexOptions.Singleline);
+        // Outros separadores comuns entre código e título: " - ", " – ", " — ", tabulação, ";", "|".
+        private static readonly Regex Alternativo = new Regex(@"^(?<c>\S+?)\s*(?:\s[-–—]\s|\t|;|\|)\s*(?<d>.+?)$", RegexOptions.Singleline);
+
+        /// <summary>Espaços especiais, quebras de linha e dois-pontos de largura total viram o caractere comum.</summary>
+        public static string Limpar(string texto) =>
+            (texto ?? "").Replace('\u00A0', ' ').Replace('\u2007', ' ').Replace('\u202F', ' ').Replace('\uFF1A', ':')
+                         .Replace("\r\n", " ").Replace('\r', ' ').Replace('\n', ' ').Trim();
 
         public static ValorClassificacao Ler(string texto)
         {
             var v = new ValorClassificacao();
             if (string.IsNullOrWhiteSpace(texto)) return v;
-            Match m = Formato.Match(texto);
+            string t = Limpar(texto);
+            Match n = Nome.Match(t);
+            v.Sistema = n.Success ? n.Groups["s"].Value : null;
+            v.Resto = n.Success ? n.Groups["r"].Value.Trim() : t;
+            Match m = Formato.Match(t);
             if (m.Success && m.Groups["d"].Value.Length > 0)
             {
-                v.Sistema = m.Groups["s"].Success ? m.Groups["s"].Value : null;
                 v.Codigo = m.Groups["c"].Value;
                 v.Descricao = m.Groups["d"].Value;
                 v.Valido = true;
+                return v;
+            }
+            Match a = Alternativo.Match(v.Resto);
+            if (a.Success)
+            {
+                v.Codigo = a.Groups["c"].Value;
+                v.Descricao = a.Groups["d"].Value;
+                v.OutroSeparador = true;
             }
             return v;
         }
@@ -122,6 +146,8 @@ namespace MetroSP.Classificacao
         public string ValorProposto { get; set; }
         /// <summary>true quando a proposta é segura (mesma classificação, só a escrita muda).</summary>
         public bool PropostaSegura { get; set; }
+        /// <summary>Item da lista reconhecido no valor (null = não reconhecido).</summary>
+        public ClassItem Item { get; set; }
     }
 
     /// <summary>Um código usado no modelo e as descrições encontradas para ele.</summary>
@@ -139,7 +165,8 @@ namespace MetroSP.Classificacao
         public const string SemClassificacao = "Sem classificação";
         public const string FormatoInvalido = "Formato inválido";
         public const string ForaDaLista = "Código fora da lista";
-        public const string DescricaoDiferente = "Descrição diferente da lista";
+        public const string DescricaoDiferente = "Escrita diferente da lista";
+        /// <summary>Não é mais gerada (1.0.10: a classificação não confere categoria); fica para a Conferência da entrega.</summary>
         public const string CategoriaNaoPrevista = "Categoria não prevista";
         public const string SemParametro = "Sem o parâmetro";
         public const string PrefixoFormula = "Fórmula na família ";
@@ -257,6 +284,7 @@ namespace MetroSP.Classificacao
             string parametro = s.ParametroCodigo;
             string pDesc = s.Formato == FormatoClassificacao.Separados && !string.IsNullOrWhiteSpace(s.ParametroDescricao) ? s.ParametroDescricao : null;
             string nomeGravar = s.GravarNome ? s.Nome : null;
+            string pLonga = string.IsNullOrWhiteSpace(s.ParametroDescricaoLonga) ? null : s.ParametroDescricaoLonga.Trim();
             List<Element> todos = elementos.ToList();
             Ui.Progresso.Atual?.Etapa($"{s.Nome}: analisando {todos.Count} elementos", todos.Count);
             foreach (Element e in todos)
@@ -287,9 +315,28 @@ namespace MetroSP.Classificacao
                 if (l.Situacao == SemParametro && l.Proposta == null) l.Proposta = $"Vincule o parâmetro {parametro} à categoria";
                 if (s.Formato == FormatoClassificacao.CodigoDescricao && l.ValorProposto != null && l.DonoId != null)
                     l.Gravacoes.Add((l.DonoId, parametro, l.ValorProposto));
+                if (pLonga != null && l.Item != null && !string.IsNullOrEmpty(l.Item.DescricaoLonga)) ConferirDescricaoLonga(doc, e, l, pLonga);
                 l.Acao = Acao(l);
             }
             return linhas;
+        }
+
+        /// <summary>Descrição longa (coluna Descrição) no parâmetro escolhido: falta ou escrita diferente vira correção segura.</summary>
+        private static void ConferirDescricaoLonga(Document doc, Element e, LinhaVerificacao l, string pLonga)
+        {
+            AlvoClassificacao ad = Alvo(doc, e, pLonga);
+            if (ad.Parametro == null || ad.Parametro.IsReadOnly) return;
+            string atual = ad.Valor ?? "";
+            if (atual == l.Item.DescricaoLonga) return;
+            l.Gravacoes.Add((ad.Dono.Id, pLonga, l.Item.DescricaoLonga));
+            if (l.Situacao == OK)
+            {
+                l.Situacao = DescricaoDiferente;
+                l.PropostaSegura = true;
+                l.Proposta = atual.Length == 0 ? $"Preencher {pLonga}" : $"Usar a descrição da lista em {pLonga} ({MotivoDiferenca(atual, l.Item.DescricaoLonga)})";
+                l.ValorProposto = l.Item.DescricaoLonga;
+                l.NaLista ??= l.Item.Codigo + " · " + l.Item.DescricaoLonga;
+            }
         }
 
         /// <summary>Botão da linha: o que fazer na situação.</summary>
@@ -299,8 +346,9 @@ namespace MetroSP.Classificacao
             if (l.Situacao == SemParametro) return "Criar parâmetro";
             if (l.FamiliaFormula != null) return "Remover fórmula";
             if (!string.IsNullOrEmpty(l.Bloqueio)) return "Mostrar";
-            if (l.Gravacoes.Count > 0) return "Corrigir";
-            if (l.Situacao == SemClassificacao || l.Situacao == ForaDaLista || l.Situacao == FormatoInvalido || l.Situacao == CategoriaNaoPrevista)
+            // Corrigir abre a lista com a proposta marcada: dá para aceitar ou escolher outro item.
+            if (l.Gravacoes.Count > 0) return "Corrigir...";
+            if (l.Situacao == SemClassificacao || l.Situacao == ForaDaLista || l.Situacao == FormatoInvalido)
                 return "Escolher...";
             return "Mostrar";
         }
@@ -312,17 +360,35 @@ namespace MetroSP.Classificacao
             if (string.IsNullOrWhiteSpace(valor)) { l.Situacao = SemClassificacao; l.Proposta = "Escolha na lista"; return; }
 
             ValorClassificacao v = ValorClassificacao.Ler(valor);
+            string nome = nomeGravar ?? v.Sistema;
+
+            void EscritaDiferente(ClassItem it, string motivo)
+            {
+                l.Situacao = DescricaoDiferente;
+                l.Item = it;
+                l.NaLista = ValorClassificacao.Escrever(it.Codigo, it.Descricao);
+                l.ValorProposto = ValorClassificacao.Escrever(it.Codigo, it.Descricao.Length == 0 ? (v.Descricao ?? "") : it.Descricao, nome);
+                l.Proposta = "Usar a escrita da lista (" + motivo + ")";
+                l.PropostaSegura = true;
+            }
+
             ClassItem item;
             if (!v.Valido)
             {
-                // Tenta reconhecer o código no começo do texto (ex.: "EST 02 03 01 - Laje").
-                item = ProcurarPorTexto(lista, valor);
+                // Mesmo código, só a escrita fora do formato: outro separador ("EST.02.01 - Laje") ou só o código ("EST.02.01").
+                if (v.OutroSeparador && (lista.PorCodigo.TryGetValue(v.Codigo, out item) || lista.PorAlfa.TryGetValue(SoAlfanumerico(v.Codigo), out item)))
+                { EscritaDiferente(item, "separador"); return; }
+                if (lista.PorAlfa.TryGetValue(SoAlfanumerico(v.Resto), out item) && SoAlfanumerico(v.Resto).Length > 0)
+                { EscritaDiferente(item, "falta o título"); return; }
+
+                // Tenta reconhecer o código no começo do texto (ex.: "EST 02 03 01 Laje"): troca o código, não é automática.
+                item = ProcurarPorTexto(lista, v.Resto);
                 l.Situacao = FormatoInvalido;
-                l.Proposta = "Formato esperado Código:Descrição";
+                l.Proposta = "Formato esperado Código:Título";
                 if (item != null)
                 {
                     l.NaLista = ValorClassificacao.Escrever(item.Codigo, item.Descricao);
-                    l.ValorProposto = ValorClassificacao.Escrever(item.Codigo, item.Descricao, nomeGravar);
+                    l.ValorProposto = ValorClassificacao.Escrever(item.Codigo, item.Descricao, nome);
                     l.Proposta = $"Reescrever como {l.NaLista}";
                 }
                 return;
@@ -330,35 +396,40 @@ namespace MetroSP.Classificacao
 
             if (!lista.PorCodigo.TryGetValue(v.Codigo, out item))
             {
+                // Mesmo código com outra pontuação ou espaços ("EST 02 01"): é só a escrita.
+                if (lista.PorAlfa.TryGetValue(SoAlfanumerico(v.Codigo), out item)) { EscritaDiferente(item, "pontuação do código"); return; }
                 l.Situacao = ForaDaLista;
                 ClassItem parecido = Parecido(lista, v.Codigo, v.Descricao);
                 if (parecido != null)
                 {
                     l.NaLista = ValorClassificacao.Escrever(parecido.Codigo, parecido.Descricao);
-                    l.ValorProposto = ValorClassificacao.Escrever(parecido.Codigo, parecido.Descricao, nomeGravar ?? v.Sistema);
+                    l.ValorProposto = ValorClassificacao.Escrever(parecido.Codigo, parecido.Descricao, nome);
                     l.Proposta = $"Código parecido: {parecido.Codigo}";
                 }
                 else l.Proposta = "Escolha na lista";
                 return;
             }
 
-            l.NaLista = ValorClassificacao.Escrever(item.Codigo, item.Descricao);
-            if (!item.ValeParaCategoria(e.Category?.Name))
-            {
-                l.Situacao = CategoriaNaoPrevista;
-                l.Proposta = "Item vale para " + string.Join(", ", item.Categorias);
-                return;
-            }
             bool descricaoOk = item.Descricao.Length == 0 || v.Descricao == item.Descricao;
             if (!descricaoOk || v.Codigo != item.Codigo)
             {
-                l.Situacao = DescricaoDiferente;
-                l.Proposta = "Usar a escrita da lista" + Diferenca(v.Descricao, item.Descricao);
-                l.ValorProposto = ValorClassificacao.Escrever(item.Codigo, item.Descricao.Length == 0 ? v.Descricao : item.Descricao, nomeGravar ?? v.Sistema);
-                l.PropostaSegura = true;
+                EscritaDiferente(item, v.Codigo != item.Codigo ? "maiúsculas do código" : MotivoDiferenca(v.Descricao, item.Descricao));
+                return;
+            }
+            // Com "Gravar com [Nome]", o nome da classificação também tem de ser o do perfil.
+            if (nomeGravar != null && !string.Equals(v.Sistema, nomeGravar, StringComparison.Ordinal))
+            {
+                EscritaDiferente(item, v.Sistema == null ? "falta [" + nomeGravar + "]" : "nome da classificação");
+                return;
+            }
+            // Espaços em volta dos dois-pontos, espaço especial ou quebra de linha: o texto tem de ser exatamente o da lista.
+            if (valor != ValorClassificacao.Escrever(item.Codigo, item.Descricao.Length == 0 ? v.Descricao : item.Descricao, v.Sistema))
+            {
+                EscritaDiferente(item, "espaços ou caracteres invisíveis");
                 return;
             }
             // [Nome] no começo é aceito pelo exportador IFC: não é erro.
+            l.Item = item;
             l.Situacao = OK;
         }
 
@@ -394,12 +465,7 @@ namespace MetroSP.Classificacao
             }
 
             l.NaLista = $"{it.Codigo} · {it.Descricao}";
-            if (!it.ValeParaCategoria(e.Category?.Name))
-            {
-                l.Situacao = CategoriaNaoPrevista;
-                l.Proposta = "Item vale para " + string.Join(", ", it.Categorias);
-                return;
-            }
+            l.Item = it;
             bool codigoDiferente = cod != it.Codigo;
             bool descDiferente = pDesc != null && it.Descricao.Length > 0 && desc != it.Descricao;
             if (!codigoDiferente && !descDiferente) { l.Situacao = OK; return; }
@@ -411,9 +477,19 @@ namespace MetroSP.Classificacao
             else if (descDiferente && !descEditavel)
                 l.Proposta = "A descrição é preenchida pelo Revit: confira a tabela de classificação carregada no Revit";
             else
-                l.Proposta = "Usar a escrita da lista" + (descDiferente ? Diferenca(desc, it.Descricao) : "");
+                l.Proposta = "Usar a escrita da lista (" + (descDiferente ? MotivoDiferenca(desc, it.Descricao) : "código") + ")";
             if (codigoDiferente || descEditavel) Gravar(it, codigoDiferente);
             if (l.Gravacoes.Count == 0) l.ValorProposto = null;
+        }
+
+        /// <summary>Motivo curto da diferença de escrita, para a coluna "O que muda".</summary>
+        public static string MotivoDiferenca(string atual, string lista)
+        {
+            if (atual == null || lista == null) return "título";
+            if (string.Equals(atual, lista, StringComparison.CurrentCultureIgnoreCase)) return "maiúsculas";
+            if (atual.Trim() != atual || Regex.IsMatch(atual, @"\s{2,}")) { if (Regex.Replace(atual.Trim(), @"\s+", " ") == lista) return "espaços"; }
+            if (Normalizar(atual) == Normalizar(lista)) return "acentos ou pontuação";
+            return "texto do título";
         }
 
         /// <summary>Explica a diferença de escrita (maiúsculas, espaços, acentos ou texto diferente).</summary>

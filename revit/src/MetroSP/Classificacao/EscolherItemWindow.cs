@@ -8,42 +8,37 @@ using MetroSP.Ui;
 
 namespace MetroSP.Classificacao
 {
-    /// <summary>Escolhe um item da lista de classificação: busca por código ou descrição, só os da categoria por padrão.</summary>
+    /// <summary>Escolhe um item da lista de classificação (busca por código ou título), com a sugestão já marcada.</summary>
     public class EscolherItemWindow : Window
     {
         private readonly ClassificationList _lista;
         private readonly string _categoria;
         private readonly TextBox _busca;
-        private readonly CheckBox _soCategoria;
         private readonly ListBox _itens;
         private readonly Button _ok;
 
         public ClassItem Escolhido { get; private set; }
 
-        public EscolherItemWindow(ClassificationList lista, string sistema, string categoria, string elemento, string preenchido)
+        private readonly ClassItem _sugerido;
+
+        /// <param name="sugerido">Item já marcado ao abrir (a proposta da verificação); o usuário pode escolher outro.</param>
+        public EscolherItemWindow(ClassificationList lista, string sistema, string categoria, string elemento, string preenchido, ClassItem sugerido = null)
         {
             _lista = lista;
             _categoria = categoria;
+            _sugerido = sugerido;
             Title = "MetroSP - Escolher classificação";
-            Width = 640;
-            Height = 560;
+            Width = 680;
+            Height = 580;
             MinWidth = 420;
             MinHeight = 320;
             ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
-            _busca = new TextBox { Margin = new Thickness(0, 0, 0, 6), ToolTip = "Digite parte do código ou da descrição." };
+            _busca = new TextBox { Margin = new Thickness(0, 0, 0, 6), ToolTip = "Digite parte do código ou do título (sem diferenciar acentos)." };
             _busca.TextChanged += (s, e) => Filtrar();
-            _soCategoria = new CheckBox
-            {
-                Content = $"Só os previstos para {categoria}",
-                IsChecked = !string.IsNullOrEmpty(categoria) && lista.Itens.Any(i => i.Categorias.Count > 0),
-                IsEnabled = !string.IsNullOrEmpty(categoria) && lista.Itens.Any(i => i.Categorias.Count > 0),
-                Margin = new Thickness(0, 0, 0, 6),
-                ToolTip = "Itens cuja coluna Categorias da planilha inclui esta categoria (ou está vazia).",
-            };
-            _soCategoria.Click += (s, e) => Filtrar();
             _itens = new ListBox { DisplayMemberPath = null };
+            VirtualizingPanel.SetIsVirtualizing(_itens, true);
             _itens.SelectionChanged += (s, e) => _ok.IsEnabled = _itens.SelectedItem is ClassItem;
             _itens.MouseDoubleClick += (s, e) => { if (_itens.SelectedItem is ClassItem) Confirmar(); };
 
@@ -53,14 +48,23 @@ namespace MetroSP.Classificacao
             DockPanel.SetDock(rotulo, Dock.Left);
             busca.Children.Add(rotulo);
             busca.Children.Add(_busca);
-            foreach (UIElement el in new UIElement[] { busca, _soCategoria })
+            DockPanel.SetDock(busca, Dock.Top);
+            corpo.Children.Add(busca);
+            if (sugerido != null)
             {
-                DockPanel.SetDock(el, Dock.Top);
-                corpo.Children.Add(el);
+                var dica = new TextBlock
+                {
+                    Text = $"Sugestão marcada: {sugerido.Codigo}  {sugerido.Descricao}. Escolha outro item se preferir.",
+                    Foreground = Theme.Solid(Theme.Cinza),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 6),
+                };
+                DockPanel.SetDock(dica, Dock.Top);
+                corpo.Children.Add(dica);
             }
             corpo.Children.Add(_itens);
 
-            _ok = new Button { Content = "Gravar", Style = Theme.PrimaryButton, IsEnabled = false, IsDefault = true };
+            _ok = new Button { Content = "Sobrescrever", Style = Theme.PrimaryButton, IsEnabled = false, IsDefault = true, ToolTip = "Grava o item escolhido no lugar do valor atual (Ctrl+Z desfaz)." };
             _ok.Click += (s, e) => Confirmar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             Theme.Apply(this, "Escolher classificação", $"{sistema} · {elemento}" + (string.IsNullOrWhiteSpace(preenchido) ? "" : $" · hoje: {preenchido}"),
@@ -71,14 +75,16 @@ namespace MetroSP.Classificacao
         private void Filtrar()
         {
             string t = ClassificationCore.Normalizar(_busca.Text);
-            bool soCat = _soCategoria.IsChecked == true;
             var itens = _lista.Itens
-                .Where(i => !soCat || i.ValeParaCategoria(_categoria))
                 .Where(i => t.Length == 0 || ClassificationCore.Normalizar(i.Codigo + " " + i.Descricao).Contains(t))
-                .Take(2000)
                 .ToList();
             _itens.ItemsSource = itens;
             if (itens.Count == 1) _itens.SelectedIndex = 0;
+            else if (_sugerido != null && itens.Contains(_sugerido))
+            {
+                _itens.SelectedItem = _sugerido;
+                _itens.ScrollIntoView(_sugerido);
+            }
         }
 
         private void Confirmar()

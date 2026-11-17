@@ -75,9 +75,10 @@ namespace MetroSP.Commands
             List<string> alteracoes = janela.AlteracoesLocalizacao;
 
             bool exportou;
-            string avisoPsets = null, avisoCategorias = null, avisoCoordenacao = null;
+            string avisoPsets = null, avisoCategorias = null, avisoCoordenacao = null, avisoAco = null;
             string passo = "montar as opções do setup";
             EixosIfc eixos = null;
+            AcoIfc aco = null;
             try
             {
                 Directory.CreateDirectory(pastaTemp);
@@ -112,6 +113,14 @@ namespace MetroSP.Commands
                         eixos = EixosIfc.Preparar(doc, janela.Vista);
                     }
 
+                    // Ligações metálicas: parafusos, chapas e soldas como elementos próprios (o exportador só separa no IFC 2x3).
+                    passo = "separar as peças das ligações metálicas";
+                    if (setup.VersaoAceita && AcoIfc.TemAco(doc))
+                    {
+                        try { aco = AcoIfc.Preparar(doc, janela.Vista, FiltroIfc.Fase(doc, janela.Fase, janela.Vista)); }
+                        catch (Exception ex) { aco = null; avisoAco = "Ligações metálicas: não deu para separar as peças (" + ex.Message + "); saíram como o exportador do Revit faz."; }
+                    }
+
                     using (var progresso = Ui.Progresso.Abrir("Exportar IFC"))
                     {
                         progresso.Etapa($"Exportando {janela.NomeArquivo}.ifc com o setup {setup.Nome}");
@@ -122,6 +131,7 @@ namespace MetroSP.Commands
                         tExportador = relogio.Elapsed - tPreparo;
                     }
                     eixos?.Restaurar();
+                    aco?.Restaurar(doc);
 
                     if (exportou && setup.GravaGuid)
                     {
@@ -178,6 +188,17 @@ namespace MetroSP.Commands
                     var modelo = Ifc.StepModel.Load(arquivo);
                     bool salvar = false;
                     gridsNoIfc = modelo.OfType("IFCGRID").Count();
+                    // Peças das ligações metálicas: dados, GlobalId estável e agrupamento na ligação (antes da contagem).
+                    if (avisoAco != null) avisosClassificacao.Add(avisoAco);
+                    if (aco != null)
+                    {
+                        avisosClassificacao.AddRange(aco.Avisos);
+                        if (aco.Pecas.Count > 0)
+                        {
+                            try { salvar |= Ifc.FixadoresIfc.Aplicar(modelo, aco.Pecas, avisosClassificacao.Add).Pecas > 0; }
+                            catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar as peças das ligações metálicas: " + ex.Message); }
+                        }
+                    }
                     // O que saiu: elementos por classe e, se o IFC saiu só com ambientes, a causa provável (fase ou vista).
                     try
                     {
@@ -201,6 +222,15 @@ namespace MetroSP.Commands
                         }
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar o status da fase: " + ex.Message); }
+                    // Armaduras: Count, Length e Weight de cada barra (Qto_ReinforcingElementBaseQuantities), que o exportador
+                    // não grava, inclusive nos conjuntos de comprimento variável.
+                    try
+                    {
+                        var armaduras = Ifc.ArmaduraIfc.Aplicar(modelo, id => ArmaduraRevit.Barras(doc, id));
+                        if (armaduras.Gravadas > 0) salvar = true;
+                        if (armaduras.ToString() is string linha) avisosClassificacao.Add(linha);
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar as quantidades das armaduras: " + ex.Message); }
                     try
                     {
                         escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);

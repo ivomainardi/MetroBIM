@@ -778,8 +778,90 @@ namespace MetroSP.Conferencia
 
         // ================================================================== 5. classificação
 
+        /// <summary>Perfil de classificação em uso (o último escolhido no Verificar/Aplicar), com as planilhas lidas.</summary>
+        private static PadraoClassificacao PerfilClassificacao()
+        {
+            List<PadraoClassificacao> perfis = PadraoClassificacao.Listar();
+            if (perfis.Count == 0) return null;
+            string nome = ClassSettings.Abrir().Padrao;
+            PadraoClassificacao p = perfis.FirstOrDefault(x => x.Nome == nome) ?? perfis[0];
+            var cache = new Dictionary<string, Planilha.Tabela>(StringComparer.OrdinalIgnoreCase);
+            foreach (SistemaClassificacao s in p.Sistemas) s.Carregar(cache);
+            return p;
+        }
+
+        /// <summary>Nome curto da situação, para o título do cartão.</summary>
+        private static string SituacaoCurta(string s) =>
+            s == ClassificationCore.DescricaoDiferente ? "Escrita diferente"
+            : s == ClassificationCore.ForaDaLista ? "Fora da lista"
+            : s;
+
+        /// <summary>
+        /// Passo 5 com o perfil de classificação: um cartão por classificação e situação (sem separar por categoria),
+        /// os mesmos números do Verificar classificação embutido ao lado.
+        /// </summary>
+        private EtapaConferencia ConferirClassificacaoPerfil(PadraoClassificacao perfil, List<SistemaClassificacao> sistemas, List<Element> elementos, out int ok, out int total)
+        {
+            var etapa = new EtapaConferencia
+            {
+                Numero = EtapaConferencia.Classificacao, Titulo = "Classificação",
+                Descricao = $"A escrita das classificações do perfil {perfil.Nome} é igual à das planilhas.",
+                Correcao = Correcao.VerificarClassificacao,
+            };
+            Ui.Progresso.Atual?.Etapa("Conferindo a classificação");
+            var comProblema = new HashSet<ElementId>();
+            int sem = 0;
+            foreach (SistemaClassificacao s in sistemas)
+            {
+                List<LinhaVerificacao> linhas = ClassificationCore.Verificar(_doc, elementos, s);
+                foreach (var g in linhas.Where(l => l.Situacao != ClassificationCore.OK).GroupBy(l => l.Situacao).OrderBy(g => Gravidade(g.Key)))
+                {
+                    string sit = g.Key;
+                    int n = g.Count();
+                    int valores = g.Select(l => l.Preenchido ?? "").Distinct().Count();
+                    foreach (LinhaVerificacao l in g) comProblema.Add(l.ElementoId);
+                    if (sit == ClassificationCore.SemClassificacao || sit == ClassificationCore.SemParametro) sem += n;
+                    etapa.Pendencias.Add(new Pendencia
+                    {
+                        Sinal = sit == ClassificationCore.DescricaoDiferente ? Sinal.Amarelo : Sinal.Vermelho,
+                        Assunto = $"{s.Nome} · {SituacaoCurta(sit)}",
+                        Problema = sit == ClassificationCore.SemParametro
+                            ? $"{n} elementos · {string.Join(", ", g.Select(l => l.Categoria).Distinct().OrderBy(c => c).Take(4))}"
+                            : sit == ClassificationCore.SemClassificacao ? $"{n} elementos"
+                            : $"{n} elementos em {valores} {(valores == 1 ? "valor" : "valores")}",
+                        OQueFazer =
+                            sit == ClassificationCore.SemParametro ? $"Vincule {s.ParametroCodigo} à categoria."
+                            : sit == ClassificationCore.SemClassificacao ? "Escolha o item na lista."
+                            : sit == ClassificationCore.DescricaoDiferente ? "Mesmo código, texto diferente da lista."
+                            : sit == ClassificationCore.ForaDaLista ? "Código que não está na planilha."
+                            : "Fora do formato Código:Título.",
+                        Detalhe = $"{s.Nome}: {s.Parametros} · {s.Planilha?.NomeArquivo}",
+                        Elementos = g.Select(l => l.ElementoId).Distinct().ToList(),
+                        Correcao = Correcao.VerificarClassificacao,
+                        Parametro = s.ParametroCodigo,
+                        Classificacao = s.Nome,
+                        SituacaoClassificacao = sit,
+                    });
+                }
+            }
+            total = elementos.Count;
+            ok = total - comProblema.Count;
+            etapa.CalcularSinal();
+            etapa.Contagem = comProblema.Count;
+            etapa.Resumo = etapa.Contagem == 0
+                ? $"{total} elementos com a classificação igual à da planilha ({string.Join(", ", sistemas.Select(s => s.Nome))})."
+                : $"{comProblema.Count} elementos com classificação a corrigir.";
+            return etapa;
+        }
+
         private EtapaConferencia ConferirClassificacao(List<Element> elementos, out int ok, out int total)
         {
+            // Com perfil de classificação (Coordenação › Padrões › Classificação...), vale o perfil; sem ele, a planilha do pacote.
+            PadraoClassificacao perfil = null;
+            try { perfil = PerfilClassificacao(); } catch { }
+            var sistemas = perfil?.Sistemas.Where(x => x.Lista != null && x.Lista.Itens.Count > 0).ToList();
+            if (sistemas != null && sistemas.Count > 0) return ConferirClassificacaoPerfil(perfil, sistemas, elementos, out ok, out total);
+
             string parametro = string.IsNullOrWhiteSpace(_pacote.ParametroClassificacao) ? "ClassificationCode" : _pacote.ParametroClassificacao;
             var etapa = new EtapaConferencia
             {

@@ -52,13 +52,13 @@ namespace MetroSP.PropertySets
             corpo.Children.Add(_painel);
 
             _resumo = new TextBlock();
-            _importar = new Button { Content = "Importar", Style = Theme.PrimaryButton, ToolTip = "Põe os property sets na lista. Depois, \"Criar no desenho\"." };
+            _importar = new Button { Content = "Importar", Style = Theme.PrimaryButton, ToolTip = "Põe os property sets na lista. Depois, \"Criar no modelo\"." };
             _importar.Click += (s, e) => Importar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             cancelar.Click += (s, e) => Close();
             _painel.Mudou += Atualizar;
 
-            Theme.Apply(this, "Importar property sets", "planilha com a estrutura do padrão", new ScrollViewer
+            Theme.Apply(this, "Importar property sets", "planilha com a estrutura do perfil", new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,

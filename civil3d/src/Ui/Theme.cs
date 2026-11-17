@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -475,6 +476,77 @@ namespace MetroSP.Ui
             grid.Resources[SystemColors.HighlightTextBrushKey] = Solid(Preto);
             grid.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = Solid(LaranjaClaro);
             grid.Resources[SystemColors.InactiveSelectionHighlightTextBrushKey] = Solid(Preto);
+        }
+    
+        /// <summary>Caixa simples para digitar um texto; null se cancelar.</summary>
+        public static string PedirTexto(Window dono, string titulo, string pergunta, string inicial)
+        {
+            var box = new TextBox { Text = inicial, MinWidth = 360, Margin = new Thickness(0, 6, 0, 0) };
+            var ok = new Button { Content = "OK", IsDefault = true, Style = PrimaryButton, MinWidth = 80, Margin = new Thickness(0, 0, 6, 0) };
+            var cancelar = new Button { Content = "Cancelar", IsCancel = true, MinWidth = 80 };
+            var w = new Window
+            {
+                Title = "MetroSP - " + titulo, Owner = dono, SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.CanResizeWithGrip,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
+            };
+            ok.Click += (s, e) => w.DialogResult = true;
+            var corpo = new StackPanel { Margin = new Thickness(14) };
+            corpo.Children.Add(new TextBlock { Text = pergunta });
+            corpo.Children.Add(box);
+            var botoes = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
+            botoes.Children.Add(ok);
+            botoes.Children.Add(cancelar);
+            corpo.Children.Add(botoes);
+            w.Content = corpo;
+            w.Loaded += (s, e) => { box.Focus(); box.SelectAll(); };
+            return w.ShowDialog() == true ? box.Text : null;
+        }
+
+        /// <summary>
+        /// Lista suspensa em que também dá para digitar: o texto filtra a lista (parte do nome, sem diferenciar
+        /// maiúsculas) e, ao sair, vale o item com aquele nome ou volta o último escolhido. Regra de todas as telas.
+        /// </summary>
+        public static ComboBox Digitavel(ComboBox c)
+        {
+            c.IsEditable = true;
+            c.IsTextSearchEnabled = false;
+            c.StaysOpenOnEdit = true;
+            object ultimo = null;
+            string Texto(object o)
+            {
+                if (o is ComboBoxItem ci) return ci.Content?.ToString() ?? "";
+                if (o != null && !string.IsNullOrEmpty(c.DisplayMemberPath))
+                    return o.GetType().GetProperty(c.DisplayMemberPath)?.GetValue(o)?.ToString() ?? "";
+                return o?.ToString() ?? "";
+            }
+            if (c.Items.Count > 0 && c.ItemsSource == null)
+                foreach (var ci in c.Items.OfType<ComboBoxItem>()) TextSearch.SetText(ci, ci.Content?.ToString() ?? "");
+            c.SelectionChanged += (s, e) => { if (c.SelectedItem != null) ultimo = c.SelectedItem; };
+            c.Loaded += (s, e) =>
+            {
+                if (!(c.Template.FindName("PART_EditableTextBox", c) is TextBox tb) || tb.Tag as string == "digitavel") return;
+                tb.Tag = "digitavel";
+                tb.TextChanged += (s2, e2) =>
+                {
+                    if (!c.IsKeyboardFocusWithin) return;
+                    if (c.SelectedItem != null && Texto(c.SelectedItem) == tb.Text) return;
+                    var f = tb.Text.Trim();
+                    c.Items.Filter = f.Length == 0 ? null : (Predicate<object>)(o => Texto(o).IndexOf(f, StringComparison.CurrentCultureIgnoreCase) >= 0);
+                    if (!c.IsDropDownOpen) c.IsDropDownOpen = true;
+                    tb.SelectionStart = tb.Text.Length;
+                };
+            };
+            c.LostKeyboardFocus += (s, e) =>
+            {
+                if (c.IsKeyboardFocusWithin) return;
+                var texto = c.Text?.Trim() ?? "";
+                c.Items.Filter = null;
+                var exato = c.Items.Cast<object>().FirstOrDefault(o => Texto(o).Equals(texto, StringComparison.CurrentCultureIgnoreCase));
+                var alvo = exato ?? ultimo;
+                if (alvo != null && !Equals(c.SelectedItem, alvo)) c.SelectedItem = alvo;
+                c.Text = alvo != null ? Texto(alvo) : "";
+            };
+            return c;
         }
     }
 }

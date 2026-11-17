@@ -30,7 +30,7 @@ namespace MetroSP.Ifc
         {
             try
             {
-                JsonNode mapa = ConfigPackage.LoadJson(ConfigKind.ObjectMapping);
+                JsonNode mapa = ConfigPackage.LoadMapping();
                 Ler(mapa?["MapCADLayerName"] as JsonArray, _layersFora);
                 Ler(mapa?["MapBlockName"] as JsonArray, _blocosFora);
             }
@@ -61,7 +61,7 @@ namespace MetroSP.Ifc
         /// <summary>Por que o objeto não vai para o IFC, ou null se vai.</summary>
         public string MotivoFora(Entity e, Transaction tr)
         {
-            if (e == null) return "Não é objeto de desenho";
+            if (e == null) return "Não é objeto de modelo";
             Type t = e.GetType();
             if (Anotacoes.Any(a => a.IsAssignableFrom(t))) return "Anotação";
             if (_layerFora.TryGetValue(e.LayerId, out string m)) return m;
@@ -74,6 +74,13 @@ namespace MetroSP.Ifc
         }
 
         public bool VaiParaIfc(Entity e, Transaction tr) => MotivoFora(e, tr) == null;
+
+        /// <summary>Texto, cota, hachura e outras anotações (não vão para o IFC como elemento).</summary>
+        public static bool EhAnotacao(Entity e)
+        {
+            Type t = e.GetType();
+            return Anotacoes.Any(a => a.IsAssignableFrom(t));
+        }
 
         public static string NomeBloco(BlockReference br, Transaction tr)
         {

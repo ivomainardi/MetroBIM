@@ -272,8 +272,8 @@ namespace MetroSP.PropertySets
                 {
                     PropriedadeMontagem e = d?.Propriedades.FirstOrDefault(x => string.Equals(x.Nome, pr.Nome, StringComparison.OrdinalIgnoreCase));
                     if (e == null) { pr.Situacao = "Nova"; novas++; }
-                    else if (e.Tipo != pr.Tipo && !e.Automatica) { pr.Situacao = "Tipo diferente no desenho: " + NomeTipo(e.Tipo); tipos++; }
-                    else pr.Situacao = e.Automatica ? "No desenho (automática)" : "No desenho";
+                    else if (e.Tipo != pr.Tipo && !e.Automatica) { pr.Situacao = "Tipo diferente no modelo: " + NomeTipo(e.Tipo); tipos++; }
+                    else pr.Situacao = e.Automatica ? "No modelo (automática)" : "No modelo";
                 }
                 bool todos = p.TodosObjetos || p.Classes.Count == 0;
                 bool aplica = d != null && (d.TodosObjetos != todos ||
@@ -287,7 +287,7 @@ namespace MetroSP.PropertySets
                     if (aplica) partes.Add("aplica-se a outro");
                     if (descr) partes.Add("descrição");
                     if (tipos > 0) partes.Add(tipos == 1 ? "1 tipo diferente" : tipos + " tipos diferentes");
-                    p.Situacao = partes.Count == 0 ? "No desenho" : "Muda: " + string.Join(", ", partes);
+                    p.Situacao = partes.Count == 0 ? "No modelo" : "Muda: " + string.Join(", ", partes);
                 }
             }
         }
@@ -322,7 +322,7 @@ namespace MetroSP.PropertySets
                     else
                     {
                         def = (PropertySetDefinition)tr.GetObject(dict.GetAt(nome), OpenMode.ForWrite);
-                        if (def.IsStyleBased) { avisos.Add($"{nome}: é property set de estilo no desenho; não foi alterado."); continue; }
+                        if (def.IsStyleBased) { avisos.Add($"{nome}: é property set de estilo no modelo; não foi alterado."); continue; }
                     }
 
                     bool mudou = false;
@@ -348,7 +348,7 @@ namespace MetroSP.PropertySets
                         if (e != null)
                         {
                             if (!e.Automatic && DeAec(e.DataType) != pr.Tipo)
-                                avisos.Add($"{nome} › {pn}: já é {NomeTipo(DeAec(e.DataType))} no desenho; o tipo não foi mudado.");
+                                avisos.Add($"{nome} › {pn}: já é {NomeTipo(DeAec(e.DataType))} no modelo; o tipo não foi mudado.");
                             continue;
                         }
                         var pd = new PropertyDefinition();
@@ -423,6 +423,43 @@ namespace MetroSP.PropertySets
             }
             catch { }
             return "";
+        }
+
+        /// <summary>
+        /// Quantos objetos têm cada propriedade vazia, entre os que têm o property set anexado. Chave: "pset\u0001propriedade".
+        /// </summary>
+        public static Dictionary<string, int> Vazios(Database db, IEnumerable<ObjetoAnexar> objetos, IEnumerable<PsetMontagem> psets)
+        {
+            var r = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            var props = psets.Where(p => p.NoDesenho).ToDictionary(p => p.Nome, p => p.Propriedades.Where(x => !x.Automatica).Select(x => x.Nome).ToList(), StringComparer.OrdinalIgnoreCase);
+            using (Transaction tr = db.TransactionManager.StartOpenCloseTransaction())
+            {
+                foreach (ObjetoAnexar o in objetos)
+                {
+                    if (o.Nomes == null || o.Nomes.Count == 0) continue;
+                    DBObject obj;
+                    try { obj = tr.GetObject(o.Id, OpenMode.ForRead); } catch { continue; }
+                    ObjectIdCollection ids;
+                    try { ids = PropertyDataServices.GetPropertySets(obj); } catch { continue; }
+                    foreach (ObjectId id in ids)
+                    {
+                        if (!(tr.GetObject(id, OpenMode.ForRead) is PropertySet ps)) continue;
+                        if (!props.TryGetValue(ps.PropertySetDefinitionName, out var nomes)) continue;
+                        foreach (string n in nomes)
+                        {
+                            object v = null;
+                            try { v = ps.GetAt(ps.PropertyNameToId(n)); } catch { }
+                            if (v == null || string.IsNullOrWhiteSpace(Convert.ToString(v, CultureInfo.CurrentCulture)))
+                            {
+                                string k = ps.PropertySetDefinitionName + "\u0001" + n;
+                                r[k] = r.TryGetValue(k, out int c) ? c + 1 : 1;
+                            }
+                        }
+                    }
+                }
+                tr.Commit();
+            }
+            return r;
         }
 
         /// <summary>Recalcula a coluna "Falta anexar" com os property sets escolhidos.</summary>

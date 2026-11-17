@@ -1,5 +1,80 @@
 # Notas da versão: MetroSP para Civil 3D
 
+## 0.12.6 (17/11/2026)
+
+- **Entrega passo a passo na ordem do Revit**: **1 Perfis**, **2 Classes IFC**, **3 Property sets**, **4 MetroDATA**,
+  **5 Classificação**, **6 Alinhamentos** e **7 Exportar**. Classes IFC vem antes dos property sets porque o que cada
+  objeto precisa ter depende da classe dele.
+- **Entrega › Perfis** (antes Exportador): o perfil de exportação, os perfis em uso numa tabela (arquivo, o que traz e
+  o passo que usa: exportador da Autodesk, configurações, classes IFC, property sets, escrita, confronto, classificação,
+  projeto e alinhamento) e o resumo do modelo (objetos que vão para o IFC, que ficam fora, alinhamentos e esquema).
+
+- **Vários perfis de exportação, escolhidos por modelo** (passo 1 Perfis): lista com os perfis deste computador, os
+  pré-configurados primeiro (hoje o MetroSP; outros entram em `MetroSP.bundle\Contents\Perfis\<nome>`). A escolha fica
+  gravada no DWG (Propriedades do desenho › Personalizado › `MetroSP.Perfil`) e vale na conferência, no Configurar IFC
+  e no Exportar IFC. **Duplicar**, **Renomear** e **Excluir** (os dois últimos só nos perfis criados aqui). Cada perfil
+  fica em `%AppData%\MetroSP\Perfis\<nome>`; o `Config` antigo vira o perfil MetroSP na primeira vez. Modelo sem perfil,
+  ou com um perfil que não existe neste computador, fica amarelo no passo 1 e usa o MetroSP.
+- **Classes IFC numa janela só, como a Categorias IFC do Revit** (passo 2 da Entrega e botão Classes IFC… do Configurar
+  IFC, que perdeu a aba). Cada nome do modelo (layer, bloco ou baseline, conforme a seção) e cada regra do perfil é uma
+  linha, com o nº de objetos e **Exportar e Classe no IFC4 e no IFC 4.3** lado a lado. A classe se escolhe na própria
+  célula (lista em que também se escreve). Nome que segue uma regra geral (ex.: `^A-.*`) mostra a classe dela; trocar ali
+  cria uma regra só para ele (`^nome$`, no topo). Laranja: sem regra; cinza: regra que não pega nada no modelo. Filtros
+  "Só os usados no modelo" e "Só os diferentes entre IFC4 e IFC 4.3", além do filtro em cada coluna.
+  Botões **Copiar entre IFC schemas** (selecionadas ou tabela inteira), **Voltar ao padrão** (sobrescreve as selecionadas
+  ou a tabela com o perfil como veio no plugin), **Regras** (nova, excluir) e **Corrigir classes**.
+- **Tabela de classes do IFC4 no perfil** (`IfcInfraExportMapping.IFC4.json`). Exportando em IFC4, é ela que vai para o
+  exportador. Se o perfil ainda não tem, sai da do IFC 4.3 com as classes que não existem no IFC4 trocadas pela
+  equivalente (sem o tipo, ou `IfcBuildingElementProxy`, como IfcTrackElement e IfcCourse).
+- **Property sets numa lista única** (passo 3 e botão Property sets): cada property set é um grupo com onde está
+  (perfil e modelo, só no perfil, só no modelo, montado aqui), **Aplica-se a ▾**, em quantos objetos do IFC já está
+  anexado e o que falta criar; embaixo, as propriedades com tipo, valor padrão e quantos objetos estão com ela vazia.
+  Um botão **Criar e anexar o que falta** cria no modelo o que só está no perfil e anexa os property sets do perfil aos
+  objetos que vão para o IFC. Saíram as abas Montar/Anexar e o painel à direita; importar/exportar planilha, modelo
+  pronto e levar para o perfil ficam em **Mais ▾**.
+- **Property sets › Saída no IFC** (segunda vista do passo 3): cada propriedade que sai no IFC, agrupada pelo Pset de
+  saída, com o **nome no IFC** (editável), o tipo, Ativa e **Vem de**: de qual propriedade do modelo o valor é lido
+  (property set, propriedade do objeto, dados do modelo ou da peça), numa lista em que também se escreve. Mostra quantos
+  objetos estão preenchidos e vazios; sem origem fica laranja. **+ Pset no IFC**, **+ propriedade**, **Mapear do
+  modelo…** (várias propriedades de uma vez) e **Salvar no perfil** (grava o `.csv` e o `.json` do mapeamento).
+- **Passo 4 MetroDATA lê a planilha do Airtable** (`.xlsx`, aba "Propriedades x Objetos", mesma leitura do Revit):
+  Disciplina, Etapa e Classe em listas digitáveis, e **Objetos** liga cada layer (ou bloco) a um objeto do MetroDATA (pela
+  Classe IFC, ou escolhido). A tabela mostra, por objeto, cada Pset.propriedade pedida, a classe, quantos objetos e
+  quantos estão preenchidos ou vazios (lendo de onde a Saída no IFC diz que o valor vem). **Selecionar os vazios**,
+  **Preencher...** e, em Mais ▾, **Mapear na Saída no IFC** o que não sai. As escolhas ficam gravadas no DWG
+  (`MetroSP.MetroData`). Abas do passo: Propriedades, Escrita e Comparar com planilha.
+- **Passo 5 Classificação como no Revit**: perfil de classificação no alto, uma aba por classificação, tabela por valor
+  escrito (Está escrito, Na lista, O que muda, Objetos, Ação: Corrigir... ou Escolher...) com o detalhe ao lado (vai
+  ficar, layers, selecionar). Mostra o **caminho até o IFC** (`IfcClassification "Metrô SP" ← Classification ›
+  ClassificationCode`) e avisa, com o botão **Mapear**, se esse property set não está na Saída no IFC (sem ele não sai
+  IfcClassification).
+- **Passo 7 Exportar como no Revit**: Perfil em uma linha, Saída (esquema IFC 4.3 ou IFC4 e objetos: modelo inteiro, só a
+  seleção ou só os alinhamentos) e um único **Exportar IFC** no rodapé; os avisos ficam nos cartões.
+- **Estrutura no IFC em árvore** (passo 7 e Projeto IFC), no lugar do "Edifício" e da tabela Instalações que se
+  misturavam: IfcProject › IfcSite › **instalação principal** (destacada, com o nº de objetos: é a que o exportador grava
+  e recebe todos os objetos; aqui se escolhe o tipo, o nome, o nome longo e o endereço; o tipo é trocado no IFC, ex.:
+  IfcRailway → IfcBuilding) e **instalações de referência** (vazias, ex.: a estação vizinha; "+ instalação de
+  referência" e "tirar"). Sem nome na principal, fica amarelo no passo 7.
+- **MetroDATA › Corrigir escrita mais enxuto**: abre já conferido; perfil, campos e regras (lista "7 de 9 ▾") numa
+  linha; tabela com Objeto, Campo, Atual, Sugestão e O que tem (situação, motivo, categoria e Id ficam na dica da
+  linha); botões Corrigir, Ignorar, Selecionar no modelo e **Mais ▾**.
+- **"Modelo" no lugar de "desenho"** em todos os textos do plugin (fica só "Propriedades do desenho", nome do AutoCAD).
+- **Corrigir classes**: troca as classes fora do esquema pela correção óbvia (ex.: `IfcBuiltElement.USERDEFINED` →
+  `IfcBuiltElement`, que não tem tipo no IFC 4.3). A pendência do passo 3 já diz a classe a usar.
+- **Latitude e longitude no IfcSite = origem do PTL** (150.000; 250.000): o IfcSite passa a ficar nesse ponto, sem
+  rotação, com a latitude e a longitude exatas da origem do PTL (23°33'3,0482" S; 46°43'53,6793" O). Antes eram as do
+  ponto que o exportador da Autodesk escolhia para deslocar a geometria. Nenhum objeto muda de lugar (as colocações
+  relativas ao site são compensadas). Latitude e longitude digitadas em Projeto continuam valendo por cima.
+- **"Perfil de exportação"** no lugar de "pacote" (de configuração IFC), como no Revit.
+- **"Perfil" no lugar de "padrão" em todo o plugin**: botão Perfis no ribbon, janela Perfis, perfis de escrita, de
+  confronto, de classificação e de dados do projeto. Os arquivos em `%AppData%\MetroSP` continuam os mesmos.
+- **Listas em que também se escreve**: a escolha de perfil (escrita, confronto, classificação, dados do projeto), a seção
+  de Classes IFC, o tipo de fonte e as colunas da planilha abrem a lista e aceitam digitar para filtrar.
+- **Configurar IFC › Propriedades**: as colunas Property set, Propriedade, Origem, Grupo e Nome no Civil 3D abrem uma
+  lista com os property sets e as propriedades que existem no modelo (e as já usadas no perfil); também dá para digitar.
+- A dica da tabela de regras passou a dizer "vale a primeira regra que casar, de cima para baixo" (era "de baixo para
+  cima"), como a ordem do perfil da equipe pressupõe (U-3D-TRILHO_AMV antes de U-3D-TRILHO). Conferir no Civil 3D.
+
 ## 0.12.0 (12/11/2026)
 
 - **Ferramentas reorganizadas como no plugin do Revit** (proposta aprovada em 12/11):

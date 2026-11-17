@@ -57,16 +57,17 @@ namespace MetroSP.Confronto
             _selecao = selecao != null && selecao.Length > 0 ? selecao : null;
             _escopo = new ComboBox { MinWidth = 200, Margin = new Thickness(0, 0, 10, 0), Padding = new Thickness(4, 3, 4, 3) };
             if (_selecao != null) _escopo.Items.Add($"Seleção atual ({_selecao.Length})");
-            _escopo.Items.Add("Todo o desenho");
+            _escopo.Items.Add("Todo o modelo");
             _escopo.SelectedIndex = 0;
             _tipo = new ComboBox { MinWidth = 200, Padding = new Thickness(4, 3, 4, 3), ToolTip = "Tipo de objeto a considerar." };
+            Theme.Digitavel(_tipo);
             var p = new WrapPanel();
             p.Children.Add(Theme.Rotulo("Escopo"));
             p.Children.Add(_escopo);
             p.Children.Add(_tipo);
             PainelEscopo = p;
             _escopo.SelectionChanged += (s, e) => { _todos = null; EscopoMudou?.Invoke(); };
-            _tipo.SelectionChanged += (s, e) => { if (!_montando) EscopoMudou?.Invoke(); };
+            _tipo.SelectionChanged += (s, e) => { if (!_montando && _tipo.SelectedItem != null) EscopoMudou?.Invoke(); };
         }
 
         public string Programa => "Civil3D";
@@ -83,11 +84,11 @@ namespace MetroSP.Confronto
             _todos = new List<ObjetoConfronto>();
             _campos = new Dictionary<string, CampoConfronto>
             {
-                [Handle] = new CampoConfronto { Chave = Handle, Nome = "Handle", Grupo = "Desenho" },
-                [Nome] = new CampoConfronto { Chave = Nome, Nome = "Nome", Grupo = "Desenho", Editavel = true, Texto = true },
-                [Descricao] = new CampoConfronto { Chave = Descricao, Nome = "Descrição", Grupo = "Desenho", Editavel = true, Texto = true },
-                [Layer] = new CampoConfronto { Chave = Layer, Nome = "Layer", Grupo = "Desenho", Editavel = true },
-                [Classe] = new CampoConfronto { Chave = Classe, Nome = "Tipo de objeto", Grupo = "Desenho" },
+                [Handle] = new CampoConfronto { Chave = Handle, Nome = "Handle", Grupo = "Modelo" },
+                [Nome] = new CampoConfronto { Chave = Nome, Nome = "Nome", Grupo = "Modelo", Editavel = true, Texto = true },
+                [Descricao] = new CampoConfronto { Chave = Descricao, Nome = "Descrição", Grupo = "Modelo", Editavel = true, Texto = true },
+                [Layer] = new CampoConfronto { Chave = Layer, Nome = "Layer", Grupo = "Modelo", Editavel = true },
+                [Classe] = new CampoConfronto { Chave = Classe, Nome = "Tipo de objeto", Grupo = "Modelo" },
             };
             Database db = _doc.Database;
             bool soSelecao = (_escopo.SelectedItem as string ?? "").StartsWith("Seleção");
@@ -217,8 +218,8 @@ namespace MetroSP.Confronto
         {
             Carregar();
             var usados = new HashSet<string>(Objetos().SelectMany(o => D(o).Valores.Keys));
-            return _campos.Values.Where(c => c.Grupo == "Desenho" || usados.Contains(c.Chave))
-                .OrderBy(c => c.Grupo == "Desenho" ? 0 : 1).ThenBy(c => c.Grupo).ThenBy(c => c.Nome, StringComparer.CurrentCultureIgnoreCase).ToList();
+            return _campos.Values.Where(c => c.Grupo == "Modelo" || usados.Contains(c.Chave))
+                .OrderBy(c => c.Grupo == "Modelo" ? 0 : 1).ThenBy(c => c.Grupo).ThenBy(c => c.Nome, StringComparer.CurrentCultureIgnoreCase).ToList();
         }
 
         /// <summary>Quantos objetos do escopo ficaram de fora por não irem para o IFC.</summary>
@@ -268,7 +269,7 @@ namespace MetroSP.Confronto
                 using (Transaction tr = _doc.Database.TransactionManager.StartOpenCloseTransaction())
                 {
                     var lt = (LayerTable)tr.GetObject(_doc.Database.LayerTableId, OpenMode.ForRead);
-                    if (!lt.Has(t)) { motivo = $"o layer \"{t}\" não existe no desenho"; return false; }
+                    if (!lt.Has(t)) { motivo = $"o layer \"{t}\" não existe no modelo"; return false; }
                 }
                 valor = t;
                 return true;

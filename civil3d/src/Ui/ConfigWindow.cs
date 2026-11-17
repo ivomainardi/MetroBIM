@@ -72,17 +72,22 @@ namespace MetroSP.Ui
             var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(toolbar, Dock.Top);
             if (somenteProjeto) toolbar.Visibility = Visibility.Collapsed;
-            toolbar.Children.Add(Tool("Adicionar padrões…", "Abre a janela Padrões, onde se trazem os arquivos de configuração IFC (e os outros padrões): arraste ou escolha os arquivos.", (s, e) => AbrirPadroes()));
-            toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do pacote numa pasta.", (s, e) => ExportPackage()));
+            toolbar.Children.Add(Tool("Classes IFC…", "Em que classe IFC cada layer, bloco e baseline sai, no IFC4 e no IFC 4.3.", (s, e) =>
+            {
+                new ClassesIfcWindow { Owner = this }.ShowDialog();
+                _mapping = ConfigPackage.LoadJson(ConfigKind.ObjectMapping) as JsonObject ?? new JsonObject();
+            }));
+            toolbar.Children.Add(Tool("Adicionar perfis…", "Abre a janela Perfis, onde se trazem os arquivos de configuração IFC (e os outros perfis): arraste ou escolha os arquivos.", (s, e) => AbrirPadroes()));
+            toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do perfil de exportação numa pasta.", (s, e) => ExportPackage()));
             if (Settings.Load().UsesForma)
-                toolbar.Children.Add(Tool("Baixar do Forma", "Troca o pacote pela versão mais recente do Forma.", async (s, e) => await DownloadFromForma()));
-            toolbar.Children.Add(Tool("Restaurar padrão", "Volta ao padrão MetroSP.", (s, e) => RestoreDefaults()));
+                toolbar.Children.Add(Tool("Baixar do Forma", "Troca o perfil de exportação pela versão mais recente do Forma.", async (s, e) => await DownloadFromForma()));
+            toolbar.Children.Add(Tool("Restaurar perfil", "Volta o perfil a ficar como veio no plugin (o MetroSP, se foi criado aqui).", (s, e) => RestoreDefaults()));
             body.Children.Add(toolbar);
             body.Children.Add(_tabs);
 
             Theme.Apply(this, somenteProjeto ? "Projeto IFC" : "Configuração IFC",
                 somenteProjeto ? "IfcProject, IfcSite, instalações (IfcRailway, IfcBuilding) e Pset MetroSP_Projeto, aplicados na exportação"
-                    : Settings.Load().UsesForma ? "Pacote sincronizado com o Forma" : "Pacote local",
+                    : "Perfil de exportação " + ConfigPackage.PerfilAtivo + (Settings.Load().UsesForma ? " (sincronizado com o Forma)" : ""),
                 body, Theme.Rodape(_status,
                     Btn("Salvar", (s, e) => SaveAll(close: false)),
                     saveClose,
@@ -126,18 +131,8 @@ namespace MetroSP.Ui
                 return;
             }
 
-            CommitMappingSection();
-            var invalidas = _somenteProjeto ? new List<string>() : InvalidClasses();
-            if (invalidas.Count > 0)
-            {
-                Theme.MudarResumo(_status, invalidas.Take(8).Select(m => "Classe fora do " + IfcCatalog.Label(IfcVersion) + " em " + m)
-                    .Concat(invalidas.Count > 8 ? new[] { $"e mais {invalidas.Count - 8}" } : new string[0]).ToList(), "");
-                return;
-            }
-
             try
             {
-                ConfigPackage.SaveJson(ConfigKind.ObjectMapping, _mapping);
                 if (_autodeskConfig != null) ConfigPackage.SaveJson(ConfigKind.AutodeskConfig, _autodeskConfig);
                 if (_templatesText != null && !string.IsNullOrWhiteSpace(_templatesText.Text))
                     ConfigPackage.Write(ConfigKind.PropertyTemplates, Encoding.UTF8.GetBytes(_templatesText.Text));
@@ -171,7 +166,6 @@ namespace MetroSP.Ui
         {
             _tabs.Items.Add(new TabItem { Header = "Projeto", Content = SpatialTab() });
             if (_somenteProjeto) return;
-            _tabs.Items.Add(new TabItem { Header = "Classes IFC", Content = MappingTab() });
             _tabs.Items.Add(new TabItem { Header = "Propriedades", Content = PropertiesTab() });
             _tabs.Items.Add(new TabItem { Header = "Alinhamento", Content = AlignmentTab() });
             _tabs.Items.Add(new TabItem { Header = "Avançado", Content = AdvancedTab() });
@@ -198,7 +192,8 @@ namespace MetroSP.Ui
             switch (k)
             {
                 case ConfigKind.AutodeskConfig: return "Opções da exportação";
-                case ConfigKind.ObjectMapping: return "Classes IFC";
+                case ConfigKind.ObjectMapping: return "Classes IFC (IFC 4.3)";
+                case ConfigKind.ObjectMappingIfc4: return "Classes IFC (IFC4)";
                 case ConfigKind.PropertyTemplates: return "Property sets";
                 case ConfigKind.PropertyMappingCsv: return "Propriedades";
                 case ConfigKind.MetroSP: return "Projeto e alinhamento";
@@ -211,16 +206,16 @@ namespace MetroSP.Ui
         {
             var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
             new Padroes.GerenciarPadroesWindow(Padroes.PadroesCommands.Tipos(doc), "Civil 3D") { Owner = this }.ShowDialog();
-            ReloadEverything("Pacote relido.");
+            ReloadEverything("Perfil de exportação relido.");
         }
 
         void ExportPackage()
         {
             SaveAll(close: false);
-            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Pasta para exportar o pacote de configuração" };
+            var dlg = new Microsoft.Win32.OpenFolderDialog { Title = "Pasta para exportar o perfil de exportação" };
             if (dlg.ShowDialog(this) != true) return;
             ConfigPackage.ExportTo(dlg.FolderName);
-            Status("Pacote exportado para " + dlg.FolderName);
+            Status("Perfil de exportação gravado em " + dlg.FolderName);
         }
 
         /// <summary>Importa os arquivos gerados por IFCInfraSaveConfig / IFCInfraSaveMappingConfig.</summary>
@@ -236,12 +231,12 @@ namespace MetroSP.Ui
             }
             if (found.Count == 0)
             {
-                Warn("Não achei IfcInfraConfiguration.json nem IfcInfraExportMapping.json na pasta do desenho nem em " +
+                Warn("Não achei IfcInfraConfiguration.json nem IfcInfraExportMapping.json na pasta do modelo nem em " +
                      Commands.ProgramDataDir + ".\n\nRode IFCInfraSaveConfig e IFCInfraSaveMappingConfig no Civil 3D " +
-                     "(eles gravam os modelos da Autodesk na pasta do desenho) e clique de novo.");
+                     "(eles gravam os modelos da Autodesk na pasta do modelo) e clique de novo.");
                 return;
             }
-            if (MessageBox.Show(this, "Substituir no pacote ativo:\n\n" + string.Join("\n", found), "MetroSP",
+            if (MessageBox.Show(this, "Substituir no perfil de exportação ativo:\n\n" + string.Join("\n", found), "MetroSP",
                     MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             try { ReloadEverything("Importado: " + string.Join("; ", ConfigPackage.Import(found))); }
             catch (Exception ex) { Warn(ex.Message); }
@@ -282,11 +277,13 @@ namespace MetroSP.Ui
 
         void RestoreDefaults()
         {
-            if (MessageBox.Show(this, "Trocar o pacote ativo pelo padrão MetroSP? Os arquivos atuais serão apagados " +
-                                      "(exporte o pacote antes, se quiser guardar).", "MetroSP",
+            string perfil = ConfigPackage.PerfilAtivo;
+            string base_ = ConfigPackage.PreConfigurado(perfil) ? "como veio no plugin" : "igual ao perfil MetroSP";
+            if (MessageBox.Show(this, $"Voltar o perfil {perfil} a ficar {base_}? Os arquivos atuais dele serão apagados " +
+                                      "(exporte o perfil antes, se quiser guardar).", "MetroSP",
                     MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
             ConfigPackage.RestoreDefaults();
-            ReloadEverything("Padrão MetroSP restaurado.");
+            ReloadEverything("Perfil " + perfil + " restaurado.");
         }
 
         // ================================================================== aba Mapeamento
@@ -298,68 +295,304 @@ namespace MetroSP.Ui
             ["MapBaselineName"] = "Por baseline (corredor)"
         };
 
+        // Lista única: cada layer (bloco, baseline) do modelo é uma linha, com a regra do padrão que vale para ele;
+        // as regras que não pegam nada no modelo vêm no fim, como "só no padrão". As regras continuam em _mappingRows,
+        // na ordem do padrão (vale a primeira que casar, de cima para baixo).
+
+        readonly ObservableCollection<LinhaClasse> _linhas = new ObservableCollection<LinhaClasse>();
+        FilterableGrid _lista;
+        Dictionary<string, List<ItemDesenho>> _modelo;
+        TextBlock _resumoLista;
+        CheckBox _soUsados;
+        Button _corrigir;
+        ComboBox _classes;
+
         UIElement MappingTab()
         {
             var panel = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            var top = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(top, Dock.Top);
-            _mappingSection = new ComboBox { Width = 190, Margin = new Thickness(0, 0, 16, 0) };
+            _mappingSection = new ComboBox { Width = 150, Margin = new Thickness(0, 0, 8, 4) };
+            Theme.Digitavel(_mappingSection);
             foreach (var key in KnownSections.Union(_mapping.Where(kv => kv.Value is JsonArray).Select(kv => kv.Key)))
                 _mappingSection.Items.Add(new ComboBoxItem { Content = SectionLabels.TryGetValue(key, out var l) ? l : key, Tag = key, ToolTip = key });
             _mappingSection.SelectionChanged += (s, e) => SwitchSection((_mappingSection.SelectedItem as ComboBoxItem)?.Tag as string);
             top.Children.Add(_mappingSection);
 
-            var classes = ClassPicker(IfcClasses);
-            classes.ToolTip = $"Todas as classes do {IfcCatalog.Label(IfcVersion)}, o esquema escolhido na configuração da Autodesk. " +
-                              "Digite parte do nome (ex.: TRACKSLAB) para filtrar; só vale uma classe da lista.";
-            top.Children.Add(classes);
+            _classes = ClassPicker(IfcClasses);
+            _classes.Width = 240;
+            _classes.Margin = new Thickness(0, 0, 0, 4);
+            _classes.ToolTip = $"Todas as classes do {IfcCatalog.Label(IfcVersion)}, o esquema escolhido na configuração da Autodesk. " +
+                               "Digite parte do nome (ex.: TRACKSLAB) para filtrar; só vale uma classe da lista.";
+            top.Children.Add(_classes);
 
-            var grid = new DataGrid
+            var apply = Btn("Aplicar", (s, e) => AplicarClasse());
+            apply.Margin = new Thickness(6, 0, 12, 4);
+            apply.ToolTip = "Põe a classe nas linhas selecionadas. Se a linha segue uma regra geral (ex.: ^G-3D-.*), muda a regra " +
+                            "e todos os layers dela. Layer sem regra ganha uma regra só para ele.";
+            top.Children.Add(apply);
+            top.Children.Add(SymbolButton("↑", "Sobe a regra da linha selecionada (a de cima vale primeiro)", (s, e) => MoverRegra(-1)));
+            top.Children.Add(SymbolButton("↓", "Desce a regra da linha selecionada", (s, e) => MoverRegra(+1)));
+            top.Children.Add(SymbolButton("+", "Nova regra (nome ou expressão regular, ex.: ^U-3D-)", (s, e) => NovaRegra()));
+            top.Children.Add(SymbolButton("✕", "Exclui do perfil a regra das linhas selecionadas", (s, e) => ExcluirRegras()));
+            _soUsados = new CheckBox
             {
-                AutoGenerateColumns = false,
-                CanUserAddRows = true,
-                ItemsSource = _mappingRows,
-                HeadersVisibility = DataGridHeadersVisibility.Column
+                Content = "Só usados no modelo", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 4),
+                ToolTip = "Esconde layers sem objeto no espaço do modelo."
             };
-            grid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Name"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            _soUsados.Click += (s, e) => _lista.Refresh();
+            top.Children.Add(_soUsados);
+            _corrigir = Tool("Corrigir classes", "", (s, e) => CorrigirClasses());
+            _corrigir.VerticalAlignment = VerticalAlignment.Center;
+            _corrigir.Margin = new Thickness(12, 0, 0, 4);
+            top.Children.Add(_corrigir);
+            panel.Children.Add(top);
+
+            _resumoLista = Theme.Detalhe();
+            _resumoLista.Margin = new Thickness(0, 4, 0, 0);
+            DockPanel.SetDock(_resumoLista, Dock.Bottom);
+            panel.Children.Add(_resumoLista);
+
             MappingRow.Catalog = IfcClasses;
-            var invalid = new Style(typeof(TextBlock));
-            var trig = new DataTrigger { Binding = new Binding(nameof(MappingRow.ClasseInvalida)), Value = true };
+            _lista = new FilterableGrid(_linhas, typeof(LinhaClasse));
+            _lista.AddColumn("Nome", nameof(LinhaClasse.Nome), 170, fill: true);
+            _lista.AddColumn("Onde", nameof(LinhaClasse.Onde), 110);
+            var obj = _lista.AddColumn("Objetos", nameof(LinhaClasse.Objetos), 66);
+            obj.SortMemberPath = nameof(LinhaClasse.ObjetosNum);
+            obj.ElementStyle = new Style(typeof(TextBlock), obj.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
+            var classe = _lista.AddColumn("Classe IFC", nameof(LinhaClasse.Classe), 200);
+            var invalida = new Style(typeof(TextBlock), classe.ElementStyle);
+            var trig = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.ClasseInvalida)), Value = true };
             trig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick));
             trig.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
-            trig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Classe fora do esquema; escolha uma da lista e clique Aplicar."));
-            invalid.Triggers.Add(trig);
-            grid.Columns.Add(new DataGridTextColumn
-            {
-                Header = "Classe IFC", Binding = new Binding("IfcExportAs"), IsReadOnly = true, ElementStyle = invalid,
-                Width = new DataGridLength(2, DataGridLengthUnitType.Star)
-            });
-            grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding("Export"), Width = 70 });
-            grid.ToolTip = "Nome aceita expressão regular (ex.: ^U-3D-). Vale a primeira regra que casar, de baixo para cima.";
+            trig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Classe fora do esquema: escolha uma da lista e clique Aplicar (ou Corrigir classes)."));
+            invalida.Triggers.Add(trig);
+            classe.ElementStyle = invalida;
 
-            var apply = Btn("Aplicar", (s, e) =>
-            {
-                var escolhida = classes.SelectedItem as string;
-                if (escolhida == null) { Status("Escolha uma classe da lista."); return; }
-                var linhas = grid.SelectedItems.OfType<MappingRow>().ToList();
-                if (linhas.Count == 0) { Status("Selecione as regras que vão receber a classe."); return; }
-                foreach (var r in linhas) r.IfcExportAs = escolhida == SemClasse ? "" : escolhida;
-                grid.Items.Refresh();
-            });
-            apply.Margin = new Thickness(6, 0, 16, 0);
-            apply.ToolTip = "Põe a classe escolhida nas regras selecionadas.";
-            top.Children.Add(apply);
-            top.Children.Add(SymbolButton("↑", "Subir", (s, e) => Move(grid, -1)));
-            top.Children.Add(SymbolButton("↓", "Descer", (s, e) => Move(grid, +1)));
-            top.Children.Add(SymbolButton("+", "Nova regra", (s, e) => AddRow(grid, _mappingRows)));
-            top.Children.Add(SymbolButton("✕", "Excluir as regras selecionadas (ou tecla Delete)", (s, e) => RemoveSelected(grid, _mappingRows, "regra")));
-            panel.Children.Add(top);
-            panel.Children.Add(grid);
+            var marca = new FrameworkElementFactory(typeof(CheckBox));
+            marca.SetBinding(ToggleButton.IsCheckedProperty, new Binding(nameof(LinhaClasse.Exportar)) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged });
+            marca.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center);
+            marca.SetValue(FrameworkElement.ToolTipProperty, "Desmarcado: não vai para o IFC. Muda a regra (todos os layers dela).");
+            _lista.Grid.Columns.Insert(4, new DataGridTemplateColumn { Header = "Exportar", CellTemplate = new DataTemplate { VisualTree = marca }, Width = 62 });
+            _lista.AddColumn("Regra que vale", nameof(LinhaClasse.Regra), 150);
+            var ordem = _lista.AddColumn("Ordem", nameof(LinhaClasse.Ordem), 56);
+            ordem.ElementStyle = new Style(typeof(TextBlock), ordem.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
+            _lista.ExtraFilter = o => o is LinhaClasse l && (_soUsados.IsChecked != true || l.Item == null || l.Item.Objetos > 0);
+            _lista.Filtered += AtualizarResumo;
+            _lista.Grid.MouseDoubleClick += (s, e) => EditarRegra();
+            _lista.Grid.ToolTip = "Clique duas vezes para editar a regra da linha. Vale a primeira regra que casar, de cima para baixo (coluna Ordem).";
+
+            var linha = new Style(typeof(DataGridRow), _lista.Grid.RowStyle);
+            var sem = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.SemRegra)), Value = true };
+            sem.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
+            sem.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Nenhuma regra do perfil pega este nome: sai com a classe que a Autodesk escolher."));
+            linha.Triggers.Add(sem);
+            var fora = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.Exportar)), Value = false };
+            fora.Setters.Add(new Setter(Control.ForegroundProperty, Theme.Solid(Theme.Cinza)));
+            linha.Triggers.Add(fora);
+            _lista.Grid.RowStyle = linha;
+            panel.Children.Add(_lista);
 
             _currentSection = null;
             _mappingSection.SelectedIndex = 0;
             return panel;
+        }
+
+        /// <summary>Lê o modelo (na primeira vez) e monta a lista da seção atual.</summary>
+        void Recalcular()
+        {
+            if (_lista == null || _currentSection == null) return;
+            if (_modelo == null)
+            {
+                try { _modelo = ConteudoDesenho.Ler(); }
+                catch (Exception ex) { _modelo = new Dictionary<string, List<ItemDesenho>>(); Status("Não consegui ler o modelo: " + ex.Message); }
+            }
+            var selecionadas = new HashSet<string>(_lista.Grid.SelectedItems.OfType<LinhaClasse>().Select(l => l.Chave));
+            var regras = _mappingRows.Where(r => !string.IsNullOrWhiteSpace(r.Name)).ToList();
+            bool le = ConteudoDesenho.Le(_currentSection);
+            var usadas = new HashSet<MappingRow>();
+            var novas = new List<LinhaClasse>();
+            if (le && _modelo.TryGetValue(_currentSection, out var itens))
+                foreach (var i in itens)
+                {
+                    var vale = regras.FirstOrDefault(r => Casa(r.Name, i.Nome));
+                    if (vale != null) usadas.Add(vale);
+                    novas.Add(new LinhaClasse(this, i, vale, vale == null ? 0 : regras.IndexOf(vale) + 1));
+                }
+            foreach (var r in regras.Where(r => !usadas.Contains(r)))
+                novas.Add(new LinhaClasse(this, null, r, regras.IndexOf(r) + 1) { SoPadrao = le });
+
+            _linhas.Clear();
+            foreach (var l in novas) _linhas.Add(l);
+            _lista.Refresh();
+            foreach (var l in _lista.VisibleItems<LinhaClasse>().Where(l => selecionadas.Contains(l.Chave)))
+                _lista.Grid.SelectedItems.Add(l);
+
+            CommitMappingSection();   // só passa a tela para o JSON (não grava), para conferir as classes
+            var corrigiveis = Corrigiveis();
+            _corrigir.Visibility = corrigiveis.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            _corrigir.Content = corrigiveis.Count == 1 ? "Corrigir 1 classe" : $"Corrigir {corrigiveis.Count} classes";
+            _corrigir.ToolTip = "Troca as classes fora do esquema pela correção óbvia: " +
+                                string.Join("; ", corrigiveis.Take(4).Select(x => $"{x.De} → {x.Para}")) + ".";
+        }
+
+        void AtualizarResumo()
+        {
+            if (_resumoLista == null) return;
+            var palavra = ConteudoDesenho.Palavra(_currentSection);
+            int regras = _mappingRows.Count(r => !string.IsNullOrWhiteSpace(r.Name));
+            if (!ConteudoDesenho.Le(_currentSection))
+            {
+                _resumoLista.Text = $"{regras} regra(s). O plugin lê do modelo só layers, blocos e baselines de corredor.";
+                return;
+            }
+            var usados = _linhas.Where(l => l.Item != null && l.Item.Objetos > 0).ToList();
+            int sem = usados.Count(l => l.SemRegra);
+            int soPadrao = _linhas.Count(l => l.SoPadrao);
+            _resumoLista.Text = $"{usados.Count} {palavra.Varios} com objetos no modelo · {sem} sem regra · {soPadrao} regra(s) só no perfil";
+        }
+
+        /// <summary>Linhas selecionadas, com aviso se não houver.</summary>
+        List<LinhaClasse> Selecionadas(string oQue)
+        {
+            var l = _lista.Grid.SelectedItems.OfType<LinhaClasse>().ToList();
+            if (l.Count == 0) Status("Selecione as linhas " + oQue + ".");
+            return l;
+        }
+
+        /// <summary>Regra só para este nome, no topo (vale primeiro).</summary>
+        MappingRow RegraPropria(ItemDesenho i, string classe, bool exportar)
+        {
+            var r = new MappingRow { Name = "^" + System.Text.RegularExpressions.Regex.Escape(i.Nome) + "$", IfcExportAs = classe, Export = exportar };
+            _mappingRows.Insert(0, r);
+            return r;
+        }
+
+        void AplicarClasse()
+        {
+            var escolhida = _classes.SelectedItem as string;
+            if (escolhida == null) { Status("Escolha uma classe da lista."); return; }
+            string classe = escolhida == SemClasse ? "" : escolhida;
+            var linhas = Selecionadas("que vão receber a classe");
+            if (linhas.Count == 0) return;
+            var mudadas = new HashSet<MappingRow>();
+            int novas = 0;
+            foreach (var l in linhas)
+            {
+                if (l.RegraObj != null) { l.RegraObj.IfcExportAs = classe; mudadas.Add(l.RegraObj); }
+                else { RegraPropria(l.Item, classe, true); novas++; }
+            }
+            int afetados = _linhas.Count(l => l.Item != null && l.RegraObj != null && mudadas.Contains(l.RegraObj));
+            Recalcular();
+            var partes = new List<string>();
+            if (mudadas.Count > 0) partes.Add($"{mudadas.Count} regra(s) mudada(s), {afetados} {ConteudoDesenho.Palavra(_currentSection).Varios} com a nova classe");
+            if (novas > 0) partes.Add($"{novas} regra(s) nova(s) no topo");
+            Status(string.Join(" · ", partes) + ". Clique Salvar.");
+        }
+
+        /// <summary>Marcar/desmarcar Exportar numa linha (chamado pela LinhaClasse).</summary>
+        internal void MudarExportar(LinhaClasse l, bool valor)
+        {
+            if (l.RegraObj != null) l.RegraObj.Export = valor;
+            else RegraPropria(l.Item, "", valor);
+            Dispatcher.BeginInvoke(new Action(Recalcular), System.Windows.Threading.DispatcherPriority.Background);
+        }
+
+        void MoverRegra(int delta)
+        {
+            if (!(_lista.Grid.SelectedItem is LinhaClasse l) || l.RegraObj == null) { Status("Selecione uma linha com regra."); return; }
+            int i = _mappingRows.IndexOf(l.RegraObj), j = i + delta;
+            if (i < 0 || j < 0 || j >= _mappingRows.Count) return;
+            _mappingRows.Move(i, j);
+            Recalcular();
+        }
+
+        void NovaRegra()
+        {
+            string nome = PedirTexto("Nova regra", "Nome do layer ou expressão regular (ex.: ^U-3D-DORMENTE.*):", "");
+            if (string.IsNullOrWhiteSpace(nome)) return;
+            int pos = _lista.Grid.SelectedItem is LinhaClasse l && l.RegraObj != null ? _mappingRows.IndexOf(l.RegraObj) : 0;
+            var classe = _classes.SelectedItem as string;
+            _mappingRows.Insert(Math.Max(0, pos), new MappingRow { Name = nome.Trim(), IfcExportAs = classe == null || classe == SemClasse ? "" : classe, Export = true });
+            Recalcular();
+            Status("Regra criada. Clique Salvar.");
+        }
+
+        void EditarRegra()
+        {
+            if (!(_lista.Grid.SelectedItem is LinhaClasse l)) return;
+            if (l.RegraObj == null)
+            {
+                string novo = PedirTexto("Nova regra", "Regra para " + l.Nome + ":", "^" + System.Text.RegularExpressions.Regex.Escape(l.Nome) + "$");
+                if (string.IsNullOrWhiteSpace(novo)) return;
+                var r = RegraPropria(l.Item, "", true);
+                r.Name = novo.Trim();
+            }
+            else
+            {
+                string novo = PedirTexto("Editar regra", "Nome do layer ou expressão regular:", l.RegraObj.Name);
+                if (string.IsNullOrWhiteSpace(novo)) return;
+                l.RegraObj.Name = novo.Trim();
+            }
+            Recalcular();
+        }
+
+        void ExcluirRegras()
+        {
+            var regras = Selecionadas("cuja regra sai do perfil").Select(l => l.RegraObj).Where(r => r != null).Distinct().ToList();
+            if (regras.Count == 0) return;
+            int afetados = _linhas.Count(l => l.Item != null && regras.Contains(l.RegraObj));
+            if (MessageBox.Show(this, $"Excluir {regras.Count} regra(s) do perfil?" + (afetados > 0 ? $" {afetados} {ConteudoDesenho.Palavra(_currentSection).Varios} do modelo deixam de segui-la(s)." : ""),
+                    "MetroSP", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
+            foreach (var r in regras) _mappingRows.Remove(r);
+            Recalcular();
+        }
+
+        /// <summary>Caixinha para digitar um texto (nome de regra).</summary>
+        string PedirTexto(string titulo, string pergunta, string inicial) => Theme.PedirTexto(this, titulo, pergunta, inicial);
+
+        static readonly Dictionary<string, System.Text.RegularExpressions.Regex> _regex = new Dictionary<string, System.Text.RegularExpressions.Regex>();
+
+        /// <summary>Nome igual (sem diferenciar maiúsculas) ou expressão regular que casa, como no FiltroIfc.</summary>
+        static bool Casa(string regra, string nome)
+        {
+            if (string.IsNullOrWhiteSpace(regra) || nome == null) return false;
+            if (regra.Trim().Equals(nome, StringComparison.OrdinalIgnoreCase)) return true;
+            if (!_regex.TryGetValue(regra, out var re))
+            {
+                try { re = new System.Text.RegularExpressions.Regex(regra.Trim(), System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant); }
+                catch { re = null; }
+                _regex[regra] = re;
+            }
+            return re != null && re.IsMatch(nome);
+        }
+
+        /// <summary>Classes fora do esquema com correção óbvia, em todas as seções.</summary>
+        List<(JsonObject Regra, string De, string Para)> Corrigiveis()
+        {
+            var r = new List<(JsonObject, string, string)>();
+            foreach (var kv in _mapping)
+                if (kv.Value is JsonArray arr)
+                    foreach (var o in arr.OfType<JsonObject>())
+                    {
+                        var c = (string)o["IfcExportAs"];
+                        if (IfcCatalog.IsValid(c, IfcClasses)) continue;
+                        var s = IfcCatalog.Sugestao(c, IfcClasses);
+                        if (s != null) r.Add((o, c, s));
+                    }
+            return r;
+        }
+
+        void CorrigirClasses()
+        {
+            CommitMappingSection();
+            var lista = Corrigiveis();
+            foreach (var x in lista) x.Regra["IfcExportAs"] = x.Para;
+            var secao = _currentSection;
+            _currentSection = null;
+            SwitchSection(secao);
+            Status(lista.Count == 1 ? $"Corrigida: {lista[0].De} → {lista[0].Para}. Clique Salvar." : $"{lista.Count} classes corrigidas. Clique Salvar.");
         }
 
         const string SemClasse = "(vazio: classe da Autodesk)";
@@ -432,6 +665,7 @@ namespace MetroSP.Ui
             _mappingRows.Clear();
             if (_mapping[_currentSection] is JsonArray arr)
                 foreach (var item in arr.OfType<JsonObject>()) _mappingRows.Add(MappingRow.From(item));
+            Recalcular();
         }
 
         void CommitMappingSection()
@@ -460,12 +694,21 @@ namespace MetroSP.Ui
             var tabs = new TabControl { Margin = new Thickness(0, 8, 0, 0) };
 
             var grid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _propertyRows, Margin = new Thickness(0, 8, 0, 0) };
-            grid.Columns.Add(new DataGridTextColumn { Header = "Property set", Binding = new Binding("PropertySet"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Propriedade", Binding = new Binding("Property"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            // Cada coluna de texto é uma lista em que dá para digitar: o que existe no modelo (property sets e propriedades
+            // do Civil 3D) mais o que já está no mapeamento.
+            grid.Columns.Add(ColunaLista("Property set", nameof(PropertyRow.PropertySet), 2, r =>
+                PsetsDoModelo().Select(x => x.Nome).Concat(_propertyRows.Select(x => x.PropertySet))));
+            grid.Columns.Add(ColunaLista("Propriedade", nameof(PropertyRow.Property), 2, r =>
+                PropsDoModelo(r.PropertySet).Concat(_propertyRows.Where(x => Igual(x.PropertySet, r.PropertySet)).Select(x => x.Property))));
             grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Ativa", Binding = new Binding("Active"), Width = 50 });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Origem", Binding = new Binding("Source"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Grupo", Binding = new Binding("Group"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
-            grid.Columns.Add(new DataGridTextColumn { Header = "Nome no Civil 3D", Binding = new Binding("CivilName"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
+            grid.Columns.Add(ColunaLista("Origem", nameof(PropertyRow.Source), 1, r =>
+                new[] { "PropertySet", "Properties", "General", "PartData", "DrawingProperties" }.Concat(_propertyRows.Select(x => x.Source))));
+            grid.Columns.Add(ColunaLista("Grupo", nameof(PropertyRow.Group), 1, r =>
+                (Igual(r.Source, "PropertySet") ? PsetsDoModelo().Select(x => x.Nome) : Enumerable.Empty<string>())
+                    .Concat(_propertyRows.Where(x => Igual(x.Source, r.Source)).Select(x => x.Group))));
+            grid.Columns.Add(ColunaLista("Nome no Civil 3D", nameof(PropertyRow.CivilName), 2, r =>
+                (Igual(r.Source, "PropertySet") ? PropsDoModelo(r.Group) : Enumerable.Empty<string>())
+                    .Concat(_propertyRows.Where(x => Igual(x.Source, r.Source) && Igual(x.Group, r.Group)).Select(x => x.CivilName))));
             grid.ToolTip = "Origem: Properties, PartData, General ou PropertySet.";
             tabs.Items.Add(new TabItem { Header = "De onde vem cada uma", Content = WithTools(grid, _propertyRows, "propriedade") });
 
@@ -485,6 +728,61 @@ namespace MetroSP.Ui
             };
             tabs.Items.Add(new TabItem { Header = "Property sets (JSON)", Content = _templatesText });
             return tabs;
+        }
+
+        static bool Igual(string a, string b) => string.Equals((a ?? "").Trim(), (b ?? "").Trim(), StringComparison.OrdinalIgnoreCase);
+
+        List<PropertySets.PsetMontagem> _psetsModelo;
+
+        /// <summary>Property sets definidos no modelo (lidos uma vez por janela).</summary>
+        List<PropertySets.PsetMontagem> PsetsDoModelo()
+        {
+            if (_psetsModelo != null) return _psetsModelo;
+            try
+            {
+                var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                using (doc.LockDocument()) _psetsModelo = PropertySets.PsetsCore.LerDesenho(doc.Database);
+            }
+            catch { _psetsModelo = new List<PropertySets.PsetMontagem>(); }
+            return _psetsModelo;
+        }
+
+        IEnumerable<string> PropsDoModelo(string pset) =>
+            PsetsDoModelo().Where(x => Igual(x.Nome, pset)).SelectMany(x => x.Propriedades.Select(pr => pr.Nome));
+
+        /// <summary>
+        /// Coluna de texto que, ao editar, vira lista suspensa em que dá para digitar (regra de todas as telas).
+        /// As opções são montadas na hora, a partir da linha (ex.: as propriedades do property set escolhido).
+        /// </summary>
+        static DataGridTemplateColumn ColunaLista(string titulo, string prop, double peso, Func<PropertyRow, IEnumerable<string>> opcoes)
+        {
+            var ver = new FrameworkElementFactory(typeof(TextBlock));
+            ver.SetBinding(TextBlock.TextProperty, new Binding(prop));
+            ver.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+            ver.SetValue(FrameworkElement.MarginProperty, new Thickness(2, 0, 2, 0));
+
+            var editar = new FrameworkElementFactory(typeof(ComboBox));
+            editar.SetValue(ComboBox.IsEditableProperty, true);
+            editar.SetValue(ComboBox.IsTextSearchEnabledProperty, true);
+            editar.SetValue(ComboBox.StaysOpenOnEditProperty, true);
+            editar.SetValue(ComboBox.MaxDropDownHeightProperty, 320.0);
+            editar.SetBinding(ComboBox.TextProperty, new Binding(prop) { Mode = BindingMode.TwoWay, UpdateSourceTrigger = UpdateSourceTrigger.LostFocus });
+            editar.AddHandler(FrameworkElement.LoadedEvent, new RoutedEventHandler((s, e) =>
+            {
+                var c = (ComboBox)s;
+                if (!(c.DataContext is PropertyRow r)) return;
+                var texto = c.Text;
+                c.ItemsSource = opcoes(r).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim())
+                    .Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.CurrentCultureIgnoreCase).ToList();
+                c.Text = texto;
+                c.Focus();
+            }));
+            return new DataGridTemplateColumn
+            {
+                Header = titulo, SortMemberPath = prop, Width = new DataGridLength(peso, DataGridLengthUnitType.Star),
+                CellTemplate = new DataTemplate { VisualTree = ver },
+                CellEditingTemplate = new DataTemplate { VisualTree = editar },
+            };
         }
 
         void LoadCsv()
@@ -518,27 +816,15 @@ namespace MetroSP.Ui
 
             // Lat/long, elevação, matrícula e coordenadas: só do Civil 3D, dentro da coluna IfcSite.
             var extra = Form(
-                ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo. Vazio: calculada pelo PTL.")),
-                ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo. Vazio: calculada pelo PTL.")),
+                ("Latitude", Text(e.Terreno, nameof(SiteInfo.Latitude), "Graus decimais; sul é negativo. Vazio: a da origem do PTL (150.000; 250.000), onde fica o IfcSite.")),
+                ("Longitude", Text(e.Terreno, nameof(SiteInfo.Longitude), "Graus decimais; oeste é negativo. Vazio: a da origem do PTL (150.000; 250.000), onde fica o IfcSite.")),
                 ("Elevação (m)", Text(e.Terreno, nameof(SiteInfo.Elevacao))),
                 ("Matrícula", Text(e.Terreno, nameof(SiteInfo.Matricula), "Matrícula do terreno (LandTitleNumber).")),
                 ("Coordenadas", Ptl(e)));
             extra.Margin = new Thickness(0, 6, 0, 0);
 
-            // Instalações no lugar do IfcBuilding único: a linha (IfcRailway) e cada estação (IfcBuilding).
-            var inst = new StackPanel();
-            var bgridHead = new DockPanel();
-            inst.Children.Add(bgridHead);
-            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _facilities, MinHeight = 110,
-                ToolTip = "Dentro do IfcSite. A linha como IfcRailway; cada estação como IfcBuilding. Se a Autodesk já gravou uma com o mesmo nome, ela recebe o nome longo, a descrição e o endereço." };
-            bgrid.Columns.Add(new DataGridComboBoxColumn { Header = "Tipo", ItemsSource = FacilityInfo.Types, SelectedItemBinding = new Binding("Tipo"), Width = 110 });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Nome"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome longo", Binding = new Binding("NomeLongo"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Descrição", Binding = new Binding("Descricao"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Endereço", Binding = new Binding("Endereco"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 90 });
-            inst.Children.Add(bgrid);
-            SectionWithTools(bgridHead, "Instalações · IfcRailway, IfcBuilding", bgrid, _facilities, "instalação");
+            // Instalações em árvore: a principal (a que o exportador grava, com os objetos) e as de referência (vazias).
+            var inst = ArvoreInstalacoes();
 
             var dados = new DadosProjetoIfc
             {
@@ -555,12 +841,125 @@ namespace MetroSP.Ui
             {
                 EdificioParaPadrao = () =>
                 {
-                    var b = _facilities.FirstOrDefault(f => f.Tipo == "IfcBuilding" && !string.IsNullOrWhiteSpace(f.Nome));
+                    var b = _facilities.FirstOrDefault(f => f.Principal && !string.IsNullOrWhiteSpace(f.Nome))
+                            ?? _facilities.FirstOrDefault(f => f.Tipo == "IfcBuilding" && !string.IsNullOrWhiteSpace(f.Nome));
                     return b == null ? null : new DadosEntidadeIfc { Nome = b.Nome, NomeLongo = b.NomeLongo, Descricao = b.Descricao, Endereco = b.Endereco };
                 },
             };
             _dadosPainel.PadraoUsado += UsarEdificioDoPadrao;
             return new ScrollViewer { Content = _dadosPainel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0, 0, 6, 0) };
+        }
+
+        /// <summary>
+        /// Estrutura no IFC: IfcProject › IfcSite › instalação principal (destacada: é onde o exportador põe todos os objetos
+        /// do modelo; aqui se escolhe o tipo, o nome e o nome longo) e as instalações de referência (vazias, ex.: a estação vizinha).
+        /// </summary>
+        UIElement ArvoreInstalacoes()
+        {
+            var raiz = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+            raiz.Children.Add(Theme.Secao("Estrutura no IFC · instalações dentro do IfcSite"));
+            if (!_facilities.Any(f => f.Principal))
+            {
+                // Antes, a primeira da lista com o mesmo nome da que a Autodesk grava era a principal; sem marca, nenhuma é.
+                _facilities.Insert(0, new FacilityInfo { Principal = true, Tipo = FacilityInfo.DefaultType });
+            }
+            int objetos = -1;
+            try
+            {
+                var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                using (doc.LockDocument())
+                using (var tr = doc.Database.TransactionManager.StartOpenCloseTransaction())
+                {
+                    objetos = FiltroIfc.Objetos(doc.Database, tr).Count;
+                    tr.Commit();
+                }
+            }
+            catch { }
+
+            var linhas = new StackPanel();
+            raiz.Children.Add(linhas);
+            void Montar()
+            {
+                linhas.Children.Clear();
+                linhas.Children.Add(LinhaArvore("", "IfcProject", Theme.Detalhe("nome e nome longo no alto, em IfcProject"), null, false));
+                linhas.Children.Add(LinhaArvore(" └", "IfcSite", Theme.Detalhe("na origem do PTL (150.000; 250.000), com a latitude e a longitude exatas"), null, false));
+                FacilityInfo pr = _facilities.First(f => f.Principal);
+                linhas.Children.Add(LinhaArvore("    └", null, CamposInstalacao(pr, true),
+                    new TextBlock
+                    {
+                        Text = (objetos >= 0 ? $"{objetos:N0} objetos do modelo" : "os objetos do modelo") + "\ninstalação principal: é onde o exportador põe tudo",
+                        Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center,
+                    }, true));
+                foreach (FacilityInfo f in _facilities.Where(f => !f.Principal).ToList())
+                {
+                    var tirar = Theme.Link("tirar");
+                    tirar.Click += (s, e) => { _facilities.Remove(f); Montar(); };
+                    var lado = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    lado.Children.Add(new TextBlock { Text = "vazia, só referência · ", Foreground = Theme.Solid(Theme.Cinza) });
+                    lado.Children.Add(tirar);
+                    linhas.Children.Add(LinhaArvore("    └", null, CamposInstalacao(f, false), lado, false));
+                }
+                var mais = new Button { Content = "+ instalação de referência", Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(0, 4, 8, 0),
+                    ToolTip = "IfcBuilding, IfcBridge, IfcRoad ou IfcRailway sem objetos (ex.: a estação vizinha). Vai dentro do IfcSite." };
+                mais.Click += (s, e) => { _facilities.Add(new FacilityInfo { Tipo = "IfcBuilding" }); Montar(); };
+                var linhaMais = new StackPanel { Orientation = Orientation.Horizontal };
+                linhaMais.Children.Add(mais);
+                linhas.Children.Add(LinhaArvore("    └", null, linhaMais, null, false));
+            }
+            Montar();
+            _facilities.CollectionChanged += (s, e) => Dispatcher.BeginInvoke(new Action(Montar));
+            return raiz;
+        }
+
+        static Grid LinhaArvore(string ramo, string entidade, UIElement campos, UIElement lado, bool destaque)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            if (destaque) g.Background = Theme.Solid(Theme.LaranjaSelecao);
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var r = new TextBlock { Text = ramo, FontFamily = new FontFamily("Consolas"), Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
+            g.Children.Add(r);
+            int col = 1;
+            if (entidade != null)
+            {
+                var t = new TextBlock { Text = entidade, FontWeight = FontWeights.SemiBold, Width = 130, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 8, 4) };
+                Grid.SetColumn(t, 1);
+                g.Children.Add(t);
+                col = 2;
+            }
+            Grid.SetColumn((FrameworkElement)campos, col);
+            if (entidade == null) Grid.SetColumnSpan((FrameworkElement)campos, 2);
+            g.Children.Add(campos);
+            if (lado != null)
+            {
+                ((FrameworkElement)lado).Margin = new Thickness(12, 2, 6, 2);
+                Grid.SetColumn((FrameworkElement)lado, 3);
+                g.Children.Add(lado);
+            }
+            return g;
+        }
+
+        static UIElement CamposInstalacao(FacilityInfo f, bool principal)
+        {
+            var p = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+            var tipo = Theme.Digitavel(new ComboBox { ItemsSource = FacilityInfo.Types, Width = 130, Margin = new Thickness(0, 0, 8, 0), FontWeight = FontWeights.SemiBold,
+                ToolTip = principal ? "Tipo da instalação principal no IFC 4.3 (no IFC4 só existe IfcBuilding)." : "Tipo da instalação de referência." });
+            tipo.SelectedItem = FacilityInfo.Types.FirstOrDefault(t => string.Equals(t, f.Tipo, StringComparison.OrdinalIgnoreCase)) ?? FacilityInfo.DefaultType;
+            tipo.SelectionChanged += (s, e) => { if (tipo.SelectedItem is string t) f.Tipo = t; };
+            p.Children.Add(tipo);
+            TextBox Caixa(string valor, double w, string dica, Action<string> gravar)
+            {
+                var t = new TextBox { Text = valor ?? "", Width = w, Margin = new Thickness(0, 0, 8, 0), ToolTip = dica, VerticalContentAlignment = VerticalAlignment.Center };
+                t.TextChanged += (s, e) => gravar(t.Text);
+                p.Children.Add(t);
+                return t;
+            }
+            Caixa(f.Nome, 200, principal ? "Nome da instalação principal (ex.: Linha 15). Vazio: fica o nome que a Autodesk dá." : "Nome (ex.: Estação Vila Prudente).", v => f.Nome = v);
+            Caixa(f.NomeLongo, 240, "Nome longo.", v => f.NomeLongo = v);
+            Caixa(f.Endereco, 200, "Endereço (só IfcBuilding).", v => f.Endereco = v);
+            return p;
         }
 
         /// <summary>Leva os campos do painel (IfcProject, IfcSite, MetroSP_Projeto) para a configuração.</summary>
@@ -584,7 +983,9 @@ namespace MetroSP.Ui
         {
             var ed = padrao?.Edificio;
             if (ed == null || string.IsNullOrWhiteSpace(ed.Nome)) return;
-            var f = _facilities.FirstOrDefault(x => string.Equals((x.Nome ?? "").Trim(), ed.Nome.Trim(), StringComparison.OrdinalIgnoreCase));
+            var f = _facilities.FirstOrDefault(x => string.Equals((x.Nome ?? "").Trim(), ed.Nome.Trim(), StringComparison.OrdinalIgnoreCase))
+                    ?? _facilities.FirstOrDefault(x => x.Principal && string.IsNullOrWhiteSpace(x.Nome));
+            if (f != null && string.IsNullOrWhiteSpace(f.Nome)) f.Nome = ed.Nome.Trim();
             if (f == null)
             {
                 _facilities.Add(new FacilityInfo { Tipo = "IfcBuilding", Nome = ed.Nome.Trim(), NomeLongo = ed.NomeLongo, Descricao = ed.Descricao, Endereco = ed.Endereco });
@@ -640,7 +1041,7 @@ namespace MetroSP.Ui
             open.Click += (s, e) => Process.Start(new ProcessStartInfo("explorer.exe", "\"" + ConfigPackage.ActiveDir + "\"") { UseShellExecute = true });
             DockPanel.SetDock(open, Dock.Right);
             filesHead.Children.Add(open);
-            filesHead.Children.Add(Section("Arquivos do pacote"));
+            filesHead.Children.Add(Section("Arquivos do perfil"));
             head.Children.Add(filesHead);
             head.Children.Add(PackageFiles());
 
@@ -656,7 +1057,7 @@ namespace MetroSP.Ui
 
             if (_autodeskConfig == null)
             {
-                panel.Children.Add(Theme.Detalhe("Ainda não há este arquivo no pacote. Rode IFCInfraSaveConfig no Civil 3D e use Importar da Autodesk."));
+                panel.Children.Add(Theme.Detalhe("Ainda não há este arquivo no perfil. Rode IFCInfraSaveConfig no Civil 3D e use Importar da Autodesk."));
                 return panel;
             }
             var tree = new TreeView();
@@ -781,7 +1182,7 @@ namespace MetroSP.Ui
             var check = new CheckBox
             {
                 Content = "PTL do Metrô, sem EPSG",
-                ToolTip = "Ligado (padrão): o IFC sai nas coordenadas do desenho (PTL do Metrô), sem EPSG, IfcProjectedCRS e " +
+                ToolTip = "Ligado (padrão): o IFC sai nas coordenadas do modelo (PTL do Metrô), sem EPSG, IfcProjectedCRS e " +
                           "IfcMapConversion, como no plugin do Revit. Assim o modelo encontra as estruturas do Revit.\n" +
                           "Desligado: vale o EPSG ao lado no IfcMapConversion.",
                 Margin = new Thickness(0, 3, 0, 3)
@@ -838,6 +1239,7 @@ namespace MetroSP.Ui
 
     public class MappingRow
     {
+
         public string Name { get; set; }
         public string IfcExportAs { get; set; }
         public bool Export { get; set; } = true;
@@ -866,6 +1268,36 @@ namespace MetroSP.Ui
             var o = new JsonObject { ["Name"] = Name, ["IfcExportAs"] = IfcExportAs ?? "", ["Export"] = Export };
             if (_extra != null) foreach (var kv in _extra) o[kv.Key] = kv.Value?.DeepClone();
             return o;
+        }
+    }
+
+    /// <summary>Linha da lista única de Classes IFC: um nome do modelo com a regra que vale, ou uma regra só do padrão.</summary>
+    public class LinhaClasse
+    {
+        readonly ConfigWindow _janela;
+        public ItemDesenho Item { get; }
+        public MappingRow RegraObj { get; }
+        public bool SoPadrao { get; set; }
+
+        public LinhaClasse(ConfigWindow janela, ItemDesenho item, MappingRow regra, int ordem)
+        {
+            _janela = janela; Item = item; RegraObj = regra; Ordem = ordem > 0 ? ordem.ToString() : "";
+        }
+
+        public string Chave => Item != null ? "m:" + Item.Nome : "r:" + RegraObj?.Name;
+        public string Nome => Item?.Nome ?? RegraObj?.Name;
+        public string Onde => Item == null ? (SoPadrao ? "só no perfil" : "no perfil") : RegraObj == null ? "só no modelo" : "perfil e modelo";
+        public string Objetos => Item == null ? "—" : Item.Objetos.ToString("N0", CultureInfo.GetCultureInfo("pt-BR"));
+        public int ObjetosNum => Item?.Objetos ?? -1;
+        public string Classe => RegraObj == null ? "(classe da Autodesk)" : string.IsNullOrWhiteSpace(RegraObj.IfcExportAs) ? "(classe da Autodesk)" : RegraObj.IfcExportAs;
+        public bool ClasseInvalida => RegraObj != null && RegraObj.ClasseInvalida;
+        public string Regra => RegraObj == null ? "sem regra" : RegraObj.Name;
+        public string Ordem { get; }
+        public bool SemRegra => Item != null && RegraObj == null;
+        public bool Exportar
+        {
+            get => RegraObj?.Export ?? true;
+            set { if (value != Exportar) _janela.MudarExportar(this, value); }
         }
     }
 

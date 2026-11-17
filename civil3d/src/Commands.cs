@@ -151,7 +151,7 @@ namespace MetroSP
             body.Children.Add(chips);
             body.Children.Add(Ui.Theme.Secao("Arquivos"));
             body.Children.Add(Ui.Theme.Detalhe("Configuração: " + (cfg.LoadedFrom ?? "(não encontrada)")));
-            body.Children.Add(Ui.Theme.Detalhe("Pacote IFC ativo: " + ConfigPackage.ActiveDir));
+            body.Children.Add(Ui.Theme.Detalhe("Perfil de exportação ativo: " + ConfigPackage.ActiveDir));
             body.Children.Add(Ui.Theme.Detalhe("Exportador da Autodesk: " + AutodeskIfcExtension.Describe(cfg.ExportCommand)));
             if (cfg.UsesForma)
             {
@@ -185,7 +185,7 @@ namespace MetroSP
                 if (pending != null)
                 {
                     ifc = FindExportedIfc(pending);
-                    if (ifc == null) ed.WriteMessage("\nMetroSP: não achei o IFC recém-exportado na pasta do desenho; escolha o arquivo.");
+                    if (ifc == null) ed.WriteMessage("\nMetroSP: não achei o IFC recém-exportado na pasta do modelo; escolha o arquivo.");
                 }
                 if (ifc == null)
                 {
@@ -236,7 +236,7 @@ namespace MetroSP
 
                 var dwgDir = DrawingFolder(doc);
                 if (dwgDir == null && cfg.Destino != "ProgramData")
-                    throw new InvalidOperationException("Salve o desenho antes: os JSON de configuração são gravados na pasta do DWG.");
+                    throw new InvalidOperationException("Salve o modelo antes: os JSON de configuração são gravados na pasta do DWG.");
 
                 if (cfg.UsesForma)
                 {
@@ -257,9 +257,9 @@ namespace MetroSP
                     var novos = PropertySets.PsetsCore.CompletarMapeamentoNaExportacao(doc.Database,
                         Escrito(ConfigKind.PropertyTemplates), Escrito(ConfigKind.PropertyMappingCsv));
                     if (novos.Count > 0)
-                        ed.WriteMessage($"\nMetroSP: property sets do desenho incluídos na exportação: {string.Join(", ", novos)}.");
+                        ed.WriteMessage($"\nMetroSP: property sets do modelo incluídos na exportação: {string.Join(", ", novos)}.");
                 }
-                catch (System.Exception ex) { ed.WriteMessage("\nMetroSP: aviso: não deu para incluir os property sets do desenho no mapeamento: " + ex.Message); }
+                catch (System.Exception ex) { ed.WriteMessage("\nMetroSP: aviso: não deu para incluir os property sets do modelo no mapeamento: " + ex.Message); }
                 if (selected == null) return;
 
                 var metro = ConfigPackage.LoadMetroSp();

@@ -189,6 +189,19 @@ namespace MetroSP.Ifc
             _dirty.Remove(id);
         }
 
+        /// <summary>Troca o tipo da entidade (os argumentos ficam; ajuste-os antes de salvar).</summary>
+        public void SetType(int id, string type)
+        {
+            var e = Get(id);
+            if (e == null) return;
+            type = type.ToUpperInvariant();
+            if (e.Type == type) return;
+            e.Type = type;
+            _type[id] = type;
+            Index(id, type);
+            _dirty.Add(id);
+        }
+
         public void SetArg(int id, int index, string value)
         {
             var e = Get(id);
