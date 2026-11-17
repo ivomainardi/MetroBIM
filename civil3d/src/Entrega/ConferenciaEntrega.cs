@@ -18,7 +18,7 @@ namespace MetroSP.Entrega
     public enum Sinal { Verde, Amarelo, Vermelho, Cinza }
 
     /// <summary>O que a pendência pede: cada tipo tem um botão na janela (ver EntregaWindow.Acoes).</summary>
-    public enum Acao { Nenhuma, Comando, Exportador, SalvarDesenho, CriarPset, AnexarPset, UsarPerfil, AbrirEscrita, PreencherProjeto }
+    public enum Acao { Nenhuma, Comando, Exportador, SalvarDesenho, CriarPset, AnexarPset, UsarPerfil, AbrirEscrita, PreencherProjeto, AbrirMetroData }
 
     public class Pendencia
     {
@@ -69,7 +69,7 @@ namespace MetroSP.Entrega
             (1, "Perfis", "Perfil de exportação, perfis em uso e o exportador IFC 4.3 da Autodesk instalado."),
             (2, "Classes IFC", "Classe IFC de cada layer, bloco e baseline do modelo, dentro do esquema escolhido (IFC 4.3)."),
             (3, "Property sets", "Property sets que o mapeamento IFC pede: montados no modelo e anexados aos objetos que vão para o IFC."),
-            (4, "MetroDATA", "Erros de escrita (espaços, acentos, caracteres estranhos) e confronto com a planilha do perfil."),
+            (4, "MetroDATA", "Propriedades que a planilha do MetroDATA pede para cada objeto, erros de escrita e confronto com planilha."),
             (5, "Classificação", "Códigos de classificação dos objetos conferidos com a planilha do perfil."),
             (6, "Alinhamentos", "Perfil de cada alinhamento que vai para o IFC (eixo 3D com as cotas)."),
             (7, "Exportar", "IfcProject, IfcSite e instalações (IfcRailway, IfcBuilding), e a exportação."),
@@ -285,6 +285,7 @@ namespace MetroSP.Entrega
 
         static void Dados(AcDocument doc, EtapaEntrega e)
         {
+            string resumoMd = MetroDataPendencias(doc, e);
             var fonte = new FonteCivil3D(doc, null);
             var padrao = PadroesEscrita.Listar().First();
             var corretor = new CorretorEscrita(padrao);
@@ -309,7 +310,50 @@ namespace MetroSP.Entrega
                     Sinal = Sinal.Amarelo, Titulo = $"{kv.Key} · {kv.Value} valor(es) com erro de escrita",
                     Texto = "Espaços, acentos ou caracteres estranhos.", Acao = Acao.AbrirEscrita,
                 });
-            e.Resumo = $"Escrita conferida em {objetos.Count} objeto(s) (perfil \"{padrao.Nome}\").";
+            e.Resumo = (resumoMd != null ? resumoMd + " " : "") + $"Escrita conferida em {objetos.Count} objeto(s) (perfil \"{padrao.Nome}\").";
+        }
+
+        /// <summary>Pendências da planilha do MetroDATA: vazios por propriedade, layers sem objeto e o que não sai no IFC.</summary>
+        static string MetroDataPendencias(AcDocument doc, EtapaEntrega e)
+        {
+            var esc = MetroData.EscolhasMetroData.Ler(doc);
+            if (string.IsNullOrWhiteSpace(esc.Arquivo))
+            {
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Sem a planilha do MetroDATA", Texto = "Escolha o .xlsx exportado do Airtable na aba Propriedades.", Acao = Acao.AbrirMetroData });
+                return null;
+            }
+            MetroData.PlanilhaMetroData md;
+            try { md = MetroData.PlanilhaMetroData.Ler(esc.Arquivo); }
+            catch (Exception ex)
+            {
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Planilha do MetroDATA não foi lida", Texto = ex.Message, Acao = Acao.AbrirMetroData });
+                return null;
+            }
+            var linhas = MetroData.ConferenciaMetroData.Analisar(doc, md, esc, out _);
+            foreach (var l in linhas.Where(l => l.Vazios > 0).OrderByDescending(l => l.Vazios))
+            {
+                string prop = l.Campo.Contains('.') ? l.Campo.Substring(l.Campo.LastIndexOf('.') + 1) : l.Campo;
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = l.Classe > 0 && l.Classe <= 2 ? Sinal.Vermelho : Sinal.Amarelo,
+                    Titulo = $"{prop} · {l.Vazios:N0} vazio(s)", Texto = $"{l.Objeto} ({l.Layers})", Acao = Acao.AbrirMetroData,
+                    Objetos = l.IdsVazios.ToList(),
+                });
+            }
+            foreach (var l in linhas.Where(l => l.SemObjeto))
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = $"{l.Layers} sem objeto do MetroDATA", Texto = $"{l.Objetos:N0} objeto(s). Escolha em Objetos.",
+                    Acao = Acao.AbrirMetroData, Objetos = l.Ids.ToList(),
+                });
+            var naoSai = linhas.Where(l => l.NaoSaiNoIfc).ToList();
+            if (naoSai.Count > 0)
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = $"{naoSai.Count} propriedade(s) do MetroDATA não sai(em) no IFC",
+                    Texto = string.Join(", ", naoSai.Select(l => l.Campo).Distinct().Take(4)) + ". Mapeie na Saída no IFC (passo 3).", Acao = Acao.AbrirMetroData,
+                });
+            return $"MetroDATA: {linhas.Count(l => !l.SemObjeto)} propriedade(s) pedida(s) ({Path.GetFileName(esc.Arquivo)}).";
         }
 
         // ------------------------------------------------------------------ 5 Classificação

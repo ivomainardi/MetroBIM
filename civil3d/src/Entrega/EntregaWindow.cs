@@ -35,7 +35,7 @@ namespace MetroSP.Entrega
         readonly AcDocument _doc;
         ResultadoEntrega _res;
         int _passo;
-        int _abaDados;               // etapa 4: 0 = Corrigir escrita, 1 = Confrontar planilha
+        int _abaDados;               // etapa 4: 0 = Propriedades (MetroDATA), 1 = Escrita, 2 = Comparar com planilha
         string _comandoDepois;       // comando que roda quando a janela fecha (exportar, sincronizar...)
         readonly List<ObjectId> _selecionar = new List<ObjectId>();
 
@@ -442,8 +442,12 @@ namespace MetroSP.Entrega
                     });
                     break;
                 case Acao.AbrirEscrita:
+                    if (_abaDados != 1)
+                        yield return ("Abrir Escrita", "Abre a aba Escrita ao lado.", () => { if (FecharFerramenta()) { _abaDados = 1; Mostrar(); } });
+                    break;
+                case Acao.AbrirMetroData:
                     if (_abaDados != 0)
-                        yield return ("Corrigir escrita", "Abre o Corrigir escrita ao lado.", () => { if (FecharFerramenta()) { _abaDados = 0; Mostrar(); } });
+                        yield return ("Abrir Propriedades", "Abre a aba Propriedades (MetroDATA) ao lado.", () => { if (FecharFerramenta()) { _abaDados = 0; Mostrar(); } });
                     break;
                 case Acao.PreencherProjeto:
                     break; // o Projeto e Local já está aberto ao lado
@@ -487,8 +491,8 @@ namespace MetroSP.Entrega
                     return new MontarPsetsWindow(_doc, null);
                 }
                 case 4:
-                    return _abaDados == 0
-                        ? new Escrita.CorrigirEscritaWindow(new Confronto.FonteCivil3D(_doc, null))
+                    return _abaDados == 0 ? new MetroData.MetroDataWindow(_doc)
+                        : _abaDados == 1 ? new Escrita.CorrigirEscritaWindow(new Confronto.FonteCivil3D(_doc, null))
                         : (Window)new Confronto.ConfrontarWindow(new Confronto.FonteCivil3D(_doc, null));
                 case 5:
                     return new Classificacao.VerificarClassificacaoWindow(_doc, null);
@@ -504,9 +508,10 @@ namespace MetroSP.Entrega
             _abas.Children.Clear();
             _abas.Visibility = _passo == 4 ? Visibility.Visible : Visibility.Collapsed;
             if (_passo != 4) return;
-            string[] nomes = { "Corrigir escrita", "Confrontar planilha" };
+            string[] nomes = { "Propriedades", "Escrita", "Comparar com planilha" };
             string[] dicas =
             {
+                "As propriedades que a planilha do MetroDATA pede para cada objeto e quantas estão vazias.",
                 "Espaços, acentos e caracteres estranhos em property sets, nome e descrição.",
                 "Compara property sets, nome, descrição e layer com uma planilha externa.",
             };

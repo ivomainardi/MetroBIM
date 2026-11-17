@@ -394,6 +394,25 @@ namespace MetroSP.PropertySets
             foreach (var g in _grupos) g.Contar(_linhas.Count(l => l.Grupo == g));
         }
 
+        /// <summary>Linhas do mapeamento de propriedades do perfil ativo (Pset e propriedade no IFC, ativa e de onde vem).</summary>
+        public static List<(string Pset, string Prop, bool Ativa, string Source, string Grupo, string Nome)> LerMapeamento()
+        {
+            var r = new List<(string, string, bool, string, string, string)>();
+            string csv = ConfigPackage.PathOf(ConfigKind.PropertyMappingCsv);
+            if (!File.Exists(csv)) return r;
+            var linhas = File.ReadAllLines(csv).Where(l => l.Trim().Length > 0).ToList();
+            if (linhas.Count == 0) return r;
+            char sep = linhas[0].Count(c => c == ';') > linhas[0].Count(c => c == ',') ? ';' : ',';
+            foreach (string l in linhas.Skip(1))
+            {
+                List<string> c = Csv.Split(l, sep);
+                string At(int i) => i < c.Count ? c[i].Trim() : "";
+                if (At(0).Length == 0) continue;
+                r.Add((At(0), At(1), !Igual(At(2), "false"), At(3), At(4), At(5)));
+            }
+            return r;
+        }
+
         static JsonArray Templates(JsonNode raiz) => raiz as JsonArray ?? raiz?["PropertySetTemplates"] as JsonArray;
 
         /// <summary>Grava o .csv (de onde vem cada propriedade) e o .json (Psets, entidades e tipos) do perfil ativo.</summary>
