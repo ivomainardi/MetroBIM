@@ -99,13 +99,18 @@ namespace MetroSP.Ui
             catch { Clipboard.SetText(url); MessageBox.Show("Não foi possível abrir o navegador. O endereço foi copiado:\n" + url, "MetroSP"); }
         }
 
-        internal static Window NewWindow(string title, double width) => new Window
+        internal static Window NewWindow(string title, double width)
         {
-            Title = title,
-            Width = width,
-            SizeToContent = SizeToContent.Height,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner
-        };
+            var w = new Window
+            {
+                Title = title,
+                Width = width,
+                SizeToContent = SizeToContent.Height,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner
+            };
+            JanelaNoMonitor.Preparar(w);
+            return w;
+        }
     }
 
     /// <summary>Uma pergunta só, antes da exportação: qual perfil usar em cada alinhamento com mais de um.</summary>
