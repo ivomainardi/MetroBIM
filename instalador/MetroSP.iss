@@ -68,7 +68,7 @@ Name: "ptbr"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Messages]
 ptbr.WelcomeLabel1=MetroSP {#Versao}
-ptbr.WelcomeLabel2=Ferramentas da Ação BIM para modelar e entregar no padrão BIM do Metrô de São Paulo.%n%nFeche o Revit, o Civil 3D e o Navisworks antes de continuar. O MetroSP é instalado só para o seu usuário, sem precisar de administrador.
+ptbr.WelcomeLabel2=Ferramentas da Ação BIM para modelar e entregar no padrão BIM do Metrô de São Paulo.%n%nFeche o Revit, o Civil 3D e o Navisworks antes de continuar (se algum estiver aberto, o instalador avisa). O MetroSP é instalado só para o seu usuário, sem precisar de administrador.
 ptbr.SelectComponentsDesc=Onde instalar o MetroSP?
 ptbr.SelectComponentsLabel2=Aparecem só os programas encontrados neste computador. Desmarque o que não quiser.
 ptbr.FinishedHeadingLabel=MetroSP instalado
@@ -167,6 +167,134 @@ begin
 #endif
 end;
 
+// ---------- Programas abertos ----------
+// Com o Revit, o Civil 3D (acad.exe) ou o Navisworks (Roamer.exe) aberto, a DLL do MetroSP fica travada e a
+// cópia falha. Antes de copiar, o instalador procura esses programas (WMI, sem precisar de administrador) e
+// pede para fechar, com "Tentar de novo" ou "Cancelar". Só contam os programas onde o MetroSP vai ser instalado.
+
+// Lista os processos com esse nome. Caminhos: o executável de cada um ('' quando o Windows não informa).
+function ProcessosAbertos(Exe: String; var Caminhos: TArrayOfString): Integer;
+var
+  Locator, Servico, Lista, Item: Variant;
+  I: Integer;
+begin
+  Result := 0;
+  SetArrayLength(Caminhos, 0);
+  try
+    Locator := CreateOleObject('WbemScripting.SWbemLocator');
+    Servico := Locator.ConnectServer('.', 'root\CIMV2');
+    Lista := Servico.ExecQuery('SELECT ExecutablePath FROM Win32_Process WHERE Name = ''' + Exe + '''');
+    Result := Lista.Count;
+    SetArrayLength(Caminhos, Result);
+    for I := 0 to Result - 1 do
+    begin
+      Item := Lista.ItemIndex(I);
+      if VarIsNull(Item.ExecutablePath) or VarIsEmpty(Item.ExecutablePath) then
+        Caminhos[I] := ''
+      else
+        Caminhos[I] := Item.ExecutablePath;
+    end;
+  except
+    // Sem WMI não dá para saber: segue como antes (o aviso da tela de boas-vindas continua).
+    Result := 0;
+    SetArrayLength(Caminhos, 0);
+  end;
+end;
+
+// Acrescenta uma linha "• Nome" à lista, sem repetir.
+procedure Acrescentar(var Lista: String; Nome: String);
+begin
+  if Pos('• ' + Nome + #13#10, Lista) = 0 then
+    Lista := Lista + '• ' + Nome + #13#10;
+end;
+
+// Revit: o ano sai da pasta (Autodesk\Revit 2026\Revit.exe). Conta se aquele ano está marcado para instalar;
+// no desinstalador (Instalando = False) ou sem ano no caminho, conta sempre.
+procedure RevitAbertos(Instalando: Boolean; var Lista: String);
+var
+  Caminhos: TArrayOfString;
+  I, N, P: Integer;
+  Ano: String;
+begin
+  N := ProcessosAbertos('Revit.exe', Caminhos);
+  for I := 0 to N - 1 do
+  begin
+    Ano := '';
+    P := Pos('\REVIT 20', Uppercase(Caminhos[I]));
+    if P > 0 then Ano := Copy(Caminhos[I], P + 7, 4);
+    if not Instalando then
+      Acrescentar(Lista, Trim('Revit ' + Ano))
+    else if Ano = '' then
+    begin
+      if WizardIsComponentSelected('revit') then Acrescentar(Lista, 'Revit');
+    end
+    else if WizardIsComponentSelected('revit\r' + Ano) then
+      Acrescentar(Lista, 'Revit ' + Ano);
+  end;
+end;
+
+// O componente conta se vai ser instalado; no desinstalador, conta sempre.
+function Afeta(Instalando: Boolean; Componente: String): Boolean;
+begin
+  Result := True;
+  if Instalando then Result := WizardIsComponentSelected(Componente);
+end;
+
+// Programas abertos que travam o que vai ser instalado (ou desinstalado), um por linha. '' quando nenhum.
+function ListaAbertos(Instalando: Boolean): String;
+var
+  Caminhos: TArrayOfString;
+begin
+  Result := '';
+  RevitAbertos(Instalando, Result);
+  if Afeta(Instalando, 'civil3d') then
+    if ProcessosAbertos('acad.exe', Caminhos) > 0 then Acrescentar(Result, 'Civil 3D (ou AutoCAD)');
+#ifdef ComNavisworks
+  if Afeta(Instalando, 'navisworks') then
+    if ProcessosAbertos('Roamer.exe', Caminhos) > 0 then Acrescentar(Result, 'Navisworks');
+#endif
+end;
+
+// Avisa enquanto houver programa aberto. True: pode seguir. False: a pessoa cancelou.
+function ProgramasFechados(Instalando: Boolean): Boolean;
+var
+  Abertos, Acao: String;
+  Silencioso: Boolean;
+begin
+  if Instalando then Acao := 'instalar' else Acao := 'desinstalar';
+  Abertos := ListaAbertos(Instalando);
+  // Sem janelas (/SILENT, /VERYSILENT): não dá para perguntar, então cancela em vez de repetir para sempre.
+  if Abertos <> '' then
+  begin
+    if Instalando then Silencioso := WizardSilent else Silencioso := UninstallSilent;
+    if Silencioso then
+    begin
+      Log('Programa aberto, ' + Acao + ' cancelado: ' + Abertos);
+      Result := False;
+      Exit;
+    end;
+  end;
+  while Abertos <> '' do
+  begin
+    if TaskDialogMsgBox('Feche o programa para continuar',
+      'Para ' + Acao + ' o MetroSP, feche antes:' + #13#10#13#10 + Abertos + #13#10 +
+      'Salve o seu trabalho, feche o programa e clique em Tentar de novo.',
+      mbInformation, MB_RETRYCANCEL, ['Tentar de novo', 'Cancelar'], 0) <> IDRETRY then
+    begin
+      Result := False;
+      Exit;
+    end;
+    Abertos := ListaAbertos(Instalando);
+  end;
+  Result := True;
+end;
+
+// Desinstalar também falha com o programa aberto: mesmo aviso, antes de apagar qualquer arquivo.
+function InitializeUninstall: Boolean;
+begin
+  Result := ProgramasFechados(False);
+end;
+
 // Sem nenhum programa compatível, avisa e não abre o assistente.
 function InitializeSetup: Boolean;
 begin
@@ -208,6 +336,13 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
   Result := '';
+  // Programa aberto trava a MetroSP.dll e a cópia dá erro: pede para fechar antes de mexer em qualquer arquivo.
+  if not ProgramasFechados(True) then
+  begin
+    Result := 'Instalação cancelada. Nada foi alterado.' + #13#10#13#10 +
+      'Feche o Revit, o Civil 3D e o Navisworks e abra o instalador de novo.';
+    Exit;
+  end;
   DesinstalarAntigo('Software\Microsoft\Windows\CurrentVersion\Uninstall\{6E2B9C47-3F18-4A55-8D0B-71C4E2A9F3D8}_is1');
   DesinstalarAntigo('Software\Microsoft\Windows\CurrentVersion\Uninstall\{3C7E9B14-62A8-4F0D-B5C3-9D1E8A4F2B67}_is1');
 end;
