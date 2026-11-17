@@ -9,8 +9,12 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 - Revit e Civil 3D, **Entrega passo a passo**: abre sempre no passo 1. Antes abria na primeira etapa com pendência
   (ou no último passo, com tudo certo). Quem abre por um atalho (clique numa etapa do Painel MetroSP ou
   **Passo a passo...** do Exportar IFC) continua indo direto para a etapa escolhida.
-- Revit, **Entrega passo a passo**: o passo 2 passa a se chamar **Parâmetros compartilhados** (no título da etapa,
-  **Parâmetros compartilhados e mapeamento**).
+- Revit, **Entrega passo a passo** com nova sequência: **1 Padrões**, **2 Classes IFC**, **3 Parâmetros compartilhados**,
+  **4 MetroDATA**, **5 Classificação** e **6 Exportar**. Classes IFC vem antes dos parâmetros porque o que cada elemento
+  precisa ter depende da classe dele.
+- Revit, **Entrega › Padrões** (antes Arquivos): além do perfil de exportação, mostra os padrões em uso numa tabela, com o
+  arquivo, o que ele traz (por exemplo "12 property sets, 140 propriedades") e o passo que o usa, e um resumo do modelo
+  (elementos nos padrões, fora dos padrões, classes IFC e esquema).
 - Revit, **Entrega passo a passo › Parâmetros compartilhados** mais fácil de ler:
   - Os erros do .txt de property sets aparecem uma vez só, no painel **O que falta** à esquerda. A caixa rosa repetida
     em cima da tabela saiu (na ferramenta **Parâmetros** aberta sozinha, ela continua, com uma linha por erro).

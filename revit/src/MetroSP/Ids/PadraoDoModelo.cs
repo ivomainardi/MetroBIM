@@ -7,7 +7,7 @@ namespace MetroSP.Ids
 {
     /// <summary>
     /// O padrão de exportação (setup, property sets e mapeamento) que vale para um modelo, o mesmo na Entrega
-    /// (passo Arquivos e conferência) e no Exportar IFC. Ordem: o perfil do arquivo de coordenação do modelo, o
+    /// (passo Padrões e conferência) e no Exportar IFC. Ordem: o perfil do arquivo de coordenação do modelo, o
     /// escolhido para este modelo, o indicado pelo nome do modelo (Nomenclatura.txt) e, por último, o último usado.
     /// </summary>
     public static class PadraoDoModelo

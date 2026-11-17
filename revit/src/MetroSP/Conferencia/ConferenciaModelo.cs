@@ -37,7 +37,7 @@ namespace MetroSP.Conferencia
         public string Detalhe { get; set; }
         public List<ElementId> Elementos { get; set; } = new List<ElementId>();
         public Correcao Correcao { get; set; }
-        /// <summary>Parâmetro do Revit a preencher (etapa 4), para abrir o Editar em Massa já nele.</summary>
+        /// <summary>Parâmetro do Revit a preencher (passo MetroDATA), para abrir o Editar em Massa já nele.</summary>
         public string Parametro { get; set; }
         /// <summary>Campos do .txt (Pset.Propriedade) que leem o parâmetro, para mostrar de onde vem a exigência.</summary>
         public string Campo { get; set; }
@@ -51,6 +51,14 @@ namespace MetroSP.Conferencia
 
     public class EtapaConferencia
     {
+        // Ordem dos passos da Entrega: Padrões, Classes IFC, Parâmetros compartilhados, MetroDATA, Classificação e Exportar.
+        public const int Padroes = 1;
+        public const int ClassesIfc = 2;
+        public const int Parametros = 3;
+        public const int MetroData = 4;
+        public const int Classificacao = 5;
+        public const int Exportar = 6;
+
         public int Numero { get; set; }
         public string Titulo { get; set; }
         /// <summary>O que a etapa confere, em uma frase.</summary>
@@ -127,9 +135,9 @@ namespace MetroSP.Conferencia
         public string Escopo { get; set; }
         /// <summary>Elementos que vão para o IFC numa classe que os padrões conferem (os que entram nas etapas 4 e 5).</summary>
         public int TotalElementos { get; set; }
-        /// <summary>Elementos que vão para o IFC numa classe sem nenhum campo dos padrões (só aparecem na etapa 3).</summary>
+        /// <summary>Elementos que vão para o IFC numa classe sem nenhum campo dos padrões (só aparecem no passo Classes IFC).</summary>
         public int ForaDoPadrao { get; set; }
-        /// <summary>Classes IFC que os padrões conferem, para escolher ao corrigir a classe na etapa 3.</summary>
+        /// <summary>Classes IFC que os padrões conferem, para escolher ao corrigir a classe no passo Classes IFC.</summary>
         public List<string> ClassesDoPadrao { get; } = new List<string>();
         /// <summary>Esquema do setup do pacote (CategoriasIfc.Ifc4 ou Ifc4x3), para listar as classes ao corrigir.</summary>
         public string Esquema { get; set; } = CategoriasIfc.Ifc4x3;
