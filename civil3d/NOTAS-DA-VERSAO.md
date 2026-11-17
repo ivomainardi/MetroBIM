@@ -9,6 +9,12 @@
   o passo que usa: exportador da Autodesk, configurações, classes IFC, property sets, escrita, confronto, classificação,
   projeto e alinhamento) e o resumo do modelo (objetos que vão para o IFC, que ficam fora, alinhamentos e esquema).
 
+- **Vários perfis de exportação, escolhidos por modelo** (passo 1 Perfis): lista com os perfis deste computador, os
+  pré-configurados primeiro (hoje o MetroSP; outros entram em `MetroSP.bundle\Contents\Perfis\<nome>`). A escolha fica
+  gravada no DWG (Propriedades do desenho › Personalizado › `MetroSP.Perfil`) e vale na conferência, no Configurar IFC
+  e no Exportar IFC. **Duplicar**, **Renomear** e **Excluir** (os dois últimos só nos perfis criados aqui). Cada perfil
+  fica em `%AppData%\MetroSP\Perfis\<nome>`; o `Config` antigo vira o perfil MetroSP na primeira vez. Modelo sem perfil,
+  ou com um perfil que não existe neste computador, fica amarelo no passo 1 e usa o MetroSP.
 - **Classes IFC: perfil e modelo numa lista única** (passo 3 da Entrega e Configurar IFC). Cada layer do modelo (ou
   bloco, ou baseline de corredor, conforme a seção) é uma linha, com nº de objetos do espaço do modelo (sem anotações),
   a classe IFC, Exportar, a regra que vale e a ordem dela. A coluna **Onde** separa "perfil e modelo", "só no modelo"

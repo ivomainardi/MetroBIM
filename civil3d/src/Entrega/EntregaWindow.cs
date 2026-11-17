@@ -618,7 +618,59 @@ namespace MetroSP.Entrega
         // ================================================================== painéis próprios
 
         /// <summary>
-        /// Passo 1, Padrões (como no Revit): o perfil de exportação, os padrões em uso (cada um com o arquivo, o que traz
+        /// Lista dos perfis de exportação deste computador (os pré-configurados primeiro). A escolha fica gravada no modelo
+        /// e vale na conferência e no Exportar IFC.
+        /// </summary>
+        FrameworkElement SeletorPerfil(Settings cfg)
+        {
+            var linha = new DockPanel();
+            var combo = Theme.Digitavel(new ComboBox { Width = 260, Padding = new Thickness(4, 3, 4, 3), HorizontalAlignment = HorizontalAlignment.Left });
+            List<string> perfis;
+            try { perfis = ConfigPackage.Perfis(); }
+            catch { perfis = new List<string> { ConfigPackage.PerfilMetroSP }; }
+            string atual = ConfigPackage.PerfilAtivo;
+            foreach (string n in perfis) combo.Items.Add(n);
+            combo.SelectedItem = perfis.FirstOrDefault(n => string.Equals(n, atual, StringComparison.OrdinalIgnoreCase));
+            combo.ToolTip = "Perfil de exportação deste modelo: classes IFC, propriedades, alinhamento e arquivos do exportador. " +
+                            "Fica gravado no modelo (Propriedades do desenho › Personalizado › " + ConfigPackage.PropriedadePerfil + ").";
+
+            string gravado = ConfigPackage.PerfilDoModelo(_doc);
+            Border selo;
+            if (gravado == null) selo = Theme.Selo("modelo sem perfil: vale o MetroSP", Theme.Estado.Aviso);
+            else if (!ConfigPackage.Existe(gravado)) selo = Theme.Selo("o perfil " + gravado + " do modelo não existe neste computador: vale o MetroSP", Theme.Estado.Aviso);
+            else selo = Theme.Selo((ConfigPackage.PreConfigurado(atual) ? "pré-configurado" : "criado aqui") + (cfg.UsesForma ? ", sincronizado com o Forma" : ""));
+            selo.Margin = new Thickness(10, 0, 0, 0);
+            DockPanel.SetDock(combo, Dock.Left);
+            linha.Children.Add(combo);
+            linha.Children.Add(selo);
+
+            combo.SelectionChanged += (s, e) =>
+            {
+                if (!(combo.SelectedItem is string n)) return;
+                if (string.Equals(n, gravado, StringComparison.OrdinalIgnoreCase)) return;
+                ConfigPackage.UsarNoModelo(_doc, n);
+                if (FecharFerramenta()) Conferir();
+            };
+            return linha;
+        }
+
+        /// <summary>Pede o nome de um perfil até ser válido (ou cancelar).</summary>
+        string PedirNomePerfil(string titulo, string pergunta, string inicial, string atual)
+        {
+            string nome = inicial;
+            while (true)
+            {
+                nome = Theme.PedirTexto(this, titulo, pergunta, nome)?.Trim();
+                if (nome == null || nome.Length == 0) return null;
+                if (atual != null && string.Equals(nome, atual, StringComparison.Ordinal)) return nome;
+                string erro = atual != null && string.Equals(nome, atual, StringComparison.OrdinalIgnoreCase) ? null : ConfigPackage.NomeInvalido(nome);
+                if (erro == null) return nome;
+                MessageBox.Show(this, erro, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
+
+        /// <summary>
+        /// Passo 1, Perfis (como no Revit): o perfil de exportação do modelo, os perfis em uso (cada um com o arquivo, o que traz
         /// e o passo que o usa) e o resumo do modelo.
         /// </summary>
         UIElement PainelPadroes()
@@ -628,8 +680,8 @@ namespace MetroSP.Entrega
 
             // ---- perfil de exportação
             p.Children.Add(Titulo("Perfil de exportação"));
-            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Sincronizado com o Autodesk Forma" : "Local (perfil MetroSP ou importado)"));
-            var botoes = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            p.Children.Add(SeletorPerfil(cfg));
+            var botoes = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
             var config = Pilula("Editar perfil...");
             config.ToolTip = "Classes IFC, propriedades, alinhamento e opções avançadas do perfil de exportação.";
             config.Click += (s, e) =>
@@ -639,6 +691,45 @@ namespace MetroSP.Entrega
                 Conferir();
             };
             botoes.Children.Add(config);
+            string atual = ConfigPackage.PerfilAtivo;
+            var duplicar = Pilula("Duplicar...");
+            duplicar.ToolTip = "Cria um perfil novo a partir de " + atual + " e passa a usá-lo neste modelo.";
+            duplicar.Click += (s, e) =>
+            {
+                string novo = PedirNomePerfil("Duplicar perfil", "Nome do perfil novo (cópia de " + atual + "):", atual + " - cópia", null);
+                if (novo == null) return;
+                try { ConfigPackage.Duplicar(atual, novo); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                ConfigPackage.UsarNoModelo(_doc, novo);
+                Conferir();
+            };
+            botoes.Children.Add(duplicar);
+            bool pre = ConfigPackage.PreConfigurado(atual);
+            var renomear = Pilula("Renomear...");
+            renomear.IsEnabled = !pre;
+            renomear.ToolTip = pre ? "Perfil pré-configurado não muda de nome. Duplique e renomeie a cópia." : "Muda o nome de " + atual + ".";
+            ToolTipService.SetShowOnDisabled(renomear, true);
+            renomear.Click += (s, e) =>
+            {
+                string novo = PedirNomePerfil("Renomear perfil", "Nome novo de " + atual + ":", atual, atual);
+                if (novo == null || novo == atual) return;
+                try { ConfigPackage.Renomear(atual, novo); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                ConfigPackage.UsarNoModelo(_doc, novo);
+                Conferir();
+            };
+            botoes.Children.Add(renomear);
+            var excluir = Pilula("Excluir");
+            excluir.IsEnabled = !pre;
+            excluir.ToolTip = pre ? "Perfil pré-configurado não pode ser excluído." : "Apaga o perfil " + atual + " deste computador; o modelo volta ao MetroSP.";
+            ToolTipService.SetShowOnDisabled(excluir, true);
+            excluir.Click += (s, e) =>
+            {
+                if (MessageBox.Show(this, "Excluir o perfil " + atual + " deste computador? Outros modelos que usam esse perfil passam a usar o MetroSP.",
+                        "MetroSP", MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
+                try { ConfigPackage.Excluir(atual); } catch (Exception ex) { MessageBox.Show(this, ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning); return; }
+                ConfigPackage.UsarNoModelo(_doc, ConfigPackage.PerfilMetroSP);
+                Conferir();
+            };
+            botoes.Children.Add(excluir);
             var exp = Pilula("Exportador...");
             exp.ToolTip = "Versão instalada da IFC 4.3 Extension, atualizações (Autodesk e GitHub) e a pasta dos arquivos do modelo.";
             exp.Click += (s, e) => { ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false); MostrarFerramenta(); };

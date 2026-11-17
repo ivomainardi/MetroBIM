@@ -111,7 +111,7 @@ namespace MetroSP.Entrega
             }
         }
 
-        // ------------------------------------------------------------------ 1 Padrões
+        // ------------------------------------------------------------------ 1 Perfis
 
         static void Exportador(AcDocument doc, EtapaEntrega e)
         {
@@ -119,7 +119,7 @@ namespace MetroSP.Entrega
             if (Commands.DrawingFolder(doc) == null && cfg.Destino != "ProgramData")
                 e.Pendencias.Add(new Pendencia
                 {
-                    Sinal = Sinal.Vermelho, Titulo = "Desenho não salvo",
+                    Sinal = Sinal.Vermelho, Titulo = "Modelo não salvo",
                     Texto = "A configuração IFC é gravada na pasta do DWG.", Acao = Acao.SalvarDesenho,
                 });
 
@@ -129,6 +129,20 @@ namespace MetroSP.Entrega
                 {
                     Sinal = Sinal.Vermelho, Titulo = "IFC 4.3 Extension não instalada",
                     Texto = "Sem ela o Civil 3D não exporta IFC 4.3.", Acao = Acao.Exportador,
+                });
+
+            string perfil = ConfigPackage.PerfilDoModelo(doc);
+            if (perfil == null)
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = "Modelo sem perfil de exportação",
+                    Texto = "Escolha na lista Perfil de exportação qual vale para este modelo. Até lá vale o MetroSP.",
+                });
+            else if (!ConfigPackage.Existe(perfil))
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = "Perfil " + perfil + " não existe neste computador",
+                    Texto = "O modelo pede esse perfil, mas ele não está aqui; vale o MetroSP. Escolha outro na lista ou duplique um com esse nome e importe os arquivos dele (Editar perfil › Adicionar perfis…).",
                 });
 
             ConfigPackage.EnsureActive();

@@ -475,6 +475,30 @@ namespace MetroSP.Ui
             grid.Resources[SystemColors.InactiveSelectionHighlightTextBrushKey] = Solid(Preto);
         }
     
+        /// <summary>Caixa simples para digitar um texto; null se cancelar.</summary>
+        public static string PedirTexto(Window dono, string titulo, string pergunta, string inicial)
+        {
+            var box = new TextBox { Text = inicial, MinWidth = 360, Margin = new Thickness(0, 6, 0, 0) };
+            var ok = new Button { Content = "OK", IsDefault = true, Style = PrimaryButton, MinWidth = 80, Margin = new Thickness(0, 0, 6, 0) };
+            var cancelar = new Button { Content = "Cancelar", IsCancel = true, MinWidth = 80 };
+            var w = new Window
+            {
+                Title = "MetroSP - " + titulo, Owner = dono, SizeToContent = SizeToContent.WidthAndHeight, ResizeMode = ResizeMode.CanResizeWithGrip,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
+            };
+            ok.Click += (s, e) => w.DialogResult = true;
+            var corpo = new StackPanel { Margin = new Thickness(14) };
+            corpo.Children.Add(new TextBlock { Text = pergunta });
+            corpo.Children.Add(box);
+            var botoes = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 12, 0, 0) };
+            botoes.Children.Add(ok);
+            botoes.Children.Add(cancelar);
+            corpo.Children.Add(botoes);
+            w.Content = corpo;
+            w.Loaded += (s, e) => { box.Focus(); box.SelectAll(); };
+            return w.ShowDialog() == true ? box.Text : null;
+        }
+
         /// <summary>
         /// Lista suspensa em que também dá para digitar: o texto filtra a lista (parte do nome, sem diferenciar
         /// maiúsculas) e, ao sair, vale o item com aquele nome ou volta o último escolhido. Regra de todas as telas.

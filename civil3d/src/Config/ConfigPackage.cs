@@ -40,9 +40,9 @@ namespace MetroSP.Config
     }
 
     /// <summary>
-    /// Pacote de configuração IFC ativo do usuário (%APPDATA%\MetroSP\Config). Vem pré-carregado com o
-    /// padrão MetroSP (pasta Padrao do bundle), pode ser trocado por arquivos do Forma ou importados,
-    /// e é copiado para a pasta do desenho antes de cada exportação, no formato que o IFC Extension lê.
+    /// Perfis de exportação IFC (%APPDATA%\MetroSP\Perfis\<nome>). O MetroSP vem pré-carregado (pasta Padrao do bundle);
+    /// cada modelo escolhe o seu, que pode ser trocado por arquivos do Forma ou importados e é copiado para a pasta do
+    /// modelo antes de cada exportação, no formato que o IFC Extension lê.
     /// </summary>
     public static class ConfigPackage
     {
@@ -70,24 +70,159 @@ namespace MetroSP.Config
             AllowTrailingCommas = true
         };
 
-        public static string ActiveDir => Path.Combine(Settings.UserDir, "Config");
+        // ------------------------------------------------------------------ perfis de exportação
+        // Cada perfil é uma pasta em %AppData%\MetroSP\Perfis\<nome> com os arquivos do exportador e o MetroSP.ifc.json.
+        // Os pré-configurados vêm no bundle (MetroSP = pasta Padrao; outros em Perfis\<nome>) e são copiados na primeira vez.
+        // O modelo guarda o perfil escolhido numa propriedade do DWG (Arquivo › Propriedades do desenho › Personalizado).
+
+        public const string PerfilMetroSP = "MetroSP";
+        public const string PropriedadePerfil = "MetroSP.Perfil";
+        public static string PerfisDir => Path.Combine(Settings.UserDir, "Perfis");
+        static string LegacyDir => Path.Combine(Settings.UserDir, "Config");
+        static string BundlePerfisDir => Path.Combine(Settings.BundleDir, "Perfis");
         public static string DefaultDir => Path.Combine(Settings.BundleDir, "Padrao");
+
+        /// <summary>Pasta do perfil do modelo ativo (ou do MetroSP, se o modelo não escolheu ou o perfil não existe aqui).</summary>
+        public static string ActiveDir { get { Preparar(); return DirDe(PerfilAtivo); } }
+        public static string DirDe(string perfil) => Path.Combine(PerfisDir, perfil);
         public static string PathOf(ConfigKind kind) => Path.Combine(ActiveDir, FileNames[kind]);
 
-        /// <summary>Cria o pacote ativo a partir do padrão MetroSP na primeira vez.</summary>
+        /// <summary>Perfil que vale para o modelo ativo.</summary>
+        public static string PerfilAtivo
+        {
+            get
+            {
+                string n = PerfilDoModelo();
+                return n != null && Existe(n) ? n : PerfilMetroSP;
+            }
+        }
+
+        public static bool Existe(string perfil) => !string.IsNullOrWhiteSpace(perfil) && Directory.Exists(DirDe(perfil));
+
+        /// <summary>Pasta do bundle de onde o perfil veio (null se foi criado pelo usuário).</summary>
+        public static string OrigemPreConfigurada(string perfil)
+        {
+            if (string.Equals(perfil, PerfilMetroSP, StringComparison.OrdinalIgnoreCase)) return DefaultDir;
+            string d = Path.Combine(BundlePerfisDir, perfil ?? "");
+            return Directory.Exists(d) ? d : null;
+        }
+
+        public static bool PreConfigurado(string perfil) => OrigemPreConfigurada(perfil) != null;
+
+        /// <summary>Perfis deste computador, MetroSP primeiro.</summary>
+        public static List<string> Perfis()
+        {
+            Preparar();
+            return Directory.EnumerateDirectories(PerfisDir).Select(Path.GetFileName)
+                .OrderBy(n => string.Equals(n, PerfilMetroSP, StringComparison.OrdinalIgnoreCase) ? 0 : PreConfigurado(n) ? 1 : 2)
+                .ThenBy(n => n, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        /// <summary>Cria a pasta de perfis: o MetroSP (do Config antigo, se houver) e os pré-configurados que faltam.</summary>
+        static bool _preparado;
+        static void Preparar()
+        {
+            if (_preparado && Directory.Exists(DirDe(PerfilMetroSP))) return;
+            _preparado = true;
+            Directory.CreateDirectory(PerfisDir);
+            string metro = DirDe(PerfilMetroSP);
+            if (!Directory.Exists(metro))
+            {
+                bool antigo = Directory.Exists(LegacyDir) && Directory.EnumerateFiles(LegacyDir).Any();
+                Copiar(antigo ? LegacyDir : DefaultDir, metro);
+            }
+            if (Directory.Exists(BundlePerfisDir))
+                foreach (string d in Directory.EnumerateDirectories(BundlePerfisDir))
+                {
+                    string destino = DirDe(Path.GetFileName(d));
+                    if (!Directory.Exists(destino)) Copiar(d, destino);
+                }
+        }
+
+        static void Copiar(string de, string para)
+        {
+            Directory.CreateDirectory(para);
+            if (!Directory.Exists(de)) return;
+            foreach (var f in Directory.EnumerateFiles(de))
+                File.Copy(f, Path.Combine(para, Path.GetFileName(f)), overwrite: true);
+        }
+
+        /// <summary>Nome aceitável para pasta; devolve o motivo se não for.</summary>
+        public static string NomeInvalido(string nome)
+        {
+            if (string.IsNullOrWhiteSpace(nome)) return "Digite um nome.";
+            if (nome.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 || nome.Trim() != nome || nome.EndsWith("."))
+                return "O nome não pode ter \\ / : * ? \" < > | nem começar ou terminar com espaço.";
+            if (Existe(nome)) return "Já existe um perfil com esse nome.";
+            return null;
+        }
+
+        public static void Duplicar(string origem, string novo)
+        {
+            string erro = NomeInvalido(novo);
+            if (erro != null) throw new InvalidOperationException(erro);
+            Copiar(DirDe(origem), DirDe(novo));
+        }
+
+        public static void Renomear(string velho, string novo)
+        {
+            if (PreConfigurado(velho)) throw new InvalidOperationException("Perfil pré-configurado não muda de nome. Duplique e renomeie a cópia.");
+            string erro = string.Equals(velho, novo, StringComparison.OrdinalIgnoreCase) ? null : NomeInvalido(novo);
+            if (erro != null) throw new InvalidOperationException(erro);
+            string tmp = DirDe(velho) + ".renomeando";
+            Directory.Move(DirDe(velho), tmp);
+            Directory.Move(tmp, DirDe(novo));
+        }
+
+        public static void Excluir(string perfil)
+        {
+            if (PreConfigurado(perfil)) throw new InvalidOperationException("Perfil pré-configurado não pode ser excluído.");
+            Directory.Delete(DirDe(perfil), recursive: true);
+        }
+
+        /// <summary>Perfil gravado no modelo (null se não há).</summary>
+        public static string PerfilDoModelo(Autodesk.AutoCAD.ApplicationServices.Document doc = null)
+        {
+            try
+            {
+                doc = doc ?? Autodesk.AutoCAD.ApplicationServices.Core.Application.DocumentManager.MdiActiveDocument;
+                if (doc == null) return null;
+                var e = doc.Database.SummaryInfo.CustomProperties;
+                while (e.MoveNext())
+                    if (string.Equals(e.Key as string, PropriedadePerfil, StringComparison.OrdinalIgnoreCase))
+                        return string.IsNullOrWhiteSpace(e.Value as string) ? null : ((string)e.Value).Trim();
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>Grava no modelo o perfil que vale para ele (fica salvo com o DWG).</summary>
+        public static void UsarNoModelo(Autodesk.AutoCAD.ApplicationServices.Document doc, string perfil)
+        {
+            using (doc.LockDocument())
+            {
+                var db = doc.Database;
+                var b = new Autodesk.AutoCAD.DatabaseServices.DatabaseSummaryInfoBuilder(db.SummaryInfo);
+                b.CustomPropertyTable[PropriedadePerfil] = perfil ?? "";
+                db.SummaryInfo = b.ToDatabaseSummaryInfo();
+            }
+        }
+
+        /// <summary>Garante que o perfil ativo tem arquivos.</summary>
         public static void EnsureActive()
         {
+            Preparar();
             if (Directory.Exists(ActiveDir) && Directory.EnumerateFiles(ActiveDir).Any()) return;
             RestoreDefaults();
         }
 
+        /// <summary>Volta o perfil ativo ao pré-configurado de mesmo nome (ou ao MetroSP, se foi criado pelo usuário).</summary>
         public static void RestoreDefaults()
         {
-            Directory.CreateDirectory(ActiveDir);
-            foreach (var f in Directory.EnumerateFiles(ActiveDir)) File.Delete(f);
-            if (!Directory.Exists(DefaultDir)) return;
-            foreach (var f in Directory.EnumerateFiles(DefaultDir))
-                File.Copy(f, Path.Combine(ActiveDir, Path.GetFileName(f)), overwrite: true);
+            string dir = ActiveDir;
+            Directory.CreateDirectory(dir);
+            foreach (var f in Directory.EnumerateFiles(dir)) File.Delete(f);
+            Copiar(OrigemPreConfigurada(PerfilAtivo) ?? DefaultDir, dir);
         }
 
         public static IEnumerable<(ConfigKind Kind, string Path, DateTime Modified)> List()
