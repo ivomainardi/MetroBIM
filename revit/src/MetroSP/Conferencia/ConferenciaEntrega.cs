@@ -12,7 +12,7 @@ namespace MetroSP.Conferencia
     /// <summary>
     /// Confere, numa passada só, o que o Metrô pede para a entrega:
     ///   1. Arquivos do pacote (IDS, setup, psets, classes, planilha, MetroShared) achados e válidos;
-    ///   2. Parâmetros e mapeamento (o parâmetro de cada campo existe nas categorias, com tipo compatível e GUID do MetroShared);
+    ///   2. Parâmetros compartilhados e mapeamento (o parâmetro de cada campo existe nas categorias, com tipo compatível e GUID do MetroShared);
     ///   3. Classe IFC dos elementos (proxies e elementos sem nenhum campo do Metrô);
     ///   4. Dados preenchidos (matriz categoria × campo exigido);
     ///   5. Classificação (preenchida, no formato e na planilha).
@@ -88,7 +88,7 @@ namespace MetroSP.Conferencia
 
             EtapaConferencia parametros = new EtapaConferencia
             {
-                Numero = 2, Titulo = "Parâmetros e mapeamento",
+                Numero = 2, Titulo = "Parâmetros compartilhados e mapeamento",
                 Descricao = "Cada campo exigido sai de um parâmetro que existe nas categorias, com tipo compatível e o GUID do MetroShared.",
                 Correcao = Correcao.ParametrosDeProjeto,
             };

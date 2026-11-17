@@ -9,7 +9,9 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 - Revit e Civil 3D, **Entrega passo a passo**: abre sempre no passo 1. Antes abria na primeira etapa com pendência
   (ou no último passo, com tudo certo). Quem abre por um atalho (clique numa etapa do Painel MetroSP ou
   **Passo a passo...** do Exportar IFC) continua indo direto para a etapa escolhida.
-- Revit, **Entrega passo a passo › Parâmetros** mais fácil de ler:
+- Revit, **Entrega passo a passo**: o passo 2 passa a se chamar **Parâmetros compartilhados** (no título da etapa,
+  **Parâmetros compartilhados e mapeamento**).
+- Revit, **Entrega passo a passo › Parâmetros compartilhados** mais fácil de ler:
   - Os erros do .txt de property sets aparecem uma vez só, no painel **O que falta** à esquerda. A caixa rosa repetida
     em cima da tabela saiu (na ferramenta **Parâmetros** aberta sozinha, ela continua, com uma linha por erro).
   - Textos dos erros curtos, por exemplo "2093 elemento(s) sem o parâmetro "Length"." A explicação completa fica na

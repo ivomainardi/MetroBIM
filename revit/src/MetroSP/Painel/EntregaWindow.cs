@@ -322,7 +322,7 @@ namespace MetroSP.Painel
             switch (numero)
             {
                 case 1: return "Arquivos";
-                case 2: return "Parâmetros";
+                case 2: return "Parâmetros compartilhados";
                 case 3: return "Classe IFC";
                 case 4: return "Dados";
                 case 5: return "Classificação";

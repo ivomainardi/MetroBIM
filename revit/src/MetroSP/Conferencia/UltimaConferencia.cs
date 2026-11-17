@@ -24,7 +24,7 @@ namespace MetroSP.Conferencia
         public static ResultadoConferencia De(Document doc) =>
             doc != null && _resultado != null && _chave == Chave(doc) ? _resultado : null;
 
-        /// <summary>Problemas do passo "Parâmetros e mapeamento" por nome de parâmetro (texto pronto para uma coluna).</summary>
+        /// <summary>Problemas do passo "Parâmetros compartilhados e mapeamento" por nome de parâmetro (texto pronto para uma coluna).</summary>
         public static Dictionary<string, string> ProblemasDeParametro(Document doc)
         {
             var r = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
