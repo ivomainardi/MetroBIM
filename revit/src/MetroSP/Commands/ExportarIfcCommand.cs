@@ -222,6 +222,15 @@ namespace MetroSP.Commands
                         }
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar o status da fase: " + ex.Message); }
+                    // Armaduras: Count, Length e Weight de cada barra (Qto_ReinforcingElementBaseQuantities), que o exportador
+                    // não grava, inclusive nos conjuntos de comprimento variável.
+                    try
+                    {
+                        var armaduras = Ifc.ArmaduraIfc.Aplicar(modelo, id => ArmaduraRevit.Barras(doc, id));
+                        if (armaduras.Gravadas > 0) salvar = true;
+                        if (armaduras.ToString() is string linha) avisosClassificacao.Add(linha);
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar as quantidades das armaduras: " + ex.Message); }
                     try
                     {
                         escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);

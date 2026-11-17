@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Testes das quantidades das armaduras no IFC (ArmaduraIfc), sem Revit. Rodar: dotnet run (na pasta tools/teste-armadura) -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs;Compat.cs" />
+    <Compile Include="../../src/MetroSP/Ids/StepModel.cs" />
+    <Compile Include="../../src/MetroSP/Ids/ArmaduraIfc.cs" />
+  </ItemGroup>
+</Project>
