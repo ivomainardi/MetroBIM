@@ -25,13 +25,16 @@ namespace MetroSP.Ifc
     {
         public string Header;          // tudo até "DATA;" (exclusive)
         public string Schema;
+        // Em modelos grandes o IFC tem milhões de entidades: o tipo de cada uma fica indexado na leitura (OfType não
+        // percorre o arquivo inteiro) e Remove só marca a entidade (sem deslocar a lista toda a cada remoção).
         readonly List<int> _order = new List<int>();
         readonly Dictionary<int, StepEntity> _byId = new Dictionary<int, StepEntity>();
         readonly Dictionary<int, string> _raw = new Dictionary<int, string>();   // texto original, para quem não mudou
+        readonly Dictionary<int, string> _type = new Dictionary<int, string>();
+        readonly Dictionary<string, List<int>> _byType = new Dictionary<string, List<int>>(StringComparer.Ordinal);
         readonly HashSet<int> _dirty = new HashSet<int>();
+        readonly HashSet<int> _removed = new HashSet<int>();
         int _maxId;
-
-        static readonly Regex EntityRx = new Regex(@"^#(\d+)\s*=\s*([A-Za-z0-9_]+)\s*\((.*)\)\s*$", RegexOptions.Singleline | RegexOptions.Compiled);
 
         public static StepModel Load(string path)
         {
@@ -43,40 +46,89 @@ namespace MetroSP.Ifc
             var sm = Regex.Match(m.Header, @"FILE_SCHEMA\s*\(\s*\(\s*'([^']*)'", RegexOptions.IgnoreCase);
             m.Schema = sm.Success ? sm.Groups[1].Value.ToUpperInvariant() : "";
 
-            int i = dataStart + "DATA;".Length;
-            var sb = new StringBuilder();
-            bool inString = false;
-            for (; i < text.Length; i++)
+            int start = dataStart + "DATA;".Length;
+            bool inString = false, quebra = false;
+            for (int i = start; i < text.Length; i++)
             {
                 var c = text[i];
                 if (c == '\'') inString = !inString;   // '' dentro de texto alterna duas vezes: ok
-                if (!inString && c == ';')
+                else if (inString) continue;
+                else if (c == '\r' || c == '\n') quebra = true;
+                else if (c == ';')
                 {
-                    var stmt = sb.ToString().Trim();
-                    sb.Clear();
+                    var stmt = Statement(text, start, i, quebra);
+                    start = i + 1;
+                    quebra = false;
                     if (stmt.Equals("ENDSEC", StringComparison.OrdinalIgnoreCase)) break;
                     if (stmt.Length == 0) continue;
                     m.AddParsed(stmt);
-                    continue;
                 }
-                if (!inString && (c == '\r' || c == '\n')) { sb.Append(' '); continue; }
-                sb.Append(c);
             }
             return m;
         }
 
+        /// <summary>Texto da entidade entre start e fim, com as quebras de linha fora dos textos trocadas por espaço.</summary>
+        static string Statement(string text, int start, int fim, bool quebra)
+        {
+            if (!quebra) return text.Substring(start, fim - start).Trim();
+            var sb = new StringBuilder(fim - start);
+            bool inString = false;
+            for (int i = start; i < fim; i++)
+            {
+                var c = text[i];
+                if (c == '\'') inString = !inString;
+                if (!inString && (c == '\r' || c == '\n')) { sb.Append(' '); continue; }
+                sb.Append(c);
+            }
+            return sb.ToString().Trim();
+        }
+
         void AddParsed(string stmt)
         {
-            var mm = EntityRx.Match(stmt);
-            if (!mm.Success) throw new InvalidDataException("Entidade STEP não reconhecida: " + Truncate(stmt));
-            var id = int.Parse(mm.Groups[1].Value, CultureInfo.InvariantCulture);
+            // #id = TIPO ( args )
+            int i = 0, n = stmt.Length;
+            bool ok = n > 0 && stmt[0] == '#';
+            int idIni = ++i;
+            while (ok && i < n && char.IsDigit(stmt[i])) i++;
+            ok &= i > idIni;
+            int idFim = i;
+            while (ok && i < n && char.IsWhiteSpace(stmt[i])) i++;
+            ok &= i < n && stmt[i] == '=';
+            i++;
+            while (ok && i < n && char.IsWhiteSpace(stmt[i])) i++;
+            int tipoIni = i;
+            while (ok && i < n && (char.IsLetterOrDigit(stmt[i]) || stmt[i] == '_') && stmt[i] < 128) i++;
+            ok &= i > tipoIni;
+            int tipoFim = i;
+            while (ok && i < n && char.IsWhiteSpace(stmt[i])) i++;
+            ok &= i < n && stmt[i] == '(' && stmt[n - 1] == ')' && n - 1 > i;
+            if (!ok) throw new InvalidDataException("Entidade STEP não reconhecida: " + Truncate(stmt));
+
+            var id = int.Parse(stmt.Substring(idIni, idFim - idIni), CultureInfo.InvariantCulture);
             _order.Add(id);
             _raw[id] = stmt;
             _byId[id] = null;          // argumentos só são separados quando alguém pedir (arquivos grandes)
+            Index(id, stmt.Substring(tipoIni, tipoFim - tipoIni).ToUpperInvariant());
             _maxId = Math.Max(_maxId, id);
         }
 
-        public IEnumerable<int> Ids => _order;
+        void Index(int id, string type)
+        {
+            type = string.Intern(type);
+            _type[id] = type;
+            if (!_byType.TryGetValue(type, out var l)) _byType[type] = l = new List<int>();
+            l.Add(id);
+        }
+
+        /// <summary>Ids das entidades, na ordem do arquivo.</summary>
+        public IEnumerable<int> Ids
+        {
+            get
+            {
+                foreach (var id in _order)
+                    if (_removed.Count == 0 || !_removed.Contains(id)) yield return id;
+            }
+        }
 
         /// <summary>Maior id em uso; o próximo Add recebe LastId + 1.</summary>
         public int LastId => _maxId;
@@ -85,8 +137,9 @@ namespace MetroSP.Ifc
         {
             if (!_byId.TryGetValue(id, out var e)) return null;
             if (e != null) return e;
-            var mm = EntityRx.Match(_raw[id]);
-            e = new StepEntity { Id = id, Type = mm.Groups[2].Value.ToUpperInvariant(), Args = SplitArgs(mm.Groups[3].Value) };
+            var raw = _raw[id];
+            int open = raw.IndexOf('(', raw.IndexOf('='));
+            e = new StepEntity { Id = id, Type = _type[id], Args = SplitArgs(raw.Substring(open + 1, raw.Length - open - 2)) };
             _byId[id] = e;
             return e;
         }
@@ -95,17 +148,15 @@ namespace MetroSP.Ifc
         public string TypeOf(int id)
         {
             if (_byId.TryGetValue(id, out var e) && e != null) return e.Type;
-            if (!_raw.TryGetValue(id, out var raw)) return null;
-            var p = raw.IndexOf('=');
-            var q = raw.IndexOf('(', p);
-            return raw.Substring(p + 1, q - p - 1).Trim().ToUpperInvariant();
+            return _type.TryGetValue(id, out var t) ? t : null;
         }
 
         public IEnumerable<StepEntity> OfType(string type)
         {
             type = type.ToUpperInvariant();
-            foreach (var id in _order.ToList())
-                if (TypeOf(id) == type) yield return Get(id);
+            if (!_byType.TryGetValue(type, out var l)) yield break;
+            foreach (var id in l.ToArray())
+                if (!_removed.Contains(id) && TypeOf(id) == type) yield return Get(id);
         }
 
         public int Add(string type, params string[] args)
@@ -114,6 +165,7 @@ namespace MetroSP.Ifc
             var e = new StepEntity { Id = id, Type = type.ToUpperInvariant(), Args = args.ToList() };
             _order.Add(id);
             _byId[id] = e;
+            Index(id, e.Type);
             _dirty.Add(id);
             return id;
         }
@@ -129,9 +181,11 @@ namespace MetroSP.Ifc
         /// <summary>Remove a entidade. Quem a referenciava precisa ter sido ajustado antes.</summary>
         public void Remove(int id)
         {
-            _order.Remove(id);
+            if (!_byId.ContainsKey(id)) return;
+            _removed.Add(id);
             _byId.Remove(id);
             _raw.Remove(id);
+            _type.Remove(id);
             _dirty.Remove(id);
         }
 
@@ -142,19 +196,55 @@ namespace MetroSP.Ifc
             _dirty.Add(id);
         }
 
+        /// <summary>
+        /// true se outra entidade (fora a exceção) cita #id. Lê o texto de cada entidade sem guardar os argumentos
+        /// separados, para não dobrar a memória num IFC grande.
+        /// </summary>
+        public bool Referenciado(int id, int exceto = 0)
+        {
+            string r = "#" + id;
+            foreach (var x in Ids)
+            {
+                if (x == id || x == exceto) continue;
+                var e = _byId[x];
+                if (e != null)
+                {
+                    foreach (var a in e.Args) if (ContemRef(a, r, 0)) return true;
+                }
+                else
+                {
+                    var raw = _raw[x];
+                    if (ContemRef(raw, r, raw.IndexOf('='))) return true;
+                }
+            }
+            return false;
+        }
+
+        static bool ContemRef(string texto, string r, int de)
+        {
+            int p = texto.IndexOf(r, de, StringComparison.Ordinal);
+            while (p >= 0)
+            {
+                int fim = p + r.Length;
+                if (fim >= texto.Length || !char.IsDigit(texto[fim])) return true;
+                p = texto.IndexOf(r, fim, StringComparison.Ordinal);
+            }
+            return false;
+        }
+
         public void Save(string path)
         {
-            using var w = new StreamWriter(path, false, new UTF8Encoding(false));
+            using var w = new StreamWriter(path, false, new UTF8Encoding(false), 1 << 16);
             w.Write(Header);
             w.Write("DATA;\n");
-            foreach (var id in _order)
+            foreach (var id in Ids)
             {
                 if (_dirty.Contains(id))
                 {
                     var e = _byId[id];
                     w.Write("#" + id + "=" + e.Type + "(" + string.Join(",", e.Args) + ");\n");
                 }
-                else w.Write(_raw[id] + ";\n");
+                else { w.Write(_raw[id]); w.Write(";\n"); }
             }
             w.Write("ENDSEC;\nEND-ISO-10303-21;\n");
         }

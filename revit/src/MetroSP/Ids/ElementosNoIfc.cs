@@ -72,18 +72,21 @@ namespace MetroSP.Ids
             linhas.Add($"Elementos no IFC: {Num(c.Total)}" + (classes.Length > 0 ? $" ({classes})" : "") + $" · ambientes (IfcSpace): {Num(c.Espacos)}");
 
             // Elementos que a fase deixou de fora (criados numa fase posterior à exportada).
+            // O filtro de fase do Revit separa os futuros sem abrir cada elemento; o total do modelo (caixa de cada
+            // elemento, que pesa em modelos grandes) só é contado quando há algum futuro.
             int futuros = 0, modelo = 0;
             if (fase != null && fase != ElementId.InvalidElementId)
             {
-                foreach (Element e in new FilteredElementCollector(doc).WhereElementIsNotElementType().WhereElementIsViewIndependent())
+                bool Conta(Element e)
                 {
                     Category cat = e.Category;
-                    if (cat == null || cat.CategoryType != CategoryType.Model || FiltroIfc.NaoExportadas.Contains(cat.BuiltInCategory)) continue;
-                    if (e is SpatialElement || e.get_BoundingBox(null) == null) continue;
-                    modelo++;
-                    try { if (e.GetPhaseStatus(fase) == ElementOnPhaseStatus.Future) futuros++; }
-                    catch { /* elemento sem fase */ }
+                    if (cat == null || cat.CategoryType != CategoryType.Model || FiltroIfc.NaoExportadas.Contains(cat.BuiltInCategory)) return false;
+                    return !(e is SpatialElement) && e.get_BoundingBox(null) != null;
                 }
+                futuros = new FilteredElementCollector(doc).WhereElementIsNotElementType().WhereElementIsViewIndependent()
+                    .WherePasses(new ElementPhaseStatusFilter(fase, ElementOnPhaseStatus.Future)).Count(Conta);
+                if (futuros > 0)
+                    modelo = new FilteredElementCollector(doc).WhereElementIsNotElementType().WhereElementIsViewIndependent().Count(Conta);
             }
             if (futuros > 0)
                 linhas.Add($"{Num(futuros)} de {Num(modelo)} elementos do modelo foram criados numa fase posterior a \"{nomeFase}\" e ficaram fora do IFC.");

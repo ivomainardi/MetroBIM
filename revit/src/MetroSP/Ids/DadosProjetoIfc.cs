@@ -277,22 +277,8 @@ namespace MetroSP.Ifc
                 StepModel.SplitArgs(end.Args[4].Trim().TrimStart('(').TrimEnd(')')).Any(l => DadosEntidadeIfc.EnderecoPadraoRevit(StepModel.Text(l))));
             if (!padrao) return 0;
             m.SetArg(e.Id, i, "$");
-            string refEnd = "#" + id;
-            bool usado = m.Ids.Any(x => x != e.Id && m.Get(x).Args.Any(a => ContemRef(a, refEnd)));
-            if (!usado) m.Remove(id);
+            if (!m.Referenciado(id, e.Id)) m.Remove(id);
             return 1;
-        }
-
-        private static bool ContemRef(string arg, string r)
-        {
-            int p = arg.IndexOf(r, StringComparison.Ordinal);
-            while (p >= 0)
-            {
-                int fim = p + r.Length;
-                if (fim >= arg.Length || !char.IsDigit(arg[fim])) return true;
-                p = arg.IndexOf(r, fim, StringComparison.Ordinal);
-            }
-            return false;
         }
 
         /// <summary>Cria o IfcPostalAddress só se a entidade ainda não tem endereço (o exportador pode já ter gravado um).</summary>

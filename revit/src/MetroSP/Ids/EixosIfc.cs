@@ -75,12 +75,5 @@ namespace MetroSP.Ids
             }
             catch { /* fica visível */ }
         }
-
-        /// <summary>Quantas entidades IfcGrid o arquivo tem.</summary>
-        public static int ContarNoIfc(string arquivo)
-        {
-            try { return File.ReadLines(arquivo).Count(l => l.IndexOf("=IFCGRID(", StringComparison.OrdinalIgnoreCase) >= 0); }
-            catch { return -1; }
-        }
     }
 }
