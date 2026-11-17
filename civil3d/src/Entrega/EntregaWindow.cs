@@ -673,9 +673,13 @@ namespace MetroSP.Entrega
 
             // ---- perfil de exportação
             p.Children.Add(Titulo("Perfil de exportação"));
-            p.Children.Add(SeletorPerfil(cfg));
-            var botoes = new WrapPanel { Margin = new Thickness(0, 8, 0, 0) };
-            var config = Pilula("Editar perfil...");
+            var linhaPerfil = new WrapPanel();
+            linhaPerfil.Children.Add(SeletorPerfil(cfg));
+            p.Children.Add(linhaPerfil);
+            p.Children.Add(Theme.Detalhe("Fica gravado no modelo e vale na conferência e no Exportar IFC."));
+            var botoes = linhaPerfil;
+            Button Lk(string texto) => Theme.Link(texto);
+            var config = Lk("Editar perfil...");
             config.ToolTip = "Classes IFC, propriedades, alinhamento e opções avançadas do perfil de exportação.";
             config.Click += (s, e) =>
             {
@@ -685,7 +689,7 @@ namespace MetroSP.Entrega
             };
             botoes.Children.Add(config);
             string atual = ConfigPackage.PerfilAtivo;
-            var duplicar = Pilula("Duplicar...");
+            var duplicar = Lk("Duplicar...");
             duplicar.ToolTip = "Cria um perfil novo a partir de " + atual + " e passa a usá-lo neste modelo.";
             duplicar.Click += (s, e) =>
             {
@@ -697,7 +701,7 @@ namespace MetroSP.Entrega
             };
             botoes.Children.Add(duplicar);
             bool pre = ConfigPackage.PreConfigurado(atual);
-            var renomear = Pilula("Renomear...");
+            var renomear = Lk("Renomear...");
             renomear.IsEnabled = !pre;
             renomear.ToolTip = pre ? "Perfil pré-configurado não muda de nome. Duplique e renomeie a cópia." : "Muda o nome de " + atual + ".";
             ToolTipService.SetShowOnDisabled(renomear, true);
@@ -710,7 +714,7 @@ namespace MetroSP.Entrega
                 Conferir();
             };
             botoes.Children.Add(renomear);
-            var excluir = Pilula("Excluir");
+            var excluir = Lk("Excluir");
             excluir.IsEnabled = !pre;
             excluir.ToolTip = pre ? "Perfil pré-configurado não pode ser excluído." : "Apaga o perfil " + atual + " deste computador; o modelo volta ao MetroSP.";
             ToolTipService.SetShowOnDisabled(excluir, true);
@@ -723,19 +727,17 @@ namespace MetroSP.Entrega
                 Conferir();
             };
             botoes.Children.Add(excluir);
-            var exp = Pilula("Exportador...");
+            var exp = Lk("Exportador...");
             exp.ToolTip = "Versão instalada da IFC 4.3 Extension, atualizações (Autodesk e GitHub) e a pasta dos arquivos do modelo.";
             exp.Click += (s, e) => { ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false); MostrarFerramenta(); };
-            botoes.Children.Add(exp);
             if (cfg.UsesForma)
             {
-                var forma = Pilula("Forma...");
+                var forma = Lk("Forma...");
                 forma.ToolTip = "Entrar, sair, sincronizar e conta do Autodesk Forma.";
                 forma.Click += (s, e) => { string cmd = FormaWindow.Escolher(this); if (cmd != null) FecharE(cmd); };
                 botoes.Children.Add(forma);
             }
-            foreach (Button b in botoes.Children) b.Margin = new Thickness(0, 0, 6, 4);
-            p.Children.Add(botoes);
+            foreach (Button b in botoes.Children.OfType<Button>()) { b.Margin = new Thickness(14, 0, 0, 0); b.VerticalAlignment = VerticalAlignment.Center; }
 
             // ---- padrões em uso
             p.Children.Add(Titulo("Perfis em uso", 18));
@@ -751,7 +753,7 @@ namespace MetroSP.Entrega
             for (int c = 1; c < cab.Length; c++)
                 Celula(new TextBlock { Text = cab[c], FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 14, 4) }, 0, c);
 
-            void Padrao(string nome, string dica, string arquivo, string caminho, string traz, string passo, Sinal sinal)
+            void Padrao(string nome, string dica, string arquivo, string caminho, string traz, string passo, Sinal sinal, Button link = null)
             {
                 int l = grade.RowDefinitions.Count;
                 grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -760,7 +762,10 @@ namespace MetroSP.Entrega
                 Celula(new TextBlock { Text = nome, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 3, 14, 3), ToolTip = dica }, l, 1);
                 Celula(new TextBlock { Text = string.IsNullOrEmpty(arquivo) ? "—" : arquivo, ToolTip = caminho, TextTrimming = TextTrimming.CharacterEllipsis,
                     Foreground = Theme.Solid(string.IsNullOrEmpty(arquivo) ? Theme.Cinza : Theme.Preto), Margin = new Thickness(0, 3, 14, 3) }, l, 2);
-                Celula(new TextBlock { Text = traz, ToolTip = traz, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, 14, 3) }, l, 3);
+                var tz = new DockPanel();
+                if (link != null) { link.Margin = new Thickness(10, 3, 14, 3); DockPanel.SetDock(link, Dock.Right); tz.Children.Add(link); }
+                tz.Children.Add(new TextBlock { Text = traz, ToolTip = traz, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, link == null ? 14 : 0, 3) });
+                Celula(tz, l, 3);
                 Celula(new TextBlock { Text = passo, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, 0, 3) }, l, 4);
             }
             string Arq(ConfigKind k) => System.IO.File.Exists(ConfigPackage.PathOf(k)) ? ConfigPackage.FileNames[k] : null;
@@ -770,7 +775,7 @@ namespace MetroSP.Entrega
             bool extOk = instaladas.Count > 0 || AutodeskIfcExtension.CommandDefined(cfg.ExportCommand);
             Padrao("Exportador da Autodesk", "IFC 4.3 Extension: o exportador que o Exportar IFC usa.", "IFC 4.3 Extension", null,
                 extOk ? (instaladas.FirstOrDefault()?.Version is string v ? "versão " + v + " instalada" : "instalada") : "não instalada", "7",
-                extOk ? Sinal.Verde : Sinal.Vermelho);
+                extOk ? Sinal.Verde : Sinal.Vermelho, exp);
 
             System.Text.Json.Nodes.JsonNode autodesk = null;
             try { autodesk = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig); } catch { }
@@ -785,8 +790,9 @@ namespace MetroSP.Entrega
                 int Conta(string k) => (m?[k] as System.Text.Json.Nodes.JsonArray)?.Count ?? 0;
                 return $"{Conta("MapCADLayerName")} regras por layer, {Conta("MapBlockName")} por bloco";
             });
-            Padrao("Classes IFC", "Regras de classe IFC por layer, bloco e baseline (IfcInfraExportMapping.json).",
-                Arq(ConfigKind.ObjectMapping), ConfigPackage.PathOf(ConfigKind.ObjectMapping), classes, "2",
+            Padrao("Classes IFC", "Regras de classe IFC por layer, bloco e baseline, no IFC 4.3 (IfcInfraExportMapping.json) e no IFC4 (.IFC4.json).",
+                Arq(ConfigKind.ObjectMapping) == null ? null : Arq(ConfigKind.ObjectMapping) + (Arq(ConfigKind.ObjectMappingIfc4) != null ? " (+ .IFC4)" : ""),
+                ConfigPackage.PathOf(ConfigKind.ObjectMapping), classes, "2",
                 _res?.Etapa(2)?.Sinal == Sinal.Vermelho ? Sinal.Amarelo : Arq(ConfigKind.ObjectMapping) != null ? Sinal.Verde : Sinal.Vermelho);
 
             string psets = Seguro(() =>
