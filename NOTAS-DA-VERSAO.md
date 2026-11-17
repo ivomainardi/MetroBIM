@@ -4,7 +4,9 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## Próxima versão (em preparação)
+## 1.0.10 (17/11/2026)
+
+Revit 0.3.13 · Civil 3D 0.12.6
 
 - Revit, **Entrega passo a passo › MetroDATA** (passo 4, antes Dados): confere as propriedades pedidas pela planilha do
   **MetroDATA exportada do Airtable** (.xlsx, aba "Propriedades x Objetos"). A planilha é escolhida em Padrões (ou no
@@ -19,7 +21,6 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
     exportador (Base Quantities, Classification, Material) só são conferidos quando o elemento tem o parâmetro. O GUID
     dos compartilhados é conferido com o GUID da planilha.
   - Sem a planilha, o passo continua conferindo os campos do .txt de property sets e do IDS, como antes.
-
 - Revit e Civil 3D, **janelas no monitor do software**: todas as janelas do MetroSP, inclusive as de progresso
   (carregando), abrem no mesmo monitor do Revit ou do Civil 3D, centralizadas sobre ele. Uma janela que lembra a
   posição só volta lá se for nesse monitor, e nenhuma fica maior que a tela onde abre.
@@ -48,8 +49,6 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   têm GlobalId fixo entre exportações. Antes só o IFC 2x3 separava essas peças: no IFC4 a ligação saía como um corpo
   só e os parafusos avulsos não saíam. É automático, sem opção nova na tela; o resumo da exportação diz quantas peças
   saíram.
-## Próxima versão (ainda sem número)
-
 - Revit, **Exportar IFC: quantidades das armaduras**. O exportador da Autodesk não grava as quantidades das barras
   (IfcReinforcingBar) e, nos conjuntos de **comprimento variável**, nem o comprimento de cada barra. Agora o MetroSP
   completa o IFC com o `Qto_ReinforcingElementBaseQuantities` de cada barra:
@@ -85,9 +84,11 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   pacote): um cartão por classificação e situação, sem separar por categoria, com o botão que resolve (**Criar
   parâmetro**, **Escolher...**, **Corrigir escrita**) e Selecionar. Ao lado, o Verificar já conferido, sem os
   contadores (os erros ficam só nos cartões). Sem perfil salvo, o passo continua com a planilha do pacote.
-- Testar no Revit: criar um perfil com Título e Descrição em colunas separadas e a descrição em outro parâmetro; Verificar
-  num modelo com `[LMB3]...` e com valores escritos à mão (`Código - Título`, só o código); Corrigir... e Corrigir
-  escrita; Aplicar com duas classificações; abrir pelo botão Classificação... em Padrões; Entrega passo a passo › Classificação (cartões e botões, e se os números batem com a tabela ao lado).
+- Civil 3D, **Entrega passo a passo na ordem do Revit** (1 Perfis, 2 Classes IFC, 3 Property sets, 4 MetroDATA,
+  5 Classificação, 6 Alinhamentos, 7 Exportar): vários perfis de exportação escolhidos por modelo, **Classes IFC numa
+  lista única** com IFC4 e IFC 4.3 lado a lado, property sets numa lista única com a vista **Saída no IFC**, MetroDATA
+  lendo a planilha do Airtable, Classificação e Exportar como no Revit, **estrutura do IFC em árvore** e IfcSite na
+  origem do PTL. Detalhes em `civil3d/NOTAS-DA-VERSAO.md`.
 
 ## 1.0.9 (17/11/2026)
 

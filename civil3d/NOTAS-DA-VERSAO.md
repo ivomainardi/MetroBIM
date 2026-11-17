@@ -1,6 +1,6 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## Próxima versão (em teste)
+## 0.12.6 (17/11/2026)
 
 - **Entrega passo a passo na ordem do Revit**: **1 Perfis**, **2 Classes IFC**, **3 Property sets**, **4 MetroDATA**,
   **5 Classificação**, **6 Alinhamentos** e **7 Exportar**. Classes IFC vem antes dos property sets porque o que cada
