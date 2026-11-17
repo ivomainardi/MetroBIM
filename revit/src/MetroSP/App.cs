@@ -124,14 +124,14 @@ namespace MetroSP
             RibbonPanel panel = application.CreateRibbonPanel(TabName, "Ferramentas");
 
             Menu(panel, "Classificacao", "Classificação",
-                "Aplicar e verificar a classificação (ClassificationCode) pela planilha do padrão.", "ClassAplicar",
+                "Aplicar e verificar a classificação pelas planilhas do perfil de classificação (Coordenação › Padrões › Classificação...).", "ClassAplicar",
                 Dados<AplicarClassificacaoCommand>("Aplicar",
-                    "Escolha um item da planilha de classificação e aplique nos elementos selecionados (ClassificationCode = Código:Descrição). " +
-                    "A janela fica aberta enquanto você seleciona no Revit.",
+                    "Escolha um item em cada classificação do perfil e aplique nos elementos selecionados, cada uma no seu parâmetro " +
+                    "(ex.: ClassificationCode = Código:Título). A janela fica aberta enquanto você seleciona no Revit.",
                     "ClassAplicar"),
                 Dados<VerificarClassificacaoCommand>("Verificar",
-                    "Confere se a classificação preenchida está na planilha, com a descrição e a categoria certas, e propõe correções. " +
-                    "Em \"Códigos × descrições...\", encontra códigos usados com descrições diferentes e unifica.",
+                    "Confere se a escrita da classificação é igual à da planilha (código, título, separador, espaços) e propõe correções. " +
+                    "Uma linha por valor escrito; Corrigir abre a lista com a sugestão marcada.",
                     "ClassVerificar"));
 
             Menu(panel, "Dados", "Dados",

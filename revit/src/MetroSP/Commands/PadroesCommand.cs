@@ -45,8 +45,8 @@ namespace MetroSP.Commands
             {
                 new TipoPadrao
                 {
-                    Id = "revit-classificacao", Nome = "Classificação", Pasta = PadraoClassificacao.Pasta,
-                    Ferramenta = "Ferramentas › Classificação › Verificar › Editar padrões (com um modelo aberto)",
+                    Id = "revit-classificacao", Nome = "Perfil de classificação", Pasta = PadraoClassificacao.Pasta,
+                    Ferramenta = "Coordenação › Padrões › Classificação... (com um modelo aberto)",
                     Editar = doc == null ? null : (dono, item) => new PadroesClassificacaoWindow(doc, item.Nome) { Owner = dono }.ShowDialog(),
                     Reconhece = f => GerenciadorPadroes.JsonCom(f, "Sistemas"),
                 },
@@ -163,7 +163,8 @@ namespace MetroSP.Commands
             UIApplication uiapp = commandData.Application;
             Document doc = uiapp.ActiveUIDocument?.Document;
             if (doc != null && doc.IsFamilyDocument) doc = null;
-            var w = new GerenciarPadroesWindow(Tipos(doc), "Revit", dono => new ArquivosIfcWindow(doc) { Owner = dono }.ShowDialog());
+            var w = new GerenciarPadroesWindow(Tipos(doc), "Revit", dono => new ArquivosIfcWindow(doc) { Owner = dono }.ShowDialog(),
+                doc == null ? null : (Action<System.Windows.Window>)(dono => new PadroesClassificacaoWindow(doc, ClassSettings.Abrir().Padrao) { Owner = dono }.ShowDialog()));
             new WindowInteropHelper(w).Owner = uiapp.MainWindowHandle;
             w.ShowDialog();
             return Result.Succeeded;

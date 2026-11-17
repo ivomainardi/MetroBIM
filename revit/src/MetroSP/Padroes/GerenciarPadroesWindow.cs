@@ -28,7 +28,8 @@ namespace MetroSP.Padroes
         private readonly Button _editar, _excluir, _pastaPadrao, _abrirPlanilha, _trocar, _pastaPlanilha;
 
         /// <param name="exportacaoIfc">Abre a janela dos padrões de exportação IFC (setup, property sets e mapeamento de cada padrão), se houver.</param>
-        public GerenciarPadroesWindow(IList<TipoPadrao> tipos, string programa, Action<Window> exportacaoIfc = null)
+        /// <param name="classificacao">Abre a janela dos perfis de classificação (colunas da planilha, parâmetros e várias classificações), se houver.</param>
+        public GerenciarPadroesWindow(IList<TipoPadrao> tipos, string programa, Action<Window> exportacaoIfc = null, Action<Window> classificacao = null)
         {
             _tipos = tipos;
             _programa = programa;
@@ -79,6 +80,13 @@ namespace MetroSP.Padroes
                     "Escolher o padrão no Exportar IFC carrega tudo isso de uma vez.", () => { exportacaoIfc(this); Recarregar(); });
                 ifc.Margin = new Thickness(0, 0, 8, 4);
                 barraPadroes.Children.Add(ifc);
+            }
+            if (classificacao != null)
+            {
+                Button cls = Botao("Classificação...", "Perfis de classificação: a planilha, as colunas (código, título, descrição), o parâmetro onde grava " +
+                    "e mais de uma classificação por elemento. O Verificar e o Aplicar classificação usam o perfil escolhido.", () => { classificacao(this); Recarregar(); });
+                cls.Margin = new Thickness(0, 0, 8, 4);
+                barraPadroes.Children.Add(cls);
             }
 
             // Área para soltar arquivos (a janela inteira aceita).

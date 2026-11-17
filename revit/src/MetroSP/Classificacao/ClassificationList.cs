@@ -12,7 +12,10 @@ namespace MetroSP.Classificacao
     public class ClassItem
     {
         public string Codigo { get; set; }
+        /// <summary>Texto que vai depois dos dois-pontos: a coluna Título ou, sem ela, a Descrição.</summary>
         public string Descricao { get; set; }
+        /// <summary>Coluna Descrição quando há coluna Título (vai para o parâmetro da descrição, se houver).</summary>
+        public string DescricaoLonga { get; set; }
         public string CodigoPai { get; set; }
         /// <summary>Categorias do Revit em que o item vale (vazio = todas).</summary>
         public List<string> Categorias { get; } = new List<string>();
@@ -93,7 +96,7 @@ namespace MetroSP.Classificacao
             mapa.LinhaCabecalho = MapaColunas.AcharCabecalho(t, mapa.Aba, campos);
             mapa.Sugerir(t, campos);
             if (mapa.Coluna(SistemaClassificacao.CampoCodigo.Chave) == null) throw new InvalidDataException("Não encontrei a coluna \"Código\" na planilha.");
-            if (mapa.Coluna(SistemaClassificacao.CampoDescricao.Chave) == null) throw new InvalidDataException("Não encontrei a coluna \"Descrição\" na planilha.");
+            if (mapa.Coluna(SistemaClassificacao.CampoDescricao.Chave) == null && mapa.Coluna(SistemaClassificacao.CampoTitulo.Chave) == null) throw new InvalidDataException("Não encontrei a coluna \"Descrição\" na planilha.");
             return De(t, mapa, Path.GetFileNameWithoutExtension(caminho));
         }
 
@@ -101,20 +104,21 @@ namespace MetroSP.Classificacao
         public static ClassificationList De(Tabela t, MapaColunas mapa, string nome)
         {
             var lista = new ClassificationList { Arquivo = mapa.Arquivo, Nome = nome };
+            bool comTitulo = mapa.Coluna(SistemaClassificacao.CampoTitulo.Chave) != null;
             foreach (LinhaPlanilha l in mapa.Linhas(t))
             {
                 string cod = l[SistemaClassificacao.CampoCodigo.Chave];
                 if (string.IsNullOrWhiteSpace(cod)) continue;
+                string desc = (l[SistemaClassificacao.CampoDescricao.Chave] ?? "").Trim();
                 var item = new ClassItem
                 {
                     Codigo = cod.Trim(),
-                    Descricao = (l[SistemaClassificacao.CampoDescricao.Chave] ?? "").Trim(),
+                    Descricao = comTitulo ? (l[SistemaClassificacao.CampoTitulo.Chave] ?? "").Trim() : desc,
+                    DescricaoLonga = comTitulo ? desc : "",
                     CodigoPai = l[SistemaClassificacao.CampoPai.Chave]?.Trim(),
                 };
                 if (lista.Edicao == null) lista.Edicao = l[SistemaClassificacao.CampoEdicao.Chave];
-                string cats = l[SistemaClassificacao.CampoCategorias.Chave];
-                if (!string.IsNullOrWhiteSpace(cats))
-                    item.Categorias.AddRange(cats.Split(new[] { ';', ',', '|' }, StringSplitOptions.RemoveEmptyEntries).Select(c => c.Trim()));
+                // Categorias não são mais conferidas (1.0.10): perfis antigos com a coluna mapeada são ignorados.
                 if (lista.PorCodigo.ContainsKey(item.Codigo))
                 {
                     lista.Avisos.Add($"Código repetido na planilha: {item.Codigo} (linha {l.Numero}); ficou a primeira ocorrência.");

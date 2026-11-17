@@ -594,9 +594,33 @@ namespace MetroSP.Painel
             if (etapa.Numero == EtapaConferencia.ClassesIfc && p.Elementos.Count > 0)
                 yield return ("Escolher classe...", "Escolhe a classe IFC desses elementos e grava no \"Exportar para IFC como\" dos tipos.",
                     () => { if (FecharFerramenta()) AcoesPendencia.EscolherClasse(_doc, _res, p, this, IntPtr.Zero, () => Conferir()); });
+            if (etapa.Numero == EtapaConferencia.Classificacao && p.Classificacao != null)
+            {
+                string sit = p.SituacaoClassificacao;
+                if (sit == Classificacao.ClassificationCore.SemParametro)
+                    yield return ("Criar parâmetro", $"Vincula {p.Parametro} às categorias desses elementos e confere de novo.",
+                        () => NaClassificacao(v => v.CriarParametroPara(p.Classificacao)));
+                else if (sit == Classificacao.ClassificationCore.DescricaoDiferente)
+                    yield return ("Corrigir escrita", "Grava o texto da lista (o código não muda), numa operação só. Ctrl+Z desfaz.",
+                        () => NaClassificacao(v => v.CorrigirEscrita(p.Classificacao)));
+                else
+                    yield return ("Escolher...", "Abre a lista de itens com a sugestão marcada e grava o escolhido nesses elementos.",
+                        () => NaClassificacao(v => v.EscolherPara(p.Classificacao, sit)));
+            }
             if (p.Correcao == Correcao.EditarEmMassa && p.Elementos.Count > 0)
                 yield return ("Preencher...", $"Seleciona os {p.Elementos.Count} elemento(s) e abre o Editar em massa à direita.",
                     () => { if (FecharFerramenta()) { Selecionar(p.Elementos); MostrarFerramenta(); } });
+        }
+
+        /// <summary>Executa a ação do cartão no Verificar classificação embutido ao lado; se gravou, confere de novo.</summary>
+        private void NaClassificacao(Func<Classificacao.VerificarClassificacaoWindow, bool> acao)
+        {
+            if (!(_janelaFerramenta is Classificacao.VerificarClassificacaoWindow)) MostrarFerramenta();
+            if (!(_janelaFerramenta is Classificacao.VerificarClassificacaoWindow v)) return;
+            bool gravou;
+            try { gravou = acao(v); }
+            catch (Exception ex) { TaskDialog.Show("MetroSP", ex.Message); return; }
+            if (gravou && FecharFerramenta()) Conferir();
         }
 
         private void Selecionar(List<DB.ElementId> ids)
@@ -641,7 +665,7 @@ namespace MetroSP.Painel
                     return new Dados.EdicaoMassaWindow(uidoc);
                 }
                 case EtapaConferencia.Classificacao:
-                    return new Classificacao.VerificarClassificacaoWindow(uidoc, Classificacao.ClassSettings.Abrir());
+                    return new Classificacao.VerificarClassificacaoWindow(uidoc, Classificacao.ClassSettings.Abrir(), naEntrega: true);
                 case PassoLocal:
                 {
                     // A mesma janela do Exportar IFC da Ribbon, embutida: o Exportar dela exporta daqui.
