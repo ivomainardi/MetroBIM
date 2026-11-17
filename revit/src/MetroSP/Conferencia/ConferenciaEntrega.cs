@@ -35,6 +35,10 @@ namespace MetroSP.Conferencia
         private ClassificationList _planilha;
         private SharedParamTxt _metroShared;
         private bool _temPsets;
+        private MetroData _metroData;
+        private readonly Dictionary<string, List<Exigencia>> _exigenciasPorObjeto = new Dictionary<string, List<Exigencia>>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Categoria → como os elementos dela foram ligados a um objeto do MetroDATA.</summary>
+        private readonly Dictionary<string, CategoriaMetroData> _categoriasMetroData = new Dictionary<string, CategoriaMetroData>(StringComparer.OrdinalIgnoreCase);
 
         private MappingAnalyzer _analisador;
         private readonly Dictionary<string, List<Exigencia>> _exigenciasPorEntidade = new Dictionary<string, List<Exigencia>>(StringComparer.OrdinalIgnoreCase);
@@ -51,6 +55,8 @@ namespace MetroSP.Conferencia
             /// <summary>Pset padrão (Pset_/Qto_) sem mapeamento: sem o parâmetro, o exportador pode calcular. Não é pendência.</summary>
             public bool PadraoBuildingSmart;
             public bool SemMapeamento;
+            /// <summary>GUID do parâmetro compartilhado pedido pelo MetroDATA (null = confere pelo MetroShared).</summary>
+            public Guid? Guid;
         }
 
         /// <param name="vista">Vista que limita os elementos (null = modelo inteiro).</param>
@@ -85,6 +91,7 @@ namespace MetroSP.Conferencia
             r.ClassesDoPadrao.AddRange(ClassesDoPadrao());
             r.Esquema = CategoriasIfc.EsquemaDaVersao(_setup?.Versao.ToString()) ?? (_setup == null ? CategoriasIfc.Ifc4x3 : CategoriasIfc.Ifc4);
             r.Ids = _ids;
+            r.MetroData = _metroData;
 
             EtapaConferencia parametros = new EtapaConferencia
             {
@@ -96,10 +103,10 @@ namespace MetroSP.Conferencia
             EtapaConferencia dados = ConferirDados(elementos, r, parametros);
             EtapaConferencia classificacao = ConferirClassificacao(elementos.Select(x => x.E).ToList(), out int classOk, out int classTotal);
 
-            if (!_temPsets && _ids == null)
+            if (!_temPsets && _ids == null && _metroData == null)
             {
                 parametros.Sinal = Sinal.Cinza;
-                parametros.Resumo = "Sem .txt de property sets nem IDS nos padrões: nada para conferir.";
+                parametros.Resumo = "Sem MetroDATA, .txt de property sets ou IDS nos padrões: nada para conferir.";
                 dados.Sinal = Sinal.Cinza;
                 dados.Resumo = parametros.Resumo;
             }
@@ -275,6 +282,25 @@ namespace MetroSP.Conferencia
                 }
             }
 
+            // MetroDATA (planilha exportada do Airtable): com ela, o passo MetroDATA confere o que ela pede.
+            if (string.IsNullOrWhiteSpace(_pacote.MetroData))
+                Linha(Sinal.Cinza, "MetroDATA (.xlsx)", "Sem a planilha do MetroDATA: o passo MetroDATA confere os campos do .txt de property sets" + (_ids != null ? " e do IDS." : "."));
+            else if (!File.Exists(_pacote.MetroData))
+                Linha(Sinal.Vermelho, "MetroDATA (.xlsx)", $"Arquivo não encontrado: {_pacote.MetroData}", "Confira o caminho nos padrões.");
+            else
+            {
+                try
+                {
+                    _metroData = MetroData.Ler(_pacote.MetroData);
+                    int props = _metroData.DaDisciplina(_pacote.MetroDataDisciplina).Select(l => l.Campo).Distinct(StringComparer.OrdinalIgnoreCase).Count();
+                    int objs = _metroData.Objetos(_pacote.MetroDataDisciplina).Count;
+                    Linha(Sinal.Verde, "MetroDATA (.xlsx)", $"{Nome(_pacote.MetroData)}: {props} propriedades, {objs} objetos · {DescricaoEscolhas()}");
+                    if (!MetroData.EhTodas(_pacote.MetroDataDisciplina) && objs == 0)
+                        Linha(Sinal.Amarelo, "MetroDATA (.xlsx)", $"A disciplina \"{_pacote.MetroDataDisciplina}\" não está na planilha.", "Escolha a disciplina no passo MetroDATA.");
+                }
+                catch (Exception ex) { Linha(Sinal.Vermelho, "MetroDATA (.xlsx)", $"{Nome(_pacote.MetroData)} não pôde ser lida: {ex.Message}"); }
+            }
+
             etapa.CalcularSinal();
             etapa.Contagem = etapa.Pendencias.Count(p => p.Sinal == Sinal.Vermelho || p.Sinal == Sinal.Amarelo);
             etapa.Resumo = etapa.Contagem == 0
@@ -392,8 +418,10 @@ namespace MetroSP.Conferencia
         {
             var etapa = new EtapaConferencia
             {
-                Numero = EtapaConferencia.MetroData, Titulo = "Dados preenchidos",
-                Descricao = "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelos padrões." : "."),
+                Numero = EtapaConferencia.MetroData, Titulo = "MetroDATA",
+                Descricao = _metroData != null
+                    ? $"As propriedades que o MetroDATA pede para cada objeto estão preenchidas ({DescricaoEscolhas()})."
+                    : "Os campos exigidos pelo Metrô estão preenchidos" + (_ids != null ? " e com os valores aceitos pelos padrões." : "."),
                 Correcao = Correcao.EditarEmMassa,
             };
 
@@ -408,7 +436,7 @@ namespace MetroSP.Conferencia
             foreach (var (e, entidade) in elementos)
             {
                 Ui.Progresso.Atual?.Avancar(e.Category.Name);
-                List<Exigencia> exigencias = Exigencias(entidade);
+                List<Exigencia> exigencias = _metroData != null ? ExigenciasMetroData(e, entidade) : Exigencias(entidade);
                 if (exigencias.Count == 0) continue;
                 string categoria = e.Category.Name;
                 string nome = null;
@@ -470,6 +498,30 @@ namespace MetroSP.Conferencia
             }
             r.Campos.AddRange(OrdemDosCampos(campos));
 
+            // MetroDATA: categorias cujos elementos não puderam ser ligados a um objeto.
+            if (_metroData != null)
+            {
+                r.CategoriasMetroData.AddRange(_categoriasMetroData.Values.OrderByDescending(c => c.Elementos.Count));
+                foreach (CategoriaMetroData c in r.CategoriasMetroData.Where(c => c.SemObjeto.Count > 0))
+                {
+                    string classes = string.Join(", ", c.Classes);
+                    int qtd = c.SemObjeto.Count;
+                    etapa.Pendencias.Add(new Pendencia
+                    {
+                        Sinal = Sinal.Amarelo, Categoria = c.Categoria, Assunto = "Objeto do MetroDATA",
+                        Problema = c.Candidatos.Count == 0
+                            ? $"{qtd} elemento(s) ({classes}) sem objeto no MetroDATA: não conferidos."
+                            : $"{qtd} elemento(s) ({classes}) servem a {c.Candidatos.Count} objetos: não conferidos.",
+                        OQueFazer = "Escolha o objeto desta categoria (botão Objetos, acima da tabela).",
+                        Detalhe = c.Candidatos.Count == 0
+                            ? $"Nenhum objeto da disciplina tem a classe {classes} no MetroDATA. Escolha o objeto à mão ou preencha a Classe IFC do objeto no Airtable."
+                            : $"A classe {classes} é de mais de um objeto do MetroDATA: {string.Join(", ", c.Candidatos)}. Escolha qual vale para {c.Categoria}.",
+                        Elementos = c.SemObjeto,
+                        Correcao = Correcao.ObjetosMetroData,
+                    });
+                }
+            }
+
             // Pendências do passo MetroDATA: uma por célula com problema.
             foreach (CelulaMatriz c in r.Matriz.Values.Where(c => c.TemPendencia && !c.SemMapeamento)
                                                        .OrderBy(c => c.Percentual).ThenBy(c => c.Categoria))
@@ -501,7 +553,8 @@ namespace MetroSP.Conferencia
             var deProjeto = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             DefinitionBindingMapIterator it = _doc.ParameterBindings.ForwardIterator();
             while (it.MoveNext()) if (it.Key != null) deProjeto.Add(it.Key.Name);
-            string txt = Path.GetFileName(_pacote.PropertySets ?? "");
+            string txt = Path.GetFileName((_metroData != null ? _pacote.MetroData : _pacote.PropertySets) ?? "");
+            string fonte = _metroData != null ? $"O MetroDATA ({txt}) pede" : $"O .txt de property sets ({txt}) lê";
             foreach (var k in semParametro.OrderByDescending(k => k.Value.Count))
             {
                 string lidos = camposDoParametro.TryGetValue(k.Key.Param, out HashSet<string> cs) ? string.Join(", ", cs) : "";
@@ -515,7 +568,7 @@ namespace MetroSP.Conferencia
                     OQueFazer = projeto
                         ? $"Vincule \"{k.Key.Param}\" a {k.Key.Cat}."
                         : "Aponte o campo para outro parâmetro (Ajustar o .txt) ou crie esse parâmetro de projeto.",
-                    Detalhe = $"O .txt de property sets ({txt}) lê o parâmetro \"{k.Key.Param}\" do Revit para {lidos}, " +
+                    Detalhe = $"{fonte} o parâmetro \"{k.Key.Param}\" do Revit para {lidos}, " +
                               $"mas {k.Value.Count} elemento(s) de {k.Key.Cat} não têm parâmetro com esse nome." +
                               (importados > 0 ? $" {importados} são DirectShape (geometria importada), que não têm os parâmetros das famílias." : "") +
                               (projeto
@@ -562,15 +615,17 @@ namespace MetroSP.Conferencia
                 });
             }
 
-            if (_metroShared == null || prm.Id.Value < 0) return; // parâmetros internos do Revit não vêm do MetroShared
-            _metroShared.PorNome.TryGetValue(x.Parametro, out SharedParamDef def);
-            if (def == null) return;
-            if (prm.IsShared && prm.GUID != def.Guid)
+            if (prm.Id.Value < 0) return; // parâmetros internos do Revit não vêm do MetroShared
+            Guid? guid = x.Guid;
+            string base_ = x.Guid != null ? "MetroDATA" : "MetroShared";
+            if (guid == null && _metroShared != null && _metroShared.PorNome.TryGetValue(x.Parametro, out SharedParamDef def) && def != null) guid = def.Guid;
+            if (guid == null) return;
+            if (prm.IsShared && prm.GUID != guid.Value)
             {
                 parametros.Pendencias.Add(new Pendencia
                 {
                     Sinal = Sinal.Amarelo, Assunto = x.Parametro,
-                    Problema = $"GUID diferente do MetroShared ({prm.GUID} no modelo, {def.Guid} na base). O IFC sai pelo nome, mas o parâmetro não é o do padrão.",
+                    Problema = $"GUID diferente do {base_} ({prm.GUID} no modelo, {guid.Value} no padrão). O IFC sai pelo nome, mas o parâmetro não é o do padrão.",
                     OQueFazer = "Veja em Parâmetros › Compartilhados (coluna Padrão) e troque pelo parâmetro do MetroShared.",
                     Correcao = Correcao.ListarCompartilhados,
                 });
@@ -580,7 +635,7 @@ namespace MetroSP.Conferencia
                 parametros.Pendencias.Add(new Pendencia
                 {
                     Sinal = Sinal.Amarelo, Assunto = x.Parametro,
-                    Problema = "O parâmetro existe no MetroShared, mas no modelo não é compartilhado (é de projeto ou de família).",
+                    Problema = $"O parâmetro existe no {base_}, mas no modelo não é compartilhado (é de projeto ou de família).",
                     OQueFazer = "Troque pelo parâmetro compartilhado do MetroShared.",
                     Correcao = Correcao.ListarCompartilhados,
                 });
@@ -654,6 +709,59 @@ namespace MetroSP.Conferencia
             return lista;
         }
 
+        /// <summary>"Arquitetura · Executivo · até a classe 2", para as descrições.</summary>
+        private string DescricaoEscolhas() =>
+            string.Join(" · ",
+                MetroData.EhTodas(_pacote.MetroDataDisciplina) ? "todas as disciplinas" : _pacote.MetroDataDisciplina,
+                MetroData.EhTodas(_pacote.MetroDataEtapa) ? "todas as etapas" : "etapa " + _pacote.MetroDataEtapa,
+                _pacote.MetroDataClasse > 0 ? "até a classe " + _pacote.MetroDataClasse : "todas as classes");
+
+        /// <summary>
+        /// Campos que o MetroDATA pede para o elemento: acha o objeto (escolhido para a categoria ou, se não, pela classe IFC,
+        /// quando ela é de um objeto só) e pega as propriedades dele na etapa e até a classe escolhidas.
+        /// </summary>
+        private List<Exigencia> ExigenciasMetroData(Element e, string entidade)
+        {
+            string categoria = e.Category.Name;
+            if (!_categoriasMetroData.TryGetValue(categoria, out CategoriaMetroData info))
+            {
+                info = new CategoriaMetroData { Categoria = categoria };
+                List<string> objetos = _metroData.Objetos(_pacote.MetroDataDisciplina);
+                if (_pacote.MetroDataObjetos != null && _pacote.MetroDataObjetos.TryGetValue(categoria, out string escolhido)
+                    && objetos.Contains(escolhido, StringComparer.OrdinalIgnoreCase))
+                {
+                    info.Objeto = objetos.First(o => o.Equals(escolhido, StringComparison.OrdinalIgnoreCase));
+                    info.Escolhido = true;
+                }
+                _categoriasMetroData[categoria] = info;
+            }
+            info.Elementos.Add(e.Id);
+            if (!info.Classes.Contains(entidade, StringComparer.OrdinalIgnoreCase)) info.Classes.Add(entidade);
+
+            string objeto = info.Objeto;
+            if (!info.Escolhido)
+            {
+                // Pela classe IFC: cada classe da categoria pode cair num objeto diferente.
+                List<string> candidatos = _metroData.ObjetosDaClasse(_pacote.MetroDataDisciplina, entidade);
+                foreach (string c in candidatos)
+                    if (!info.Candidatos.Contains(c, StringComparer.OrdinalIgnoreCase)) info.Candidatos.Add(c);
+                objeto = candidatos.Count == 1 ? candidatos[0] : null;
+                if (objeto == null) info.SemObjeto.Add(e.Id);
+            }
+            if (objeto == null) return new List<Exigencia>();
+
+            if (_exigenciasPorObjeto.TryGetValue(objeto, out List<Exigencia> cache)) return cache;
+            var lista = new List<Exigencia>();
+            var vistos = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (MetroData.Linha l in _metroData.Exigidas(_pacote.MetroDataDisciplina, objeto, _pacote.MetroDataEtapa, _pacote.MetroDataClasse))
+            {
+                if (!vistos.Add(l.Campo)) continue;
+                lista.Add(new Exigencia { Campo = l.Campo, Parametro = l.Parametro, Guid = l.Guid, PadraoBuildingSmart = l.Opcional });
+            }
+            _exigenciasPorObjeto[objeto] = lista;
+            return lista;
+        }
+
         /// <summary>Colunas na ordem em que aparecem no IDS ou no .txt.</summary>
         private IEnumerable<string> OrdemDosCampos(HashSet<string> campos)
         {
@@ -662,6 +770,7 @@ namespace MetroSP.Conferencia
                 ordem.AddRange(_ids.Specifications.SelectMany(s => s.Requirements.OfType<IdsPropertyFacet>())
                     .Where(p => p.PropertySet?.Simple != null && p.BaseName?.Simple != null)
                     .Select(p => $"{p.PropertySet.Simple}.{p.BaseName.Simple}"));
+            if (_metroData != null) ordem.AddRange(_metroData.Linhas.Select(l => l.Campo));
             ordem.AddRange(_mapping.Properties.Select(m => $"{m.PropertySet}.{m.Property}"));
             return ordem.Where(campos.Contains).Distinct(StringComparer.OrdinalIgnoreCase)
                         .Concat(campos.OrderBy(c => c)).Distinct(StringComparer.OrdinalIgnoreCase);

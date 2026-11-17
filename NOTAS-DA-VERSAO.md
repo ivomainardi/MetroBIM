@@ -6,6 +6,20 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 
 ## Próxima versão (em preparação)
 
+- Revit, **Entrega passo a passo › MetroDATA** (passo 4, antes Dados): confere as propriedades pedidas pela planilha do
+  **MetroDATA exportada do Airtable** (.xlsx, aba "Propriedades x Objetos"). A planilha é escolhida em Padrões (ou no
+  próprio passo) e pode ser trocada pela mais nova a qualquer hora: o plugin lê o arquivo a cada conferência.
+  - Em cima do passo, listas suspensas em que também dá para digitar e filtrar: **Disciplina** (ex.: Arquitetura,
+    Sistemas / Telecom X), **Etapa** (Básico, Executivo, J2, B5...; "4-Basico" conta como Básico) e **Classe**
+    (até a Classe 1 a 4). Propriedades sem fase ou sem classe na planilha entram sempre.
+  - Cada categoria é ligada a um objeto do MetroDATA pela **Classe IFC do objeto** na planilha. Quando a classe não é de
+    nenhum objeto, ou é de mais de um, o passo avisa e o botão **Objetos** deixa escolher o objeto de cada categoria
+    (fica salvo com os padrões).
+  - Parâmetros do MetroShared que faltam viram pendência (passo 3); parâmetros nativos do Revit e os calculados pelo
+    exportador (Base Quantities, Classification, Material) só são conferidos quando o elemento tem o parâmetro. O GUID
+    dos compartilhados é conferido com o GUID da planilha.
+  - Sem a planilha, o passo continua conferindo os campos do .txt de property sets e do IDS, como antes.
+
 - Revit e Civil 3D, **janelas no monitor do software**: todas as janelas do MetroSP, inclusive as de progresso
   (carregando), abrem no mesmo monitor do Revit ou do Civil 3D, centralizadas sobre ele. Uma janela que lembra a
   posição só volta lá se for nesse monitor, e nenhuma fica maior que a tela onde abre.
