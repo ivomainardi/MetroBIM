@@ -48,6 +48,8 @@ namespace MetroSP.Ids
         private readonly TextBox _arquivo;
         private readonly TextBlock _resumo;
         private readonly Border _seloLocalizacao;
+        private readonly TextBlock _resumoPerfil;
+        private readonly FrameworkElement _secaoArquivos, _grupoArquivos;
         private readonly Button _gravarLocal;
         private readonly TextBox _ifcProject, _ifcSite, _ifcBuilding;
 
@@ -82,6 +84,19 @@ namespace MetroSP.Ids
         public bool Embutida { get; }
         /// <summary>Embutida: as escolhas foram conferidas e é para exportar.</summary>
         public event Action Confirmada;
+        /// <summary>Embutida: os avisos mudaram (a Entrega mostra de novo os cartões "O que falta").</summary>
+        public event Action AvisosMudaram;
+
+        /// <summary>Um aviso da exportação, para os cartões "O que falta" da Entrega: texto curto, explicação na dica e o botão que resolve.</summary>
+        public class Aviso
+        {
+            public string Titulo { get; set; }
+            public string Texto { get; set; }
+            public string Dica { get; set; }
+            public string Acao { get; set; }
+            public Action Executar { get; set; }
+        }
+
         /// <summary>A pessoa pediu para abrir o passo a passo da Entrega (a janela fecha sem exportar).</summary>
         public bool AbrirPassoAPasso { get; private set; }
 
@@ -118,7 +133,7 @@ namespace MetroSP.Ids
             secaoClasse.Margin = new Thickness(0, 0, 0, 5);
             corpo.Children.Add(secaoClasse);
             var linhaClasse = new DockPanel();
-            _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Width = 150, VerticalAlignment = VerticalAlignment.Center,
+            _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Width = embutida ? 220 : 150, VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "Perfil de exportação: carrega o setup, os property sets e o mapeamento dele de uma vez.\nOu \"Outros arquivos\" para indicar cada um." };
             DockPanel.SetDock(_classe, Dock.Left);
             linhaClasse.Children.Add(_classe);
@@ -138,11 +153,19 @@ namespace MetroSP.Ids
             DockPanel.SetDock(gerenciar, Dock.Right);
             linhaClasse.Children.Add(gerenciar);
             linhaClasse.Children.Add(_botaoForma);
+            // Resumo do que o perfil carrega (setup, property sets e mapeamento); os caminhos ficam na dica.
+            _resumoPerfil = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center,
+                TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(10, 0, 0, 0) };
+            linhaClasse.Children.Add(_resumoPerfil);
             corpo.Children.Add(linhaClasse);
 
             // ---------- Arquivos ----------
-            corpo.Children.Add(Theme.Secao("Arquivos da exportação"));
-            corpo.Children.Add(Theme.Grupo(out StackPanel arquivos));
+            var secaoArquivos = Theme.Secao("Arquivos da exportação");
+            _secaoArquivos = secaoArquivos;
+            corpo.Children.Add(secaoArquivos);
+            var grupoArquivos = Theme.Grupo(out StackPanel arquivos);
+            _grupoArquivos = grupoArquivos;
+            corpo.Children.Add(grupoArquivos);
             _setup = ItemArquivo(arquivos, "Setup", "Trocar...", primeiro: true, out _arqSetup, out _seloSetup, out _infoSetup, out Button procurarSetup, out _);
             _psets = ItemArquivo(arquivos, "Property sets", "Trocar...", primeiro: false, out _arqPsets, out _seloPsets, out _infoPsets, out Button procurarPsets, out StackPanel acoesPsets);
             var editarPsets = new Button { Content = "Editar...", Margin = new Thickness(0, 0, 6, 0) };
@@ -157,6 +180,8 @@ namespace MetroSP.Ids
             _vista = new ComboBox { Padding = new Thickness(4, 3, 4, 3),
                 ToolTip = "Modelo inteiro, ou só o que está visível numa vista 3D (a vista também define a fase)." };
             LinhaGrade(saida, "Elementos", _vista);
+            _fase = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
+            LinhaGrade(saida, "Fase", _fase);
             var linhaArquivo = new DockPanel();
             var procurarSaida = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
             DockPanel.SetDock(procurarSaida, Dock.Right);
@@ -168,7 +193,7 @@ namespace MetroSP.Ids
 
             // ---------- Extras: projeto e localização (a etapa 1 grava no Revit; aqui só confere), fase e eixos ----------
             Localizacao = LocalizacaoIfc.Calcular(doc);
-            corpo.Children.Add(Theme.Secao("Extras"));
+            corpo.Children.Add(Theme.Secao("Projeto e local"));
             corpo.Children.Add(Theme.Grupo(out StackPanel extras));
             var grade = new Grid { Margin = new Thickness(10, 6, 10, 6) };
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(LarguraRotulo) });
@@ -188,6 +213,8 @@ namespace MetroSP.Ids
             _seloLocalizacao.VerticalAlignment = VerticalAlignment.Center;
             linhaLocal.Children.Add(_seloLocalizacao);
             LinhaGrade(grade, "Localização", linhaLocal);
+            // Na Entrega, a localização aparece no cartão "O que falta", com o botão Gravar localização.
+            if (embutida) { linhaLocal.Visibility = Visibility.Collapsed; Rotulo(grade, linhaLocal).Visibility = Visibility.Collapsed; }
 
             // Nomes do IfcProject, IfcSite e IfcBuilding: gravados nos campos do Revit ao exportar, se mudarem.
             Ifc.DadosProjetoIfc atuais = Localizacao.DadosAtuais;
@@ -212,30 +239,33 @@ namespace MetroSP.Ids
             _epsgEmBranco = new CheckBox
             {
                 Content = "EPSG em branco",
+                Margin = new Thickness(16, 0, 0, 0),
                 IsChecked = settings.EpsgEmBranco,
                 VerticalAlignment = VerticalAlignment.Center,
                 ToolTip = "Ligado: o IFC sai sem código EPSG, IfcProjectedCRS e IfcMapConversion (coordenadas no PTL), mesmo que o Location tenha sistema GIS" +
                           (Localizacao.SistemaGis != null ? $" (\"{Localizacao.SistemaGis}\")" : "") +
                           ".\nDesligado: vale o EPSG do setup ou o que o exportador gravar pelo sistema GIS.",
             };
-            LinhaGrade(grade, "Coordenadas", _epsgEmBranco);
 
-            _fase = new ComboBox { Padding = new Thickness(4, 3, 4, 3) };
-            LinhaGrade(grade, "Fase", _fase);
 
             _eixos = new CheckBox
             {
-                Content = "Sempre exportar os eixos (Grids)",
+                Content = "Eixos sempre",
                 IsChecked = settings.SempreEixos,
                 VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Os eixos do Revit saem no IFC como IfcGrid mesmo exportando só o visível numa vista 3D, " +
+                ToolTip = "Sempre exportar os eixos (Grids): os eixos do Revit saem no IFC como IfcGrid mesmo exportando só o visível numa vista 3D, " +
                           "e mesmo que a tabela de categorias diga para não exportar a categoria Grids.",
             };
-            LinhaGrade(grade, "Eixos", _eixos);
+            var opcoes = new StackPanel { Orientation = Orientation.Horizontal };
+            opcoes.Children.Add(_eixos);
+            opcoes.Children.Add(_epsgEmBranco);
+            LinhaGrade(grade, "Opções", opcoes);
 
             PreencherVistas();
             SelecionarVista(settings.Vista);
-            _vista.SelectionChanged += (s, e) => MostrarFase();
+            _vista.SelectionChanged += (s, e) => { if (_vista.SelectedItem != null) { MostrarFase(); AtualizarResumo(); } };
+            Digitavel(_vista);
+            Digitavel(_classe);
             string pastaSaida = settings.PastaSaida ?? string.Empty;
             _arquivo.Text = pastaSaida.Length > 0 ? Path.Combine(pastaSaida, NomePadrao(doc) + ".ifc") : NomePadrao(doc) + ".ifc";
 
@@ -250,7 +280,7 @@ namespace MetroSP.Ids
             ClasseDoNome();
             ClasseDaCoordenacao();
             OpcoesDaCoordenacao();
-            _classe.SelectionChanged += (s, e) => { _motivoClasse = null; AplicarClasse(); };
+            _classe.SelectionChanged += (s, e) => { if (_classe.SelectedItem == null) return; _motivoClasse = null; AplicarClasse(); };
             MostrarForma(resultadoForma);
             if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
             else MostrarClasse(_classe.Items.Count > 1 ? null : "Nenhum perfil instalado: indique os arquivos.");
@@ -291,7 +321,9 @@ namespace MetroSP.Ids
 
             MostrarLocalizacao();
             MostrarCaminhos();
-            Theme.Apply(this, "Exportar IFC", "Indique o setup e os arquivos de mapeamento de cada exportação", corpo, Theme.Rodape(_resumo, cancelar, exportar));
+            // Na Entrega, o Exportar fica no rodapé dela e os avisos nos cartões "O que falta".
+            Theme.Apply(this, "Exportar IFC", embutida ? "perfil, saída e dados do projeto" : "Indique o setup e os arquivos de mapeamento de cada exportação",
+                corpo, embutida ? null : Theme.Rodape(_resumo, cancelar, exportar));
             AtualizarResumo();
         }
 
@@ -581,6 +613,11 @@ namespace MetroSP.Ids
         {
             bool outros = ClasseEscolhida == null;
             foreach (FrameworkElement f in _caminhos) f.Visibility = outros ? Visibility.Visible : Visibility.Collapsed;
+            // Na Entrega, com um perfil, os arquivos ficam só no resumo ao lado dele (trocar é em Perfis...).
+            Visibility arquivos = Embutida && !outros ? Visibility.Collapsed : Visibility.Visible;
+            if (_secaoArquivos != null) _secaoArquivos.Visibility = arquivos;
+            if (_grupoArquivos != null) _grupoArquivos.Visibility = arquivos;
+            AtualizarResumo();
         }
 
         /// <summary>Monta um item da lista de arquivos e devolve a caixa com o caminho.</summary>
@@ -626,6 +663,87 @@ namespace MetroSP.Ids
             if (Localizacao != null && (Localizacao.Erro != null || !Localizacao.LocationCorreto)) avisos.Add(Localizacao.Erro != null ? "Location não conferido" : "Location fora do Project Base Point");
             if (_ifcProject != null && string.IsNullOrWhiteSpace(_ifcProject.Text)) avisos.Add("IfcProject sem nome");
             Theme.MudarResumo(_resumo, avisos, "Pronto para exportar");
+            MostrarResumoPerfil();
+            AvisosMudaram?.Invoke();
+        }
+
+        /// <summary>Ao lado do perfil: o setup, quantos psets e o mapeamento; os caminhos completos na dica.</summary>
+        private void MostrarResumoPerfil()
+        {
+            if (_resumoPerfil == null || _psets == null || _mapeamento == null) return;
+            bool outros = ClasseEscolhida == null;
+            _resumoPerfil.Visibility = outros ? Visibility.Collapsed : Visibility.Visible;
+            if (outros) return;
+            string psets = TextoPsets(), mapa = _mapeamento.Text.Trim();
+            var partes = new List<string>
+            {
+                Setup?.Nome ?? "sem setup",
+                psets.Length == 0 ? "sem property sets" : Path.GetFileNameWithoutExtension(psets),
+                mapa.Length == 0 ? "sem mapeamento" : "com mapeamento",
+            };
+            _resumoPerfil.Text = string.Join(" · ", partes);
+            _resumoPerfil.ToolTip = "Setup: " + (Setup?.Arquivo ?? "nenhum") + "\nProperty sets: " + (psets.Length == 0 ? "nenhum" : psets) +
+                                    "\nMapeamento: " + (mapa.Length == 0 ? "nenhum (parâmetros com os nomes do Revit)" : mapa) +
+                                    "\n\nPara trocar os arquivos: Perfis..., ou \"" + Outros + "\" na lista.";
+        }
+
+        /// <summary>Resumo de uma linha para o rodapé da Entrega: perfil, elementos e fase.</summary>
+        public string ResumoCurto
+        {
+            get
+            {
+                var partes = new List<string> { ClasseEscolhida != null ? "Perfil " + ClasseEscolhida.Nome : "Outros arquivos" };
+                if (_vista?.SelectedItem != null) partes.Add(_vista.SelectedItem.ToString());
+                if (_fase?.SelectedItem is ComboBoxItem f) partes.Add(f.Content?.ToString().Replace("Padrão do exportador", "fase") ?? "");
+                return string.Join(" · ", partes.Where(p => p.Length > 0));
+            }
+        }
+
+        /// <summary>
+        /// Avisos para os cartões "O que falta" da Entrega (o mesmo que o resumo do rodapé, com o botão que resolve).
+        /// </summary>
+        public List<Aviso> Avisos()
+        {
+            var r = new List<Aviso>();
+            if (Setup == null)
+                r.Add(new Aviso { Titulo = "Setup não indicado", Texto = "Sem setup (.json) não dá para exportar.", Dica = _infoSetup.Text,
+                    Acao = "Perfis...", Executar = Gerenciar });
+            else if (!Setup.VersaoAceita)
+                r.Add(new Aviso { Titulo = "Setup em " + Setup.DescricaoVersao, Texto = "A exportação MetroSP é em " + OpcoesSetup.VersoesAceitas + ".",
+                    Dica = "Escolha ou salve um setup " + OpcoesSetup.VersoesAceitas + " (por exemplo IFC 4 Reference View).", Acao = "Perfis...", Executar = Gerenciar });
+            if (EmAviso(_seloPsets))
+                r.Add(new Aviso { Titulo = "Property sets: " + ((TextBlock)_seloPsets.Child).Text, Texto = _infoPsets.Text,
+                    Dica = _seloPsets.ToolTip as string, Acao = File.Exists(TextoPsets()) ? "Editar..." : "Perfis...",
+                    Executar = File.Exists(TextoPsets()) ? (Action)EditarPsets : Gerenciar });
+            if (EmAviso(_seloMapeamento))
+                r.Add(new Aviso { Titulo = "Mapeamento não encontrado", Texto = Path.GetFileName(_mapeamento.Text.Trim()),
+                    Dica = _mapeamento.Text.Trim(), Acao = "Perfis...", Executar = Gerenciar });
+            if (Localizacao != null && Localizacao.Erro != null)
+                r.Add(new Aviso { Titulo = "Localização não conferida", Texto = "Não deu para calcular pelo Project Base Point.", Dica = Localizacao.Erro });
+            else if (Localizacao != null && !Localizacao.LocationCorreto)
+                r.Add(new Aviso { Titulo = "Localização não gravada", Texto = "O Location do Revit não confere com o Project Base Point.",
+                    Dica = _seloLocalizacao.ToolTip as string, Acao = "Gravar localização", Executar = GravarLocalizacao });
+            if (_ifcProject != null && string.IsNullOrWhiteSpace(_ifcProject.Text))
+                r.Add(new Aviso { Titulo = "IfcProject sem nome", Texto = "Preencha o IfcProject ao lado (número do projeto)." });
+            return r;
+        }
+
+        private static bool EmAviso(Border selo) =>
+            selo != null && selo.Visibility == Visibility.Visible && selo.Child is TextBlock t &&
+            t.Foreground is System.Windows.Media.SolidColorBrush b && b.Color == Theme.LaranjaTexto;
+
+        /// <summary>Lista digitável: filtra pelo começo do nome; se o texto não bate com nada, volta para a última escolha ao sair.</summary>
+        private static void Digitavel(ComboBox c)
+        {
+            c.IsEditable = true;
+            c.IsTextSearchEnabled = true;
+            object ultima = c.SelectedItem;
+            c.SelectionChanged += (s, e) => { if (c.SelectedItem != null) ultima = c.SelectedItem; };
+            c.LostKeyboardFocus += (s, e) =>
+            {
+                if (c.IsKeyboardFocusWithin || c.SelectedItem != null || ultima == null) return;
+                c.SelectedItem = ultima;
+            };
         }
 
         private void SalvarComo()
@@ -1131,6 +1249,10 @@ namespace MetroSP.Ids
             Grid.SetColumn(campo, 1);
             g.Children.Add(campo);
         }
+
+        /// <summary>O rótulo da linha da grade onde está o campo.</summary>
+        private static UIElement Rotulo(Grid g, FrameworkElement campo) =>
+            g.Children.OfType<TextBlock>().First(t => Grid.GetRow(t) == Grid.GetRow(campo) && Grid.GetColumn(t) == 0);
 
         /// <summary>Fase gravada no setup, se existir neste modelo; senão -1 (padrão do exportador).</summary>
         private long FaseDoSetup =>

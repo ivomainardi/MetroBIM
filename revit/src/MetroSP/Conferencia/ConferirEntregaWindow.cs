@@ -791,7 +791,7 @@ namespace MetroSP.Conferencia
         }
 
         /// <summary>Vista ativa, se o escopo pede e ela mostra elementos de modelo (3D, planta ou corte); senão null.</summary>
-        private static ElementId VistaDoEscopo(UIApplication app, PacoteMetro pacote, out string aviso)
+        internal static ElementId VistaDoEscopo(UIApplication app, PacoteMetro pacote, out string aviso)
         {
             aviso = null;
             if (!pacote.SoVistaAtiva) return null;

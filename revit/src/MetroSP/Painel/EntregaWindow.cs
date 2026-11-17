@@ -35,6 +35,9 @@ namespace MetroSP.Painel
         private PacoteMetro _pacote;
         /// <summary>O pacote com o padrão do modelo aplicado (o que a conferência usou).</summary>
         private PacoteMetro _efetivo;
+        private Button _salvar;
+        /// <summary>Último Verificar requisitos (.ids) desta janela: regras com problema, elementos e hora (null = ainda não verificou).</summary>
+        private (int Regras, int Elementos, DateTime Quando)? _ultimoIds;
         private ResultadoConferencia _res;
         private (Sinal Sinal, string Texto) _local;
         private int _passo;
@@ -137,9 +140,15 @@ namespace MetroSP.Painel
             _proximo = Pilula("Próximo passo ›");
             _proximo.Click += (s, e) => IrPara(_passo + 1);
             var salvar = Pilula("Salvar e conferir", primario: true);
+            _salvar = salvar;
             salvar.ToolTip = "Grava o que foi alterado na ferramenta desta etapa e confere o modelo de novo.";
             salvar.Margin = new Thickness(0, 0, 8, 0);
-            salvar.Click += (s, e) => SalvarEConferir();
+            salvar.Click += (s, e) =>
+            {
+                // No passo Exportar, o botão principal exporta (é o único Exportar da tela).
+                if (_passo == PassoLocal && _janelaFerramenta is Ids.ExportarIfcWindow exp) exp.Exportar();
+                else SalvarEConferir();
+            };
             _rodapeTexto = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextAlignment = TextAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(12, 0, 12, 0) };
             var direitaRodape = new StackPanel { Orientation = Orientation.Horizontal };
             direitaRodape.Children.Add(salvar);
@@ -314,7 +323,13 @@ namespace MetroSP.Painel
             if (IsLoaded) MostrarFerramenta();   // antes de abrir, espera o Loaded (a ferramenta precisa desta janela como dona)
             _anterior.Visibility = _passo > 1 ? Visibility.Visible : Visibility.Hidden;
             _proximo.Visibility = _passo < UltimoPasso ? Visibility.Visible : Visibility.Hidden;
-            _rodapeTexto.Text = "Ao salvar, a etapa é conferida de novo e fica verde se estiver tudo certo.";
+            bool exportar = _passo == PassoLocal;
+            _salvar.Content = exportar ? "Exportar IFC" : "Salvar e conferir";
+            _salvar.ToolTip = exportar ? "Exporta o IFC com o perfil, a saída e os dados do projeto escolhidos ao lado."
+                                       : "Grava o que foi alterado na ferramenta desta etapa e confere o modelo de novo.";
+            _rodapeTexto.Text = exportar ? ((_janelaFerramenta as Ids.ExportarIfcWindow)?.ResumoCurto ?? "")
+                                         : "Ao salvar, a etapa é conferida de novo e fica verde se estiver tudo certo.";
+            if (exportar) MostrarPendencias();   // os avisos vêm da ferramenta, que acabou de abrir
         }
 
         private static string NomeCurto(int numero, string titulo)
@@ -420,20 +435,53 @@ namespace MetroSP.Painel
             _pendencias.Children.Clear();
             if (_passo == PassoLocal)
             {
-                _tituloPendencias.Text = "Exportação";
-                var semAcao = new List<(string, string, Action)>();
-                _pendencias.Children.Add(Cartao(_local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Amarelo, "Projeto e local", _local.Texto,
-                    _local.Sinal == Sinal.Verde ? null : "Confira no grupo Extras, ao lado.", semAcao));
-                Sinal exp = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Vermelho;
-                string texto = _res.ProntoParaExportar
-                    ? (_res.Amarelas > 0 ? "Pronto para exportar, com avisos nas etapas em laranja." : "Tudo certo para exportar.")
-                    : $"Ainda há {_res.Vermelhas} etapa(s) com pendência. Dá para exportar, mas o IFC sai incompleto.";
-                var exportar = new List<(string, string, Action)>
+                // Erros e avisos só aqui, nos cartões, cada um com o botão que resolve; o Exportar fica no rodapé.
+                var ferramenta = _janelaFerramenta as Ids.ExportarIfcWindow;
+                int cartoes = 0;
+                if (!_res.ProntoParaExportar)
                 {
-                    ("Exportar", "Exporta o IFC com o perfil, os arquivos e as opções escolhidos ao lado.",
-                        () => (_janelaFerramenta as Ids.ExportarIfcWindow)?.Exportar()),
-                };
-                _pendencias.Children.Add(Cartao(exp, "Exportar IFC", texto, null, exportar));
+                    _pendencias.Children.Add(Cartao(Sinal.Vermelho, $"{_res.Vermelhas} etapa(s) com pendência", "Dá para exportar, mas o IFC sai incompleto.", null,
+                        new List<(string, string, Action)>(), "As setinhas em cima mostram as etapas com pendência."));
+                    cartoes++;
+                }
+                if (ferramenta != null)
+                    foreach (Ids.ExportarIfcWindow.Aviso a in ferramenta.Avisos())
+                    {
+                        var acoes = new List<(string, string, Action)>();
+                        if (a.Executar != null) acoes.Add((a.Acao, a.Dica, a.Executar));
+                        _pendencias.Children.Add(Cartao(Sinal.Amarelo, a.Titulo, a.Texto, null, acoes, a.Dica));
+                        cartoes++;
+                    }
+                if (PacoteMetro.Existe((_efetivo ?? _pacote)?.Ids))
+                {
+                    const string dicaIds = "Confere no modelo, antes de exportar, cada regra do arquivo de requisitos (.ids) dos padrões: " +
+                        "classe IFC, property sets e valores, classificação e material. Só os elementos que vão para o IFC. " +
+                        "No resultado, duplo clique numa linha seleciona os elementos.";
+                    if (_ultimoIds.HasValue)
+                    {
+                        (int regras, int elementos, DateTime quando) = _ultimoIds.Value;
+                        if (regras > 0)
+                        {
+                            _pendencias.Children.Add(Cartao(Sinal.Vermelho, $"Requisitos (.ids): {regras} regra(s) com falha",
+                                $"{elementos} elemento(s). Verificado às {quando:HH:mm}.", null,
+                                new List<(string, string, Action)> { ("Ver resultado", dicaIds, VerificarIds) }, dicaIds));
+                            cartoes++;
+                        }
+                        else
+                            _pendencias.Children.Add(Cartao(Sinal.Verde, "Requisitos (.ids): tudo certo", $"Verificado às {quando:HH:mm}.", null,
+                                new List<(string, string, Action)> { ("Verificar de novo", dicaIds, VerificarIds) }, dicaIds));
+                    }
+                    else
+                    {
+                        _pendencias.Children.Add(Cartao(Sinal.Amarelo, "Requisitos (.ids)", "Confira o modelo com as regras do .ids antes de exportar.", null,
+                            new List<(string, string, Action)> { ("Verificar...", dicaIds, VerificarIds) }, dicaIds));
+                        cartoes++;
+                    }
+                }
+                _tituloPendencias.Text = cartoes == 0 ? $"Passo {PassoLocal}: tudo certo" : $"O que falta no passo {PassoLocal}";
+                if (cartoes == 0)
+                    _pendencias.Children.Insert(0, Cartao(Sinal.Verde, "Tudo certo para exportar", "Use Exportar IFC, embaixo à direita.", null, new List<(string, string, Action)>()));
+                if (ferramenta != null) _rodapeTexto.Text = ferramenta.ResumoCurto;
                 return;
             }
             EtapaConferencia etapa = _res.Etapas.FirstOrDefault(e => e.Numero == _passo);
@@ -456,6 +504,34 @@ namespace MetroSP.Painel
             }
             if (pendencias.Count > Maximo)
                 _pendencias.Children.Add(Theme.Detalhe($"e mais {pendencias.Count - Maximo}. Veja todas na Conferência completa."));
+        }
+
+        /// <summary>Roda o Verificar IDS no modelo (o mesmo da Conferência completa) e mostra o resultado.</summary>
+        private void VerificarIds()
+        {
+            PacoteMetro pacote = _efetivo ?? _pacote;
+            (Ids.IdsDocument ids, List<Ids.CheckResult> resultados) d;
+            try
+            {
+                DB.ElementId vista = ConferirEntregaWindow.VistaDoEscopo(_app, pacote, out _);
+                using (Progresso.Abrir("Verificar requisitos (.ids)"))
+                    d = ConferenciaEntrega.DetalhesIds(_doc, pacote, vista);
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("MetroSP", "Não foi possível verificar os requisitos (.ids):\n" + ex.Message);
+                return;
+            }
+            if (d.ids == null)
+            {
+                TaskDialog.Show("MetroSP", "O arquivo de requisitos (.ids) dos padrões não pôde ser lido. Confira no passo 1.");
+                return;
+            }
+            var problemas = d.resultados.Where(r => r.Status != Ids.CheckStatus.OK && r.Status != Ids.CheckStatus.ForaDoIfc &&
+                                                    r.Status != Ids.CheckStatus.Aviso && r.Status != Ids.CheckStatus.NaoVerificado).ToList();
+            _ultimoIds = (problemas.Count, problemas.SelectMany(r => r.Elementos).Distinct().Count(), DateTime.Now);
+            MostrarPendencias();
+            new Ids.ResultadosIdsWindow(d.ids, d.resultados, _app.ActiveUIDocument) { Owner = this }.ShowDialog();
         }
 
         /// <summary>Dica com quebra de linha (texto longo não vira uma linha da largura da tela).</summary>
@@ -577,6 +653,7 @@ namespace MetroSP.Painel
                     }
                     var w = new Ids.ExportarIfcWindow(_doc, _settingsIfc, _resultadoForma, embutida: true);
                     w.Confirmada += () => ExportarDaqui(w);
+                    w.AvisosMudaram += () => { if (_passo == PassoLocal && _janelaFerramenta == w) MostrarPendencias(); };
                     return w;
                 }
                 default:
@@ -643,6 +720,12 @@ namespace MetroSP.Painel
         {
             Window w = _janelaFerramenta;
             if (w == null) return true;
+            // Passo Exportar sem o "Salvar": ao sair dele, as escolhas ficam guardadas (nomes no Revit, arquivos lembrados).
+            if (w is Ids.ExportarIfcWindow exportar)
+            {
+                try { exportar.GuardarEscolhas(); _settingsIfc?.Save(); }
+                catch (Exception ex) { TaskDialog.Show("MetroSP", "Não foi possível guardar as escolhas do Exportar IFC:\n" + ex.Message); }
+            }
             _trocando = true;
             try { w.Close(); }
             finally { _trocando = false; }
