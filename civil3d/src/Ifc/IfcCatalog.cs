@@ -666,6 +666,21 @@ namespace MetroSP.Ifc
             return list.FirstOrDefault(c => c.Equals(classe, StringComparison.OrdinalIgnoreCase));
         }
 
+        /// <summary>
+        /// Classe equivalente no IFC4: a mesma se existir; senão a classe sem o tipo; senão IfcBuildingElementProxy (as
+        /// classes de infraestrutura do IFC 4.3, como IfcTrackElement e IfcCourse, não existem no IFC4).
+        /// </summary>
+        public static string ParaIfc4(string classe)
+        {
+            if (string.IsNullOrWhiteSpace(classe)) return classe;
+            string v = classe.Trim();
+            string exata = Ifc4.FirstOrDefault(c => c.Equals(v, StringComparison.OrdinalIgnoreCase));
+            if (exata != null) return exata;
+            string sem = Sugestao(v, Ifc4);
+            if (sem != null) return sem;
+            return "IfcBuildingElementProxy";
+        }
+
         /// <summary>Vazio vale (classe da Autodesk). Compara sem diferenciar maiúsculas, como a Extension.</summary>
         public static bool IsValid(string value, string[] list)
         {

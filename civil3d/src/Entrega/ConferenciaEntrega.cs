@@ -224,9 +224,8 @@ namespace MetroSP.Entrega
 
         static void ClasseIfc(EtapaEntrega e)
         {
-            var mapping = ConfigPackage.LoadJson(ConfigKind.ObjectMapping) as JsonObject ?? new JsonObject();
-            var config = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig);
-            string versao = (string)(config?["Export"]?["IfcVersion"]) ?? "IFC4X3_ADD2";
+            string versao = ConfigPackage.IfcVersionDoPerfil();
+            var mapping = ConfigPackage.LoadMapping(versao);
             var invalidas = Ui.ConfigWindow.ClassesInvalidas(mapping, versao);
             foreach (string linha in invalidas)
             {

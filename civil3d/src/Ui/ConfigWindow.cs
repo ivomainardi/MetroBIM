@@ -72,6 +72,11 @@ namespace MetroSP.Ui
             var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(toolbar, Dock.Top);
             if (somenteProjeto) toolbar.Visibility = Visibility.Collapsed;
+            toolbar.Children.Add(Tool("Classes IFC…", "Em que classe IFC cada layer, bloco e baseline sai, no IFC4 e no IFC 4.3.", (s, e) =>
+            {
+                new ClassesIfcWindow { Owner = this }.ShowDialog();
+                _mapping = ConfigPackage.LoadJson(ConfigKind.ObjectMapping) as JsonObject ?? new JsonObject();
+            }));
             toolbar.Children.Add(Tool("Adicionar perfis…", "Abre a janela Perfis, onde se trazem os arquivos de configuração IFC (e os outros perfis): arraste ou escolha os arquivos.", (s, e) => AbrirPadroes()));
             toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do perfil de exportação numa pasta.", (s, e) => ExportPackage()));
             if (Settings.Load().UsesForma)
@@ -126,18 +131,8 @@ namespace MetroSP.Ui
                 return;
             }
 
-            CommitMappingSection();
-            var invalidas = _somenteProjeto ? new List<string>() : InvalidClasses();
-            if (invalidas.Count > 0)
-            {
-                Theme.MudarResumo(_status, invalidas.Take(8).Select(m => "Classe fora do " + IfcCatalog.Label(IfcVersion) + " em " + m)
-                    .Concat(invalidas.Count > 8 ? new[] { $"e mais {invalidas.Count - 8}" } : new string[0]).ToList(), "");
-                return;
-            }
-
             try
             {
-                ConfigPackage.SaveJson(ConfigKind.ObjectMapping, _mapping);
                 if (_autodeskConfig != null) ConfigPackage.SaveJson(ConfigKind.AutodeskConfig, _autodeskConfig);
                 if (_templatesText != null && !string.IsNullOrWhiteSpace(_templatesText.Text))
                     ConfigPackage.Write(ConfigKind.PropertyTemplates, Encoding.UTF8.GetBytes(_templatesText.Text));
@@ -171,7 +166,6 @@ namespace MetroSP.Ui
         {
             _tabs.Items.Add(new TabItem { Header = "Projeto", Content = SpatialTab() });
             if (_somenteProjeto) return;
-            _tabs.Items.Add(new TabItem { Header = "Classes IFC", Content = MappingTab() });
             _tabs.Items.Add(new TabItem { Header = "Propriedades", Content = PropertiesTab() });
             _tabs.Items.Add(new TabItem { Header = "Alinhamento", Content = AlignmentTab() });
             _tabs.Items.Add(new TabItem { Header = "Avançado", Content = AdvancedTab() });
@@ -198,7 +192,8 @@ namespace MetroSP.Ui
             switch (k)
             {
                 case ConfigKind.AutodeskConfig: return "Opções da exportação";
-                case ConfigKind.ObjectMapping: return "Classes IFC";
+                case ConfigKind.ObjectMapping: return "Classes IFC (IFC 4.3)";
+                case ConfigKind.ObjectMappingIfc4: return "Classes IFC (IFC4)";
                 case ConfigKind.PropertyTemplates: return "Property sets";
                 case ConfigKind.PropertyMappingCsv: return "Propriedades";
                 case ConfigKind.MetroSP: return "Projeto e alinhamento";

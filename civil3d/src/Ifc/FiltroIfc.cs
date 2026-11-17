@@ -30,7 +30,7 @@ namespace MetroSP.Ifc
         {
             try
             {
-                JsonNode mapa = ConfigPackage.LoadJson(ConfigKind.ObjectMapping);
+                JsonNode mapa = ConfigPackage.LoadMapping();
                 Ler(mapa?["MapCADLayerName"] as JsonArray, _layersFora);
                 Ler(mapa?["MapBlockName"] as JsonArray, _blocosFora);
             }

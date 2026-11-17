@@ -62,7 +62,7 @@ namespace MetroSP.Padroes
             if (ConfigPackage.FileNames.Values.Any(v => nome.EndsWith(v, StringComparison.OrdinalIgnoreCase))) return true;
             if (!nome.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) return false;
             ConfigKind k = ConfigPackage.Detect(arquivo);
-            return k == ConfigKind.PropertyTemplates || k == ConfigKind.MetroSP || k == ConfigKind.ObjectMapping;
+            return k == ConfigKind.PropertyTemplates || k == ConfigKind.MetroSP || k == ConfigKind.ObjectMapping || k == ConfigKind.ObjectMappingIfc4;
         }
 
         /// <summary>Gerenciar todos os padrões salvos e as planilhas que eles usam.</summary>

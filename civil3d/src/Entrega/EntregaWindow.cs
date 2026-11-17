@@ -481,11 +481,7 @@ namespace MetroSP.Entrega
             switch (_passo)
             {
                 case 2:
-                {
-                    var w = new ConfigWindow(Commands.DrawingFolder(_doc));
-                    w.Abas.SelectedIndex = 1;   // Classes IFC
-                    return w;
-                }
+                    return new ClassesIfcWindow();
                 case 3:
                 {
                     var w = new MontarPsetsWindow(_doc, null);
@@ -918,7 +914,7 @@ namespace MetroSP.Entrega
             opcoes.Click += (s, e) =>
             {
                 var w = new ConfigWindow(Commands.DrawingFolder(_doc)) { Owner = this };
-                w.Abas.SelectedIndex = 3;   // Alinhamento
+                w.Abas.SelectedIndex = 2;   // Alinhamento
                 w.ShowDialog();
                 Conferir();
             };

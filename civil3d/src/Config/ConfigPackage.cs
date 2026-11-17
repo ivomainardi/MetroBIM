@@ -13,7 +13,8 @@ namespace MetroSP.Config
     {
         Unknown,
         AutodeskConfig,        // IfcInfraConfiguration.json
-        ObjectMapping,         // IfcInfraExportMapping.json
+        ObjectMapping,         // IfcInfraExportMapping.json (classes no IFC 4.3)
+        ObjectMappingIfc4,     // IfcInfraExportMapping.IFC4.json (classes no IFC4; MetroSP, vira o mapping ao exportar em IFC4)
         PropertyTemplates,     // IFCInfraExportPropertyMapping.json
         PropertyMappingCsv,    // IFCInfraExportPropertyMapping.csv
         MetroSP                // MetroSP.ifc.json
@@ -50,6 +51,7 @@ namespace MetroSP.Config
         {
             [ConfigKind.AutodeskConfig] = "IfcInfraConfiguration.json",
             [ConfigKind.ObjectMapping] = "IfcInfraExportMapping.json",
+            [ConfigKind.ObjectMappingIfc4] = "IfcInfraExportMapping.IFC4.json",
             [ConfigKind.PropertyTemplates] = "IFCInfraExportPropertyMapping.json",
             [ConfigKind.PropertyMappingCsv] = "IFCInfraExportPropertyMapping.csv",
             [ConfigKind.MetroSP] = "MetroSP.ifc.json"
@@ -329,7 +331,8 @@ namespace MetroSP.Config
         public static List<string> ApplyToDrawing(string dwgDir, string dwgName, string destino, string programDataDir)
         {
             var written = new List<string>();
-            foreach (var f in List().Where(f => f.Kind != ConfigKind.MetroSP))
+            bool ifc4 = EhIfc4(IfcVersionDoPerfil());
+            foreach (var f in List().Where(f => f.Kind != ConfigKind.MetroSP && f.Kind != ConfigKind.ObjectMappingIfc4))
             {
                 var name = System.IO.Path.GetFileName(f.Path);
                 string target;
@@ -343,11 +346,49 @@ namespace MetroSP.Config
                         break;
                 }
                 Directory.CreateDirectory(System.IO.Path.GetDirectoryName(target));
-                Backup(target, onlyIfDifferentFrom: f.Path);
-                File.Copy(f.Path, target, overwrite: true);
+                // Exportando em IFC4, o exportador lê a tabela de classes do IFC4 com o nome de sempre.
+                byte[] dados = f.Kind == ConfigKind.ObjectMapping && ifc4
+                    ? Encoding.UTF8.GetBytes(LoadMapping(IfcVersionIfc4).ToJsonString(JsonOpts))
+                    : File.ReadAllBytes(f.Path);
+                if (File.Exists(target) && !File.ReadAllBytes(target).SequenceEqual(dados)) File.Copy(target, target + ".bak", overwrite: true);
+                File.WriteAllBytes(target, dados);
                 written.Add(target);
             }
             return written;
+        }
+
+        public const string IfcVersionIfc4 = "IFC4", IfcVersionIfc43 = "IFC4X3_ADD2";
+
+        public static bool EhIfc4(string versao) => versao != null && versao.Trim().Equals("IFC4", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>Esquema da exportação no perfil ativo (IfcInfraConfiguration.json › Export.IfcVersion).</summary>
+        public static string IfcVersionDoPerfil()
+        {
+            try { return (string)(LoadJson(ConfigKind.AutodeskConfig)?["Export"]?["IfcVersion"]) ?? IfcVersionIfc43; }
+            catch { return IfcVersionIfc43; }
+        }
+
+        /// <summary>
+        /// Tabela de classes IFC de um esquema (null = o da exportação). A do IFC4, se o perfil ainda não tem, sai da do
+        /// IFC 4.3 com as classes que não existem no IFC4 trocadas (ver <see cref="IfcCatalog.ParaIfc4"/>).
+        /// </summary>
+        public static JsonObject LoadMapping(string versao = null)
+        {
+            versao = versao ?? IfcVersionDoPerfil();
+            var m43 = LoadJson(ConfigKind.ObjectMapping) as JsonObject ?? new JsonObject();
+            if (!EhIfc4(versao)) return m43;
+            return LoadJson(ConfigKind.ObjectMappingIfc4) as JsonObject ?? ParaIfc4(m43);
+        }
+
+        /// <summary>Cópia da tabela com cada classe trocada pela equivalente do IFC4.</summary>
+        public static JsonObject ParaIfc4(JsonObject m43)
+        {
+            var m = (JsonObject)m43.DeepClone();
+            foreach (var kv in m)
+                if (kv.Value is JsonArray arr)
+                    foreach (var o in arr.OfType<JsonObject>())
+                        o["IfcExportAs"] = IfcCatalog.ParaIfc4((string)o["IfcExportAs"]) ?? "";
+            return m;
         }
 
         static void Backup(string target, string onlyIfDifferentFrom = null)

@@ -15,12 +15,17 @@
   e no Exportar IFC. **Duplicar**, **Renomear** e **Excluir** (os dois últimos só nos perfis criados aqui). Cada perfil
   fica em `%AppData%\MetroSP\Perfis\<nome>`; o `Config` antigo vira o perfil MetroSP na primeira vez. Modelo sem perfil,
   ou com um perfil que não existe neste computador, fica amarelo no passo 1 e usa o MetroSP.
-- **Classes IFC: perfil e modelo numa lista única** (passo 3 da Entrega e Configurar IFC). Cada layer do modelo (ou
-  bloco, ou baseline de corredor, conforme a seção) é uma linha, com nº de objetos do espaço do modelo (sem anotações),
-  a classe IFC, Exportar, a regra que vale e a ordem dela. A coluna **Onde** separa "perfil e modelo", "só no modelo"
-  (sem regra, em laranja) e "só no perfil" (regra que não pega nada, no fim). Filtro no título de cada coluna e
-  "Só usados no modelo". **Aplicar** e **Exportar** mudam a regra da linha (todos os layers dela); layer sem regra ganha
-  uma regra só para ele, no topo. Clique duplo edita a regra; ↑ ↓ mudam a ordem; + cria; ✕ exclui.
+- **Classes IFC numa janela só, como a Categorias IFC do Revit** (passo 2 da Entrega e botão Classes IFC… do Configurar
+  IFC, que perdeu a aba). Cada nome do modelo (layer, bloco ou baseline, conforme a seção) e cada regra do perfil é uma
+  linha, com o nº de objetos e **Exportar e Classe no IFC4 e no IFC 4.3** lado a lado. A classe se escolhe na própria
+  célula (lista em que também se escreve). Nome que segue uma regra geral (ex.: `^A-.*`) mostra a classe dela; trocar ali
+  cria uma regra só para ele (`^nome$`, no topo). Laranja: sem regra; cinza: regra que não pega nada no modelo. Filtros
+  "Só os usados no modelo" e "Só os diferentes entre IFC4 e IFC 4.3", além do filtro em cada coluna.
+  Botões **Copiar entre IFC schemas** (selecionadas ou tabela inteira), **Voltar ao padrão** (sobrescreve as selecionadas
+  ou a tabela com o perfil como veio no plugin), **Regras** (nova, excluir) e **Corrigir classes**.
+- **Tabela de classes do IFC4 no perfil** (`IfcInfraExportMapping.IFC4.json`). Exportando em IFC4, é ela que vai para o
+  exportador. Se o perfil ainda não tem, sai da do IFC 4.3 com as classes que não existem no IFC4 trocadas pela
+  equivalente (sem o tipo, ou `IfcBuildingElementProxy`, como IfcTrackElement e IfcCourse).
 - **Corrigir classes**: troca as classes fora do esquema pela correção óbvia (ex.: `IfcBuiltElement.USERDEFINED` →
   `IfcBuiltElement`, que não tem tipo no IFC 4.3). A pendência do passo 3 já diz a classe a usar.
 - **Latitude e longitude no IfcSite = origem do PTL** (150.000; 250.000): o IfcSite passa a ficar nesse ponto, sem
