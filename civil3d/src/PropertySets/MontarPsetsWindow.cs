@@ -43,6 +43,8 @@ namespace MetroSP.PropertySets
         readonly CheckBox _soIfc, _soPendencia;
         readonly TextBlock _resumo = Theme.Detalhe();
         readonly Button _criarAnexar;
+        readonly SaidaIfcPainel _saida;
+        bool _saidaCarregada;
 
         public MontarPsetsWindow(AcDocument doc, List<ObjectId> selecao)
         {
@@ -130,10 +132,53 @@ namespace MetroSP.PropertySets
             _resumo.Margin = new Thickness(0, 4, 0, 0);
             DockPanel.SetDock(_resumo, Dock.Bottom);
 
+            var vistaModelo = new DockPanel();
+            vistaModelo.Children.Add(barra);
+            vistaModelo.Children.Add(_resumo);
+            vistaModelo.Children.Add(_lista);
+
+            // ---- Saída no IFC: nome de saída de cada propriedade e de qual propriedade do modelo o valor vem.
+            _saida = new SaidaIfcPainel(this, () => _psets,
+                pset => _objetos.Count(o => o.Nomes.Contains(pset)),
+                (pset, prop) => _vazios.TryGetValue(pset + "\u0001" + prop, out int n) ? n : 0,
+                PropriedadesDoModelo);
+            _saida.Salvo += RecarregarPerfil;
+
+            var area = new ContentControl { Content = vistaModelo };
+            var seg = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
+            DockPanel.SetDock(seg, Dock.Top);
+            Button Aba(string texto, string dica)
+            {
+                var b = new Button { Content = texto, ToolTip = dica, Padding = new Thickness(14, 3, 14, 3), Margin = new Thickness(0, 0, -1, 0) };
+                seg.Children.Add(b);
+                return b;
+            }
+            var abaModelo = Aba("No modelo", "Os property sets do modelo e os que o perfil pede: criar, anexar e ver os vazios.");
+            var abaSaida = Aba("Saída no IFC", "Cada propriedade que sai no IFC: o nome no IFC e de qual propriedade do modelo o valor vem.");
+            void Mostrar(bool saida)
+            {
+                area.Content = saida ? (UIElement)_saida : vistaModelo;
+                foreach (var (b, on) in new[] { (abaModelo, !saida), (abaSaida, saida) })
+                {
+                    b.Background = on ? Theme.Solid(Theme.Preto) : System.Windows.Media.Brushes.White;
+                    b.Foreground = on ? System.Windows.Media.Brushes.White : Theme.Solid(Theme.Preto);
+                    b.FontWeight = on ? FontWeights.SemiBold : FontWeights.Normal;
+                }
+                if (saida && !_saidaCarregada) { _saidaCarregada = true; _saida.Carregar(); }
+            }
+            abaModelo.Click += (s, e) => Mostrar(false);
+            abaSaida.Click += (s, e) => Mostrar(true);
+            Mostrar(false);
+
             var corpo = new DockPanel();
-            corpo.Children.Add(barra);
-            corpo.Children.Add(_resumo);
-            corpo.Children.Add(_lista);
+            corpo.Children.Add(seg);
+            corpo.Children.Add(area);
+            Closing += (s, e) =>
+            {
+                if (!_saida.Alterado) return;
+                var r = MessageBox.Show(this, "A Saída no IFC tem alterações não salvas. Salvar no perfil antes de fechar?", Title, MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
+                if (r == MessageBoxResult.Cancel || (r == MessageBoxResult.Yes && !_saida.Salvar())) e.Cancel = true;
+            };
 
             var fechar = new Button { Content = "Fechar", IsCancel = true };
             fechar.Click += (s, e) => Close();
@@ -295,6 +340,31 @@ namespace MetroSP.PropertySets
             foreach (LinhaPropriedade l in linhas) _linhas.Add(l);
             foreach (LinhaPropriedade l in _linhas.Where(l => sel.Contains(l.Chave))) _lista.Grid.SelectedItems.Add(l);
             Resumo();
+        }
+
+        /// <summary>Propriedades personalizadas do modelo (Propriedades do desenho), para o "Vem de".</summary>
+        IEnumerable<string> PropriedadesDoModelo()
+        {
+            var r = new List<string>();
+            try
+            {
+                var e = _db.SummaryInfo.CustomProperties;
+                while (e.MoveNext()) if (e.Key is string k) r.Add(k);
+            }
+            catch { }
+            return r;
+        }
+
+        /// <summary>Depois de salvar a Saída no IFC: o que o perfil pede pode ter mudado.</summary>
+        void RecarregarPerfil()
+        {
+            List<PsetMontagem> perfil;
+            try { perfil = PsetsCore.DoMapeamentoIfc(); } catch { perfil = new List<PsetMontagem>(); }
+            _doPerfil = new HashSet<string>(perfil.Select(p => p.Nome), StringComparer.OrdinalIgnoreCase);
+            _propsPerfil = perfil.GroupBy(p => p.Nome, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(g => g.Key, g => new HashSet<string>(g.SelectMany(p => p.Propriedades).Select(x => x.Nome), StringComparer.OrdinalIgnoreCase), StringComparer.OrdinalIgnoreCase);
+            Juntar(perfil);
+            Atualizar();
         }
 
         static int Ordem(PsetMontagem p) => p.NoDesenho ? 1 : 0;
