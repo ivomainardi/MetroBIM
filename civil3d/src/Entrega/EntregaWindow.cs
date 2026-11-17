@@ -482,15 +482,15 @@ namespace MetroSP.Entrega
             {
                 case 2:
                 {
-                    var w = new MontarPsetsWindow(_doc, null);
-                    // Faltando anexar: abre direto na aba Anexar.
-                    if (_res.Etapa(2).Abertas.Any(p => p.Acao == Acao.AnexarPset)) w.Abas.SelectedIndex = 1;
+                    var w = new ConfigWindow(Commands.DrawingFolder(_doc));
+                    w.Abas.SelectedIndex = 1;   // Classes IFC
                     return w;
                 }
                 case 3:
                 {
-                    var w = new ConfigWindow(Commands.DrawingFolder(_doc));
-                    w.Abas.SelectedIndex = 1;   // Classes IFC
+                    var w = new MontarPsetsWindow(_doc, null);
+                    // Faltando anexar: abre direto na aba Anexar.
+                    if (_res.Etapa(3).Abertas.Any(p => p.Acao == Acao.AnexarPset)) w.Abas.SelectedIndex = 1;
                     return w;
                 }
                 case 4:
@@ -548,7 +548,7 @@ namespace MetroSP.Entrega
             MostrarAbas();
             _salvarPainel = null;
             _ferramenta.Child = null;
-            if (_passo == 1) { _ferramenta.Child = PainelExportador(); return; }
+            if (_passo == 1) { _ferramenta.Child = PainelPadroes(); return; }
             if (_passo == 6) { _ferramenta.Child = PainelAlinhamentos(); return; }
 
             Window w;
@@ -617,55 +617,171 @@ namespace MetroSP.Entrega
 
         // ================================================================== painéis próprios
 
-        UIElement PainelExportador()
+        /// <summary>
+        /// Passo 1, Padrões (como no Revit): o perfil de exportação, os padrões em uso (cada um com o arquivo, o que traz
+        /// e o passo que o usa) e o resumo do modelo.
+        /// </summary>
+        UIElement PainelPadroes()
         {
             var cfg = Settings.Load();
             var p = new StackPanel { Margin = new Thickness(4) };
-            p.Children.Add(Titulo("Exportador da Autodesk"));
-            var instaladas = AutodeskIfcExtension.FindInstalled();
-            bool ok = instaladas.Count > 0 || AutodeskIfcExtension.CommandDefined(cfg.ExportCommand);
-            p.Children.Add(Theme.Selo(ok ? "IFC 4.3 Extension instalada" : "IFC 4.3 Extension não instalada", ok ? Theme.Estado.Ok : Theme.Estado.Aviso));
-            foreach (var i in instaladas)
-                p.Children.Add(Theme.Detalhe(i.Name + (i.Version != null ? " · versão " + i.Version : "")));
 
-            p.Children.Add(Titulo("Configuração IFC", 18));
-            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Perfil de exportação sincronizado com o Autodesk Forma" : "Perfil de exportação local (padrão MetroSP ou importado)"));
-            var grade = new Grid { Margin = new Thickness(0, 6, 0, 0) };
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            int linha = 0;
-            foreach (var (kind, caminho, data) in ConfigPackage.List())
-            {
-                grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                var n = new TextBlock { Text = System.IO.Path.GetFileName(caminho), ToolTip = caminho, Margin = new Thickness(0, 2, 12, 2), TextTrimming = TextTrimming.CharacterEllipsis };
-                var d = new TextBlock { Text = data.ToString("dd/MM/yyyy HH:mm"), Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 2, 0, 2) };
-                Grid.SetRow(n, linha); Grid.SetRow(d, linha); Grid.SetColumn(d, 1);
-                grade.Children.Add(n); grade.Children.Add(d);
-                linha++;
-            }
-            p.Children.Add(grade);
-
-            var botoes = new WrapPanel { Margin = new Thickness(0, 16, 0, 0) };
-            var exp = Pilula("Exportador...", primario: !ok);
-            exp.ToolTip = "Versão instalada, atualizações (Autodesk e GitHub) e a pasta dos arquivos do desenho.";
-            exp.Click += (s, e) => { ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false); MostrarFerramenta(); };
-            var config = Pilula("Configurar IFC...");
-            config.ToolTip = "Classes, propriedades, alinhamento e opções avançadas do perfil de exportação.";
+            // ---- perfil de exportação
+            p.Children.Add(Titulo("Perfil de exportação"));
+            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Sincronizado com o Autodesk Forma" : "Local (padrão MetroSP ou importado)"));
+            var botoes = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
+            var config = Pilula("Editar perfil...");
+            config.ToolTip = "Classes IFC, propriedades, alinhamento e opções avançadas do perfil de exportação.";
             config.Click += (s, e) =>
             {
                 var w = new ConfigWindow(Commands.DrawingFolder(_doc)) { Owner = this };
                 w.ShowDialog();
                 Conferir();
             };
-            var forma = Pilula("Forma...");
-            forma.ToolTip = "Entrar, sair, sincronizar e conta do Autodesk Forma.";
-            forma.Click += (s, e) =>
+            botoes.Children.Add(config);
+            var exp = Pilula("Exportador...");
+            exp.ToolTip = "Versão instalada da IFC 4.3 Extension, atualizações (Autodesk e GitHub) e a pasta dos arquivos do modelo.";
+            exp.Click += (s, e) => { ExtensionWindow.Show(cfg, cfg.ExportCommand, blocking: false); MostrarFerramenta(); };
+            botoes.Children.Add(exp);
+            if (cfg.UsesForma)
             {
-                string cmd = FormaWindow.Escolher(this);
-                if (cmd != null) FecharE(cmd);
-            };
-            foreach (var b in new[] { exp, config, forma }) { b.Margin = new Thickness(0, 0, 6, 4); botoes.Children.Add(b); }
+                var forma = Pilula("Forma...");
+                forma.ToolTip = "Entrar, sair, sincronizar e conta do Autodesk Forma.";
+                forma.Click += (s, e) => { string cmd = FormaWindow.Escolher(this); if (cmd != null) FecharE(cmd); };
+                botoes.Children.Add(forma);
+            }
+            foreach (Button b in botoes.Children) b.Margin = new Thickness(0, 0, 6, 4);
             p.Children.Add(botoes);
+
+            // ---- padrões em uso
+            p.Children.Add(Titulo("Padrões em uso", 18));
+            var grade = new Grid();
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.3, GridUnitType.Star) });
+            grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            void Celula(UIElement el, int l, int c) { Grid.SetRow(el, l); Grid.SetColumn(el, c); grade.Children.Add(el); }
+            grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            string[] cab = { "", "Padrão", "Arquivo", "O que traz", "Passo" };
+            for (int c = 1; c < cab.Length; c++)
+                Celula(new TextBlock { Text = cab[c], FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 14, 4) }, 0, c);
+
+            void Padrao(string nome, string dica, string arquivo, string caminho, string traz, string passo, Sinal sinal)
+            {
+                int l = grade.RowDefinitions.Count;
+                grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Color cor = sinal == Sinal.Vermelho ? Colors.Firebrick : sinal == Sinal.Amarelo ? Theme.Laranja : sinal == Sinal.Verde ? Theme.Verde : Theme.CinzaClaro;
+                Celula(new Ellipse { Width = 9, Height = 9, Fill = Theme.Solid(cor), Margin = new Thickness(0, 6, 8, 0), VerticalAlignment = VerticalAlignment.Top }, l, 0);
+                Celula(new TextBlock { Text = nome, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 3, 14, 3), ToolTip = dica }, l, 1);
+                Celula(new TextBlock { Text = string.IsNullOrEmpty(arquivo) ? "—" : arquivo, ToolTip = caminho, TextTrimming = TextTrimming.CharacterEllipsis,
+                    Foreground = Theme.Solid(string.IsNullOrEmpty(arquivo) ? Theme.Cinza : Theme.Preto), Margin = new Thickness(0, 3, 14, 3) }, l, 2);
+                Celula(new TextBlock { Text = traz, ToolTip = traz, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, 14, 3) }, l, 3);
+                Celula(new TextBlock { Text = passo, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 3, 0, 3) }, l, 4);
+            }
+            string Arq(ConfigKind k) => System.IO.File.Exists(ConfigPackage.PathOf(k)) ? ConfigPackage.FileNames[k] : null;
+            string Seguro(Func<string> f) { try { return f(); } catch (Exception ex) { return "não deu para ler: " + ex.Message; } }
+
+            var instaladas = AutodeskIfcExtension.FindInstalled();
+            bool extOk = instaladas.Count > 0 || AutodeskIfcExtension.CommandDefined(cfg.ExportCommand);
+            Padrao("Exportador da Autodesk", "IFC 4.3 Extension: o exportador que o Exportar IFC usa.", "IFC 4.3 Extension", null,
+                extOk ? (instaladas.FirstOrDefault()?.Version is string v ? "versão " + v + " instalada" : "instalada") : "não instalada", "7",
+                extOk ? Sinal.Verde : Sinal.Vermelho);
+
+            System.Text.Json.Nodes.JsonNode autodesk = null;
+            try { autodesk = ConfigPackage.LoadJson(ConfigKind.AutodeskConfig); } catch { }
+            string versao = (string)(autodesk?["Export"]?["IfcVersion"]) ?? "IFC4X3_ADD2";
+            Padrao("Configurações", "Opções do exportador da Autodesk (IfcInfraConfiguration.json): versão do IFC e o que exportar.",
+                Arq(ConfigKind.AutodeskConfig), ConfigPackage.PathOf(ConfigKind.AutodeskConfig), Ifc.IfcCatalog.Label(versao), "7",
+                Arq(ConfigKind.AutodeskConfig) != null ? Sinal.Verde : Sinal.Vermelho);
+
+            string classes = Seguro(() =>
+            {
+                var m = ConfigPackage.LoadJson(ConfigKind.ObjectMapping);
+                int Conta(string k) => (m?[k] as System.Text.Json.Nodes.JsonArray)?.Count ?? 0;
+                return $"{Conta("MapCADLayerName")} regras por layer, {Conta("MapBlockName")} por bloco";
+            });
+            Padrao("Classes IFC", "Regras de classe IFC por layer, bloco e baseline (IfcInfraExportMapping.json).",
+                Arq(ConfigKind.ObjectMapping), ConfigPackage.PathOf(ConfigKind.ObjectMapping), classes, "2",
+                _res?.Etapa(2)?.Sinal == Sinal.Vermelho ? Sinal.Amarelo : Arq(ConfigKind.ObjectMapping) != null ? Sinal.Verde : Sinal.Vermelho);
+
+            string psets = Seguro(() =>
+            {
+                var l = PsetsCore.DoMapeamentoIfc();
+                return $"{l.Select(x => x.Nome).Distinct(StringComparer.OrdinalIgnoreCase).Count()} property sets, {l.Sum(x => x.Propriedades.Count)} propriedades";
+            });
+            string arqPsets = Arq(ConfigKind.PropertyMappingCsv) ?? Arq(ConfigKind.PropertyTemplates);
+            Padrao("Property sets", "O que vai para o IFC em cada property set e de onde vem (IFCInfraExportPropertyMapping).",
+                arqPsets, ConfigPackage.PathOf(ConfigKind.PropertyMappingCsv), psets, "3", arqPsets != null ? Sinal.Verde : Sinal.Cinza);
+
+            string escrita = Seguro(() => Escrita.PadroesEscrita.Listar().FirstOrDefault()?.Nome);
+            Padrao("Escrita", "Siglas, termos e correções do Corrigir escrita.", escrita, null,
+                escrita == null ? "não usado" : "siglas, termos e correções", "4", escrita == null ? Sinal.Cinza : Sinal.Verde);
+
+            var confronto = Seguro(() => string.Join(", ", Confronto.Padroes.Listar("Civil3D").Select(x => x.Nome)));
+            Padrao("Confronto", "Planilha externa e campos que o Confrontar planilha compara.", string.IsNullOrEmpty(confronto) ? null : confronto, null,
+                string.IsNullOrEmpty(confronto) ? "não usado" : "planilha e campos a comparar", "4", string.IsNullOrEmpty(confronto) ? Sinal.Cinza : Sinal.Verde);
+
+            List<Classificacao.PadraoClassificacao> classif = null;
+            try { classif = Classificacao.PadraoClassificacao.Listar(); } catch { }
+            var padraoClassif = classif?.FirstOrDefault(x => x.Nome == Classificacao.VerificarClassificacaoWindow._ultimoPadrao) ?? classif?.FirstOrDefault();
+            var planilha = padraoClassif?.Sistemas.Select(s => s.Planilha?.Arquivo).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+            Padrao("Classificação", "Planilha de classificação do Metrô: os códigos aceitos.",
+                planilha != null ? System.IO.Path.GetFileName(planilha) : padraoClassif?.Nome, planilha,
+                padraoClassif == null ? "falta escolher" : planilha == null ? "falta escolher a planilha" : $"{padraoClassif.Sistemas.Count} classificação(ões)", "5",
+                padraoClassif == null || planilha == null ? Sinal.Amarelo : Sinal.Verde);
+
+            string projeto = Seguro(() =>
+            {
+                var est = ConfigPackage.LoadMetroSp().Estrutura;
+                int inst = est.AllFacilities().Count(f => !string.IsNullOrWhiteSpace(f.Nome));
+                return (string.IsNullOrWhiteSpace(est.Projeto?.Nome) ? "projeto sem nome" : est.Projeto.Nome) + $", {inst} instalação(ões)";
+            });
+            Padrao("Projeto e alinhamento", "IfcProject, IfcSite, instalações e opções do alinhamento 3D.", Arq(ConfigKind.MetroSP), ConfigPackage.PathOf(ConfigKind.MetroSP),
+                projeto, "6 e 7", _res?.Etapa(7)?.Sinal == Sinal.Vermelho ? Sinal.Amarelo : Sinal.Verde);
+            p.Children.Add(grade);
+
+            // ---- o modelo visto pelos padrões
+            p.Children.Add(Titulo("No modelo", 18));
+            var numeros = new WrapPanel();
+            void Numero(string valor, string rotulo, string dica)
+            {
+                var bloco = new StackPanel { Margin = new Thickness(0, 0, 26, 4), ToolTip = dica };
+                bloco.Children.Add(new TextBlock { Text = valor, FontSize = 20, FontWeight = FontWeights.SemiBold });
+                bloco.Children.Add(new TextBlock { Text = rotulo, FontSize = 11, Foreground = Theme.Solid(Theme.Cinza) });
+                numeros.Children.Add(bloco);
+            }
+            try
+            {
+                var db = _doc.Database;
+                int noIfc, total = 0;
+                using (var tr = db.TransactionManager.StartOpenCloseTransaction())
+                {
+                    noIfc = Ifc.FiltroIfc.Objetos(db, tr).Count;
+                    var ms = (Autodesk.AutoCAD.DatabaseServices.BlockTableRecord)tr.GetObject(
+                        Autodesk.AutoCAD.DatabaseServices.SymbolUtilityServices.GetBlockModelSpaceId(db), Autodesk.AutoCAD.DatabaseServices.OpenMode.ForRead);
+                    foreach (ObjectId _ in ms) total++;
+                    tr.Commit();
+                }
+                var pt = new System.Globalization.CultureInfo("pt-BR");
+                Numero(noIfc.ToString("N0", pt), "objetos que vão para o IFC", "Objetos do espaço do modelo que o exportador leva (sem anotações, layers desligados ou fora da exportação).");
+                Numero((total - noIfc).ToString("N0", pt), "ficam fora", "Anotações (textos, cotas, hachuras), layers desligados ou congelados e o que está com Exportar desmarcado.");
+            }
+            catch (Exception ex) { p.Children.Add(Theme.Detalhe("Não deu para contar os objetos: " + ex.Message)); }
+            Numero((_res?.Perfis.Count ?? 0).ToString(), "alinhamentos", "Alinhamentos do modelo (passo 6).");
+            Numero(Ifc.IfcCatalog.Label(versao).Replace(" (IFC4X3_ADD2)", ""), "esquema", "Versão do IFC nas configurações do exportador.");
+            p.Children.Add(numeros);
+
+            var adicionar = Pilula("Adicionar padrões...", primario: true);
+            adicionar.HorizontalAlignment = HorizontalAlignment.Left;
+            adicionar.Margin = new Thickness(0, 16, 0, 0);
+            adicionar.ToolTip = "Abre a janela Padrões: arraste ou escolha os arquivos (configuração IFC, classificação, escrita, confronto).";
+            adicionar.Click += (s, e) =>
+            {
+                new Padroes.GerenciarPadroesWindow(Padroes.PadroesCommands.Tipos(_doc), "Civil 3D") { Owner = this }.ShowDialog();
+                Conferir();
+            };
+            p.Children.Add(adicionar);
             return new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = p };
         }
 

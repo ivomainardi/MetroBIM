@@ -2,6 +2,13 @@
 
 ## Próxima versão (em teste)
 
+- **Entrega passo a passo na ordem do Revit**: **1 Padrões**, **2 Classes IFC**, **3 Property sets**, **4 MetroDATA**,
+  **5 Classificação**, **6 Alinhamentos** e **7 Exportar**. Classes IFC vem antes dos property sets porque o que cada
+  objeto precisa ter depende da classe dele.
+- **Entrega › Padrões** (antes Exportador): o perfil de exportação, os padrões em uso numa tabela (arquivo, o que traz e
+  o passo que usa: exportador da Autodesk, configurações, classes IFC, property sets, escrita, confronto, classificação,
+  projeto e alinhamento) e o resumo do modelo (objetos que vão para o IFC, que ficam fora, alinhamentos e esquema).
+
 - **Classes IFC: padrão e modelo numa lista única** (passo 3 da Entrega e Configurar IFC). Cada layer do modelo (ou
   bloco, ou baseline de corredor, conforme a seção) é uma linha, com nº de objetos do espaço do modelo (sem anotações),
   a classe IFC, Exportar, a regra que vale e a ordem dela. A coluna **Onde** separa "padrão e modelo", "só no modelo"

@@ -66,13 +66,13 @@ namespace MetroSP.Entrega
     {
         public static readonly (int Numero, string Nome, string Dica)[] Etapas =
         {
-            (1, "Exportador", "IFC 4.3 Extension da Autodesk instalada e configuração IFC (padrão MetroSP ou Forma) em dia."),
-            (2, "Property sets", "Property sets que o mapeamento IFC pede: montados no desenho e anexados aos objetos que vão para o IFC."),
-            (3, "Classe IFC", "Classe IFC de cada tipo de objeto, dentro do esquema escolhido (IFC 4.3)."),
-            (4, "Dados", "Erros de escrita (espaços, acentos, caracteres estranhos) e confronto com a planilha do padrão."),
+            (1, "Padrões", "Perfil de exportação, padrões em uso e o exportador IFC 4.3 da Autodesk instalado."),
+            (2, "Classes IFC", "Classe IFC de cada layer, bloco e baseline do modelo, dentro do esquema escolhido (IFC 4.3)."),
+            (3, "Property sets", "Property sets que o mapeamento IFC pede: montados no modelo e anexados aos objetos que vão para o IFC."),
+            (4, "MetroDATA", "Erros de escrita (espaços, acentos, caracteres estranhos) e confronto com a planilha do padrão."),
             (5, "Classificação", "Códigos de classificação dos objetos conferidos com a planilha do padrão."),
             (6, "Alinhamentos", "Perfil de cada alinhamento que vai para o IFC (eixo 3D com as cotas)."),
-            (7, "Local e exportar", "IfcProject, IfcSite e instalações (IfcRailway, IfcBuilding), e a exportação."),
+            (7, "Exportar", "IfcProject, IfcSite e instalações (IfcRailway, IfcBuilding), e a exportação."),
         };
 
         /// <summary>Última conferência de cada desenho, para o Painel MetroSP.</summary>
@@ -88,8 +88,8 @@ namespace MetroSP.Entrega
             foreach (var (n, nome, dica) in Etapas) r.Etapas.Add(new EtapaEntrega { Numero = n, Nome = nome, Dica = dica });
 
             Rodar(r, 1, () => Exportador(doc, r.Etapa(1)));
-            Rodar(r, 2, () => PropertySets(doc, r.Etapa(2)));
-            Rodar(r, 3, () => ClasseIfc(r.Etapa(3)));
+            Rodar(r, 2, () => ClasseIfc(r.Etapa(2)));
+            Rodar(r, 3, () => PropertySets(doc, r.Etapa(3)));
             Rodar(r, 4, () => Dados(doc, r.Etapa(4)));
             Rodar(r, 5, () => Classificacao(doc, r.Etapa(5)));
             Rodar(r, 6, () => Alinhamentos(doc, r));
@@ -111,7 +111,7 @@ namespace MetroSP.Entrega
             }
         }
 
-        // ------------------------------------------------------------------ 1 Exportador
+        // ------------------------------------------------------------------ 1 Padrões
 
         static void Exportador(AcDocument doc, EtapaEntrega e)
         {
@@ -206,7 +206,7 @@ namespace MetroSP.Entrega
             return g.Count > 4 ? s + $" e mais {g.Count - 4} tipo(s)" : s;
         }
 
-        // ------------------------------------------------------------------ 3 Classe IFC
+        // ------------------------------------------------------------------ 2 Classes IFC
 
         static void ClasseIfc(EtapaEntrega e)
         {
@@ -234,7 +234,7 @@ namespace MetroSP.Entrega
             return s == null ? "" : $" Use \"{s}\" (botão Corrigir classes).";
         }
 
-        // ------------------------------------------------------------------ 4 Dados
+        // ------------------------------------------------------------------ 4 MetroDATA
 
         static void Dados(AcDocument doc, EtapaEntrega e)
         {

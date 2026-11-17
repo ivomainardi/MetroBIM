@@ -56,11 +56,11 @@ namespace MetroSP
                 SplitMenu(
                     Button("Entrega\npasso a passo", "Passo1", "MSP_ENTREGA",
                         "Por onde começar. Janela única da entrega: as etapas em cima, com setinhas (verde = pronta, laranja = pendências), " +
-                        "e embaixo o que falta em cada etapa, com os botões que resolvem e a ferramenta da etapa (Exportador, Property sets, " +
-                        "Classes IFC, Dados, Classificação, Alinhamentos, Local e exportar). Na setinha: o Painel MetroSP, ao lado do desenho."),
+                        "e embaixo o que falta em cada etapa, com os botões que resolvem e a ferramenta da etapa (Padrões, Classes IFC, " +
+                        "Property sets, MetroDATA, Classificação, Alinhamentos, Exportar). Na setinha: o Painel MetroSP, ao lado do modelo."),
                     Button("Entrega passo a passo", "Passo1", "MSP_ENTREGA", "Janela única da entrega, com as etapas e o que falta em cada uma."),
-                    Button("Painel ao lado do desenho", "Conferir", "MSP_PAINEL",
-                        "Abre ao lado do desenho o painel com as etapas da entrega e o semáforo de cada uma. " +
+                    Button("Painel ao lado do modelo", "Conferir", "MSP_PAINEL",
+                        "Abre ao lado do modelo o painel com as etapas da entrega e o semáforo de cada uma. " +
                         "Clique numa etapa para abrir a Entrega passo a passo nela.")),
                 ExportSplit()));
 
