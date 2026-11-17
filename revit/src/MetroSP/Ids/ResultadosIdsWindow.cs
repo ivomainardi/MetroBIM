@@ -13,8 +13,9 @@ using MetroSP.Ui;
 namespace MetroSP.Ids
 {
     /// <summary>
-    /// Janela não modal com o resultado. Duplo clique numa linha seleciona os elementos no Revit
-    /// (via ExternalEvent, porque a API só pode ser chamada no contexto do Revit).
+    /// Resultado da verificação dos requisitos (.ids). Duplo clique numa linha seleciona os elementos no Revit:
+    /// aberta sem dono modal, via ExternalEvent (a API só pode ser chamada no contexto do Revit); aberta de dentro
+    /// de uma janela modal (Entrega passo a passo), seleciona direto pelo <c>uidoc</c>.
     /// </summary>
     public class ResultadosIdsWindow : Window
     {
@@ -23,11 +24,11 @@ namespace MetroSP.Ids
         private readonly SelecionarHandler _handler = new SelecionarHandler();
         private readonly ExternalEvent _evento;
 
-        public ResultadosIdsWindow(IdsDocument ids, List<CheckResult> resultados)
+        public ResultadosIdsWindow(IdsDocument ids, List<CheckResult> resultados, UIDocument direto = null)
         {
-            _evento = ExternalEvent.Create(_handler);
+            if (direto == null) _evento = ExternalEvent.Create(_handler);
 
-            Title = $"MetroSP - Padrões Metrô: {ids.Title}";
+            Title = "MetroSP - Requisitos (.ids)" + (string.IsNullOrEmpty(ids.Title) ? "" : ": " + ids.Title);
             Width = 1100;
             Height = 600;
             MinWidth = 700;
@@ -108,7 +109,8 @@ namespace MetroSP.Ids
                 if (_grid.SelectedItem is CheckResult r && r.Elementos.Count > 0)
                 {
                     _handler.Ids = r.Elementos;
-                    _evento.Raise();
+                    if (_evento != null) _evento.Raise();
+                    else _handler.Execute(direto.Application);
                 }
             };
             Theme.StyleSelection(_grid);
@@ -127,14 +129,14 @@ namespace MetroSP.Ids
             };
             exportar.Click += (s, e) => ExportarCsv();
             fechar.Click += (s, e) => Close();
-            Closed += (s, e) => _evento.Dispose();
+            Closed += (s, e) => _evento?.Dispose();
 
-            Theme.Apply(this, "Padrões Metrô", ids.Title, dock, rodape);
+            Theme.Apply(this, "Requisitos (.ids)", ids.Title, dock, rodape);
         }
 
         private void ExportarCsv()
         {
-            var dialogo = new Microsoft.Win32.SaveFileDialog { Filter = "CSV (*.csv)|*.csv", FileName = "verificacao_padroes_metro.csv" };
+            var dialogo = new Microsoft.Win32.SaveFileDialog { Filter = "CSV (*.csv)|*.csv", FileName = "verificacao_requisitos_ids.csv" };
             if (dialogo.ShowDialog(this) != true) return;
 
             var sb = new StringBuilder();
