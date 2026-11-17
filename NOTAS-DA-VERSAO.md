@@ -4,15 +4,21 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## 1.0.8 (em preparação)
+## 1.0.8 (16/11/2026)
 
-Revit 0.3.11 · Civil 3D 0.12.4 · Navisworks 1.0.1
+Revit 0.3.11 · Civil 3D 0.12.4
 
-- Revit, Civil 3D e Navisworks, **aviso de versão nova**: ao abrir o programa, o MetroSP confere (no máximo uma vez
-  por dia, em segundo plano) se já saiu uma versão nova do instalador. Se saiu, mostra a versão, o que mudou e o botão
+- Revit e Civil 3D, **aviso de versão nova**: ao abrir o programa, o MetroSP confere (no máximo uma vez por dia, em
+  segundo plano) se já saiu uma versão nova do instalador. Se saiu, mostra a versão, o que mudou e o botão
   **Baixar instalador**. **Agora não** avisa de novo no dia seguinte e **Não avisar desta** só volta na próxima versão.
-  Sem internet ou com a rede bloqueando o GitHub, não aparece nada. No Navisworks, o aviso é uma pergunta simples.
+  Sem internet ou com a rede bloqueando o GitHub, não aparece nada. O aviso começa a valer a partir desta versão.
+  O Navisworks (1.0.1) ganha o mesmo aviso quando entrar no instalador.
 - Revit e Civil 3D, **Sobre**: botão **Procurar versão nova**, para conferir na hora.
+- Instalador, **programa aberto**: com o Revit, o Civil 3D (ou AutoCAD) ou o Navisworks aberto, o instalador não dá
+  mais erro na cópia da MetroSP.dll. Antes de copiar, ele mostra quais programas estão abertos (no Revit, com o ano) e
+  pede para fechar, com **Tentar de novo** ou **Cancelar**. Só conta o programa onde o MetroSP vai ser instalado: com o
+  Revit 2024 aberto e só o 2026 marcado, a instalação segue. Cancelando, nada é alterado.
+- O desinstalador faz o mesmo aviso antes de apagar os arquivos.
 
 ## 1.0.7 (16/11/2026)
 
