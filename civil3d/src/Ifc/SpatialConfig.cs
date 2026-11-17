@@ -71,6 +71,11 @@ namespace MetroSP.Ifc
         public static readonly string[] Types = { "IfcRailway", "IfcBuilding", "IfcBridge", "IfcRoad" };
 
         public string Tipo { get; set; } = DefaultType;
+        /// <summary>
+        /// A instalação principal: a que o exportador da Autodesk grava e que recebe os objetos do modelo. Recebe este
+        /// tipo, nome, nome longo, descrição e endereço. As outras são de referência (acrescentadas vazias).
+        /// </summary>
+        public bool Principal { get; set; }
         public string Nome { get; set; }
         public string NomeLongo { get; set; }
         public string Descricao { get; set; }

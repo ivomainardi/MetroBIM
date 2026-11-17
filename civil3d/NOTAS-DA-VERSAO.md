@@ -48,6 +48,13 @@
   ficar, layers, selecionar). Mostra o **caminho até o IFC** (`IfcClassification "Metrô SP" ← Classification ›
   ClassificationCode`) e avisa, com o botão **Mapear**, se esse property set não está na Saída no IFC (sem ele não sai
   IfcClassification).
+- **Passo 7 Exportar como no Revit**: Perfil em uma linha, Saída (esquema IFC 4.3 ou IFC4 e objetos: modelo inteiro, só a
+  seleção ou só os alinhamentos) e um único **Exportar IFC** no rodapé; os avisos ficam nos cartões.
+- **Estrutura no IFC em árvore** (passo 7 e Projeto IFC), no lugar do "Edifício" e da tabela Instalações que se
+  misturavam: IfcProject › IfcSite › **instalação principal** (destacada, com o nº de objetos: é a que o exportador grava
+  e recebe todos os objetos; aqui se escolhe o tipo, o nome, o nome longo e o endereço; o tipo é trocado no IFC, ex.:
+  IfcRailway → IfcBuilding) e **instalações de referência** (vazias, ex.: a estação vizinha; "+ instalação de
+  referência" e "tirar"). Sem nome na principal, fica amarelo no passo 7.
 - **MetroDATA › Corrigir escrita mais enxuto**: abre já conferido; perfil, campos e regras (lista "7 de 9 ▾") numa
   linha; tabela com Objeto, Campo, Atual, Sugestão e O que tem (situação, motivo, categoria e Id ficam na dica da
   linha); botões Corrigir, Ignorar, Selecionar no modelo e **Mais ▾**.

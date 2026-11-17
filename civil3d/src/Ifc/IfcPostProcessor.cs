@@ -423,6 +423,39 @@ namespace MetroSP.Ifc
             }
 
             var facilities = cfg.AllFacilities().Where(f => !string.IsNullOrWhiteSpace(f.Nome)).ToList();
+            var principal = facilities.FirstOrDefault(f => f.Principal);
+            if (principal != null)
+            {
+                // A instalação que a Autodesk gravou (a que tem os objetos) recebe o tipo e os dados da principal.
+                var ent = FacilityTypes.SelectMany(t => _m.OfType(t)).OrderBy(b => b.Id).FirstOrDefault()
+                          ?? _m.OfType("IFCFACILITY").FirstOrDefault();
+                if (ent != null)
+                {
+                    var tipo = (principal.Tipo ?? FacilityInfo.DefaultType).Trim().ToUpperInvariant();
+                    bool ifc43 = _m.Schema == null || _m.Schema.StartsWith("IFC4X3", StringComparison.OrdinalIgnoreCase);
+                    if (!FacilityTypes.Contains(tipo)) tipo = ent.Type;
+                    if (!ifc43 && tipo != "IFCBUILDING") tipo = ent.Type;   // no IFC4 só existe IfcBuilding
+                    if (tipo != ent.Type)
+                    {
+                        while (ent.Args.Count > 9) ent.Args.RemoveAt(ent.Args.Count - 1);
+                        while (ent.Args.Count < 9) ent.Args.Add("$");
+                        if (tipo == "IFCBUILDING") ent.Args.AddRange(new[] { "$", "$", "$" });
+                        else ent.Args.Add(".NOTDEFINED.");
+                        _m.SetType(ent.Id, tipo);
+                        _log($"instalação principal: {ent.Type} no lugar do que a Autodesk gravou.");
+                    }
+                    _m.SetArg(ent.Id, 2, IfcAlignmentWriter.S(principal.Nome.Trim()));
+                    SetText(ent, 3, principal.Descricao);
+                    SetText(ent, 7, principal.NomeLongo);
+                    if (tipo == "IFCBUILDING")
+                    {
+                        if (principal.ElevacaoReferencia.HasValue) _m.SetArg(ent.Id, 9, IfcAlignmentWriter.F(principal.ElevacaoReferencia.Value));
+                        Address(ent, 11, principal.Endereco);
+                    }
+                    _log($"instalação principal: {principal.Nome}.");
+                }
+                facilities.Remove(principal);
+            }
             if (facilities.Count > 0)
             {
                 var siteGid = StepModel.Text(site.Args[0]) ?? "site";

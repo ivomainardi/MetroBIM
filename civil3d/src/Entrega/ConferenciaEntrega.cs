@@ -446,8 +446,14 @@ namespace MetroSP.Entrega
                 e.Pendencias.Add(new Pendencia { Sinal = Sinal.Vermelho, Titulo = "IfcProject sem nome", Texto = "O nome do projeto é obrigatório.", Acao = Acao.PreencherProjeto });
             if (string.IsNullOrWhiteSpace(est.Terreno?.Nome))
                 e.Pendencias.Add(new Pendencia { Sinal = Sinal.Vermelho, Titulo = "IfcSite sem nome", Texto = "O nome do terreno é obrigatório.", Acao = Acao.PreencherProjeto });
-            if (!est.AllFacilities().Any(f => !string.IsNullOrWhiteSpace(f.Nome)))
-                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Nenhuma instalação", Texto = "Inclua a linha (IfcRailway) e as estações (IfcBuilding).", Acao = Acao.PreencherProjeto });
+            var principal = est.AllFacilities().FirstOrDefault(f => f.Principal);
+            if (principal == null || string.IsNullOrWhiteSpace(principal.Nome))
+                e.Pendencias.Add(new Pendencia
+                {
+                    Sinal = Sinal.Amarelo, Titulo = "Instalação principal sem nome",
+                    Texto = $"A {(principal?.Tipo ?? "instalação")} que recebe os objetos sai com o nome que a Autodesk dá. Preencha em Estrutura no IFC.",
+                    Acao = Acao.PreencherProjeto,
+                });
             e.Resumo = string.IsNullOrWhiteSpace(est.Projeto?.Nome) ? null : $"{est.Projeto.Nome} · {est.Terreno?.Nome}";
         }
     }

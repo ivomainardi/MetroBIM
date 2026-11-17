@@ -823,20 +823,8 @@ namespace MetroSP.Ui
                 ("Coordenadas", Ptl(e)));
             extra.Margin = new Thickness(0, 6, 0, 0);
 
-            // Instalações no lugar do IfcBuilding único: a linha (IfcRailway) e cada estação (IfcBuilding).
-            var inst = new StackPanel();
-            var bgridHead = new DockPanel();
-            inst.Children.Add(bgridHead);
-            var bgrid = new DataGrid { AutoGenerateColumns = false, CanUserAddRows = true, ItemsSource = _facilities, MinHeight = 110,
-                ToolTip = "Dentro do IfcSite. A linha como IfcRailway; cada estação como IfcBuilding. Se a Autodesk já gravou uma com o mesmo nome, ela recebe o nome longo, a descrição e o endereço." };
-            bgrid.Columns.Add(new DataGridComboBoxColumn { Header = "Tipo", ItemsSource = FacilityInfo.Types, SelectedItemBinding = new Binding("Tipo"), Width = 110 });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Nome"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Nome longo", Binding = new Binding("NomeLongo"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Descrição", Binding = new Binding("Descricao"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Endereço", Binding = new Binding("Endereco"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
-            bgrid.Columns.Add(new DataGridTextColumn { Header = "Elevação (m)", Binding = new Binding("ElevacaoReferencia") { TargetNullValue = "" }, Width = 90 });
-            inst.Children.Add(bgrid);
-            SectionWithTools(bgridHead, "Instalações · IfcRailway, IfcBuilding", bgrid, _facilities, "instalação");
+            // Instalações em árvore: a principal (a que o exportador grava, com os objetos) e as de referência (vazias).
+            var inst = ArvoreInstalacoes();
 
             var dados = new DadosProjetoIfc
             {
@@ -853,12 +841,125 @@ namespace MetroSP.Ui
             {
                 EdificioParaPadrao = () =>
                 {
-                    var b = _facilities.FirstOrDefault(f => f.Tipo == "IfcBuilding" && !string.IsNullOrWhiteSpace(f.Nome));
+                    var b = _facilities.FirstOrDefault(f => f.Principal && !string.IsNullOrWhiteSpace(f.Nome))
+                            ?? _facilities.FirstOrDefault(f => f.Tipo == "IfcBuilding" && !string.IsNullOrWhiteSpace(f.Nome));
                     return b == null ? null : new DadosEntidadeIfc { Nome = b.Nome, NomeLongo = b.NomeLongo, Descricao = b.Descricao, Endereco = b.Endereco };
                 },
             };
             _dadosPainel.PadraoUsado += UsarEdificioDoPadrao;
             return new ScrollViewer { Content = _dadosPainel, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(0, 0, 6, 0) };
+        }
+
+        /// <summary>
+        /// Estrutura no IFC: IfcProject › IfcSite › instalação principal (destacada: é onde o exportador põe todos os objetos
+        /// do modelo; aqui se escolhe o tipo, o nome e o nome longo) e as instalações de referência (vazias, ex.: a estação vizinha).
+        /// </summary>
+        UIElement ArvoreInstalacoes()
+        {
+            var raiz = new StackPanel { Margin = new Thickness(0, 10, 0, 0) };
+            raiz.Children.Add(Theme.Secao("Estrutura no IFC · instalações dentro do IfcSite"));
+            if (!_facilities.Any(f => f.Principal))
+            {
+                // Antes, a primeira da lista com o mesmo nome da que a Autodesk grava era a principal; sem marca, nenhuma é.
+                _facilities.Insert(0, new FacilityInfo { Principal = true, Tipo = FacilityInfo.DefaultType });
+            }
+            int objetos = -1;
+            try
+            {
+                var doc = Autodesk.AutoCAD.ApplicationServices.Application.DocumentManager.MdiActiveDocument;
+                using (doc.LockDocument())
+                using (var tr = doc.Database.TransactionManager.StartOpenCloseTransaction())
+                {
+                    objetos = FiltroIfc.Objetos(doc.Database, tr).Count;
+                    tr.Commit();
+                }
+            }
+            catch { }
+
+            var linhas = new StackPanel();
+            raiz.Children.Add(linhas);
+            void Montar()
+            {
+                linhas.Children.Clear();
+                linhas.Children.Add(LinhaArvore("", "IfcProject", Theme.Detalhe("nome e nome longo no alto, em IfcProject"), null, false));
+                linhas.Children.Add(LinhaArvore(" └", "IfcSite", Theme.Detalhe("na origem do PTL (150.000; 250.000), com a latitude e a longitude exatas"), null, false));
+                FacilityInfo pr = _facilities.First(f => f.Principal);
+                linhas.Children.Add(LinhaArvore("    └", null, CamposInstalacao(pr, true),
+                    new TextBlock
+                    {
+                        Text = (objetos >= 0 ? $"{objetos:N0} objetos do modelo" : "os objetos do modelo") + "\ninstalação principal: é onde o exportador põe tudo",
+                        Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center,
+                    }, true));
+                foreach (FacilityInfo f in _facilities.Where(f => !f.Principal).ToList())
+                {
+                    var tirar = Theme.Link("tirar");
+                    tirar.Click += (s, e) => { _facilities.Remove(f); Montar(); };
+                    var lado = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                    lado.Children.Add(new TextBlock { Text = "vazia, só referência · ", Foreground = Theme.Solid(Theme.Cinza) });
+                    lado.Children.Add(tirar);
+                    linhas.Children.Add(LinhaArvore("    └", null, CamposInstalacao(f, false), lado, false));
+                }
+                var mais = new Button { Content = "+ instalação de referência", Padding = new Thickness(10, 1, 10, 1), Margin = new Thickness(0, 4, 8, 0),
+                    ToolTip = "IfcBuilding, IfcBridge, IfcRoad ou IfcRailway sem objetos (ex.: a estação vizinha). Vai dentro do IfcSite." };
+                mais.Click += (s, e) => { _facilities.Add(new FacilityInfo { Tipo = "IfcBuilding" }); Montar(); };
+                var linhaMais = new StackPanel { Orientation = Orientation.Horizontal };
+                linhaMais.Children.Add(mais);
+                linhas.Children.Add(LinhaArvore("    └", null, linhaMais, null, false));
+            }
+            Montar();
+            _facilities.CollectionChanged += (s, e) => Dispatcher.BeginInvoke(new Action(Montar));
+            return raiz;
+        }
+
+        static Grid LinhaArvore(string ramo, string entidade, UIElement campos, UIElement lado, bool destaque)
+        {
+            var g = new Grid { Margin = new Thickness(0, 1, 0, 1) };
+            if (destaque) g.Background = Theme.Solid(Theme.LaranjaSelecao);
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(44) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var r = new TextBlock { Text = ramo, FontFamily = new FontFamily("Consolas"), Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center };
+            g.Children.Add(r);
+            int col = 1;
+            if (entidade != null)
+            {
+                var t = new TextBlock { Text = entidade, FontWeight = FontWeights.SemiBold, Width = 130, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 4, 8, 4) };
+                Grid.SetColumn(t, 1);
+                g.Children.Add(t);
+                col = 2;
+            }
+            Grid.SetColumn((FrameworkElement)campos, col);
+            if (entidade == null) Grid.SetColumnSpan((FrameworkElement)campos, 2);
+            g.Children.Add(campos);
+            if (lado != null)
+            {
+                ((FrameworkElement)lado).Margin = new Thickness(12, 2, 6, 2);
+                Grid.SetColumn((FrameworkElement)lado, 3);
+                g.Children.Add(lado);
+            }
+            return g;
+        }
+
+        static UIElement CamposInstalacao(FacilityInfo f, bool principal)
+        {
+            var p = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 3, 0, 3) };
+            var tipo = Theme.Digitavel(new ComboBox { ItemsSource = FacilityInfo.Types, Width = 130, Margin = new Thickness(0, 0, 8, 0), FontWeight = FontWeights.SemiBold,
+                ToolTip = principal ? "Tipo da instalação principal no IFC 4.3 (no IFC4 só existe IfcBuilding)." : "Tipo da instalação de referência." });
+            tipo.SelectedItem = FacilityInfo.Types.FirstOrDefault(t => string.Equals(t, f.Tipo, StringComparison.OrdinalIgnoreCase)) ?? FacilityInfo.DefaultType;
+            tipo.SelectionChanged += (s, e) => { if (tipo.SelectedItem is string t) f.Tipo = t; };
+            p.Children.Add(tipo);
+            TextBox Caixa(string valor, double w, string dica, Action<string> gravar)
+            {
+                var t = new TextBox { Text = valor ?? "", Width = w, Margin = new Thickness(0, 0, 8, 0), ToolTip = dica, VerticalContentAlignment = VerticalAlignment.Center };
+                t.TextChanged += (s, e) => gravar(t.Text);
+                p.Children.Add(t);
+                return t;
+            }
+            Caixa(f.Nome, 200, principal ? "Nome da instalação principal (ex.: Linha 15). Vazio: fica o nome que a Autodesk dá." : "Nome (ex.: Estação Vila Prudente).", v => f.Nome = v);
+            Caixa(f.NomeLongo, 240, "Nome longo.", v => f.NomeLongo = v);
+            Caixa(f.Endereco, 200, "Endereço (só IfcBuilding).", v => f.Endereco = v);
+            return p;
         }
 
         /// <summary>Leva os campos do painel (IfcProject, IfcSite, MetroSP_Projeto) para a configuração.</summary>
@@ -882,7 +983,9 @@ namespace MetroSP.Ui
         {
             var ed = padrao?.Edificio;
             if (ed == null || string.IsNullOrWhiteSpace(ed.Nome)) return;
-            var f = _facilities.FirstOrDefault(x => string.Equals((x.Nome ?? "").Trim(), ed.Nome.Trim(), StringComparison.OrdinalIgnoreCase));
+            var f = _facilities.FirstOrDefault(x => string.Equals((x.Nome ?? "").Trim(), ed.Nome.Trim(), StringComparison.OrdinalIgnoreCase))
+                    ?? _facilities.FirstOrDefault(x => x.Principal && string.IsNullOrWhiteSpace(x.Nome));
+            if (f != null && string.IsNullOrWhiteSpace(f.Nome)) f.Nome = ed.Nome.Trim();
             if (f == null)
             {
                 _facilities.Add(new FacilityInfo { Tipo = "IfcBuilding", Nome = ed.Nome.Trim(), NomeLongo = ed.NomeLongo, Descricao = ed.Descricao, Endereco = ed.Endereco });
