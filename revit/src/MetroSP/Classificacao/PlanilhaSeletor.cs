@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using MetroSP.Ui;
@@ -30,7 +31,7 @@ namespace MetroSP.Classificacao
             var procurar = new Button { Content = "Procurar...", Margin = new Thickness(6, 0, 0, 0) };
             var recarregar = new Button { Content = "Recarregar", Margin = new Thickness(6, 0, 0, 0), ToolTip = "Lê a planilha de novo (depois de editá-la no Excel)." };
             procurar.Click += (s, e) => Procurar();
-            recarregar.Click += (s, e) => Carregar();
+            recarregar.Click += (s, e) => Carregar(forcar: true);
             DockPanel.SetDock(recarregar, Dock.Right);
             DockPanel.SetDock(procurar, Dock.Right);
             Children.Add(recarregar);
@@ -44,8 +45,33 @@ namespace MetroSP.Classificacao
             Children.Add(_caminho);
         }
 
+        /// <summary>
+        /// Última planilha lida (caminho, data e tamanho do arquivo): reabrir a janela não lê o .xlsx de novo
+        /// enquanto o arquivo não mudar.
+        /// </summary>
+        private static (string Caminho, DateTime Data, long Tamanho, ClassificationList Lista)? _ultima;
+
+        private static ClassificationList DoCache(string caminho)
+        {
+            var u = _ultima;
+            if (u == null || !string.Equals(u.Value.Caminho, caminho, StringComparison.OrdinalIgnoreCase)) return null;
+            var f = new FileInfo(caminho);
+            return f.LastWriteTimeUtc == u.Value.Data && f.Length == u.Value.Tamanho ? u.Value.Lista : null;
+        }
+
+        private static ClassificationList LerComCache(string caminho)
+        {
+            var f = new FileInfo(caminho);
+            DateTime data = f.LastWriteTimeUtc;
+            long tamanho = f.Length;
+            ClassificationList l = ClassificationList.Ler(caminho);
+            _ultima = (caminho, data, tamanho, l);
+            return l;
+        }
+
         /// <summary>Lê a planilha configurada (se houver). Chame depois de ligar o evento Carregada.</summary>
-        public void Carregar()
+        /// <param name="forcar">true lê o arquivo mesmo que ele não tenha mudado (botão Recarregar).</param>
+        public void Carregar(bool forcar = false)
         {
             string c = _config.Planilha;
             if (string.IsNullOrEmpty(c) || !File.Exists(c))
@@ -55,17 +81,52 @@ namespace MetroSP.Classificacao
             }
             try
             {
-                Lista = ClassificationList.Ler(c);
-                _info.Text = $"{Lista.Itens.Count} itens" + (Lista.Avisos.Count > 0 ? $" · {Lista.Avisos.Count} avisos" : "");
-                _info.ToolTip = Lista.Avisos.Count > 0 ? string.Join("\n", Lista.Avisos) : null;
-                Carregada?.Invoke(Lista);
+                Concluir((!forcar ? DoCache(c) : null) ?? LerComCache(c));
             }
             catch (Exception ex)
             {
-                _info.Text = "erro ao ler";
-                MessageBox.Show(Window.GetWindow(this), "Não foi possível ler a planilha:\n" + ex.Message +
-                    "\n\nA planilha precisa ter as colunas Código e Descrição (opcionais: Código pai, Categorias, Edição).", "MetroSP");
+                Falhou(ex);
             }
+        }
+
+        /// <summary>
+        /// Como Carregar, mas lê o arquivo fora da tela: a janela abre na hora e a árvore aparece quando a leitura termina.
+        /// </summary>
+        public async void CarregarEmSegundoPlano()
+        {
+            string c = _config.Planilha;
+            if (string.IsNullOrEmpty(c) || !File.Exists(c))
+            {
+                _info.Text = "escolha a planilha (.xlsx ou .csv)";
+                return;
+            }
+            ClassificationList pronta = DoCache(c);
+            if (pronta != null) { Concluir(pronta); return; }
+            _info.Text = "lendo a planilha...";
+            try
+            {
+                ClassificationList l = await Task.Run(() => LerComCache(c));
+                if (_config.Planilha == c) Concluir(l); // o usuário pode ter escolhido outra planilha enquanto lia
+            }
+            catch (Exception ex)
+            {
+                Falhou(ex);
+            }
+        }
+
+        private void Concluir(ClassificationList l)
+        {
+            Lista = l;
+            _info.Text = $"{Lista.Itens.Count} itens" + (Lista.Avisos.Count > 0 ? $" · {Lista.Avisos.Count} avisos" : "");
+            _info.ToolTip = Lista.Avisos.Count > 0 ? string.Join("\n", Lista.Avisos) : null;
+            Carregada?.Invoke(Lista);
+        }
+
+        private void Falhou(Exception ex)
+        {
+            _info.Text = "erro ao ler";
+            MessageBox.Show(Window.GetWindow(this), "Não foi possível ler a planilha:\n" + ex.Message +
+                "\n\nA planilha precisa ter as colunas Código e Descrição (opcionais: Código pai, Categorias, Edição).", "MetroSP");
         }
 
         private void Procurar()
@@ -84,7 +145,7 @@ namespace MetroSP.Classificacao
             _config.Planilha = dialogo.FileName;
             _config.Salvar();
             _caminho.Text = dialogo.FileName;
-            Carregar();
+            Carregar(forcar: true);
         }
     }
 }

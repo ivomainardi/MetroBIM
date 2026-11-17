@@ -4,6 +4,15 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## Próxima versão (ainda não publicada)
+
+- Revit, **Aplicar classificação abre na hora**: a janela não varre mais os elementos da vista antes de aparecer.
+  - As categorias de **Selecionar no Revit por categoria** só são contadas quando você abre a lista de categorias
+    (trocar entre Vista atual e Todo o modelo também não conta mais na hora).
+  - A planilha é lida depois que a janela aparece, sem travar a tela, e só a primeira aba do .xlsx.
+    Reabrindo a janela, a planilha não é lida de novo enquanto o arquivo não mudar (**Recarregar** sempre lê).
+  - A árvore só desenha os itens que aparecem na tela (planilhas grandes).
+
 ## 1.0.8 (16/11/2026)
 
 Revit 0.3.11 · Civil 3D 0.12.4

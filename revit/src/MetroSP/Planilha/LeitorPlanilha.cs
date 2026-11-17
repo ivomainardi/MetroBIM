@@ -32,12 +32,13 @@ namespace MetroSP.Planilha
     {
         public static string Filtro => "Planilhas (*.xlsx;*.csv;*.txt)|*.xlsx;*.csv;*.txt|Todos os arquivos (*.*)|*.*";
 
-        public static Tabela Ler(string caminho)
+        /// <param name="soPrimeiraAba">true lê só a primeira aba do .xlsx (a classificação usa só ela).</param>
+        public static Tabela Ler(string caminho, bool soPrimeiraAba = false)
         {
             if (string.IsNullOrEmpty(caminho) || !File.Exists(caminho)) throw new FileNotFoundException("Planilha não encontrada.", caminho);
             var t = new Tabela { Arquivo = caminho };
             string ext = Path.GetExtension(caminho).ToLowerInvariant();
-            if (ext == ".xlsx" || ext == ".xlsm") LerXlsx(caminho, t);
+            if (ext == ".xlsx" || ext == ".xlsm") LerXlsx(caminho, t, soPrimeiraAba);
             else
             {
                 t.NomesAbas.Add(Path.GetFileNameWithoutExtension(caminho));
@@ -94,7 +95,7 @@ namespace MetroSP.Planilha
         private static readonly XNamespace Rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
         private static readonly XNamespace Pkg = "http://schemas.openxmlformats.org/package/2006/relationships";
 
-        private static void LerXlsx(string caminho, Tabela t)
+        private static void LerXlsx(string caminho, Tabela t, bool soPrimeiraAba)
         {
             // Somente leitura e compartilhado: a planilha pode estar aberta no Excel.
             using (var fs = new FileStream(caminho, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete))
@@ -128,6 +129,7 @@ namespace MetroSP.Planilha
                     if (ws == null || t.Abas.ContainsKey(nome)) continue;
                     t.NomesAbas.Add(nome);
                     t.Abas[nome] = LerAba(ws, compartilhadas);
+                    if (soPrimeiraAba) break;
                 }
                 if (t.NomesAbas.Count == 0) throw new InvalidDataException("Planilha vazia ou formato não reconhecido.");
             }
