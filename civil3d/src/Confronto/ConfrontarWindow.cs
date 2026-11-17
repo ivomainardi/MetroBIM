@@ -51,13 +51,14 @@ namespace MetroSP.Confronto
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
             // ---- padrão salvo
-            _padroes = new ComboBox { MinWidth = 240, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Padrões salvos: planilha, colunas, campos e opções. Escolha um para usar de novo. Para trazer um padrão recebido ou levar para a equipe: Coordenação › Padrões." };
-            var salvar = new Button { Content = "Salvar", ToolTip = "Salva o padrão com o nome atual (ou pede um nome)." };
+            _padroes = new ComboBox { MinWidth = 240, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Perfis salvos: planilha, colunas, campos e opções. Escolha um para usar de novo. Para trazer um perfil recebido ou levar para a equipe: Coordenação › Perfis." };
+            Theme.Digitavel(_padroes);
+            var salvar = new Button { Content = "Salvar", ToolTip = "Salva o perfil com o nome atual (ou pede um nome)." };
             var salvarComo = new Button { Content = "Salvar como...", Margin = new Thickness(6, 0, 0, 0) };
             var excluir = Theme.Link("excluir");
             excluir.Margin = new Thickness(12, 0, 0, 0);
             var barraPadrao = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            barraPadrao.Children.Add(Theme.Rotulo("Padrão"));
+            barraPadrao.Children.Add(Theme.Rotulo("Perfil"));
             barraPadrao.Children.Add(_padroes);
             barraPadrao.Children.Add(salvar);
             barraPadrao.Children.Add(salvarComo);
@@ -117,7 +118,7 @@ namespace MetroSP.Confronto
             _chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
             _aplicar = new Button { Content = "Aplicar a planilha", Style = Theme.PrimaryButton, IsEnabled = false,
                 ToolTip = "Grava o valor da planilha no modelo, nas linhas selecionadas (numa operação só, que pode ser desfeita)." };
-            _ignorar = new Button { Content = "Ignorar", IsEnabled = false, ToolTip = "O modelo está certo: a diferença deixa de aparecer e fica salva no padrão." };
+            _ignorar = new Button { Content = "Ignorar", IsEnabled = false, ToolTip = "O modelo está certo: a diferença deixa de aparecer e fica salva no perfil." };
             _desfazer = new Button { Content = "Voltar a conferir", IsEnabled = false, ToolTip = "Tira o \"Ignorar\" das linhas selecionadas." };
             _selecionar = new Button { Content = "Selecionar no modelo", IsEnabled = false, ToolTip = $"Seleciona e mostra os {_fonte.Termo}s das linhas selecionadas (ou de todas as visíveis)." };
             _verResolvidos = new CheckBox { Content = "Mostrar ignorados e aplicados", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
@@ -311,20 +312,20 @@ namespace MetroSP.Confronto
                 nome = PedirNome(string.IsNullOrWhiteSpace(nome) ? Path.GetFileNameWithoutExtension(_padrao.Mapa?.Arquivo ?? "") : nome + " (cópia)");
                 if (string.IsNullOrWhiteSpace(nome)) return;
                 if (File.Exists(Padroes.Caminho(_fonte.Programa, nome)) &&
-                    MessageBox.Show(this, $"Já existe o padrão \"{nome}\". Substituir?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+                    MessageBox.Show(this, $"Já existe o perfil \"{nome}\". Substituir?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             }
             _padrao.Nome = nome.Trim();
             _padrao.Mapa = _mapa.Mapa;
             try { Padroes.Salvar(_fonte.Programa, _padrao); }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível salvar o padrão:\n" + ex.Message, Title); return; }
+            catch (Exception ex) { MessageBox.Show(this, "Não foi possível salvar o perfil:\n" + ex.Message, Title); return; }
             ListarPadroes(_padrao.Nome);
-            _resumo.Text = $"Padrão \"{_padrao.Nome}\" salvo.";
+            _resumo.Text = $"Perfil \"{_padrao.Nome}\" salvo.";
         }
 
         private void Excluir()
         {
-            if (string.IsNullOrWhiteSpace(_padrao.Nome) || !File.Exists(Padroes.Caminho(_fonte.Programa, _padrao.Nome))) { _resumo.Text = "Escolha um padrão salvo."; return; }
-            if (MessageBox.Show(this, $"Excluir o padrão \"{_padrao.Nome}\"?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            if (string.IsNullOrWhiteSpace(_padrao.Nome) || !File.Exists(Padroes.Caminho(_fonte.Programa, _padrao.Nome))) { _resumo.Text = "Escolha um perfil salvo."; return; }
+            if (MessageBox.Show(this, $"Excluir o perfil \"{_padrao.Nome}\"?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             Padroes.Excluir(_fonte.Programa, _padrao.Nome);
             _padrao.Nome = "";
             ListarPadroes(null);
@@ -332,15 +333,15 @@ namespace MetroSP.Confronto
 
         private string PedirNome(string sugestao)
         {
-            var w = new Window { Title = "MetroSP - Nome do padrão", Owner = this, Width = 420, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            var w = new Window { Title = "MetroSP - Nome do perfil", Owner = this, Width = 420, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner };
             var caixa = new TextBox { Text = sugestao ?? "", Padding = new Thickness(4, 3, 4, 3) };
             var ok = new Button { Content = "Salvar", Style = Theme.PrimaryButton, IsDefault = true };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             ok.Click += (s, e) => { w.DialogResult = caixa.Text.Trim().Length > 0; };
             var corpo = new StackPanel();
-            corpo.Children.Add(Primeiro(Theme.Secao("Nome do padrão")));
+            corpo.Children.Add(Primeiro(Theme.Secao("Nome do perfil")));
             corpo.Children.Add(caixa);
-            Theme.Apply(w, "Salvar padrão", "Ex.: Quantitativo estrutura, Materiais do lote 2", corpo, Theme.Rodape(null, ok, cancelar));
+            Theme.Apply(w, "Salvar perfil", "Ex.: Quantitativo estrutura, Materiais do lote 2", corpo, Theme.Rodape(null, ok, cancelar));
             w.Loaded += (s, e) => { caixa.Focus(); caixa.SelectAll(); };
             return w.ShowDialog() == true ? caixa.Text.Trim() : null;
         }
@@ -478,7 +479,7 @@ namespace MetroSP.Confronto
                 {
                     if (!_padrao.Ignorados.Contains(l.ChaveIgnorar)) _padrao.Ignorados.Add(l.ChaveIgnorar);
                     l.Situacao = LinhaConfronto.Ignorado;
-                    l.OQueFazer = "Ignorado neste padrão";
+                    l.OQueFazer = "Ignorado neste perfil";
                     l.PodeAplicar = false;
                 }
                 else if (!ignorar && l.Situacao == LinhaConfronto.Ignorado)
@@ -493,7 +494,7 @@ namespace MetroSP.Confronto
             _tabela.Grid.Items.Refresh();
             _tabela.Refresh();
             Contar();
-            _resumo.Text = salvo ? $"Guardado no padrão \"{_padrao.Nome}\"." : "Salve o padrão para lembrar das diferenças ignoradas.";
+            _resumo.Text = salvo ? $"Guardado no perfil \"{_padrao.Nome}\"." : "Salve o perfil para lembrar das diferenças ignoradas.";
         }
 
         private void Selecionar(List<LinhaConfronto> linhas)

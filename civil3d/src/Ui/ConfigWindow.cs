@@ -72,11 +72,11 @@ namespace MetroSP.Ui
             var toolbar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(toolbar, Dock.Top);
             if (somenteProjeto) toolbar.Visibility = Visibility.Collapsed;
-            toolbar.Children.Add(Tool("Adicionar padrões…", "Abre a janela Padrões, onde se trazem os arquivos de configuração IFC (e os outros padrões): arraste ou escolha os arquivos.", (s, e) => AbrirPadroes()));
+            toolbar.Children.Add(Tool("Adicionar perfis…", "Abre a janela Perfis, onde se trazem os arquivos de configuração IFC (e os outros perfis): arraste ou escolha os arquivos.", (s, e) => AbrirPadroes()));
             toolbar.Children.Add(Tool("Exportar…", "Grava todos os arquivos do perfil de exportação numa pasta.", (s, e) => ExportPackage()));
             if (Settings.Load().UsesForma)
                 toolbar.Children.Add(Tool("Baixar do Forma", "Troca o perfil de exportação pela versão mais recente do Forma.", async (s, e) => await DownloadFromForma()));
-            toolbar.Children.Add(Tool("Restaurar padrão", "Volta ao padrão MetroSP.", (s, e) => RestoreDefaults()));
+            toolbar.Children.Add(Tool("Restaurar perfil", "Volta ao perfil MetroSP.", (s, e) => RestoreDefaults()));
             body.Children.Add(toolbar);
             body.Children.Add(_tabs);
 
@@ -282,11 +282,11 @@ namespace MetroSP.Ui
 
         void RestoreDefaults()
         {
-            if (MessageBox.Show(this, "Trocar o perfil de exportação ativo pelo padrão MetroSP? Os arquivos atuais serão apagados " +
+            if (MessageBox.Show(this, "Trocar o perfil de exportação ativo pelo perfil MetroSP? Os arquivos atuais serão apagados " +
                                       "(exporte o perfil antes, se quiser guardar).", "MetroSP",
                     MessageBoxButton.OKCancel, MessageBoxImage.Warning) != MessageBoxResult.OK) return;
             ConfigPackage.RestoreDefaults();
-            ReloadEverything("Padrão MetroSP restaurado.");
+            ReloadEverything("Perfil MetroSP restaurado.");
         }
 
         // ================================================================== aba Mapeamento
@@ -317,6 +317,7 @@ namespace MetroSP.Ui
             var top = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(top, Dock.Top);
             _mappingSection = new ComboBox { Width = 150, Margin = new Thickness(0, 0, 8, 4) };
+            Theme.Digitavel(_mappingSection);
             foreach (var key in KnownSections.Union(_mapping.Where(kv => kv.Value is JsonArray).Select(kv => kv.Key)))
                 _mappingSection.Items.Add(new ComboBoxItem { Content = SectionLabels.TryGetValue(key, out var l) ? l : key, Tag = key, ToolTip = key });
             _mappingSection.SelectionChanged += (s, e) => SwitchSection((_mappingSection.SelectedItem as ComboBoxItem)?.Tag as string);
@@ -337,7 +338,7 @@ namespace MetroSP.Ui
             top.Children.Add(SymbolButton("↑", "Sobe a regra da linha selecionada (a de cima vale primeiro)", (s, e) => MoverRegra(-1)));
             top.Children.Add(SymbolButton("↓", "Desce a regra da linha selecionada", (s, e) => MoverRegra(+1)));
             top.Children.Add(SymbolButton("+", "Nova regra (nome ou expressão regular, ex.: ^U-3D-)", (s, e) => NovaRegra()));
-            top.Children.Add(SymbolButton("✕", "Exclui do padrão a regra das linhas selecionadas", (s, e) => ExcluirRegras()));
+            top.Children.Add(SymbolButton("✕", "Exclui do perfil a regra das linhas selecionadas", (s, e) => ExcluirRegras()));
             _soUsados = new CheckBox
             {
                 Content = "Só usados no modelo", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 4),
@@ -388,7 +389,7 @@ namespace MetroSP.Ui
             var linha = new Style(typeof(DataGridRow), _lista.Grid.RowStyle);
             var sem = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.SemRegra)), Value = true };
             sem.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
-            sem.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Nenhuma regra do padrão pega este nome: sai com a classe que a Autodesk escolher."));
+            sem.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Nenhuma regra do perfil pega este nome: sai com a classe que a Autodesk escolher."));
             linha.Triggers.Add(sem);
             var fora = new DataTrigger { Binding = new Binding(nameof(LinhaClasse.Exportar)), Value = false };
             fora.Setters.Add(new Setter(Control.ForegroundProperty, Theme.Solid(Theme.Cinza)));
@@ -452,7 +453,7 @@ namespace MetroSP.Ui
             var usados = _linhas.Where(l => l.Item != null && l.Item.Objetos > 0).ToList();
             int sem = usados.Count(l => l.SemRegra);
             int soPadrao = _linhas.Count(l => l.SoPadrao);
-            _resumoLista.Text = $"{usados.Count} {palavra.Varios} com objetos no modelo · {sem} sem regra · {soPadrao} regra(s) só no padrão";
+            _resumoLista.Text = $"{usados.Count} {palavra.Varios} com objetos no modelo · {sem} sem regra · {soPadrao} regra(s) só no perfil";
         }
 
         /// <summary>Linhas selecionadas, com aviso se não houver.</summary>
@@ -542,10 +543,10 @@ namespace MetroSP.Ui
 
         void ExcluirRegras()
         {
-            var regras = Selecionadas("cuja regra sai do padrão").Select(l => l.RegraObj).Where(r => r != null).Distinct().ToList();
+            var regras = Selecionadas("cuja regra sai do perfil").Select(l => l.RegraObj).Where(r => r != null).Distinct().ToList();
             if (regras.Count == 0) return;
             int afetados = _linhas.Count(l => l.Item != null && regras.Contains(l.RegraObj));
-            if (MessageBox.Show(this, $"Excluir {regras.Count} regra(s) do padrão?" + (afetados > 0 ? $" {afetados} {ConteudoDesenho.Palavra(_currentSection).Varios} do modelo deixam de segui-la(s)." : ""),
+            if (MessageBox.Show(this, $"Excluir {regras.Count} regra(s) do perfil?" + (afetados > 0 ? $" {afetados} {ConteudoDesenho.Palavra(_currentSection).Varios} do modelo deixam de segui-la(s)." : ""),
                     "MetroSP", MessageBoxButton.OKCancel, MessageBoxImage.Question) != MessageBoxResult.OK) return;
             foreach (var r in regras) _mappingRows.Remove(r);
             Recalcular();
@@ -1142,7 +1143,7 @@ namespace MetroSP.Ui
 
         public string Chave => Item != null ? "m:" + Item.Nome : "r:" + RegraObj?.Name;
         public string Nome => Item?.Nome ?? RegraObj?.Name;
-        public string Onde => Item == null ? (SoPadrao ? "só no padrão" : "no padrão") : RegraObj == null ? "só no modelo" : "padrão e modelo";
+        public string Onde => Item == null ? (SoPadrao ? "só no perfil" : "no perfil") : RegraObj == null ? "só no modelo" : "perfil e modelo";
         public string Objetos => Item == null ? "—" : Item.Objetos.ToString("N0", CultureInfo.GetCultureInfo("pt-BR"));
         public int ObjetosNum => Item?.Objetos ?? -1;
         public string Classe => RegraObj == null ? "(classe da Autodesk)" : string.IsNullOrWhiteSpace(RegraObj.IfcExportAs) ? "(classe da Autodesk)" : RegraObj.IfcExportAs;

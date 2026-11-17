@@ -56,7 +56,7 @@ namespace MetroSP
                 SplitMenu(
                     Button("Entrega\npasso a passo", "Passo1", "MSP_ENTREGA",
                         "Por onde começar. Janela única da entrega: as etapas em cima, com setinhas (verde = pronta, laranja = pendências), " +
-                        "e embaixo o que falta em cada etapa, com os botões que resolvem e a ferramenta da etapa (Padrões, Classes IFC, " +
+                        "e embaixo o que falta em cada etapa, com os botões que resolvem e a ferramenta da etapa (Perfis, Classes IFC, " +
                         "Property sets, MetroDATA, Classificação, Alinhamentos, Exportar). Na setinha: o Painel MetroSP, ao lado do modelo."),
                     Button("Entrega passo a passo", "Passo1", "MSP_ENTREGA", "Janela única da entrega, com as etapas e o que falta em cada uma."),
                     Button("Painel ao lado do modelo", "Conferir", "MSP_PAINEL",
@@ -66,7 +66,7 @@ namespace MetroSP
 
             tab.Panels.Add(Panel("Ferramentas",
                 Button("Classificação", "ClassVerificar", "MSP_CLASSVERIFICAR",
-                    "Confere as classificações dos objetos com as planilhas do padrão. Cada linha tem a ação para corrigir."),
+                    "Confere as classificações dos objetos com as planilhas do perfil. Cada linha tem a ação para corrigir."),
                 SplitMenu(
                     Button("Dados", "PropertySets", "MSP_PSETS",
                         "Clique: Property sets (nome, propriedades, tipos e objetos; importa de planilha, leva ao IFC e anexa aos objetos). " +
@@ -82,12 +82,12 @@ namespace MetroSP
             // O que o coordenador BIM prepara uma vez e distribui, no fim da aba: Padrões, com o resto na setinha.
             tab.Panels.Add(Panel("Coordenação",
                 SplitMenu(
-                    Button("Padrões", "Padroes", "MSP_PADROES",
-                        "Adicionar, editar e excluir padrões: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC " +
+                    Button("Perfis", "Padroes", "MSP_PADROES",
+                        "Adicionar, editar e excluir perfis: classificação, confronto, dados do projeto, corrigir escrita e configuração IFC " +
                         "(mapeamento, propriedades e opções MetroSP). Arraste os arquivos para a janela; o tipo é reconhecido sozinho. " +
                         "Também troca a planilha de todos de uma vez e leva tudo para a equipe num .zip. " +
                         "Na setinha: Configurar IFC, Exportador e Forma."),
-                    Button("Padrões", "Padroes", "MSP_PADROES", "Adicionar, editar e excluir padrões e levar tudo para a equipe num .zip."),
+                    Button("Perfis", "Padroes", "MSP_PADROES", "Adicionar, editar e excluir perfis e levar tudo para a equipe num .zip."),
                     Button("Configurar IFC", "IfcConfigurar", "MSP_IFCCONFIG", "Classes IFC, propriedades, projeto, alinhamento e opções avançadas do perfil de exportação."),
                     Button("Exportador", "IfcAtualizar", "MSP_IFCEXTENSAO", "Versão da IFC 4.3 Extension da Autodesk, atualizações e a pasta dos arquivos de configuração do desenho."),
                     Button("Forma", "IfcSincronizar", "MSP_FORMA", "Autodesk Forma: entrar, sair, sincronizar a configuração IFC e a conta (Client ID, projeto e pasta)."))));
@@ -105,7 +105,7 @@ namespace MetroSP
             var alinhamentos = Button("Só os alinhamentos", "Alinhamento3D", "MSP_IFCALINHAMENTO", "IFC separado, só com os alinhamentos 3D.");
             var projeto = Button("Projeto e Local", "Passo2", "MSP_IFCPROJETO",
                 "Preenche o IfcProject, o IfcSite, as instalações (a linha como IfcRailway e cada estação como IfcBuilding) " +
-                "e o Pset MetroSP_Projeto. Os dados podem ser salvos como padrão e usados em outros desenhos, também no Revit.");
+                "e o Pset MetroSP_Projeto. Os dados podem ser salvos como perfil e usados em outros desenhos, também no Revit.");
             foreach (var b in new[] { selecao, alinhamentos, projeto })
             {
                 b.Size = RibbonItemSize.Standard;

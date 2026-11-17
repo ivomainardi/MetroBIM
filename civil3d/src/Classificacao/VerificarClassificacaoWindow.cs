@@ -60,14 +60,15 @@ namespace MetroSP.Classificacao
 
             // Padrão
             var linhaPadrao = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
-            var rotPadrao = Theme.Rotulo("Padrão");
+            var rotPadrao = Theme.Rotulo("Perfil");
             DockPanel.SetDock(rotPadrao, Dock.Left);
             linhaPadrao.Children.Add(rotPadrao);
             _padraoCombo = new ComboBox { MinWidth = 220, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Conjunto de classificações a conferir, com a planilha de cada uma." };
-            _padraoCombo.SelectionChanged += (s, e) => { if (!_trocandoPadrao) UsarPadrao(_padraoCombo.SelectedItem as PadraoClassificacao); };
+            Theme.Digitavel(_padraoCombo);
+            _padraoCombo.SelectionChanged += (s, e) => { if (!_trocandoPadrao && _padraoCombo.SelectedItem is PadraoClassificacao p) UsarPadrao(p); };
             DockPanel.SetDock(_padraoCombo, Dock.Left);
             linhaPadrao.Children.Add(_padraoCombo);
-            var editar = new Button { Content = "Editar padrões...", ToolTip = "Criar ou mudar padrões: classificações, property sets e as colunas da planilha." };
+            var editar = new Button { Content = "Editar perfis...", ToolTip = "Criar ou mudar perfis: classificações, property sets e as colunas da planilha." };
             editar.Click += (s, e) => EditarPadroes();
             DockPanel.SetDock(editar, Dock.Left);
             linhaPadrao.Children.Add(editar);
@@ -77,7 +78,7 @@ namespace MetroSP.Classificacao
                 Style = Theme.PrimaryButton,
                 Margin = new Thickness(8, 0, 0, 0),
                 Visibility = System.Windows.Visibility.Collapsed,
-                ToolTip = "Abre a planilha (.xlsx ou .csv) com a lista de classificação. As colunas são sugeridas pelos títulos; dá para mudar em \"Editar padrões...\".",
+                ToolTip = "Abre a planilha (.xlsx ou .csv) com a lista de classificação. As colunas são sugeridas pelos títulos; dá para mudar em \"Editar perfis...\".",
             };
             _escolherPlanilha.Click += (s, e) => EscolherPlanilha();
             DockPanel.SetDock(_escolherPlanilha, Dock.Left);
@@ -106,7 +107,7 @@ namespace MetroSP.Classificacao
             };
             _incluirInseguras.Click += (s, e) => AtualizarRodape();
             _areaTabela = new DockPanel();
-            _areaTabela.Children.Add(new TextBlock { Text = "Escolha o padrão e clique em \"Verificar\".", Foreground = Theme.Solid(Theme.Cinza) });
+            _areaTabela.Children.Add(new TextBlock { Text = "Escolha o perfil e clique em \"Verificar\".", Foreground = Theme.Solid(Theme.Cinza) });
 
             var corpo = new DockPanel();
             foreach (UIElement el in new UIElement[] { linhaPadrao, barra, _resumo, _incluirInseguras })
@@ -135,7 +136,7 @@ namespace MetroSP.Classificacao
             rodape.Children.Add(botoes);
             rodape.Children.Add(_rodapeInfo);
 
-            Theme.Apply(this, "Verificar classificação", Path.GetFileName(doc.Name) + " · confere as classificações com as planilhas do padrão", corpo, rodape);
+            Theme.Apply(this, "Verificar classificação", Path.GetFileName(doc.Name) + " · confere as classificações com as planilhas do perfil", corpo, rodape);
             CarregarPadroes(_ultimoPadrao);
         }
 
@@ -213,7 +214,7 @@ namespace MetroSP.Classificacao
             var sistemas = _padrao?.Sistemas.Where(x => x.Lista != null && x.Lista.Itens.Count > 0).ToList() ?? new List<SistemaClassificacao>();
             if (sistemas.Count == 0)
             {
-                MessageBox.Show(this, "Nenhuma classificação do padrão tem a planilha lida. Clique em \"Editar padrões...\" e escolha a planilha e as colunas.", Title);
+                MessageBox.Show(this, "Nenhuma classificação do perfil tem a planilha lida. Clique em \"Editar perfis...\" e escolha a planilha e as colunas.", Title);
                 return;
             }
             Cursor = Cursors.Wait;

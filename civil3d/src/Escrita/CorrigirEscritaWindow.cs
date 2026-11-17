@@ -111,20 +111,21 @@ namespace MetroSP.Escrita
 
             // ---- padrão e campos
             _padroes = new ComboBox { MinWidth = 200, Margin = new Thickness(0, 0, 8, 0), DisplayMemberPath = nameof(PadraoEscrita.Nome),
-                ToolTip = "O padrão guarda as regras ligadas, os termos que não mudam, as correções próprias e o que foi ignorado. Fica salvo sozinho." };
+                ToolTip = "O perfil guarda as regras ligadas, os termos que não mudam, as correções próprias e o que foi ignorado. Fica salvo sozinho." };
+            Theme.Digitavel(_padroes);
             var termos = new Button { Content = "Termos e correções...",
                 ToolTip = "Siglas, códigos e nomes que nunca mudam (PTL, Pr_20_30...) e as suas correções (\"errado = certo\")." };
-            var novo = Theme.Link("novo padrão");
+            var novo = Theme.Link("novo perfil");
             var excluir = Theme.Link("excluir");
             novo.Margin = new Thickness(12, 0, 0, 0);
             excluir.Margin = new Thickness(10, 0, 0, 0);
-            novo.ToolTip = "Cria um padrão a partir do atual, com outro nome (para outra equipe ou outro lote).";
+            novo.ToolTip = "Cria um perfil a partir do atual, com outro nome (para outra equipe ou outro lote).";
             _campo = new ComboBox { MinWidth = 260, IsEditable = true, IsTextSearchEnabled = true, StaysOpenOnEdit = true, Margin = new Thickness(0, 0, 8, 0),
                 ToolTip = "Procure em todos os campos de texto ou só em um (mais rápido em modelos grandes)." };
             TextSearch.SetTextPath(_campo, nameof(CampoConfronto.Rotulo));
             _campo.ItemsPanel = new ItemsPanelTemplate(new FrameworkElementFactory(typeof(VirtualizingStackPanel)));
             var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-            barra.Children.Add(Theme.Rotulo("Padrão"));
+            barra.Children.Add(Theme.Rotulo("Perfil"));
             barra.Children.Add(_padroes);
             barra.Children.Add(termos);
             barra.Children.Add(novo);
@@ -146,10 +147,10 @@ namespace MetroSP.Escrita
             _chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
             _corrigir = new Button { Content = "Corrigir", Style = Theme.PrimaryButton, IsEnabled = false,
                 ToolTip = "Grava a sugestão nas linhas selecionadas (Ctrl+A seleciona todas as visíveis). É uma operação só, que pode ser desfeita." };
-            _ignorar = new Button { Content = "Ignorar", IsEnabled = false, ToolTip = "O valor está certo assim: deixa de aparecer e fica guardado no padrão." };
+            _ignorar = new Button { Content = "Ignorar", IsEnabled = false, ToolTip = "O valor está certo assim: deixa de aparecer e fica guardado no perfil." };
             _desfazer = new Button { Content = "Voltar a conferir", IsEnabled = false, ToolTip = "Tira o \"Ignorar\" das linhas selecionadas." };
             _termo = new Button { Content = "Não mexer na palavra...", IsEnabled = false,
-                ToolTip = "Guarda as palavras que a correção mudou (sigla, código, nome próprio) como termos do padrão: elas não mudam mais em nenhum valor." };
+                ToolTip = "Guarda as palavras que a correção mudou (sigla, código, nome próprio) como termos do perfil: elas não mudam mais em nenhum valor." };
             _selecionar = new Button { Content = "Selecionar no modelo", IsEnabled = false, ToolTip = $"Seleciona e mostra os {_fonte.Termo}s das linhas selecionadas (ou de todas as visíveis)." };
             _verResolvidos = new CheckBox { Content = "Mostrar ignorados e corrigidos", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
             var acoes = new WrapPanel { Margin = new Thickness(0, 0, 0, 6) };
@@ -231,7 +232,7 @@ namespace MetroSP.Escrita
         private void Guardar()
         {
             try { PadroesEscrita.Salvar(_padrao); }
-            catch (Exception ex) { _resumo.Text = "Não foi possível salvar o padrão: " + ex.Message; }
+            catch (Exception ex) { _resumo.Text = "Não foi possível salvar o perfil: " + ex.Message; }
         }
 
         private void Novo()
@@ -239,18 +240,18 @@ namespace MetroSP.Escrita
             string nome = PedirNome(_padrao.Nome + " (cópia)");
             if (string.IsNullOrWhiteSpace(nome)) return;
             if (File.Exists(PadroesEscrita.Caminho(nome)) &&
-                MessageBox.Show(this, $"Já existe o padrão \"{nome}\". Substituir?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+                MessageBox.Show(this, $"Já existe o perfil \"{nome}\". Substituir?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             PadraoEscrita p = _padrao.Copia();
             p.Nome = nome;
             try { PadroesEscrita.Salvar(p); }
-            catch (Exception ex) { MessageBox.Show(this, "Não foi possível salvar o padrão:\n" + ex.Message, Title); return; }
+            catch (Exception ex) { MessageBox.Show(this, "Não foi possível salvar o perfil:\n" + ex.Message, Title); return; }
             ListarPadroes(nome);
         }
 
         private void Excluir()
         {
-            if (_padroes.Items.Count <= 1) { _resumo.Text = "É preciso ter pelo menos um padrão."; return; }
-            if (MessageBox.Show(this, $"Excluir o padrão \"{_padrao.Nome}\"?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
+            if (_padroes.Items.Count <= 1) { _resumo.Text = "É preciso ter pelo menos um perfil."; return; }
+            if (MessageBox.Show(this, $"Excluir o perfil \"{_padrao.Nome}\"?", Title, MessageBoxButton.YesNo) != MessageBoxResult.Yes) return;
             try { PadroesEscrita.Excluir(_padrao.Nome); } catch (Exception ex) { _resumo.Text = "Não foi possível excluir: " + ex.Message; return; }
             _padrao = null;
             ListarPadroes(null);
@@ -258,16 +259,16 @@ namespace MetroSP.Escrita
 
         private string PedirNome(string sugestao)
         {
-            var w = new Window { Title = "MetroSP - Nome do padrão", Owner = this, Width = 420, SizeToContent = SizeToContent.Height,
+            var w = new Window { Title = "MetroSP - Nome do perfil", Owner = this, Width = 420, SizeToContent = SizeToContent.Height,
                 ResizeMode = ResizeMode.CanResizeWithGrip, WindowStartupLocation = WindowStartupLocation.CenterOwner };
             var caixa = new TextBox { Text = sugestao ?? "", Padding = new Thickness(4, 3, 4, 3) };
             var ok = new Button { Content = "Criar", Style = Theme.PrimaryButton, IsDefault = true };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             ok.Click += (s, e) => { w.DialogResult = caixa.Text.Trim().Length > 0; };
             var corpo = new StackPanel();
-            corpo.Children.Add(Theme.Secao("Nome do padrão"));
+            corpo.Children.Add(Theme.Secao("Nome do perfil"));
             corpo.Children.Add(caixa);
-            Theme.Apply(w, "Novo padrão", "Ex.: Metrô Linha 2, Lote 3", corpo, Theme.Rodape(null, ok, cancelar));
+            Theme.Apply(w, "Novo perfil", "Ex.: Metrô Linha 2, Lote 3", corpo, Theme.Rodape(null, ok, cancelar));
             w.Loaded += (s, e) => { caixa.Focus(); caixa.SelectAll(); };
             return w.ShowDialog() == true ? caixa.Text.Trim() : null;
         }
@@ -302,7 +303,7 @@ namespace MetroSP.Escrita
             var ok = new Button { Content = "Salvar", Style = Theme.PrimaryButton };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             ok.Click += (s, e) => w.DialogResult = true;
-            Theme.Apply(w, "Termos e correções", "Padrão \"" + p.Nome + "\" · passe o mouse nos títulos para ver exemplos", grade, Theme.Rodape(null, ok, cancelar));
+            Theme.Apply(w, "Termos e correções", "Perfil \"" + p.Nome + "\" · passe o mouse nos títulos para ver exemplos", grade, Theme.Rodape(null, ok, cancelar));
             if (w.ShowDialog() != true) return false;
             List<string> Linhas(TextBox t) => t.Text.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
                 .Select(l => l.Trim()).Where(l => l.Length > 0).Distinct(StringComparer.CurrentCultureIgnoreCase).ToList();
@@ -316,7 +317,7 @@ namespace MetroSP.Escrita
         {
             PadraoEscrita p;
             try { p = PadroesEscrita.Ler(arquivo); }
-            catch (Exception ex) { MessageBox.Show(dono, "Este arquivo não é um padrão de escrita:\n" + ex.Message, "MetroSP"); return; }
+            catch (Exception ex) { MessageBox.Show(dono, "Este arquivo não é um perfil de escrita:\n" + ex.Message, "MetroSP"); return; }
             if (string.IsNullOrWhiteSpace(p.Nome)) p.Nome = Path.GetFileNameWithoutExtension(arquivo);
             if (!EditarPadrao(dono, p)) return;
             try { PadroesEscrita.Gravar(arquivo, p); }
@@ -412,7 +413,7 @@ namespace MetroSP.Escrita
                 l.Sugestao = r.Sugestao;
             }
             MostrarResultado();
-            _resumo.Text = "Sugestões refeitas com os termos e as correções do padrão.";
+            _resumo.Text = "Sugestões refeitas com os termos e as correções do perfil.";
         }
 
         private bool Resolvida(LinhaEscrita l) => l.Situacao == LinhaEscrita.Ignorado || l.Situacao == LinhaEscrita.Corrigido;
@@ -574,7 +575,7 @@ namespace MetroSP.Escrita
             _tabela.Grid.Items.Refresh();
             _tabela.Refresh();
             Contar();
-            _resumo.Text = $"Guardado no padrão \"{_padrao.Nome}\".";
+            _resumo.Text = $"Guardado no perfil \"{_padrao.Nome}\".";
         }
 
         private void NaoMexer()
@@ -583,7 +584,7 @@ namespace MetroSP.Escrita
                 .Distinct(StringComparer.CurrentCultureIgnoreCase).ToList();
             if (palavras.Count == 0) return;
             string lista = string.Join(", ", palavras.Take(20)) + (palavras.Count > 20 ? "..." : "");
-            if (MessageBox.Show(this, $"Guardar como termos do padrão \"{_padrao.Nome}\"?\n\n{lista}\n\nEssas palavras não mudam mais em nenhum valor.",
+            if (MessageBox.Show(this, $"Guardar como termos do perfil \"{_padrao.Nome}\"?\n\n{lista}\n\nEssas palavras não mudam mais em nenhum valor.",
                     Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             foreach (string p in palavras)
                 if (!_padrao.Termos.Contains(p, StringComparer.CurrentCultureIgnoreCase)) _padrao.Termos.Add(p);

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -472,6 +473,53 @@ namespace MetroSP.Ui
             grid.Resources[SystemColors.HighlightTextBrushKey] = Solid(Preto);
             grid.Resources[SystemColors.InactiveSelectionHighlightBrushKey] = Solid(LaranjaClaro);
             grid.Resources[SystemColors.InactiveSelectionHighlightTextBrushKey] = Solid(Preto);
+        }
+    
+        /// <summary>
+        /// Lista suspensa em que também dá para digitar: o texto filtra a lista (parte do nome, sem diferenciar
+        /// maiúsculas) e, ao sair, vale o item com aquele nome ou volta o último escolhido. Regra de todas as telas.
+        /// </summary>
+        public static ComboBox Digitavel(ComboBox c)
+        {
+            c.IsEditable = true;
+            c.IsTextSearchEnabled = false;
+            c.StaysOpenOnEdit = true;
+            object ultimo = null;
+            string Texto(object o)
+            {
+                if (o is ComboBoxItem ci) return ci.Content?.ToString() ?? "";
+                if (o != null && !string.IsNullOrEmpty(c.DisplayMemberPath))
+                    return o.GetType().GetProperty(c.DisplayMemberPath)?.GetValue(o)?.ToString() ?? "";
+                return o?.ToString() ?? "";
+            }
+            if (c.Items.Count > 0 && c.ItemsSource == null)
+                foreach (var ci in c.Items.OfType<ComboBoxItem>()) TextSearch.SetText(ci, ci.Content?.ToString() ?? "");
+            c.SelectionChanged += (s, e) => { if (c.SelectedItem != null) ultimo = c.SelectedItem; };
+            c.Loaded += (s, e) =>
+            {
+                if (!(c.Template.FindName("PART_EditableTextBox", c) is TextBox tb) || tb.Tag as string == "digitavel") return;
+                tb.Tag = "digitavel";
+                tb.TextChanged += (s2, e2) =>
+                {
+                    if (!c.IsKeyboardFocusWithin) return;
+                    if (c.SelectedItem != null && Texto(c.SelectedItem) == tb.Text) return;
+                    var f = tb.Text.Trim();
+                    c.Items.Filter = f.Length == 0 ? null : (Predicate<object>)(o => Texto(o).IndexOf(f, StringComparison.CurrentCultureIgnoreCase) >= 0);
+                    if (!c.IsDropDownOpen) c.IsDropDownOpen = true;
+                    tb.SelectionStart = tb.Text.Length;
+                };
+            };
+            c.LostKeyboardFocus += (s, e) =>
+            {
+                if (c.IsKeyboardFocusWithin) return;
+                var texto = c.Text?.Trim() ?? "";
+                c.Items.Filter = null;
+                var exato = c.Items.Cast<object>().FirstOrDefault(o => Texto(o).Equals(texto, StringComparison.CurrentCultureIgnoreCase));
+                var alvo = exato ?? ultimo;
+                if (alvo != null && !Equals(c.SelectedItem, alvo)) c.SelectedItem = alvo;
+                c.Text = alvo != null ? Texto(alvo) : "";
+            };
+            return c;
         }
     }
 }

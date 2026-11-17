@@ -628,7 +628,7 @@ namespace MetroSP.Entrega
 
             // ---- perfil de exportação
             p.Children.Add(Titulo("Perfil de exportação"));
-            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Sincronizado com o Autodesk Forma" : "Local (padrão MetroSP ou importado)"));
+            p.Children.Add(Theme.Detalhe(cfg.UsesForma ? "Sincronizado com o Autodesk Forma" : "Local (perfil MetroSP ou importado)"));
             var botoes = new WrapPanel { Margin = new Thickness(0, 6, 0, 0) };
             var config = Pilula("Editar perfil...");
             config.ToolTip = "Classes IFC, propriedades, alinhamento e opções avançadas do perfil de exportação.";
@@ -654,7 +654,7 @@ namespace MetroSP.Entrega
             p.Children.Add(botoes);
 
             // ---- padrões em uso
-            p.Children.Add(Titulo("Padrões em uso", 18));
+            p.Children.Add(Titulo("Perfis em uso", 18));
             var grade = new Grid();
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -663,7 +663,7 @@ namespace MetroSP.Entrega
             grade.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             void Celula(UIElement el, int l, int c) { Grid.SetRow(el, l); Grid.SetColumn(el, c); grade.Children.Add(el); }
             grade.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            string[] cab = { "", "Padrão", "Arquivo", "O que traz", "Passo" };
+            string[] cab = { "", "Perfil", "Arquivo", "O que traz", "Passo" };
             for (int c = 1; c < cab.Length; c++)
                 Celula(new TextBlock { Text = cab[c], FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 14, 4) }, 0, c);
 
@@ -772,10 +772,10 @@ namespace MetroSP.Entrega
             Numero(Ifc.IfcCatalog.Label(versao).Replace(" (IFC4X3_ADD2)", ""), "esquema", "Versão do IFC nas configurações do exportador.");
             p.Children.Add(numeros);
 
-            var adicionar = Pilula("Adicionar padrões...", primario: true);
+            var adicionar = Pilula("Adicionar perfis...", primario: true);
             adicionar.HorizontalAlignment = HorizontalAlignment.Left;
             adicionar.Margin = new Thickness(0, 16, 0, 0);
-            adicionar.ToolTip = "Abre a janela Padrões: arraste ou escolha os arquivos (configuração IFC, classificação, escrita, confronto).";
+            adicionar.ToolTip = "Abre a janela Perfis: arraste ou escolha os arquivos (configuração IFC, classificação, escrita, confronto).";
             adicionar.Click += (s, e) =>
             {
                 new Padroes.GerenciarPadroesWindow(Padroes.PadroesCommands.Tipos(_doc), "Civil 3D") { Owner = this }.ShowDialog();

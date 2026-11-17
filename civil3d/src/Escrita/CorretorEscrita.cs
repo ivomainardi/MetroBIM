@@ -174,8 +174,8 @@ namespace MetroSP.Escrita
             },
             new RegraEscrita
             {
-                Id = Correcoes, Nome = "Correções do padrão",
-                Dica = "As correções que você cadastrou no padrão (\"errado = certo\"), palavra inteira, mantendo maiúsculas.",
+                Id = Correcoes, Nome = "Correções do perfil",
+                Dica = "As correções que você cadastrou no perfil (\"errado = certo\"), palavra inteira, mantendo maiúsculas.",
                 Aplicar = (s, c) => c.TrocarPalavras(s, c._correcoes),
             },
             new RegraEscrita
@@ -184,7 +184,7 @@ namespace MetroSP.Escrita
                 Dica = "Palavras sem acento ou com acento a mais: \"estacao\" → \"estação\", \"nivel\" → \"nível\", " +
                        "\"eletrica\" → \"elétrica\", \"idéia\" → \"ideia\", \"freqüência\" → \"frequência\". " +
                        "Usa uma lista de palavras de projeto e as terminações certas (-ção, -ões, -ência, -ável, -ário, -ógico...). " +
-                       "Siglas e códigos que não devem mudar vão nos termos do padrão.",
+                       "Siglas e códigos que não devem mudar vão nos termos do perfil.",
                 Aplicar = (s, c) => c.Acentuar(s),
             },
             new RegraEscrita

@@ -31,7 +31,7 @@ namespace MetroSP.Padroes
         {
             _tipos = tipos;
             _programa = programa;
-            Title = "MetroSP - Padrões";
+            Title = "MetroSP - Perfis";
             Width = 1000;
             Height = 600;
             MinWidth = 640;
@@ -63,13 +63,13 @@ namespace MetroSP.Padroes
 
             List<string> extensoes = GerenciadorPadroes.ExtensoesAceitas(_tipos);
             string tiposAceitos = string.Join(", ", _tipos.Where(t => t.Reconhece != null).Select(t => t.Nome)) + " e pacotes .zip";
-            Button adicionar = Botao("Adicionar padrões...", "Traz arquivos de padrão para este computador: " + tiposAceitos +
+            Button adicionar = Botao("Adicionar perfis...", "Traz arquivos de perfil para este computador: " + tiposAceitos +
                 ". O tipo de cada arquivo é reconhecido sozinho e você confere antes de gravar. Também dá para arrastar os arquivos para a janela.", Escolher);
             adicionar.Style = Theme.PrimaryButton;
-            _editar = Botao("Editar...", "Abre o padrão no editor da ferramenta (duplo clique também).", Editar);
-            _excluir = Botao("Excluir", "Apaga os padrões selecionados deste computador. As planilhas não são apagadas.", Excluir);
-            _pastaPadrao = Botao("Abrir pasta", "Mostra o arquivo do padrão no Explorer.", () => Mostrar(Selecionados().First().Arquivo));
-            Button exportar = Botao("Exportar pacote...", "Grava os padrões selecionados (ou todos, se nada estiver selecionado) num .zip para a equipe, com as planilhas que eles usam.", Exportar);
+            _editar = Botao("Editar...", "Abre o perfil no editor da ferramenta (duplo clique também).", Editar);
+            _excluir = Botao("Excluir", "Apaga os perfis selecionados deste computador. As planilhas não são apagadas.", Excluir);
+            _pastaPadrao = Botao("Abrir pasta", "Mostra o arquivo do perfil no Explorer.", () => Mostrar(Selecionados().First().Arquivo));
+            Button exportar = Botao("Exportar pacote...", "Grava os perfis selecionados (ou todos, se nada estiver selecionado) num .zip para a equipe, com as planilhas que eles usam.", Exportar);
             var barraPadroes = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             foreach (Button b in new[] { adicionar, _editar, _excluir, _pastaPadrao, exportar }) { b.Margin = new Thickness(0, 0, 8, 4); barraPadroes.Children.Add(b); }
 
@@ -81,12 +81,12 @@ namespace MetroSP.Padroes
                 Background = Theme.Solid(Color.FromRgb(0xFC, 0xFC, 0xFC)),
                 Padding = new Thickness(10, 8, 10, 8),
                 Margin = new Thickness(0, 0, 0, 8),
-                ToolTip = "Reconhece: " + tiposAceitos + ". Planilhas (.xlsx, .csv) não são padrões: troque a planilha de um padrão na aba Planilhas.",
+                ToolTip = "Reconhece: " + tiposAceitos + ". Planilhas (.xlsx, .csv) não são perfis: troque a planilha de um perfil na aba Planilhas.",
             };
             var linhaSolta = new WrapPanel { HorizontalAlignment = HorizontalAlignment.Center };
             linhaSolta.Children.Add(new TextBlock
             {
-                Text = "Arraste aqui novos padrões (" + string.Join(", ", extensoes) + ") ou ",
+                Text = "Arraste aqui novos perfis (" + string.Join(", ", extensoes) + ") ou ",
                 Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center,
             });
             Button escolher = Theme.Link("escolha os arquivos...");
@@ -117,7 +117,7 @@ namespace MetroSP.Padroes
             _gridPlanilhas.Grid.MouseDoubleClick += (s, e) => { if (_abrirPlanilha.IsEnabled) AbrirPlanilha(); };
 
             _abrirPlanilha = Botao("Abrir planilha", "Abre a planilha no Excel (duplo clique também).", AbrirPlanilha);
-            _trocar = Botao("Trocar planilha...", "A planilha mudou de lugar ou de nome? Escolha a nova e todos os padrões que usam esta passam a usar a nova.", Trocar);
+            _trocar = Botao("Trocar planilha...", "A planilha mudou de lugar ou de nome? Escolha a nova e todos os perfis que usam esta passam a usar a nova.", Trocar);
             _pastaPlanilha = Botao("Abrir pasta", "Mostra a planilha no Explorer.", () => Mostrar(PlanilhaSelecionada().Caminho));
             var barraPlanilhas = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
             foreach (Button b in new[] { _abrirPlanilha, _trocar, _pastaPlanilha }) { b.Margin = new Thickness(0, 0, 8, 4); barraPlanilhas.Children.Add(b); }
@@ -127,8 +127,8 @@ namespace MetroSP.Padroes
             abaPlanilhas.Children.Add(_gridPlanilhas);
 
             _abas = new TabControl();
-            _abas.Items.Add(new TabItem { Header = "Padrões", Content = abaPadroes, ToolTip = "Os padrões salvos pelas ferramentas neste computador." });
-            _abas.Items.Add(new TabItem { Header = "Planilhas", Content = abaPlanilhas, ToolTip = "As planilhas que os padrões usam. Em laranja, as que não estão mais no lugar." });
+            _abas.Items.Add(new TabItem { Header = "Perfis", Content = abaPadroes, ToolTip = "Os perfis salvos pelas ferramentas neste computador." });
+            _abas.Items.Add(new TabItem { Header = "Planilhas", Content = abaPlanilhas, ToolTip = "As planilhas que os perfis usam. Em laranja, as que não estão mais no lugar." });
             _abas.SelectionChanged += (s, e) => { if (e.Source == _abas) Atualizar(); };
 
             _resumo = new TextBlock { VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
@@ -141,8 +141,8 @@ namespace MetroSP.Padroes
             rodape.Children.Add(_resumo);
 
             string ondeCriar = string.Join("; ", _tipos.Where(t => !string.IsNullOrEmpty(t.Ferramenta)).Select(t => $"{t.Nome}: {t.Ferramenta}"));
-            Theme.Apply(this, "Padrões",
-                "Adicione, reveja e exclua os padrões deste computador e leve para a equipe",
+            Theme.Apply(this, "Perfis",
+                "Adicione, reveja e exclua os perfis deste computador e leve para a equipe",
                 _abas, rodape);
             _abas.ToolTip = string.IsNullOrEmpty(ondeCriar) ? null : "Onde se cria cada tipo: " + ondeCriar;
             Recarregar();
@@ -181,7 +181,7 @@ namespace MetroSP.Padroes
             List<ItemPadrao> sel = Selecionados();
             _editar.IsEnabled = sel.Count == 1 && sel[0].Tipo.Editar != null;
             _editar.ToolTip = sel.Count == 1 && sel[0].Tipo.Editar == null && !string.IsNullOrEmpty(sel[0].Tipo.Ferramenta)
-                ? $"Este tipo se edita em {sel[0].Tipo.Ferramenta}." : "Abre o padrão no editor da ferramenta (duplo clique também).";
+                ? $"Este tipo se edita em {sel[0].Tipo.Ferramenta}." : "Abre o perfil no editor da ferramenta (duplo clique também).";
             _excluir.IsEnabled = sel.Count > 0;
             _pastaPadrao.IsEnabled = sel.Count == 1;
             PlanilhaUsada p = PlanilhaSelecionada();
@@ -190,7 +190,7 @@ namespace MetroSP.Padroes
             _pastaPlanilha.IsEnabled = p != null && Directory.Exists(p.Pasta);
 
             int faltando = _planilhas.Count(x => !x.Existe);
-            _resumo.Text = $"{_itens.Count} padrão(ões) de {_itens.Select(i => i.Tipo).Distinct().Count()} tipo(s), {_planilhas.Count} planilha(s)" +
+            _resumo.Text = $"{_itens.Count} perfil(is) de {_itens.Select(i => i.Tipo).Distinct().Count()} tipo(s), {_planilhas.Count} planilha(s)" +
                 (faltando > 0 ? $", {faltando} não encontrada(s): use Trocar planilha na aba Planilhas." : ".");
         }
 
@@ -207,7 +207,7 @@ namespace MetroSP.Padroes
             List<ItemPadrao> sel = Selecionados();
             if (sel.Count == 0) return;
             string lista = string.Join("\n", sel.Take(10).Select(i => $"- {i.Tipo.Nome}: {i.Nome}")) + (sel.Count > 10 ? $"\n... e mais {sel.Count - 10}" : "");
-            if (MessageBox.Show(this, $"Apagar {sel.Count} padrão(ões) deste computador?\n\n{lista}\n\nDica: exporte um pacote antes, para ter cópia.",
+            if (MessageBox.Show(this, $"Apagar {sel.Count} perfil(is) deste computador?\n\n{lista}\n\nDica: exporte um pacote antes, para ter cópia.",
                     "MetroSP", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
             foreach (ItemPadrao i in sel) File.Delete(i.Arquivo);
             Recarregar();
@@ -217,16 +217,16 @@ namespace MetroSP.Padroes
         {
             List<ItemPadrao> sel = Selecionados();
             if (sel.Count == 0) sel = _gridPadroes.VisibleItems<ItemPadrao>().ToList();
-            if (sel.Count == 0) { MessageBox.Show(this, "Não há padrões para exportar.", "MetroSP"); return; }
+            if (sel.Count == 0) { MessageBox.Show(this, "Não há perfis para exportar.", "MetroSP"); return; }
             var d = new SaveFileDialog
             {
-                Title = $"Exportar {sel.Count} padrão(ões)",
-                Filter = "Pacote de padrões MetroSP (*.zip)|*.zip",
+                Title = $"Exportar {sel.Count} perfil(is)",
+                Filter = "Pacote de perfis MetroSP (*.zip)|*.zip",
                 FileName = $"Padroes MetroSP {_programa} {DateTime.Now:yyyy-MM-dd}.zip",
             };
             if (d.ShowDialog(this) != true) return;
             bool comPlanilhas = sel.Any(i => i.Planilhas.Count > 0) &&
-                MessageBox.Show(this, "Levar junto as planilhas que esses padrões usam?\n\nSim: quem importar já recebe as planilhas.\nNão: só os padrões; cada um aponta para a planilha no próprio computador.",
+                MessageBox.Show(this, "Levar junto as planilhas que esses perfis usam?\n\nSim: quem importar já recebe as planilhas.\nNão: só os perfis; cada um aponta para a planilha no próprio computador.",
                     "MetroSP", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
             string r = GerenciadorPadroes.ExportarPacote(sel, d.FileName, comPlanilhas, _programa);
             MessageBox.Show(this, r, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -238,9 +238,9 @@ namespace MetroSP.Padroes
             string filtro = string.Join(";", ext.Select(e => "*" + e));
             var d = new OpenFileDialog
             {
-                Title = "Adicionar padrões",
+                Title = "Adicionar perfis",
                 Multiselect = true,
-                Filter = $"Padrões MetroSP ({filtro})|{filtro}|Todos os arquivos (*.*)|*.*",
+                Filter = $"Perfis MetroSP ({filtro})|{filtro}|Todos os arquivos (*.*)|*.*",
             };
             if (d.ShowDialog(this) == true) Adicionar(d.FileNames);
         }
@@ -289,7 +289,7 @@ namespace MetroSP.Padroes
                         try { GerenciadorPadroes.Copiar(n.Arquivo, n.Escolhido); copiados++; }
                         catch (Exception ex) { erros.Add($"{Path.GetFileName(n.Arquivo)}: {ex.Message}"); }
                     }
-                    if (copiados > 0) resumos.Add($"{copiados} padrão(ões) adicionado(s).");
+                    if (copiados > 0) resumos.Add($"{copiados} perfil(is) adicionado(s).");
                     // Os que têm jeito próprio de entrar vão juntos, uma vez por ferramenta (ex.: todos os arquivos IFC numa janela só).
                     foreach (var g in novos.Where(x => x.Escolhido?.Trazer != null).GroupBy(x => x.Escolhido.Trazer))
                     {
@@ -313,7 +313,7 @@ namespace MetroSP.Padroes
         {
             var janela = new Window
             {
-                Title = "MetroSP - Adicionar padrões", Owner = this, Width = 760, SizeToContent = SizeToContent.Height, MaxHeight = 640,
+                Title = "MetroSP - Adicionar perfis", Owner = this, Width = 760, SizeToContent = SizeToContent.Height, MaxHeight = 640,
                 MinWidth = 480, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.CanResizeWithGrip,
             };
             var g = new Grid();
@@ -343,7 +343,7 @@ namespace MetroSP.Padroes
                     Color cor;
                     if (t == null)
                     {
-                        texto = n.Candidatos.Count == 0 ? "fica de fora: não é um padrão conhecido" : "fica de fora";
+                        texto = n.Candidatos.Count == 0 ? "fica de fora: não é um perfil conhecido" : "fica de fora";
                         cor = Theme.Cinza;
                     }
                     else if (t.Trazer != null) { texto = t.TrazerTexto ?? "segue para " + t.Ferramenta; cor = Theme.Cinza; validos++; }
@@ -361,7 +361,7 @@ namespace MetroSP.Padroes
                 }
                 ok.Content = validos == 1 ? "Adicionar 1" : $"Adicionar {validos}";
                 ok.IsEnabled = validos > 0;
-                resumo.Text = substitui == 0 ? $"{novos.Count} arquivo(s) escolhido(s)" : $"{substitui} substitui(em) padrões que já existem";
+                resumo.Text = substitui == 0 ? $"{novos.Count} arquivo(s) escolhido(s)" : $"{substitui} substitui(em) perfis que já existem";
                 resumo.Foreground = Theme.Solid(substitui == 0 ? Theme.Cinza : Theme.LaranjaTexto);
             }
 
@@ -384,7 +384,7 @@ namespace MetroSP.Padroes
             ok.Click += (s, e) => janela.DialogResult = true;
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             Atualizar();
-            Theme.Apply(janela, "Adicionar padrões", "Confira o tipo de cada arquivo antes de gravar",
+            Theme.Apply(janela, "Adicionar perfis", "Confira o tipo de cada arquivo antes de gravar",
                 new ScrollViewer { Content = g, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, Theme.Rodape(resumo, cancelar, ok));
             return janela.ShowDialog() == true;
         }
@@ -410,7 +410,7 @@ namespace MetroSP.Padroes
             if (d.ShowDialog(this) != true || GerenciadorPadroes.MesmoCaminho(d.FileName, p.Caminho)) return;
             int n = GerenciadorPadroes.TrocarPlanilha(_itens, p.Caminho, d.FileName);
             Recarregar();
-            MessageBox.Show(this, $"{n} padrão(ões) passaram a usar {Path.GetFileName(d.FileName)}.\nAs abas e colunas indicadas continuam as mesmas: confira se a nova planilha tem a mesma estrutura.",
+            MessageBox.Show(this, $"{n} perfil(is) passaram a usar {Path.GetFileName(d.FileName)}.\nAs abas e colunas indicadas continuam as mesmas: confira se a nova planilha tem a mesma estrutura.",
                 "MetroSP", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 

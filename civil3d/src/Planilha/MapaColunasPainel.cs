@@ -214,10 +214,11 @@ namespace MetroSP.Planilha
                 rotulo.Inlines.Add(new System.Windows.Documents.Run(c.Rotulo));
                 if (c.Obrigatorio) rotulo.Inlines.Add(new System.Windows.Documents.Run(" *") { Foreground = Theme.Solid(Theme.Laranja), FontWeight = FontWeights.Bold });
                 var combo = new ComboBox { Margin = new Thickness(0, 3, 0, 3), ToolTip = c.Dica };
+                Theme.Digitavel(combo);
                 string chave = c.Chave;
                 combo.SelectionChanged += (s, e) =>
                 {
-                    if (_carregando) return;
+                    if (_carregando || combo.SelectedItem == null) return;
                     Mapa.DefinirColuna(chave, (combo.SelectedItem as ComboBoxItem)?.Tag as string);
                     Atualizar();
                 };

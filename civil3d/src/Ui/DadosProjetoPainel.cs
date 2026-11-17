@@ -49,20 +49,21 @@ namespace MetroSP.Ui
 
             // ---------- Padrão: reaproveitar os dados do contrato em outros modelos ----------
             var barra = new DockPanel { Margin = new Thickness(0, 4, 0, 0) };
-            barra.Children.Add(Theme.Rotulo("Padrão"));
-            var salvar = Theme.Link("Salvar como padrão…");
+            barra.Children.Add(Theme.Rotulo("Perfil"));
+            var salvar = Theme.Link("Salvar como perfil…");
             salvar.Margin = new Thickness(12, 0, 0, 0);
             salvar.ToolTip = "Guarda estes dados (sem latitude/longitude) para usar em outros modelos do mesmo contrato, no Revit e no Civil 3D.";
             salvar.Click += (s, e) => SalvarPadrao();
             DockPanel.SetDock(salvar, Dock.Right);
             barra.Children.Add(salvar);
             var usar = new Button { Content = "Usar", Margin = new Thickness(8, 0, 0, 0), MinWidth = 64 };
-            usar.ToolTip = "Preenche com o padrão escolhido. Os campos vazios do padrão não apagam o que já está aqui.";
+            usar.ToolTip = "Preenche com o perfil escolhido. Os campos vazios do perfil não apagam o que já está aqui.";
             usar.Click += (s, e) => UsarPadrao();
             DockPanel.SetDock(usar, Dock.Right);
             barra.Children.Add(usar);
             _padroes = new ComboBox { MinWidth = 200, VerticalContentAlignment = VerticalAlignment.Center };
-            _padroes.ToolTip = "Padrões em " + DadosProjetoIfc.Pasta + ". Para adicionar ou levar à equipe: Coordenação › Padrões.";
+            Theme.Digitavel(_padroes);
+            _padroes.ToolTip = "Perfis em " + DadosProjetoIfc.Pasta + ". Para adicionar ou levar à equipe: Coordenação › Perfis.";
             barra.Children.Add(_padroes);
             Children.Add(barra);
             _infoPadrao = Theme.Detalhe();
@@ -163,7 +164,7 @@ namespace MetroSP.Ui
             _padroes.ItemsSource = nomes;
             _padroes.SelectedItem = escolher != null && nomes.Contains(escolher) ? escolher : nomes.FirstOrDefault();
             _padroes.IsEnabled = nomes.Count > 0;
-            _infoPadrao.Text = nomes.Count == 0 ? "Nenhum padrão salvo ainda. Preencha e use \"Salvar como padrão…\" para reaproveitar em outros modelos." : "";
+            _infoPadrao.Text = nomes.Count == 0 ? "Nenhum perfil salvo ainda. Preencha e use \"Salvar como perfil…\" para reaproveitar em outros modelos." : "";
             _infoPadrao.Visibility = nomes.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -174,7 +175,7 @@ namespace MetroSP.Ui
             try { padrao = DadosProjetoIfc.Carregar(nome); }
             catch (Exception ex)
             {
-                MessageBox.Show(Window.GetWindow(this), "Não foi possível ler o padrão:\n" + ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Window.GetWindow(this), "Não foi possível ler o perfil:\n" + ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
             DadosProjetoIfc d = Ler();
@@ -191,7 +192,7 @@ namespace MetroSP.Ui
             string nome = PedirNome(sugestao);
             if (nome == null) return;
             if (DadosProjetoIfc.Listar().Contains(DadosProjetoIfc.NomeValido(nome)) &&
-                MessageBox.Show(Window.GetWindow(this), $"Já existe o padrão \"{nome}\". Substituir?", "MetroSP", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
+                MessageBox.Show(Window.GetWindow(this), $"Já existe o perfil \"{nome}\". Substituir?", "MetroSP", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return;
             try
             {
@@ -200,21 +201,21 @@ namespace MetroSP.Ui
             }
             catch (Exception ex)
             {
-                MessageBox.Show(Window.GetWindow(this), "Não foi possível salvar o padrão:\n" + ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show(Window.GetWindow(this), "Não foi possível salvar o perfil:\n" + ex.Message, "MetroSP", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
         }
 
         private string PedirNome(string sugestao)
         {
-            var w = new Window { Title = "MetroSP - Nome do padrão", Owner = Window.GetWindow(this), Width = 420, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.CanResizeWithGrip };
+            var w = new Window { Title = "MetroSP - Nome do perfil", Owner = Window.GetWindow(this), Width = 420, SizeToContent = SizeToContent.Height, WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.CanResizeWithGrip };
             var caixa = new TextBox { Text = sugestao ?? "", Padding = new Thickness(4, 3, 4, 3) };
             var ok = new Button { Content = "Salvar", Style = Theme.PrimaryButton, IsDefault = true };
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             ok.Click += (s, e) => { w.DialogResult = caixa.Text.Trim().Length > 0; };
             var corpo = new StackPanel();
-            corpo.Children.Add(Theme.Secao("Nome do padrão"));
+            corpo.Children.Add(Theme.Secao("Nome do perfil"));
             corpo.Children.Add(caixa);
-            Theme.Apply(w, "Salvar padrão", "Ex.: Linha 20-Rosa, Lote 2", corpo, Theme.Rodape(null, ok, cancelar));
+            Theme.Apply(w, "Salvar perfil", "Ex.: Linha 20-Rosa, Lote 2", corpo, Theme.Rodape(null, ok, cancelar));
             w.Loaded += (s, e) => { caixa.Focus(); caixa.SelectAll(); };
             return w.ShowDialog() == true ? caixa.Text.Trim() : null;
         }

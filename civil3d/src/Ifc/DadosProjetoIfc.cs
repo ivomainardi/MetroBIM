@@ -148,7 +148,7 @@ namespace MetroSP.Ifc
         {
             var s = (nome ?? "").Trim();
             foreach (char c in Path.GetInvalidFileNameChars()) s = s.Replace(c, '_');
-            return s.Length == 0 ? "Padrão" : s;
+            return s.Length == 0 ? "Perfil" : s;
         }
 
         // ================================================================== no IFC exportado

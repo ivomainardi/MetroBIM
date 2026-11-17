@@ -60,13 +60,14 @@ namespace MetroSP.Confronto
             _escopo.Items.Add("Todo o desenho");
             _escopo.SelectedIndex = 0;
             _tipo = new ComboBox { MinWidth = 200, Padding = new Thickness(4, 3, 4, 3), ToolTip = "Tipo de objeto a considerar." };
+            Theme.Digitavel(_tipo);
             var p = new WrapPanel();
             p.Children.Add(Theme.Rotulo("Escopo"));
             p.Children.Add(_escopo);
             p.Children.Add(_tipo);
             PainelEscopo = p;
             _escopo.SelectionChanged += (s, e) => { _todos = null; EscopoMudou?.Invoke(); };
-            _tipo.SelectionChanged += (s, e) => { if (!_montando) EscopoMudou?.Invoke(); };
+            _tipo.SelectionChanged += (s, e) => { if (!_montando && _tipo.SelectedItem != null) EscopoMudou?.Invoke(); };
         }
 
         public string Programa => "Civil3D";

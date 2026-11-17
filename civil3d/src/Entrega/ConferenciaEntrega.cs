@@ -66,11 +66,11 @@ namespace MetroSP.Entrega
     {
         public static readonly (int Numero, string Nome, string Dica)[] Etapas =
         {
-            (1, "Padrões", "Perfil de exportação, padrões em uso e o exportador IFC 4.3 da Autodesk instalado."),
+            (1, "Perfis", "Perfil de exportação, perfis em uso e o exportador IFC 4.3 da Autodesk instalado."),
             (2, "Classes IFC", "Classe IFC de cada layer, bloco e baseline do modelo, dentro do esquema escolhido (IFC 4.3)."),
             (3, "Property sets", "Property sets que o mapeamento IFC pede: montados no modelo e anexados aos objetos que vão para o IFC."),
-            (4, "MetroDATA", "Erros de escrita (espaços, acentos, caracteres estranhos) e confronto com a planilha do padrão."),
-            (5, "Classificação", "Códigos de classificação dos objetos conferidos com a planilha do padrão."),
+            (4, "MetroDATA", "Erros de escrita (espaços, acentos, caracteres estranhos) e confronto com a planilha do perfil."),
+            (5, "Classificação", "Códigos de classificação dos objetos conferidos com a planilha do perfil."),
             (6, "Alinhamentos", "Perfil de cada alinhamento que vai para o IFC (eixo 3D com as cotas)."),
             (7, "Exportar", "IfcProject, IfcSite e instalações (IfcRailway, IfcBuilding), e a exportação."),
         };
@@ -262,7 +262,7 @@ namespace MetroSP.Entrega
                     Sinal = Sinal.Amarelo, Titulo = $"{kv.Key} · {kv.Value} valor(es) com erro de escrita",
                     Texto = "Espaços, acentos ou caracteres estranhos.", Acao = Acao.AbrirEscrita,
                 });
-            e.Resumo = $"Escrita conferida em {objetos.Count} objeto(s) (padrão \"{padrao.Nome}\").";
+            e.Resumo = $"Escrita conferida em {objetos.Count} objeto(s) (perfil \"{padrao.Nome}\").";
         }
 
         // ------------------------------------------------------------------ 5 Classificação
@@ -273,14 +273,14 @@ namespace MetroSP.Entrega
             var padrao = padroes.FirstOrDefault(p => p.Nome == VerificarClassificacaoWindow._ultimoPadrao) ?? padroes.FirstOrDefault();
             if (padrao == null)
             {
-                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Nenhum padrão de classificação", Texto = "Escolha a planilha de classificação do Metrô na ferramenta ao lado." });
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = "Nenhum perfil de classificação", Texto = "Escolha a planilha de classificação do Metrô na ferramenta ao lado." });
                 return;
             }
             var cache = new Dictionary<string, Planilha.Tabela>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in padrao.Sistemas) s.Carregar(cache);
             var sistemas = padrao.Sistemas.Where(s => s.Lista != null).ToList();
             foreach (var s in padrao.Sistemas.Where(s => s.Lista == null))
-                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = s.Nome + " · " + (s.Erro ?? "sem planilha"), Texto = "Indique a planilha no padrão \"" + padrao.Nome + "\"." });
+                e.Pendencias.Add(new Pendencia { Sinal = Sinal.Amarelo, Titulo = s.Nome + " · " + (s.Erro ?? "sem planilha"), Texto = "Indique a planilha no perfil \"" + padrao.Nome + "\"." });
             if (sistemas.Count == 0) return;
 
             var db = doc.Database;
@@ -300,7 +300,7 @@ namespace MetroSP.Entrega
                     Texto = Tipos(g.Select(l => l.Tipo)),
                     Objetos = g.Select(l => l.Id).Distinct().ToList(),
                 });
-            e.Resumo = $"Padrão \"{padrao.Nome}\": {linhas.Count} verificação(ões).";
+            e.Resumo = $"Perfil \"{padrao.Nome}\": {linhas.Count} verificação(ões).";
         }
 
         // ------------------------------------------------------------------ 6 Alinhamentos

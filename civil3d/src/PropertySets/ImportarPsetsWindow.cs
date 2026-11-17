@@ -58,7 +58,7 @@ namespace MetroSP.PropertySets
             cancelar.Click += (s, e) => Close();
             _painel.Mudou += Atualizar;
 
-            Theme.Apply(this, "Importar property sets", "planilha com a estrutura do padrão", new ScrollViewer
+            Theme.Apply(this, "Importar property sets", "planilha com a estrutura do perfil", new ScrollViewer
             {
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
