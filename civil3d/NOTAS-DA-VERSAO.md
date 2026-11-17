@@ -2,9 +2,9 @@
 
 ## Próxima versão (em teste)
 
-- **Classes IFC: padrão e desenho lado a lado** (passo 3 da Entrega e Configurar IFC). À esquerda, as regras do padrão
-  carregado, agora com a coluna **No desenho** (quantos layers/blocos e objetos cada regra pega; "—" quando não pega
-  nada; "coberta" quando uma regra de cima vale primeiro). À direita, o que existe no DWG: **layers**, **blocos** ou
+- **Classes IFC: padrão e modelo lado a lado** (passo 3 da Entrega e Configurar IFC). À esquerda, as regras do padrão
+  carregado, agora com a coluna **No modelo** (quantos layers/blocos e objetos cada regra pega; "—" quando não pega
+  nada; "coberta" quando uma regra de cima vale primeiro). À direita, o que existe no modelo: **layers**, **blocos** ou
   **baselines de corredor**, conforme a seção, com nº de objetos do espaço do modelo (sem anotações), tipos, situação
   (desligado/congelado), a regra que vale e a classe IFC que sai. Filtro no título de cada coluna, "Só usados no
   modelo" e "Só sem regra" (linhas em laranja). Clicar numa regra marca os nomes que ela pega, e vice-versa.

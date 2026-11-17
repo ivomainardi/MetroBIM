@@ -344,7 +344,7 @@ namespace MetroSP.Ui
             semUso.Triggers.Add(trigUso);
             grid.Columns.Add(new DataGridTextColumn
             {
-                Header = "No desenho", Binding = new Binding(nameof(MappingRow.NoDesenho)) { Mode = BindingMode.OneWay }, IsReadOnly = true,
+                Header = "No modelo", Binding = new Binding(nameof(MappingRow.NoDesenho)) { Mode = BindingMode.OneWay }, IsReadOnly = true,
                 ElementStyle = semUso, Width = 92
             });
             grid.ToolTip = "Padrão carregado. Nome aceita expressão regular (ex.: ^U-3D-). Vale a primeira regra que casar, de cima para baixo.";
@@ -421,12 +421,12 @@ namespace MetroSP.Ui
             var cab = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
             DockPanel.SetDock(cab, Dock.Top);
             var reler = Theme.Link("Reler");
-            reler.ToolTip = "Lê de novo layers, blocos e corredores do desenho.";
+            reler.ToolTip = "Lê de novo layers, blocos e corredores do modelo.";
             reler.Click += (s, e) => { _desenho = null; MostrarDesenho(); };
             DockPanel.SetDock(reler, Dock.Right);
             cab.Children.Add(reler);
-            _tituloDesenho = Theme.Secao("No desenho");
-            _tituloDesenho.ToolTip = "O que existe neste DWG e a regra do padrão que cada nome pega. Conta só objetos do espaço do modelo que não são anotação.";
+            _tituloDesenho = Theme.Secao("No modelo");
+            _tituloDesenho.ToolTip = "O que existe no modelo e a regra do padrão que cada nome pega. Conta só objetos do espaço do modelo que não são anotação.";
             cab.Children.Add(_tituloDesenho);
             p.Children.Add(cab);
 
@@ -500,11 +500,11 @@ namespace MetroSP.Ui
             if (_desenho == null)
             {
                 try { _desenho = ConteudoDesenho.Ler(); }
-                catch (Exception ex) { _desenho = new Dictionary<string, List<ItemDesenho>>(); Status("Não consegui ler o desenho: " + ex.Message); }
+                catch (Exception ex) { _desenho = new Dictionary<string, List<ItemDesenho>>(); Status("Não consegui ler o modelo: " + ex.Message); }
             }
             _itensDesenho.Clear();
             var palavra = ConteudoDesenho.Palavra(_currentSection);
-            _tituloDesenho.Text = ConteudoDesenho.Le(_currentSection) ? "No desenho (" + palavra.Varios + ")" : "No desenho";
+            _tituloDesenho.Text = ConteudoDesenho.Le(_currentSection) ? "No modelo (" + palavra.Varios + ")" : "No modelo";
             if (_currentSection != null && _desenho.TryGetValue(_currentSection, out var itens))
                 foreach (var i in itens) _itensDesenho.Add(i);
             Recalcular();
@@ -545,12 +545,12 @@ namespace MetroSP.Ui
                 {
                     if (!le || !pega.TryGetValue(r, out var c)) { r.DefinirUso("", "", true); continue; }
                     if (c.Nomes > 0)
-                        r.DefinirUso($"{c.Nomes} · {c.Objetos} obj", $"Pega {c.Nomes} {(c.Nomes == 1 ? palavra.Um : palavra.Varios)} do desenho, com {c.Objetos} objeto(s)." +
+                        r.DefinirUso($"{c.Nomes} · {c.Objetos} obj", $"Pega {c.Nomes} {(c.Nomes == 1 ? palavra.Um : palavra.Varios)} do modelo, com {c.Objetos} objeto(s)." +
                             (c.Cobertos > 0 ? $" Casa também com {c.Cobertos} que ficam com uma regra de cima." : ""), true);
                     else if (c.Cobertos > 0)
                         r.DefinirUso("coberta", $"Casa com {c.Cobertos} {(c.Cobertos == 1 ? palavra.Um : palavra.Varios)}, mas uma regra de cima vale primeiro.", false);
                     else
-                        r.DefinirUso("—", "Nenhum " + palavra.Um + " do desenho tem este nome.", false);
+                        r.DefinirUso("—", "Nenhum " + palavra.Um + " do modelo tem este nome.", false);
                 }
 
                 CommitMappingSection();   // só passa a tela para o JSON (não grava)
@@ -569,7 +569,7 @@ namespace MetroSP.Ui
             if (_resumoDesenho == null) return;
             if (!ConteudoDesenho.Le(_currentSection))
             {
-                _resumoDesenho.Text = "O plugin lê do desenho só layers, blocos e baselines de corredor.";
+                _resumoDesenho.Text = "O plugin lê do modelo só layers, blocos e baselines de corredor.";
                 return;
             }
             var palavra = ConteudoDesenho.Palavra(_currentSection);
@@ -599,7 +599,7 @@ namespace MetroSP.Ui
         void CriarRegras(ComboBox classes)
         {
             var itens = _gradeDesenho.Grid.SelectedItems.OfType<ItemDesenho>().ToList();
-            if (itens.Count == 0) { Status("Selecione no desenho os nomes que vão ganhar regra."); return; }
+            if (itens.Count == 0) { Status("Selecione no modelo os nomes que vão ganhar regra."); return; }
             var escolhida = classes.SelectedItem as string;
             string classe = escolhida == null || escolhida == SemClasse ? "" : escolhida;
             _gradeRegras.CommitEdit(DataGridEditingUnit.Row, true);
