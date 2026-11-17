@@ -1,5 +1,19 @@
 # Notas da versão: MetroSP para Civil 3D
 
+## Próxima versão (em teste)
+
+- **Classes IFC: padrão e desenho lado a lado** (passo 3 da Entrega e Configurar IFC). À esquerda, as regras do padrão
+  carregado, agora com a coluna **No desenho** (quantos layers/blocos e objetos cada regra pega; "—" quando não pega
+  nada; "coberta" quando uma regra de cima vale primeiro). À direita, o que existe no DWG: **layers**, **blocos** ou
+  **baselines de corredor**, conforme a seção, com nº de objetos do espaço do modelo (sem anotações), tipos, situação
+  (desligado/congelado), a regra que vale e a classe IFC que sai. Filtro no título de cada coluna, "Só usados no
+  modelo" e "Só sem regra" (linhas em laranja). Clicar numa regra marca os nomes que ela pega, e vice-versa.
+  **Criar regra** cria no topo uma regra com o nome exato dos itens selecionados.
+- **Corrigir classes**: troca as classes fora do esquema pela correção óbvia (ex.: `IfcBuiltElement.USERDEFINED` →
+  `IfcBuiltElement`, que não tem tipo no IFC 4.3). A pendência do passo 3 já diz a classe a usar.
+- A dica da tabela de regras passou a dizer "vale a primeira regra que casar, de cima para baixo" (era "de baixo para
+  cima"), como a ordem do padrão da equipe pressupõe (U-3D-TRILHO_AMV antes de U-3D-TRILHO). Conferir no Civil 3D.
+
 ## 0.12.0 (12/11/2026)
 
 - **Ferramentas reorganizadas como no plugin do Revit** (proposta aprovada em 12/11):

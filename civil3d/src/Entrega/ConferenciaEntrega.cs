@@ -221,10 +221,17 @@ namespace MetroSP.Entrega
                 {
                     Sinal = Sinal.Vermelho,
                     Titulo = i > 0 ? linha.Substring(0, i) : linha,
-                    Texto = (i > 0 ? "Classe " + linha.Substring(i + 3) + " " : "Classe ") + "fora do " + Ifc.IfcCatalog.Label(versao) + ".",
+                    Texto = (i > 0 ? "Classe " + linha.Substring(i + 3) + " " : "Classe ") + "fora do " + Ifc.IfcCatalog.Label(versao) + "." +
+                            Sugestao(i > 0 ? linha.Substring(i + 3).Trim('"') : null, versao),
                 });
             }
             e.Resumo = "Esquema " + Ifc.IfcCatalog.Label(versao) + ".";
+        }
+
+        static string Sugestao(string classe, string versao)
+        {
+            string s = Ifc.IfcCatalog.Sugestao(classe, Ifc.IfcCatalog.For(versao));
+            return s == null ? "" : $" Use \"{s}\" (botão Corrigir classes).";
         }
 
         // ------------------------------------------------------------------ 4 Dados

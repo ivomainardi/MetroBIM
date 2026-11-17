@@ -302,7 +302,7 @@ namespace MetroSP.Ui
         {
             var panel = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+            var top = new WrapPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
             DockPanel.SetDock(top, Dock.Top);
             _mappingSection = new ComboBox { Width = 190, Margin = new Thickness(0, 0, 16, 0) };
             foreach (var key in KnownSections.Union(_mapping.Where(kv => kv.Value is JsonArray).Select(kv => kv.Key)))
@@ -322,21 +322,35 @@ namespace MetroSP.Ui
                 ItemsSource = _mappingRows,
                 HeadersVisibility = DataGridHeadersVisibility.Column
             };
+            _gradeRegras = grid;
             grid.Columns.Add(new DataGridTextColumn { Header = "Nome", Binding = new Binding("Name"), Width = new DataGridLength(2, DataGridLengthUnitType.Star) });
             MappingRow.Catalog = IfcClasses;
             var invalid = new Style(typeof(TextBlock));
             var trig = new DataTrigger { Binding = new Binding(nameof(MappingRow.ClasseInvalida)), Value = true };
             trig.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Firebrick));
             trig.Setters.Add(new Setter(TextBlock.FontWeightProperty, FontWeights.SemiBold));
-            trig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Classe fora do esquema; escolha uma da lista e clique Aplicar."));
+            trig.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Classe fora do esquema; escolha uma da lista e clique Aplicar (ou Corrigir classes)."));
             invalid.Triggers.Add(trig);
             grid.Columns.Add(new DataGridTextColumn
             {
                 Header = "Classe IFC", Binding = new Binding("IfcExportAs"), IsReadOnly = true, ElementStyle = invalid,
                 Width = new DataGridLength(2, DataGridLengthUnitType.Star)
             });
-            grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding("Export"), Width = 70 });
-            grid.ToolTip = "Nome aceita expressão regular (ex.: ^U-3D-). Vale a primeira regra que casar, de baixo para cima.";
+            grid.Columns.Add(new DataGridCheckBoxColumn { Header = "Exportar", Binding = new Binding("Export") { UpdateSourceTrigger = UpdateSourceTrigger.PropertyChanged }, Width = 62 });
+            var semUso = new Style(typeof(TextBlock));
+            semUso.Setters.Add(new Setter(TextBlock.ToolTipProperty, new Binding(nameof(MappingRow.NoDesenhoDica))));
+            var trigUso = new DataTrigger { Binding = new Binding(nameof(MappingRow.UsadaNoDesenho)), Value = false };
+            trigUso.Setters.Add(new Setter(TextBlock.ForegroundProperty, Theme.Solid(Theme.Cinza)));
+            semUso.Triggers.Add(trigUso);
+            grid.Columns.Add(new DataGridTextColumn
+            {
+                Header = "No desenho", Binding = new Binding(nameof(MappingRow.NoDesenho)) { Mode = BindingMode.OneWay }, IsReadOnly = true,
+                ElementStyle = semUso, Width = 92
+            });
+            grid.ToolTip = "Padrão carregado. Nome aceita expressão regular (ex.: ^U-3D-). Vale a primeira regra que casar, de cima para baixo.";
+            grid.CellEditEnding += (s, e) => Dispatcher.BeginInvoke(new Action(Recalcular), System.Windows.Threading.DispatcherPriority.Background);
+            grid.CurrentCellChanged += (s, e) => Recalcular();
+            _mappingRows.CollectionChanged += (s, e) => Recalcular();
 
             var apply = Btn("Aplicar", (s, e) =>
             {
@@ -346,20 +360,290 @@ namespace MetroSP.Ui
                 if (linhas.Count == 0) { Status("Selecione as regras que vão receber a classe."); return; }
                 foreach (var r in linhas) r.IfcExportAs = escolhida == SemClasse ? "" : escolhida;
                 grid.Items.Refresh();
+                Recalcular();
             });
             apply.Margin = new Thickness(6, 0, 16, 0);
             apply.ToolTip = "Põe a classe escolhida nas regras selecionadas.";
             top.Children.Add(apply);
-            top.Children.Add(SymbolButton("↑", "Subir", (s, e) => Move(grid, -1)));
-            top.Children.Add(SymbolButton("↓", "Descer", (s, e) => Move(grid, +1)));
+            top.Children.Add(SymbolButton("↑", "Subir (a regra de cima vale primeiro)", (s, e) => { Move(grid, -1); Recalcular(); }));
+            top.Children.Add(SymbolButton("↓", "Descer", (s, e) => { Move(grid, +1); Recalcular(); }));
             top.Children.Add(SymbolButton("+", "Nova regra", (s, e) => AddRow(grid, _mappingRows)));
             top.Children.Add(SymbolButton("✕", "Excluir as regras selecionadas (ou tecla Delete)", (s, e) => RemoveSelected(grid, _mappingRows, "regra")));
+            _corrigir = Tool("Corrigir classes", "", (s, e) => CorrigirClasses());
+            _corrigir.VerticalAlignment = VerticalAlignment.Center;
+            top.Children.Add(_corrigir);
             panel.Children.Add(top);
-            panel.Children.Add(grid);
+
+            // ---- lado a lado: padrão (regras) | desenho (layers, blocos, baselines)
+            var lados = new Grid();
+            lados.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 260 });
+            lados.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(6) });
+            lados.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 260 });
+
+            var esquerda = new DockPanel();
+            var tituloPadrao = Theme.Secao("No padrão");
+            tituloPadrao.Margin = new Thickness(0, 0, 0, 4);
+            tituloPadrao.ToolTip = "Regras do padrão de Classes IFC carregado (IfcInfraExportMapping.json).";
+            DockPanel.SetDock(tituloPadrao, Dock.Top);
+            esquerda.Children.Add(tituloPadrao);
+            esquerda.Children.Add(grid);
+            lados.Children.Add(esquerda);
+
+            var divisor = new GridSplitter { Width = 6, HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.Transparent, ToolTip = "Arraste para mudar a largura" };
+            Grid.SetColumn(divisor, 1);
+            lados.Children.Add(divisor);
+
+            var direita = DesenhoPainel(grid, classes);
+            Grid.SetColumn(direita, 2);
+            lados.Children.Add(direita);
+
+            panel.Children.Add(lados);
 
             _currentSection = null;
             _mappingSection.SelectedIndex = 0;
             return panel;
+        }
+
+        // ---- o que existe no desenho
+
+        DataGrid _gradeRegras;
+        Button _corrigir;
+        Dictionary<string, List<ItemDesenho>> _desenho;
+        readonly ObservableCollection<ItemDesenho> _itensDesenho = new ObservableCollection<ItemDesenho>();
+        FilterableGrid _gradeDesenho;
+        TextBlock _tituloDesenho, _resumoDesenho;
+        CheckBox _soUsados, _soSemRegra;
+        bool _recalculando;
+
+        UIElement DesenhoPainel(DataGrid regras, ComboBox classes)
+        {
+            var p = new DockPanel();
+            var cab = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
+            DockPanel.SetDock(cab, Dock.Top);
+            var reler = Theme.Link("Reler");
+            reler.ToolTip = "Lê de novo layers, blocos e corredores do desenho.";
+            reler.Click += (s, e) => { _desenho = null; MostrarDesenho(); };
+            DockPanel.SetDock(reler, Dock.Right);
+            cab.Children.Add(reler);
+            _tituloDesenho = Theme.Secao("No desenho");
+            _tituloDesenho.ToolTip = "O que existe neste DWG e a regra do padrão que cada nome pega. Conta só objetos do espaço do modelo que não são anotação.";
+            cab.Children.Add(_tituloDesenho);
+            p.Children.Add(cab);
+
+            var filtros = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
+            DockPanel.SetDock(filtros, Dock.Top);
+            _soUsados = new CheckBox { Content = "Só usados no modelo", IsChecked = true, Margin = new Thickness(0, 0, 14, 0), ToolTip = "Esconde os nomes sem nenhum objeto no espaço do modelo." };
+            _soSemRegra = new CheckBox { Content = "Só sem regra", Margin = new Thickness(0, 0, 14, 0), ToolTip = "Mostra só o que nenhuma regra do padrão pega (sai com a classe que a Autodesk escolher)." };
+            _soUsados.Click += (s, e) => _gradeDesenho.Refresh();
+            _soSemRegra.Click += (s, e) => _gradeDesenho.Refresh();
+            filtros.Children.Add(_soUsados);
+            filtros.Children.Add(_soSemRegra);
+            var criar = new Button { Content = "Criar regra", Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(0, 0, 0, 0),
+                ToolTip = "Cria no topo do padrão uma regra para cada nome selecionado, com a classe escolhida na lista de cima." };
+            criar.Click += (s, e) => CriarRegras(classes);
+            filtros.Children.Add(criar);
+            p.Children.Add(filtros);
+
+            _resumoDesenho = Theme.Detalhe();
+            _resumoDesenho.Margin = new Thickness(0, 4, 0, 0);
+            DockPanel.SetDock(_resumoDesenho, Dock.Bottom);
+            p.Children.Add(_resumoDesenho);
+
+            _gradeDesenho = new FilterableGrid(_itensDesenho, typeof(ItemDesenho));
+            _gradeDesenho.AddColumn("Nome", nameof(ItemDesenho.Nome), 150, fill: true);
+            var obj = _gradeDesenho.AddColumn("Objetos", nameof(ItemDesenho.Objetos), 70);
+            obj.ElementStyle = new Style(typeof(TextBlock), obj.ElementStyle) { Setters = { new Setter(TextBlock.TextAlignmentProperty, TextAlignment.Right) } };
+            _gradeDesenho.AddColumn("Vai como", nameof(ItemDesenho.VaiComo), 170);
+            _gradeDesenho.AddColumn("Regra", nameof(ItemDesenho.Regra), 130);
+            _gradeDesenho.AddColumn("Tipos", nameof(ItemDesenho.Tipos), 160);
+            _gradeDesenho.AddColumn("Situação", nameof(ItemDesenho.Situacao), 90);
+            _gradeDesenho.AddColumn("Também casa", nameof(ItemDesenho.Outras), 130);
+            _gradeDesenho.ExtraFilter = o => o is ItemDesenho i && (_soUsados.IsChecked != true || i.Objetos > 0) && (_soSemRegra.IsChecked != true || i.SemRegra);
+            _gradeDesenho.Filtered += AtualizarResumo;
+
+            var linha = new Style(typeof(DataGridRow), _gradeDesenho.Grid.RowStyle);
+            var sem = new DataTrigger { Binding = new Binding(nameof(ItemDesenho.SemRegra)), Value = true };
+            sem.Setters.Add(new Setter(Control.BackgroundProperty, Theme.LinhaProblema));
+            sem.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, "Nenhuma regra do padrão pega este nome: sai com a classe que a Autodesk escolher."));
+            linha.Triggers.Add(sem);
+            var fora = new DataTrigger { Binding = new Binding(nameof(ItemDesenho.NaoExporta)), Value = true };
+            fora.Setters.Add(new Setter(Control.ForegroundProperty, Theme.Solid(Theme.Cinza)));
+            linha.Triggers.Add(fora);
+            _gradeDesenho.Grid.RowStyle = linha;
+
+            // Clicar numa regra marca no desenho os nomes que ela pega; clicar num nome marca a regra que vale.
+            regras.SelectionChanged += (s, e) =>
+            {
+                if (_recalculando || !(regras.SelectedItem is MappingRow r) || !regras.IsKeyboardFocusWithin) return;
+                var pegos = _gradeDesenho.VisibleItems<ItemDesenho>().Where(i => i.RegraObj == r).ToList();
+                _gradeDesenho.Grid.SelectedItems.Clear();
+                foreach (var i in pegos) _gradeDesenho.Grid.SelectedItems.Add(i);
+                if (pegos.Count > 0) _gradeDesenho.Grid.ScrollIntoView(pegos[0]);
+            };
+            _gradeDesenho.Grid.SelectionChanged += (s, e) =>
+            {
+                if (_recalculando || !_gradeDesenho.Grid.IsKeyboardFocusWithin) return;
+                if (_gradeDesenho.Grid.SelectedItem is ItemDesenho i && i.RegraObj is MappingRow r)
+                {
+                    regras.SelectedItem = r;
+                    regras.ScrollIntoView(r);
+                }
+            };
+            p.Children.Add(_gradeDesenho);
+            return p;
+        }
+
+        /// <summary>Troca a lista da direita para a seção escolhida (lê o desenho na primeira vez).</summary>
+        void MostrarDesenho()
+        {
+            if (_gradeDesenho == null) return;
+            if (_desenho == null)
+            {
+                try { _desenho = ConteudoDesenho.Ler(); }
+                catch (Exception ex) { _desenho = new Dictionary<string, List<ItemDesenho>>(); Status("Não consegui ler o desenho: " + ex.Message); }
+            }
+            _itensDesenho.Clear();
+            var palavra = ConteudoDesenho.Palavra(_currentSection);
+            _tituloDesenho.Text = ConteudoDesenho.Le(_currentSection) ? "No desenho (" + palavra.Varios + ")" : "No desenho";
+            if (_currentSection != null && _desenho.TryGetValue(_currentSection, out var itens))
+                foreach (var i in itens) _itensDesenho.Add(i);
+            Recalcular();
+        }
+
+        /// <summary>
+        /// Para cada nome do desenho, a regra que vale (a primeira de cima para baixo que casa) e, para cada regra,
+        /// quantos nomes e objetos ela pega. Também liga o "Corrigir classes" quando há classe com correção óbvia.
+        /// </summary>
+        void Recalcular()
+        {
+            if (_gradeDesenho == null || _recalculando) return;
+            _recalculando = true;
+            try
+            {
+                var regras = _mappingRows.Where(r => !string.IsNullOrWhiteSpace(r.Name)).ToList();
+                var pega = regras.ToDictionary(r => r, r => (Nomes: 0, Objetos: 0, Cobertos: 0));
+                foreach (var i in _itensDesenho)
+                {
+                    var casam = regras.Where(r => Casa(r.Name, i.Nome)).ToList();
+                    var vale = casam.FirstOrDefault();
+                    string outras = string.Join("; ", casam.Skip(1).Select(r => r.Name));
+                    if (vale == null)
+                        i.Definir(null, "", "Sem regra (classe da Autodesk)", true, false, "");
+                    else
+                        i.Definir(vale, vale.Name, !vale.Export ? "Não exporta"
+                            : string.IsNullOrWhiteSpace(vale.IfcExportAs) ? "(classe da Autodesk)" : vale.IfcExportAs, false, !vale.Export, outras);
+                    if (vale != null)
+                    {
+                        var c = pega[vale];
+                        pega[vale] = (c.Nomes + 1, c.Objetos + i.Objetos, c.Cobertos);
+                    }
+                    foreach (var r in casam.Skip(1)) { var c = pega[r]; pega[r] = (c.Nomes, c.Objetos, c.Cobertos + 1); }
+                }
+                bool le = ConteudoDesenho.Le(_currentSection);
+                var palavra = ConteudoDesenho.Palavra(_currentSection);
+                foreach (var r in _mappingRows)
+                {
+                    if (!le || !pega.TryGetValue(r, out var c)) { r.DefinirUso("", "", true); continue; }
+                    if (c.Nomes > 0)
+                        r.DefinirUso($"{c.Nomes} · {c.Objetos} obj", $"Pega {c.Nomes} {(c.Nomes == 1 ? palavra.Um : palavra.Varios)} do desenho, com {c.Objetos} objeto(s)." +
+                            (c.Cobertos > 0 ? $" Casa também com {c.Cobertos} que ficam com uma regra de cima." : ""), true);
+                    else if (c.Cobertos > 0)
+                        r.DefinirUso("coberta", $"Casa com {c.Cobertos} {(c.Cobertos == 1 ? palavra.Um : palavra.Varios)}, mas uma regra de cima vale primeiro.", false);
+                    else
+                        r.DefinirUso("—", "Nenhum " + palavra.Um + " do desenho tem este nome.", false);
+                }
+
+                CommitMappingSection();   // só passa a tela para o JSON (não grava)
+                int corrigiveis = Corrigiveis().Count;
+                _corrigir.Visibility = corrigiveis > 0 ? Visibility.Visible : Visibility.Collapsed;
+                _corrigir.Content = corrigiveis == 1 ? "Corrigir 1 classe" : $"Corrigir {corrigiveis} classes";
+                _corrigir.ToolTip = "Troca as classes fora do esquema pela correção óbvia: " +
+                                    string.Join("; ", Corrigiveis().Take(4).Select(x => $"{x.De} → {x.Para}")) + ".";
+            }
+            finally { _recalculando = false; }
+            _gradeDesenho.Refresh();
+        }
+
+        void AtualizarResumo()
+        {
+            if (_resumoDesenho == null) return;
+            if (!ConteudoDesenho.Le(_currentSection))
+            {
+                _resumoDesenho.Text = "O plugin lê do desenho só layers, blocos e baselines de corredor.";
+                return;
+            }
+            var palavra = ConteudoDesenho.Palavra(_currentSection);
+            var usados = _itensDesenho.Where(i => i.Objetos > 0).ToList();
+            int sem = usados.Count(i => i.SemRegra);
+            int naoExp = usados.Count(i => i.NaoExporta);
+            _resumoDesenho.Text = $"{usados.Count} {palavra.Varios} com objetos · {sem} sem regra · {naoExp} não exportados";
+        }
+
+        static readonly Dictionary<string, System.Text.RegularExpressions.Regex> _regex = new Dictionary<string, System.Text.RegularExpressions.Regex>();
+
+        /// <summary>Nome igual (sem diferenciar maiúsculas) ou expressão regular que casa, como no FiltroIfc.</summary>
+        static bool Casa(string regra, string nome)
+        {
+            if (string.IsNullOrWhiteSpace(regra) || nome == null) return false;
+            if (regra.Trim().Equals(nome, StringComparison.OrdinalIgnoreCase)) return true;
+            if (!_regex.TryGetValue(regra, out var re))
+            {
+                try { re = new System.Text.RegularExpressions.Regex(regra.Trim(), System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.CultureInvariant); }
+                catch { re = null; }
+                _regex[regra] = re;
+            }
+            return re != null && re.IsMatch(nome);
+        }
+
+        /// <summary>Cria regras com o nome exato dos itens selecionados no desenho, no topo (para valerem primeiro).</summary>
+        void CriarRegras(ComboBox classes)
+        {
+            var itens = _gradeDesenho.Grid.SelectedItems.OfType<ItemDesenho>().ToList();
+            if (itens.Count == 0) { Status("Selecione no desenho os nomes que vão ganhar regra."); return; }
+            var escolhida = classes.SelectedItem as string;
+            string classe = escolhida == null || escolhida == SemClasse ? "" : escolhida;
+            _gradeRegras.CommitEdit(DataGridEditingUnit.Row, true);
+            var novas = new List<MappingRow>();
+            int pos = 0;
+            foreach (var i in itens)
+            {
+                var r = new MappingRow { Name = "^" + System.Text.RegularExpressions.Regex.Escape(i.Nome) + "$", IfcExportAs = classe, Export = true };
+                _mappingRows.Insert(pos++, r);
+                novas.Add(r);
+            }
+            _gradeRegras.SelectedItems.Clear();
+            foreach (var r in novas) _gradeRegras.SelectedItems.Add(r);
+            _gradeRegras.ScrollIntoView(novas[0]);
+            Status(novas.Count == 1 ? "1 regra criada no topo." : $"{novas.Count} regras criadas no topo." +
+                   (classe.Length == 0 ? " Escolha a classe e clique Aplicar." : ""));
+            Recalcular();
+        }
+
+        /// <summary>Classes fora do esquema com correção óbvia, em todas as seções.</summary>
+        List<(JsonObject Regra, string De, string Para)> Corrigiveis()
+        {
+            var r = new List<(JsonObject, string, string)>();
+            foreach (var kv in _mapping)
+                if (kv.Value is JsonArray arr)
+                    foreach (var o in arr.OfType<JsonObject>())
+                    {
+                        var c = (string)o["IfcExportAs"];
+                        if (IfcCatalog.IsValid(c, IfcClasses)) continue;
+                        var s = IfcCatalog.Sugestao(c, IfcClasses);
+                        if (s != null) r.Add((o, c, s));
+                    }
+            return r;
+        }
+
+        void CorrigirClasses()
+        {
+            CommitMappingSection();
+            var lista = Corrigiveis();
+            foreach (var x in lista) x.Regra["IfcExportAs"] = x.Para;
+            var secao = _currentSection;
+            _currentSection = null;
+            SwitchSection(secao);
+            Status(lista.Count == 1 ? $"Corrigida: {lista[0].De} → {lista[0].Para}. Clique Salvar." : $"{lista.Count} classes corrigidas. Clique Salvar.");
         }
 
         const string SemClasse = "(vazio: classe da Autodesk)";
@@ -432,6 +716,7 @@ namespace MetroSP.Ui
             _mappingRows.Clear();
             if (_mapping[_currentSection] is JsonArray arr)
                 foreach (var item in arr.OfType<JsonObject>()) _mappingRows.Add(MappingRow.From(item));
+            MostrarDesenho();
         }
 
         void CommitMappingSection()
@@ -836,8 +1121,25 @@ namespace MetroSP.Ui
 
     // ====================================================================== linhas das tabelas
 
-    public class MappingRow
+    public class MappingRow : System.ComponentModel.INotifyPropertyChanged
     {
+        string _noDesenho = "", _noDesenhoDica = "";
+        bool _usada = true;
+        /// <summary>Quantos nomes e objetos do desenho esta regra pega (ex.: "3 · 120 obj").</summary>
+        public string NoDesenho => _noDesenho;
+        public string NoDesenhoDica => _noDesenhoDica;
+        public bool UsadaNoDesenho => _usada;
+
+        public void DefinirUso(string texto, string dica, bool usada)
+        {
+            if (_noDesenho == texto && _noDesenhoDica == dica && _usada == usada) return;
+            _noDesenho = texto; _noDesenhoDica = dica; _usada = usada;
+            foreach (var p in new[] { nameof(NoDesenho), nameof(NoDesenhoDica), nameof(UsadaNoDesenho) })
+                PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(p));
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler PropertyChanged;
+
         public string Name { get; set; }
         public string IfcExportAs { get; set; }
         public bool Export { get; set; } = true;

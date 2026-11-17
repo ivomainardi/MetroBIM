@@ -75,6 +75,13 @@ namespace MetroSP.Ifc
 
         public bool VaiParaIfc(Entity e, Transaction tr) => MotivoFora(e, tr) == null;
 
+        /// <summary>Texto, cota, hachura e outras anotações (não vão para o IFC como elemento).</summary>
+        public static bool EhAnotacao(Entity e)
+        {
+            Type t = e.GetType();
+            return Anotacoes.Any(a => a.IsAssignableFrom(t));
+        }
+
         public static string NomeBloco(BlockReference br, Transaction tr)
         {
             try
