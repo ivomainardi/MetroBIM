@@ -70,8 +70,9 @@ namespace MetroSP.Classificacao
         private List<(Element E, AlvoClassificacao Alvo)> Selecionados(UIDocument uidoc)
         {
             Document doc = uidoc.Document;
+            string parametro = Janela.Parametro;
             return ClassificationCore.Elementos(doc, uidoc.Selection.GetElementIds(), null)
-                .Select(e => (e, ClassificationCore.Alvo(doc, e, Janela.Parametro)))
+                .Select(e => (e, parametro == null ? new AlvoClassificacao { Elemento = e } : ClassificationCore.Alvo(doc, e, parametro)))
                 .ToList();
         }
 
@@ -90,7 +91,7 @@ namespace MetroSP.Classificacao
             Document doc = uidoc.Document;
             var ids = NoEscopoDeSelecao(uidoc)
                 .Where(e => Janela.Categorias.Aceita(e.Category.Name))
-                .Where(e => !Janela.SoSemClassificacao || string.IsNullOrWhiteSpace(ClassificationCore.Alvo(doc, e, Janela.Parametro).Valor))
+                .Where(e => !Janela.SoSemClassificacao || Janela.Parametro == null || string.IsNullOrWhiteSpace(ClassificationCore.Alvo(doc, e, Janela.Parametro).Valor))
                 .Select(e => e.Id).ToList();
             uidoc.Selection.SetElementIds(ids);
             Janela.Status($"{ids.Count} elementos selecionados no Revit.");
@@ -99,6 +100,7 @@ namespace MetroSP.Classificacao
         private void Vincular(UIDocument uidoc)
         {
             Document doc = uidoc.Document;
+            if (Janela.Parametro == null) return;
             var cats = Selecionados(uidoc).Where(x => x.Alvo.Parametro == null).Select(x => x.E.Category.Name).Distinct();
             string msg = ParametroClassificacao.Vincular(doc, Janela.Parametro, ParametroClassificacao.Categorias(doc, cats));
             if (msg != null) TaskDialog.Show("MetroSP", msg);
@@ -108,7 +110,8 @@ namespace MetroSP.Classificacao
         {
             var sel = Selecionados(uidoc);
             ClassItem item = Janela.Item;
-            string novo = item == null ? null : ValorClassificacao.Escrever(item.Codigo, item.Descricao);
+            SistemaClassificacao sis = Janela.Sistema;
+            string novo = item == null || sis == null ? null : AplicarClassificacaoWindow.ValorCodigo(sis, item);
             var r = new ResumoSelecao
             {
                 Total = sel.Count,
@@ -119,7 +122,6 @@ namespace MetroSP.Classificacao
             {
                 if (x.Alvo.Parametro == null) return ClassificationCore.SemParametro;
                 if (x.Alvo.Parametro.IsReadOnly) return "Somente leitura";
-                if (item != null && !item.ValeParaCategoria(x.E.Category.Name) && !Janela.ForcarCategoria) return ClassificationCore.CategoriaNaoPrevista;
                 if (string.IsNullOrWhiteSpace(x.Alvo.Valor)) return ClassificationCore.SemClassificacao;
                 return x.Alvo.Valor == novo ? "Já igual" : "Será substituída";
             }
@@ -141,19 +143,32 @@ namespace MetroSP.Classificacao
             return r;
         }
 
+        /// <summary>Grava, em cada elemento selecionado, o item escolhido de cada classificação do perfil.</summary>
         private void Aplicar(UIDocument uidoc)
         {
-            ClassItem item = Janela.Item;
-            if (item == null) return;
-            string novo = ValorClassificacao.Escrever(item.Codigo, item.Descricao);
-            var alvos = Selecionados(uidoc)
-                .Where(x => x.Alvo.Parametro != null && !x.Alvo.Parametro.IsReadOnly && x.Alvo.Valor != novo &&
-                            (Janela.ForcarCategoria || item.ValeParaCategoria(x.E.Category.Name)))
-                .Select(x => (x.Alvo.Dono.Id, novo))
-                .ToList();
-            if (alvos.Count == 0) return;
-            ResultadoGravacao r = ClassificationCore.Gravar(uidoc.Document, Janela.Parametro, alvos, "Aplicar classificação " + item.Codigo, Perguntar);
-            Janela.Status($"{item.Codigo} aplicado em {r.Ok} {(r.Ok == 1 ? "elemento/tipo" : "elementos/tipos")}" +
+            Document doc = uidoc.Document;
+            var escolhas = Janela.Escolhas();
+            if (escolhas.Count == 0) return;
+            List<Element> elems = ClassificationCore.Elementos(doc, uidoc.Selection.GetElementIds(), null);
+            var gravar = new List<(ElementId Dono, string Parametro, string Valor)>();
+            foreach (Element e in elems)
+                foreach (var (sis, item) in escolhas)
+                {
+                    void Gravar(string parametro, string valor)
+                    {
+                        if (string.IsNullOrWhiteSpace(parametro) || valor == null) return;
+                        AlvoClassificacao a = ClassificationCore.Alvo(doc, e, parametro.Trim());
+                        if (a.Parametro == null || a.Parametro.IsReadOnly || a.Valor == valor) return;
+                        gravar.Add((a.Dono.Id, parametro.Trim(), valor));
+                    }
+                    Gravar(sis.ParametroCodigo, AplicarClassificacaoWindow.ValorCodigo(sis, item));
+                    if (sis.Formato == FormatoClassificacao.Separados && item.Descricao.Length > 0) Gravar(sis.ParametroDescricao, item.Descricao);
+                    if (!string.IsNullOrEmpty(item.DescricaoLonga)) Gravar(sis.ParametroDescricaoLonga, item.DescricaoLonga);
+                }
+            if (gravar.Count == 0) { Janela.Status("Nada a gravar: os elementos já estão com esses valores (ou sem o parâmetro)."); return; }
+            string nomes = string.Join(", ", escolhas.Select(x => x.Item.Codigo));
+            ResultadoGravacao r = ClassificationCore.Gravar(doc, gravar, "Aplicar classificação " + nomes, Perguntar);
+            Janela.Status($"{nomes} aplicado: {r.Ok} {(r.Ok == 1 ? "gravação" : "gravações")}" +
                           (r.Falhas.Count > 0 ? $"; {r.Falhas.Count} não gravados" : "") + ". Ctrl+Z desfaz.");
             if (r.Falhas.Count > 0 || r.GrupoLiberado || r.Avisos.Count > 0)
             {
@@ -182,20 +197,26 @@ namespace MetroSP.Classificacao
     }
 
     /// <summary>
-    /// Janela não modal: o projetista escolhe o item na árvore da planilha e aplica nos elementos
-    /// selecionados no Revit. A seleção pode mudar com a janela aberta.
+    /// Janela não modal: o projetista escolhe o perfil de classificação e, em cada aba (uma por classificação),
+    /// o item na árvore da planilha; Aplicar grava todos nos elementos selecionados no Revit.
+    /// A seleção pode mudar com a janela aberta.
     /// </summary>
     public class AplicarClassificacaoWindow : Window
     {
         private readonly ClassSettings _config;
+        private readonly Document _doc;
         private readonly ExternalEvent _evento;
         private readonly AplicarHandler _handler;
-        private readonly PlanilhaSeletor _planilha;
+        private readonly ComboBox _perfil;
+        private readonly TextBlock _perfilInfo;
+        private readonly StackPanel _abas;
         private readonly TextBox _busca;
-        private readonly CheckBox _soCategorias;
-        private readonly CheckBox _forcar;
         private readonly ComboBox _escopoSelecao;
         private readonly CheckBox _soSem;
+        private PadraoClassificacao _padrao;
+        private bool _trocandoPerfil;
+        /// <summary>Item escolhido em cada classificação do perfil.</summary>
+        private readonly Dictionary<SistemaClassificacao, ClassItem> _escolhidos = new Dictionary<SistemaClassificacao, ClassItem>();
 
         public SeletorCategorias Categorias { get; } = new SeletorCategorias { Margin = new Thickness(0, 0, 8, 0) };
         public bool SelecaoNaVista => _escopoSelecao.SelectedIndex == 0;
@@ -206,22 +227,35 @@ namespace MetroSP.Classificacao
         private readonly TextBlock _status;
         private readonly Button _aplicar;
         private ClassificationList _lista;
-        /// <summary>Código + descrição normalizados de cada item (para a busca não recalcular a cada tecla).</summary>
+        /// <summary>Código + título normalizados de cada item (para a busca não recalcular a cada tecla).</summary>
         private Dictionary<ClassItem, string> _textoBusca = new Dictionary<ClassItem, string>();
         /// <summary>A busca espera uma pausa na digitação antes de remontar a árvore.</summary>
         private readonly System.Windows.Threading.DispatcherTimer _esperaBusca =
             new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         /// <summary>true enquanto a árvore é remontada: as trocas de seleção nesse meio não contam.</summary>
         private bool _montandoArvore;
-        private List<string> _categoriasSelecao = new List<string>();
 
+        /// <summary>Classificação da aba aberta.</summary>
+        public SistemaClassificacao Sistema { get; private set; }
+        /// <summary>Item escolhido na aba aberta.</summary>
         public ClassItem Item { get; private set; }
-        public string Parametro => _config.Parametro;
-        public bool ForcarCategoria => _forcar.IsChecked == true;
+        /// <summary>Parâmetro do código da aba aberta (o resumo da seleção é sobre ele).</summary>
+        public string Parametro => string.IsNullOrWhiteSpace(Sistema?.ParametroCodigo) ? null : Sistema.ParametroCodigo.Trim();
+
+        /// <summary>O que vai no parâmetro do código: "Código:Título", "[Nome]Código:Título" ou só o código.</summary>
+        public static string ValorCodigo(SistemaClassificacao s, ClassItem item) =>
+            s.Formato == FormatoClassificacao.Separados ? item.Codigo : ValorClassificacao.Escrever(item.Codigo, item.Descricao, s.GravarNome ? s.Nome : null);
+
+        /// <summary>Classificações com item escolhido, na ordem do perfil.</summary>
+        public List<(SistemaClassificacao Sis, ClassItem Item)> Escolhas() =>
+            _padrao == null ? new List<(SistemaClassificacao, ClassItem)>()
+                : _padrao.Sistemas.Where(s => _escolhidos.TryGetValue(s, out ClassItem i) && i != null && !string.IsNullOrWhiteSpace(s.ParametroCodigo))
+                    .Select(s => (s, _escolhidos[s])).ToList();
 
         public AplicarClassificacaoWindow(ClassSettings config, UIDocument uidoc)
         {
             _config = config;
+            _doc = uidoc.Document;
             _handler = new AplicarHandler { Janela = this };
             _evento = ExternalEvent.Create(_handler);
 
@@ -233,16 +267,29 @@ namespace MetroSP.Classificacao
             ResizeMode = ResizeMode.CanResizeWithGrip;
             WindowStartupLocation = WindowStartupLocation.CenterScreen;
 
-            _planilha = new PlanilhaSeletor(config);
-            _planilha.Carregada += l => { _lista = l; _textoBusca = new Dictionary<ClassItem, string>(); MontarArvore(); };
+            // Perfil e classificações (abas).
+            var barra = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
+            barra.Children.Add(Theme.Rotulo("Perfil"));
+            _perfil = new ComboBox
+            {
+                MinWidth = 220, Margin = new Thickness(0, 0, 8, 0), IsEditable = true, IsTextSearchEnabled = true,
+                ToolTip = "Perfil de classificação: as classificações, a planilha e o parâmetro de cada uma. Digite para procurar.",
+            };
+            TextSearch.SetTextPath(_perfil, nameof(PadraoClassificacao.Nome));
+            _perfil.SelectionChanged += (s, e) => { if (!_trocandoPerfil && _perfil.SelectedItem is PadraoClassificacao p) UsarPerfil(p); };
+            barra.Children.Add(_perfil);
+            var editar = new Button { Content = "Classificação...", Margin = new Thickness(0, 0, 8, 0), ToolTip = "Perfis de classificação: planilha, colunas, parâmetro e mais de uma classificação." };
+            editar.Click += (s, e) => EditarPerfis(uidoc.Document);
+            barra.Children.Add(editar);
+            _perfilInfo = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+            barra.Children.Add(_perfilInfo);
+            _abas = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
 
             // Esquerda: busca e árvore.
-            _busca = new TextBox { ToolTip = "Procure por código ou descrição (sem diferenciar acentos)." };
+            _busca = new TextBox { ToolTip = "Procure por código ou título (sem diferenciar acentos)." };
             _esperaBusca.Tick += (s, e) => { _esperaBusca.Stop(); MontarArvore(); };
             _busca.TextChanged += (s, e) => { _esperaBusca.Stop(); _esperaBusca.Start(); };
-            _soCategorias = new CheckBox { Content = "Mostrar só o que vale para as categorias selecionadas", IsChecked = true, Margin = new Thickness(0, 6, 0, 6) };
-            _soCategorias.Click += (s, e) => MontarArvore();
-            _arvore = new TreeView { BorderBrush = Theme.Solid(Theme.CinzaClaro) };
+            _arvore = new TreeView { BorderBrush = Theme.Solid(Theme.CinzaClaro), Margin = new Thickness(0, 6, 0, 0) };
             // Planilhas grandes: só os itens visíveis na tela são desenhados.
             VirtualizingPanel.SetIsVirtualizing(_arvore, true);
             VirtualizingPanel.SetVirtualizationMode(_arvore, VirtualizationMode.Standard);
@@ -251,24 +298,20 @@ namespace MetroSP.Classificacao
                 if (_montandoArvore) return; // a árvore está sendo remontada (ex.: busca): o item é conferido no fim
                 var novo = (_arvore.SelectedItem as TreeViewItem)?.Tag as ClassItem;
                 if (novo == Item && novo != null) return; // mesmo item (remontagem da árvore): não refaz o resumo
-                Item = novo;
-                MostrarDetalhe();
-                PedirResumo();
+                Escolher(novo);
             };
             var esquerda = new DockPanel();
             var procurar = new TextBlock { Text = "Procurar", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) };
-            foreach (UIElement el in new UIElement[] { procurar, _busca, _soCategorias })
+            foreach (UIElement el in new UIElement[] { procurar, _busca })
             {
                 DockPanel.SetDock(el, Dock.Top);
                 esquerda.Children.Add(el);
             }
             esquerda.Children.Add(_arvore);
 
-            // Direita: item escolhido e resumo da seleção.
+            // Direita: o que vai gravar e resumo da seleção.
             _detalhe = new StackPanel();
             _resumo = new StackPanel { Margin = new Thickness(0, 14, 0, 0) };
-            _forcar = new CheckBox { Content = "Aplicar também em categorias não previstas para o item", Margin = new Thickness(0, 10, 0, 0) };
-            _forcar.Click += (s, e) => PedirResumo();
             // Selecionar no Revit por categoria (sem fechar a janela).
             _escopoSelecao = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Margin = new Thickness(0, 0, 8, 0) };
             _escopoSelecao.Items.Add("Vista atual");
@@ -278,7 +321,7 @@ namespace MetroSP.Classificacao
             _escopoSelecao.SelectionChanged += (s, e) => Categorias.Invalidar();
             Categorias.ToolTip = "Escolha as categorias a selecionar. Os elementos são contados ao abrir a lista.";
             Categorias.PedirContagem = () => { _handler.ContarPendente = true; Pedir(AplicarHandler.Acao.Categorias); };
-            _soSem = new CheckBox { Content = "Só os sem classificação", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0) };
+            _soSem = new CheckBox { Content = "Só os sem classificação", VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0), ToolTip = "Sem nada no parâmetro da aba aberta." };
             var selecionar = new Button { Content = "Selecionar", Padding = new Thickness(10, 2, 10, 2) };
             selecionar.Click += (s, e) => Pedir(AplicarHandler.Acao.Selecionar);
             var linhaSel = new WrapPanel();
@@ -288,7 +331,7 @@ namespace MetroSP.Classificacao
                 linhaSel.Children.Add(el);
             }
             var caixaSel = new StackPanel();
-            caixaSel.Children.Add(new TextBlock { Text = "Selecionar no Revit por categoria", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+            caixaSel.Children.Add(new TextBlock { Text = "Selecionar no Revit", FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
             caixaSel.Children.Add(linhaSel);
             var blocoSel = new Border
             {
@@ -304,7 +347,6 @@ namespace MetroSP.Classificacao
             direita.Children.Add(blocoSel);
             direita.Children.Add(_detalhe);
             direita.Children.Add(_resumo);
-            direita.Children.Add(_forcar);
 
             var corpo = new Grid();
             corpo.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 300 });
@@ -319,12 +361,14 @@ namespace MetroSP.Classificacao
             corpo.Children.Add(rolagem);
 
             var tudo = new DockPanel();
-            DockPanel.SetDock(_planilha, Dock.Top);
-            tudo.Children.Add(_planilha);
+            DockPanel.SetDock(barra, Dock.Top);
+            DockPanel.SetDock(_abas, Dock.Top);
+            tudo.Children.Add(barra);
+            tudo.Children.Add(_abas);
             tudo.Children.Add(corpo);
 
             _status = new TextBlock { Foreground = Theme.Solid(Theme.Cinza), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Text = "A janela fica aberta: selecione elementos no Revit e aplique." };
-            _aplicar = new Button { Content = "Aplicar", Style = Theme.PrimaryButton, IsEnabled = false };
+            _aplicar = new Button { Content = "Aplicar", Style = Theme.PrimaryButton, IsEnabled = false, ToolTip = "Grava o item escolhido de cada classificação nos elementos selecionados (Ctrl+Z desfaz)." };
             _aplicar.Click += (s, e) => { _handler.Pedido = AplicarHandler.Acao.Aplicar; _evento.Raise(); };
             var atualizar = new Button { Content = "Atualizar seleção" };
             atualizar.Click += (s, e) => PedirResumo();
@@ -336,12 +380,12 @@ namespace MetroSP.Classificacao
             rodape.Children.Add(botoes);
             rodape.Children.Add(_status);
 
-            Theme.Apply(this, "Aplicar classificação", $"grava em {config.Parametro} no formato Código:Descrição", tudo, rodape);
+            Theme.Apply(this, "Aplicar classificação", "escolha um item em cada classificação e aplique na seleção · só elementos que vão para o IFC", tudo, rodape);
             Closed += (s, e) => _evento.Dispose();
 
-            // Abrir rápido: nada de varrer o modelo antes de mostrar a janela. A planilha é lida depois que a janela
-            // aparece (fora da tela, e só uma vez enquanto o arquivo não mudar) e as categorias são contadas só quando
-            // o projetista abre a lista de categorias.
+            // Abrir rápido: nada de varrer o modelo antes de mostrar a janela. As planilhas do perfil são lidas depois
+            // que a janela aparece (fora da tela, e só uma vez enquanto o arquivo não mudar) e as categorias são contadas
+            // só quando o projetista abre a lista de categorias.
             MostrarDetalhe();
             ContentRendered += PrimeiroDesenho;
         }
@@ -349,7 +393,120 @@ namespace MetroSP.Classificacao
         private void PrimeiroDesenho(object sender, EventArgs e)
         {
             ContentRendered -= PrimeiroDesenho;
-            _planilha.CarregarEmSegundoPlano();
+            CarregarPerfis(_config.Padrao);
+        }
+
+        // ------------------------------------------------------------------ perfis e abas
+
+        private void CarregarPerfis(string escolher)
+        {
+            List<PadraoClassificacao> perfis = PadraoClassificacao.Listar();
+            if (perfis.Count == 0)
+            {
+                // Primeiro uso: a planilha e o parâmetro que a classificação já usava viram o primeiro perfil.
+                PadraoClassificacao p = PadraoClassificacao.DoLegado(_config);
+                try { p.Salvar(); } catch { }
+                perfis.Add(p);
+            }
+            _trocandoPerfil = true;
+            _perfil.ItemsSource = perfis;
+            _perfil.SelectedItem = perfis.FirstOrDefault(p => p.Nome == escolher) ?? perfis[0];
+            _trocandoPerfil = false;
+            UsarPerfil(_perfil.SelectedItem as PadraoClassificacao);
+        }
+
+        /// <summary>Lê as planilhas do perfil fora da tela; a árvore aparece quando a leitura termina.</summary>
+        private async void UsarPerfil(PadraoClassificacao p)
+        {
+            _padrao = p;
+            _escolhidos.Clear();
+            Sistema = null;
+            Item = null;
+            _lista = null;
+            _arvore.Items.Clear();
+            MostrarAbas();
+            MostrarDetalhe();
+            if (p == null) return;
+            _config.Padrao = p.Nome;
+            try { _config.Salvar(); } catch { }
+            _perfilInfo.Text = "lendo as planilhas...";
+            try
+            {
+                await System.Threading.Tasks.Task.Run(() =>
+                {
+                    var cache = new Dictionary<string, Planilha.Tabela>(StringComparer.OrdinalIgnoreCase);
+                    foreach (SistemaClassificacao s in p.Sistemas) s.Carregar(cache);
+                });
+            }
+            catch (Exception ex) { _perfilInfo.Text = "erro ao ler: " + ex.Message; return; }
+            if (_padrao != p) return; // trocou de perfil enquanto lia
+            _perfilInfo.Text = string.Join("  ·  ", p.Sistemas.Select(s => s.Lista != null && s.Erro == null ? $"{s.Nome}: {s.Lista.Itens.Count} itens" : $"{s.Nome}: {s.Erro}"));
+            _perfilInfo.ToolTip = string.Join("\n", p.Sistemas.Select(s => $"{s.Nome}  ·  {s.Parametros}  ·  {s.Planilha?.NomeArquivo}"));
+            _perfilInfo.Foreground = Theme.Solid(p.Sistemas.Any(s => s.Lista == null || s.Erro != null) ? Theme.LaranjaTexto : Theme.Cinza);
+            AbrirAba(p.Sistemas.FirstOrDefault(s => s.Lista != null) ?? p.Sistemas.FirstOrDefault());
+        }
+
+        private void EditarPerfis(Document doc)
+        {
+            var w = new PadroesClassificacaoWindow(doc, _padrao?.Nome) { Owner = this };
+            w.ShowDialog();
+            CarregarPerfis(w.Escolhido ?? _padrao?.Nome);
+        }
+
+        private void AbrirAba(SistemaClassificacao s)
+        {
+            Sistema = s;
+            _lista = s?.Lista;
+            _textoBusca = new Dictionary<ClassItem, string>();
+            Item = s != null && _escolhidos.TryGetValue(s, out ClassItem i) ? i : null;
+            MostrarAbas();
+            MontarArvore();
+            MostrarDetalhe();
+            PedirResumo();
+        }
+
+        /// <summary>Uma aba por classificação; ✓ quando já tem item escolhido.</summary>
+        private void MostrarAbas()
+        {
+            _abas.Children.Clear();
+            if (_padrao == null) return;
+            foreach (SistemaClassificacao s in _padrao.Sistemas)
+            {
+                bool atual = s == Sistema;
+                bool escolhido = _escolhidos.TryGetValue(s, out ClassItem it) && it != null;
+                var aba = new Border
+                {
+                    BorderBrush = Theme.Solid(atual ? Theme.Laranja : Theme.CinzaClaro),
+                    BorderThickness = new Thickness(0, atual ? 3 : 1, 0, 0),
+                    Background = atual ? Brushes.White : Theme.Solid(Theme.CinzaFundo),
+                    Padding = new Thickness(12, 5, 12, 5),
+                    Margin = new Thickness(0, 0, 2, 0),
+                    Cursor = System.Windows.Input.Cursors.Hand,
+                    ToolTip = s.Lista == null ? $"{s.Nome}: {s.Erro ?? "lendo..."}" : $"{s.Parametros}" + (escolhido ? $"\nEscolhido: {it.Codigo} {it.Descricao}" : ""),
+                    Child = new TextBlock
+                    {
+                        Text = (escolhido ? "✓ " : "") + s.Nome,
+                        FontWeight = atual ? FontWeights.SemiBold : FontWeights.Normal,
+                        Opacity = s.Lista == null ? 0.5 : 1,
+                    },
+                };
+                SistemaClassificacao sis = s;
+                aba.MouseLeftButtonUp += (o, e) => { if (Sistema != sis) AbrirAba(sis); };
+                _abas.Children.Add(aba);
+            }
+        }
+
+        private void Escolher(ClassItem item)
+        {
+            Item = item;
+            if (Sistema != null)
+            {
+                if (item == null) _escolhidos.Remove(Sistema);
+                else _escolhidos[Sistema] = item;
+            }
+            MostrarAbas();
+            MostrarDetalhe();
+            PedirResumo();
         }
 
         private void Pedir(AplicarHandler.Acao acao)
@@ -391,7 +548,6 @@ namespace MetroSP.Classificacao
                 if (_lista == null) return;
                 string busca = ClassificationCore.Normalizar(_busca.Text);
                 bool filtrando = busca.Length > 0;
-                bool porCategoria = _soCategorias.IsChecked == true && _categoriasSelecao.Count > 0;
                 var fonte = new FontFamily("Consolas");
                 Brush cinza = Theme.Solid(Theme.Cinza);
 
@@ -401,8 +557,7 @@ namespace MetroSP.Classificacao
                     return t;
                 }
 
-                bool Combina(ClassItem i) =>
-                    (!filtrando || Texto(i).Contains(busca)) && (!porCategoria || _categoriasSelecao.Any(i.ValeParaCategoria));
+                bool Combina(ClassItem i) => !filtrando || Texto(i).Contains(busca);
 
                 TreeViewItem No(ClassItem i)
                 {
@@ -414,7 +569,12 @@ namespace MetroSP.Classificacao
                     header.Children.Add(new TextBlock { Text = i.Descricao, Opacity = combina ? 1 : 0.55 });
                     var n = new TreeViewItem { Header = header, Tag = i, IsExpanded = filtrando || i.Pai == null };
                     foreach (TreeViewItem f in filhos) n.Items.Add(f);
-                    if (anterior != null && i.Codigo == anterior.Codigo) { n.IsSelected = true; reselecionado = i; }
+                    if (anterior != null && i.Codigo == anterior.Codigo)
+                    {
+                        n.IsSelected = true;
+                        reselecionado = i;
+                    }
+                    if (filhos.Any(ContemSelecionado)) n.IsExpanded = true; // abre o caminho até o item escolhido
                     return n;
                 }
 
@@ -427,59 +587,98 @@ namespace MetroSP.Classificacao
             finally
             {
                 _montandoArvore = false;
-                // Só pede um novo resumo ao Revit se o item escolhido mudou (antes, cada tecla na busca refazia o resumo).
-                Item = reselecionado;
-                if (Item != anterior) { MostrarDetalhe(); PedirResumo(); }
+                // A busca pode esconder o item escolhido: ele continua escolhido nesta classificação.
+                if (reselecionado != null) Item = reselecionado;
             }
         }
+
+        private static bool ContemSelecionado(TreeViewItem n) =>
+            n.IsSelected || n.Items.OfType<TreeViewItem>().Any(ContemSelecionado);
 
         // ------------------------------------------------------------------ painel direito
 
         private void MostrarDetalhe()
         {
             _detalhe.Children.Clear();
-            _detalhe.Children.Add(new TextBlock { Text = "Item escolhido", FontWeight = FontWeights.SemiBold, FontSize = 13, Margin = new Thickness(0, 0, 0, 6) });
-            if (Item == null)
+            _detalhe.Children.Add(new TextBlock { Text = "Vai gravar", FontWeight = FontWeights.SemiBold, FontSize = 13, Margin = new Thickness(0, 0, 0, 6) });
+            if (_padrao == null || Sistema == null)
             {
-                _detalhe.Children.Add(new TextBlock { Text = _lista == null ? "Escolha a planilha acima." : "Escolha um item na árvore.", Foreground = Theme.Solid(Theme.Cinza) });
+                _detalhe.Children.Add(new TextBlock { Text = "Escolha o perfil acima.", Foreground = Theme.Solid(Theme.Cinza) });
                 _aplicar.IsEnabled = false;
                 return;
             }
+            if (_lista == null)
+            {
+                _detalhe.Children.Add(new TextBlock { Text = $"{Sistema.Nome}: {Sistema.Erro ?? "lendo a planilha..."}. Ajuste em \"Classificação...\".", Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap });
+            }
+
             var g = new Grid();
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(95) });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            void Linha(string k, string v, bool forte = false)
+            void Linha(string a, string b, string c, bool cinza = false, bool cabecalho = false)
             {
                 int r = g.RowDefinitions.Count;
                 g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                var a = new TextBlock { Text = k, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 2, 8, 2) };
-                var b = new TextBlock { Text = v, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 2), FontWeight = forte ? FontWeights.SemiBold : FontWeights.Normal };
-                Grid.SetRow(a, r); Grid.SetRow(b, r); Grid.SetColumn(b, 1);
-                g.Children.Add(a); g.Children.Add(b);
-            }
-            Linha("Código", Item.Codigo);
-            Linha("Descrição", Item.Descricao);
-            if (Item.Pai != null) Linha("Caminho", Item.Caminho);
-            Linha("Categorias", Item.Categorias.Count == 0 ? "todas" : string.Join(", ", Item.Categorias));
-            Linha("Vai gravar", $"{Parametro} = {ValorClassificacao.Escrever(Item.Codigo, Item.Descricao)}", true);
-            _detalhe.Children.Add(g);
-            if (Item.Filhos.Count > 0)
-                _detalhe.Children.Add(new TextBlock
+                string[] t = { a, b, c };
+                for (int k = 0; k < 3; k++)
                 {
-                    Text = "Este item tem subitens; normalmente se aplica o nível mais detalhado.",
-                    Foreground = Theme.Solid(Color.FromRgb(0x8A, 0x45, 0x00)),
-                    TextWrapping = TextWrapping.Wrap,
-                    Margin = new Thickness(0, 6, 0, 0),
-                });
+                    var tb = new TextBlock
+                    {
+                        Text = t[k],
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 2, 12, 2),
+                        FontWeight = cabecalho ? FontWeights.SemiBold : FontWeights.Normal,
+                        Foreground = cinza ? Theme.Solid(Theme.Cinza) : Brushes.Black,
+                        FontFamily = k == 2 && !cabecalho ? new FontFamily("Consolas") : null,
+                    };
+                    if (tb.FontFamily == null) tb.ClearValue(TextBlock.FontFamilyProperty);
+                    Grid.SetRow(tb, r);
+                    Grid.SetColumn(tb, k);
+                    g.Children.Add(tb);
+                }
+            }
+            Linha("Classificação", "Parâmetro", "Valor", cabecalho: true);
+            foreach (SistemaClassificacao s in _padrao.Sistemas)
+            {
+                if (!_escolhidos.TryGetValue(s, out ClassItem it) || it == null) { Linha(s.Nome, s.ParametroCodigo, "nada escolhido", cinza: true); continue; }
+                Linha(s.Nome, s.ParametroCodigo, ValorCodigo(s, it));
+                if (s.Formato == FormatoClassificacao.Separados && !string.IsNullOrWhiteSpace(s.ParametroDescricao) && it.Descricao.Length > 0)
+                    Linha(s.Nome, s.ParametroDescricao, it.Descricao);
+                if (!string.IsNullOrWhiteSpace(s.ParametroDescricaoLonga) && !string.IsNullOrEmpty(it.DescricaoLonga))
+                    Linha(s.Nome, s.ParametroDescricaoLonga, it.DescricaoLonga);
+            }
+            _detalhe.Children.Add(g);
+
+            if (Item != null)
+            {
+                if (Item.Pai != null)
+                    _detalhe.Children.Add(new TextBlock { Text = Item.Caminho, Foreground = Theme.Solid(Theme.Cinza), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0), ToolTip = "Caminho na classificação" });
+                if (Item.Filhos.Count > 0)
+                    _detalhe.Children.Add(new TextBlock
+                    {
+                        Text = "Este item tem subitens; normalmente se aplica o nível mais detalhado.",
+                        Foreground = Theme.Solid(Color.FromRgb(0x8A, 0x45, 0x00)),
+                        TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 6, 0, 0),
+                    });
+                var limpar = Theme.Link($"Tirar {Sistema.Nome} desta aplicação");
+                limpar.Margin = new Thickness(0, 6, 0, 0);
+                limpar.HorizontalAlignment = HorizontalAlignment.Left;
+                limpar.Click += (s, e) => { _arvore.Items.OfType<TreeViewItem>().ToList().ForEach(Desmarcar); Escolher(null); };
+                _detalhe.Children.Add(limpar);
+            }
         }
 
-        /// <summary>Atualiza o resumo da seleção (chamado no contexto da API).</summary>
+        private static void Desmarcar(TreeViewItem n)
+        {
+            n.IsSelected = false;
+            foreach (TreeViewItem f in n.Items.OfType<TreeViewItem>()) Desmarcar(f);
+        }
+
+        /// <summary>Atualiza o resumo da seleção (chamado no contexto da API). A situação é a da aba aberta.</summary>
         public void MostrarResumo(ResumoSelecao r)
         {
-            bool mudouCategorias = !r.Categorias.SequenceEqual(_categoriasSelecao);
-            _categoriasSelecao = r.Categorias;
-            if (mudouCategorias && _soCategorias.IsChecked == true) MontarArvore();
-
             _resumo.Children.Clear();
             _resumo.Children.Add(new TextBlock
             {
@@ -490,6 +689,7 @@ namespace MetroSP.Classificacao
             });
             if (r.Total > 0 && Item != null)
             {
+                _resumo.Children.Add(new TextBlock { Text = $"Como está hoje em {Parametro}", Foreground = Theme.Solid(Theme.Cinza), Margin = new Thickness(0, 0, 0, 4) });
                 var g = new DataGrid
                 {
                     AutoGenerateColumns = false,
@@ -500,7 +700,7 @@ namespace MetroSP.Classificacao
                 };
                 g.Columns.Add(new DataGridTextColumn { Header = "Situação", Binding = new System.Windows.Data.Binding("Situacao"), Width = new DataGridLength(150) });
                 g.Columns.Add(new DataGridTextColumn { Header = "Elementos", Binding = new System.Windows.Data.Binding("Elementos"), Width = new DataGridLength(80) });
-                g.Columns.Add(new DataGridTextColumn { Header = "Classificação atual", Binding = new System.Windows.Data.Binding("Atual"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
+                g.Columns.Add(new DataGridTextColumn { Header = "Valor atual", Binding = new System.Windows.Data.Binding("Atual"), Width = new DataGridLength(1, DataGridLengthUnitType.Star) });
                 _resumo.Children.Add(g);
                 if (r.NoTipo > 0)
                     _resumo.Children.Add(new TextBlock
@@ -519,7 +719,7 @@ namespace MetroSP.Classificacao
                     Foreground = Theme.Solid(Color.FromRgb(0x8A, 0x45, 0x00)),
                     Margin = new Thickness(0, 6, 0, 0),
                 });
-            if (r.SemParametro.Count > 0)
+            if (r.SemParametro.Count > 0 && Parametro != null)
             {
                 var criar = new Button
                 {
@@ -532,8 +732,9 @@ namespace MetroSP.Classificacao
                 criar.Click += (s, e) => Pedir(AplicarHandler.Acao.Vincular);
                 _resumo.Children.Add(criar);
             }
-            _aplicar.IsEnabled = Item != null && r.Gravaveis > 0;
-            _aplicar.Content = r.Gravaveis > 0 ? $"Aplicar em {r.Gravaveis} elementos" : "Aplicar";
+            int n = Escolhas().Count;
+            _aplicar.IsEnabled = n > 0 && r.Total > 0;
+            _aplicar.Content = n == 0 || r.Total == 0 ? "Aplicar" : n == 1 ? $"Aplicar em {r.Total} elementos" : $"Aplicar {n} classificações em {r.Total} elementos";
         }
     }
 }

@@ -26,8 +26,10 @@ namespace MetroSP.Classificacao
         public string Edicao { get; set; }
         public FormatoClassificacao Formato { get; set; } = FormatoClassificacao.CodigoDescricao;
         public string ParametroCodigo { get; set; } = "ClassificationCode";
-        /// <summary>Só no formato Separados; vazio = só o código é conferido.</summary>
+        /// <summary>Só no formato Separados: parâmetro do título; vazio = só o código é conferido.</summary>
         public string ParametroDescricao { get; set; }
+        /// <summary>Opcional: outro parâmetro que recebe a descrição longa (coluna Descrição, quando há coluna Título).</summary>
+        public string ParametroDescricaoLonga { get; set; }
         /// <summary>Gravar "[Nome]Código:Descrição" (o exportador IFC usa o nome como IfcClassification).</summary>
         public bool GravarNome { get; set; }
         public MapaColunas Planilha { get; set; } = new MapaColunas();
@@ -41,8 +43,18 @@ namespace MetroSP.Classificacao
 
         /// <summary>Parâmetros gravados por esta classificação.</summary>
         [JsonIgnore]
-        public string Parametros => Formato == FormatoClassificacao.Separados && !string.IsNullOrWhiteSpace(ParametroDescricao)
-            ? ParametroCodigo + " + " + ParametroDescricao : ParametroCodigo;
+        public string Parametros => (Formato == FormatoClassificacao.Separados && !string.IsNullOrWhiteSpace(ParametroDescricao)
+            ? ParametroCodigo + " + " + ParametroDescricao : ParametroCodigo) +
+            (string.IsNullOrWhiteSpace(ParametroDescricaoLonga) ? "" : " + " + ParametroDescricaoLonga);
+
+        /// <summary>Exemplo de como fica no elemento, com o primeiro item da lista (ou um exemplo fixo).</summary>
+        public string Exemplo(ClassItem item = null)
+        {
+            string cod = item?.Codigo ?? "EST.02.01", tit = item?.Descricao ?? "Laje maciça";
+            if (Formato == FormatoClassificacao.Separados)
+                return string.IsNullOrWhiteSpace(ParametroDescricao) ? $"{ParametroCodigo} = {cod}" : $"{ParametroCodigo} = {cod}   ·   {ParametroDescricao} = {tit}";
+            return $"{ParametroCodigo} = {ValorClassificacao.Escrever(cod, tit, GravarNome ? Nome : null)}";
+        }
 
         public SistemaClassificacao Clonar()
         {
@@ -55,8 +67,11 @@ namespace MetroSP.Classificacao
 
         public static readonly CampoPlanilha CampoCodigo = new CampoPlanilha("codigo", "Código", true,
             "Coluna com o código do item (ex.: EST.02.01).", "código", "codigo", "cód", "cod", "code", "identification", "number", "número", "numero", "item");
+        public static readonly CampoPlanilha CampoTitulo = new CampoPlanilha("titulo", "Título", false,
+            "Texto que vai depois dos dois-pontos (Código:Título). Sem esta coluna, vale a Descrição.", "título", "titulo", "title", "nome", "name");
         public static readonly CampoPlanilha CampoDescricao = new CampoPlanilha("descricao", "Descrição", false,
-            "Coluna com a descrição oficial. Sem ela, só o código é conferido.", "descrição", "descricao", "description", "nome", "name", "título", "titulo", "title");
+            "Texto da descrição. Com a coluna Título, pode ir para outro parâmetro (opcional). Sem Título nem Descrição, só o código é conferido.",
+            "descrição", "descricao", "description");
         public static readonly CampoPlanilha CampoPai = new CampoPlanilha("pai", "Código pai", false,
             "Opcional. Sem ela, a hierarquia sai do próprio código (EST.02.01 fica dentro de EST.02).", "código pai", "codigo pai", "pai", "parent", "referencedsource");
         public static readonly CampoPlanilha CampoCategorias = new CampoPlanilha("categorias", "Categorias", false,
@@ -65,7 +80,22 @@ namespace MetroSP.Classificacao
         /// <summary>Só na leitura automática (Conferir Entrega): edição da lista.</summary>
         public static readonly CampoPlanilha CampoEdicao = new CampoPlanilha("edicao", "Edição", false, null, "edição", "edicao", "edition", "versão", "versao");
 
-        public static List<CampoPlanilha> Campos => new List<CampoPlanilha> { CampoCodigo, CampoDescricao, CampoPai, CampoCategorias };
+        /// <summary>Colunas que o usuário escolhe. Categorias saiu (1.0.10): a classificação não confere categoria.</summary>
+        public static List<CampoPlanilha> Campos => new List<CampoPlanilha> { CampoCodigo, CampoTitulo, CampoDescricao, CampoPai };
+
+        /// <summary>Planilhas já lidas nesta sessão do Revit: reabrir a janela não lê o .xlsx de novo enquanto o arquivo não muda.</summary>
+        private static readonly Dictionary<string, (DateTime Data, long Tamanho, Tabela Tabela)> _lidas =
+            new Dictionary<string, (DateTime, long, Tabela)>(StringComparer.OrdinalIgnoreCase);
+
+        private static Tabela LerComCache(string arquivo)
+        {
+            var f = new FileInfo(arquivo);
+            lock (_lidas)
+                if (_lidas.TryGetValue(arquivo, out var u) && u.Data == f.LastWriteTimeUtc && u.Tamanho == f.Length) return u.Tabela;
+            Tabela t = LeitorPlanilha.Ler(arquivo);
+            lock (_lidas) _lidas[arquivo] = (f.LastWriteTimeUtc, f.Length, t);
+            return t;
+        }
 
         /// <summary>Lê a planilha da classificação (as planilhas já lidas ficam no cache, por arquivo).</summary>
         public void Carregar(Dictionary<string, Tabela> cache = null)
@@ -79,7 +109,7 @@ namespace MetroSP.Classificacao
                 Tabela t = null;
                 if (cache == null || !cache.TryGetValue(Planilha.Arquivo, out t))
                 {
-                    t = LeitorPlanilha.Ler(Planilha.Arquivo);
+                    t = LerComCache(Planilha.Arquivo);
                     if (cache != null) cache[Planilha.Arquivo] = t;
                 }
                 if (Planilha.Coluna(CampoCodigo.Chave) == null) { Erro = "falta indicar a coluna do código"; return; }
@@ -160,12 +190,12 @@ namespace MetroSP.Classificacao
     }
 
     /// <summary>
-    /// Padrão de verificação: uma ou mais classificações, cada uma com sua planilha e colunas.
+    /// Perfil de classificação (antes "padrão"): uma ou mais classificações, cada uma com sua planilha e colunas.
     /// Fica em %AppData%\MetroSP\Classificacao\[nome].json; Exportar/Importar leva para outra máquina.
     /// </summary>
     public class PadraoClassificacao
     {
-        public string Nome { get; set; } = "Padrão Metrô";
+        public string Nome { get; set; } = "Perfil Metrô";
         public List<SistemaClassificacao> Sistemas { get; set; } = new List<SistemaClassificacao>();
 
         [JsonIgnore] public string Caminho { get; set; }
@@ -261,7 +291,7 @@ namespace MetroSP.Classificacao
                 catch { }
             }
             if (s.Planilha.LinhaCabecalho <= 0) s.Planilha.LinhaCabecalho = 1;
-            return new PadraoClassificacao { Nome = "Padrão Metrô", Sistemas = { s } };
+            return new PadraoClassificacao { Nome = "Perfil Metrô", Sistemas = { s } };
         }
     }
 }

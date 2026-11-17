@@ -9,6 +9,31 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 - Revit e Civil 3D, **janelas no monitor do software**: todas as janelas do MetroSP, inclusive as de progresso
   (carregando), abrem no mesmo monitor do Revit ou do Civil 3D, centralizadas sobre ele. Uma janela que lembra a
   posição só volta lá se for nesse monitor, e nenhuma fica maior que a tela onde abre.
+- Revit, **Perfis de classificação** (antes "padrões de classificação"), com um botão próprio em **Coordenação ›
+  Padrões › Classificação...** e em Verificar/Aplicar:
+  - Na planilha, você escolhe as colunas **Código**, **Título** (o que vai depois dos dois-pontos) e **Descrição**
+    (opcional). Sem a coluna Título, vale a Descrição, como antes. A coluna **Categorias** saiu.
+  - **Escrita**: `Código:Título`, `[Nome]Código:Título` (o nome vira a IfcClassification no IFC) ou código e título em
+    parâmetros separados. Qualquer parâmetro de texto, e a descrição pode ir para **outro parâmetro**.
+  - "Como fica no elemento" mostra o valor com o primeiro item da planilha.
+  - Mais de uma classificação por perfil, cada uma no seu parâmetro (ex.: ClassificationCode e ClassificationCode(2)).
+- Revit, **Verificar classificação** mais simples:
+  - Só a classificação: **não confere mais categoria** ("categoria não prevista" saiu).
+  - **Uma linha por valor escrito**, não por elemento, com quantos elementos têm aquele valor. À direita, os elementos e
+    tipos da linha escolhida e o que muda marcado em vermelho (no modelo) e verde (na lista).
+  - Uma **aba por classificação** e contadores no topo, que também filtram.
+  - Reconhece a escrita do ClassificationCode: `Código - Título` (ou tabulação, `;`), só o código, outra pontuação no
+    código ("EST 02 01"), espaços em volta dos dois-pontos, espaços especiais e quebras de linha. Tudo isso vira
+    **escrita diferente**, com correção segura (o código não muda). Com `[Nome]`, confere também o nome.
+  - **Corrigir...** abre a lista de itens com a sugestão marcada: aceite ou escolha outro e sobrescreva.
+    **Corrigir escrita (n)** corrige de uma vez só a escrita das linhas visíveis.
+  - Saiu o botão **Códigos × descrições** (as linhas por valor já mostram o mesmo código com títulos diferentes).
+- Revit, **Aplicar classificação** usa o mesmo perfil do Verificar: uma **aba por classificação** (✓ quando já tem item
+  escolhido) e **Aplicar** grava todas de uma vez, cada uma no seu parâmetro e na sua escrita (com a descrição no outro
+  parâmetro, se houver). Saiu o filtro por categoria da árvore.
+- Testar no Revit: criar um perfil com Título e Descrição em colunas separadas e a descrição em outro parâmetro; Verificar
+  num modelo com `[LMB3]...` e com valores escritos à mão (`Código - Título`, só o código); Corrigir... e Corrigir
+  escrita; Aplicar com duas classificações; abrir pelo botão Classificação... em Padrões; Entrega passo a passo › Classificação.
 
 ## 1.0.9 (17/11/2026)
 
