@@ -4,6 +4,14 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## Próxima versão
+
+- Revit, **Verificar requisitos (.ids)** de volta, no lugar certo: no passo **Exportar** da **Entrega passo a passo**, o
+  cartão **Requisitos (.ids)** confere o modelo com cada regra do .ids dos padrões antes de exportar (classe IFC,
+  property sets e valores, classificação e material), só com os elementos que vão para o IFC. O resultado abre numa
+  tabela com filtro em cada coluna; duplo clique seleciona os elementos e **Exportar CSV...** salva a lista. O cartão
+  só aparece quando os padrões têm um .ids (passo 1).
+
 ## 1.0.9 (17/11/2026)
 
 Revit 0.3.12 · Civil 3D 0.12.5

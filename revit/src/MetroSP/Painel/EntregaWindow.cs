@@ -424,6 +424,16 @@ namespace MetroSP.Painel
                 var semAcao = new List<(string, string, Action)>();
                 _pendencias.Children.Add(Cartao(_local.Sinal == Sinal.Verde ? Sinal.Verde : Sinal.Amarelo, "Projeto e local", _local.Texto,
                     _local.Sinal == Sinal.Verde ? null : "Confira no grupo Extras, ao lado.", semAcao));
+                if (PacoteMetro.Existe((_efetivo ?? _pacote)?.Ids))
+                {
+                    var verificar = new List<(string, string, Action)>
+                    {
+                        ("Verificar...", "Confere no modelo, antes de exportar, cada regra do arquivo de requisitos (.ids) dos padrões: " +
+                            "classe IFC, property sets e valores, classificação e material. Só os elementos que vão para o IFC. " +
+                            "Duplo clique numa linha do resultado seleciona os elementos.", VerificarIds),
+                    };
+                    _pendencias.Children.Add(Cartao(Sinal.Amarelo, "Requisitos (.ids)", "Confira o modelo com as regras do .ids antes de exportar.", null, verificar));
+                }
                 Sinal exp = _res.ProntoParaExportar ? (_res.Amarelas > 0 ? Sinal.Amarelo : Sinal.Verde) : Sinal.Vermelho;
                 string texto = _res.ProntoParaExportar
                     ? (_res.Amarelas > 0 ? "Pronto para exportar, com avisos nas etapas em laranja." : "Tudo certo para exportar.")
@@ -456,6 +466,30 @@ namespace MetroSP.Painel
             }
             if (pendencias.Count > Maximo)
                 _pendencias.Children.Add(Theme.Detalhe($"e mais {pendencias.Count - Maximo}. Veja todas na Conferência completa."));
+        }
+
+        /// <summary>Roda o Verificar IDS no modelo (o mesmo da Conferência completa) e mostra o resultado.</summary>
+        private void VerificarIds()
+        {
+            PacoteMetro pacote = _efetivo ?? _pacote;
+            (Ids.IdsDocument ids, List<Ids.CheckResult> resultados) d;
+            try
+            {
+                DB.ElementId vista = ConferirEntregaWindow.VistaDoEscopo(_app, pacote, out _);
+                using (Progresso.Abrir("Verificar requisitos (.ids)"))
+                    d = ConferenciaEntrega.DetalhesIds(_doc, pacote, vista);
+            }
+            catch (Exception ex)
+            {
+                TaskDialog.Show("MetroSP", "Não foi possível verificar os requisitos (.ids):\n" + ex.Message);
+                return;
+            }
+            if (d.ids == null)
+            {
+                TaskDialog.Show("MetroSP", "O arquivo de requisitos (.ids) dos padrões não pôde ser lido. Confira no passo 1.");
+                return;
+            }
+            new Ids.ResultadosIdsWindow(d.ids, d.resultados, _app.ActiveUIDocument) { Owner = this }.ShowDialog();
         }
 
         /// <summary>Dica com quebra de linha (texto longo não vira uma linha da largura da tela).</summary>
