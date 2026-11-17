@@ -33,6 +33,8 @@ namespace MetroSP.Conferencia
         public string Assunto { get; set; }
         public string Problema { get; set; }
         public string OQueFazer { get; set; }
+        /// <summary>Explicação longa (por que é problema, de onde vem), para a dica: na tela fica só o texto curto.</summary>
+        public string Detalhe { get; set; }
         public List<ElementId> Elementos { get; set; } = new List<ElementId>();
         public Correcao Correcao { get; set; }
         /// <summary>Parâmetro do Revit a preencher (etapa 4), para abrir o Editar em Massa já nele.</summary>
