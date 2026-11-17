@@ -4,9 +4,11 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## Próxima versão
+## 1.0.9 (17/11/2026)
 
-- Revit, **Entrega passo a passo › Classe IFC** sem falsos proxies:
+Revit 0.3.12 · Civil 3D 0.12.5
+
+- Revit, **Entrega passo a passo › Classes IFC** sem falsos proxies:
   - **Balaústres, corrimãos (Top Rails, Handrails), suportes e terminações** de guarda-corpo e **linhas de grade de
     parede cortina** (Curtain Wall Grids) não aparecem mais como proxy. O exportador IFC da Autodesk não cria um
     elemento para eles: a geometria vai dentro do IfcRailing ou do IfcCurtainWall. Vale para todas as ferramentas
