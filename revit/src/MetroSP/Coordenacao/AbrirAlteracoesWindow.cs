@@ -69,7 +69,7 @@ namespace MetroSP.Coordenacao
             _info.Margin = new Thickness(0, 4, 0, 0);
             corpo.Children.Add(_info);
 
-            _secaoPerfil = Theme.Secao("Padrão");
+            _secaoPerfil = Theme.Secao("Perfil");
             corpo.Children.Add(_secaoPerfil);
             _grupoPerfil = Theme.Grupo(out _perfis);
             corpo.Children.Add(_grupoPerfil);
@@ -101,7 +101,7 @@ namespace MetroSP.Coordenacao
             corpo.Children.Add(_entrega);
 
             _resumo = new TextBlock();
-            _usar = new Button { Content = "Usar este padrão", IsDefault = true, Style = Theme.PrimaryButton, IsEnabled = false };
+            _usar = new Button { Content = "Usar este perfil", IsDefault = true, Style = Theme.PrimaryButton, IsEnabled = false };
             _usar.Click += (s, e) => Usar();
             var cancelar = new Button { Content = "Cancelar", IsCancel = true };
             Theme.Apply(this, "Abrir alterações", "O Exportar IFC passa a usar o que o coordenador BIM ajustou", corpo, Theme.Rodape(_resumo, cancelar, _usar));
@@ -192,7 +192,7 @@ namespace MetroSP.Coordenacao
             _grupoPerfil.Visibility = vis;
             _dadosProjeto.Visibility = a.Comum.DadosProjeto != null ? Visibility.Visible : Visibility.Collapsed;
             _entrega.Text = a.Comum.TemEntrega
-                ? "Para todos os padrões: " + string.Join(", ", new[] { a.Comum.Ids, a.Comum.PlanilhaClassificacao, a.Comum.MetroShared }.Where(x => x != null).Select(x => x.Nome))
+                ? "Para todos os perfis: " + string.Join(", ", new[] { a.Comum.Ids, a.Comum.PlanilhaClassificacao, a.Comum.MetroShared }.Where(x => x != null).Select(x => x.Nome))
                 : "";
             _entrega.Visibility = a.Comum.TemEntrega ? Visibility.Visible : Visibility.Collapsed;
             MostrarPerfil();
@@ -208,7 +208,7 @@ namespace MetroSP.Coordenacao
             if (p.Fase != null && CoordenacaoRevit.FasePeloNome(_doc, p.Fase) < 0) avisos.Add($"a fase \"{p.Fase}\" não existe neste modelo");
             if (ClassesIfc.Listar().All(c => !string.Equals(c.Nome, p.Classe, StringComparison.CurrentCultureIgnoreCase)) && p.Exportador == null)
                 avisos.Add($"classe {p.Classe} sem setup");
-            Theme.MudarResumo(_resumo, avisos, $"Padrão \"{p.Nome}\": {p.Alteracoes} ajustes");
+            Theme.MudarResumo(_resumo, avisos, $"Perfil \"{p.Nome}\": {p.Alteracoes} ajustes");
         }
 
         /// <summary>Linhas que descrevem o perfil (para a janela e as dicas).</summary>
@@ -237,7 +237,7 @@ namespace MetroSP.Coordenacao
                 if (o.SempreEixos.HasValue) x.Add(o.SempreEixos.Value ? "sempre exportar os eixos" : "eixos pela vista e pela tabela");
                 if (x.Count > 0) l.Add("• Exportar IFC: " + string.Join(", ", x));
             }
-            if (l.Count == 0) l.Add("O padrão não traz ajustes.");
+            if (l.Count == 0) l.Add("O perfil não traz ajustes.");
             return l;
         }
 
@@ -250,7 +250,7 @@ namespace MetroSP.Coordenacao
             bool dados = a.Comum.DadosProjeto != null && _dadosProjeto.IsChecked == true;
             string origem = File.Exists(_arquivo.Text) ? Path.GetFileName(_arquivo.Text)
                 : CoordenacaoRevit.Ler(_doc, out _, out string o) != null ? o : "";
-            var feito = new List<string> { $"{p.Nome} (rev. {a.Revisao}) em uso neste modelo. O Exportar IFC passa a usar este padrão." };
+            var feito = new List<string> { $"{p.Nome} (rev. {a.Revisao}) em uso neste modelo. O Exportar IFC passa a usar este perfil." };
             bool ok = CoordenacaoRevit.Executar(_doc, "MetroSP: abrir alterações", () =>
             {
                 CoordenacaoRevit.Gravar(_doc, a, p.Nome, origem);

@@ -114,12 +114,12 @@ namespace MetroSP.Ids
             corpo.Children.Add(new Coordenacao.FaixaCoordenacao(doc, CoordenacaoMudou));
 
             // ---------- Classe ----------
-            var secaoClasse = Theme.Secao("Padrão");
+            var secaoClasse = Theme.Secao("Perfil");
             secaoClasse.Margin = new Thickness(0, 0, 0, 5);
             corpo.Children.Add(secaoClasse);
             var linhaClasse = new DockPanel();
             _classe = new ComboBox { Padding = new Thickness(4, 3, 4, 3), Width = 150, VerticalAlignment = VerticalAlignment.Center,
-                ToolTip = "Padrão de exportação: carrega o setup, os property sets e o mapeamento dele de uma vez.\nOu \"Outros arquivos\" para indicar cada um." };
+                ToolTip = "Perfil de exportação: carrega o setup, os property sets e o mapeamento dele de uma vez.\nOu \"Outros arquivos\" para indicar cada um." };
             DockPanel.SetDock(_classe, Dock.Left);
             linhaClasse.Children.Add(_classe);
             _seloClasse = Theme.Selo();
@@ -131,9 +131,9 @@ namespace MetroSP.Ids
             _botaoForma.HorizontalAlignment = HorizontalAlignment.Right;
             _botaoForma.Margin = new Thickness(12, 0, 0, 0);
             _botaoForma.Click += (s, e) => MenuForma();
-            var gerenciar = Theme.Link("Padrões...");
+            var gerenciar = Theme.Link("Perfis...");
             gerenciar.Margin = new Thickness(12, 0, 0, 0);
-            gerenciar.ToolTip = "Abre os padrões de exportação IFC: o setup, os property sets e o mapeamento de cada padrão.";
+            gerenciar.ToolTip = "Abre os perfis de exportação IFC: o setup, os property sets e o mapeamento de cada perfil.";
             gerenciar.Click += (s, e) => Gerenciar();
             DockPanel.SetDock(gerenciar, Dock.Right);
             linhaClasse.Children.Add(gerenciar);
@@ -253,7 +253,7 @@ namespace MetroSP.Ids
             _classe.SelectionChanged += (s, e) => { _motivoClasse = null; AplicarClasse(); };
             MostrarForma(resultadoForma);
             if (_classe.SelectedItem is ClassesIfc.Classe) AplicarClasse();
-            else MostrarClasse(_classe.Items.Count > 1 ? null : "Nenhum padrão instalado: indique os arquivos.");
+            else MostrarClasse(_classe.Items.Count > 1 ? null : "Nenhum perfil instalado: indique os arquivos.");
             editarPsets.Click += (s, e) => EditarPsets();
 
             procurarSetup.Click += (s, e) =>
@@ -563,11 +563,11 @@ namespace MetroSP.Ids
             if (c.PropertySets == null) faltam.Add("property sets");
             string origem = c.DaCoordenacao ? "da coordenação" : c.Editada ? "editado por você" : c.DoForma ? "do Forma online" : "instalado";
             string selo = _motivoClasse != null ? "pelo nome do modelo" : origem;
-            string dica = (_motivoClasse != null ? $"Padrão indicado {_motivoClasse}.\n" : "") +
+            string dica = (_motivoClasse != null ? $"Perfil indicado {_motivoClasse}.\n" : "") +
                           (c.DaCoordenacao ? "Setup e property sets do arquivo de coordenação do modelo." :
-                           c.Editada ? "Property sets editados por você (o padrão não foi alterado)."
+                           c.Editada ? "Property sets editados por você (o perfil não foi alterado)."
                            : c.DoForma ? "Property sets da pasta do Forma online." : "Configuração instalada com o MetroSP.") +
-                          (faltam.Count > 0 ? "\nO padrão não traz: " + string.Join(", ", faltam) + "." : "");
+                          (faltam.Count > 0 ? "\nO perfil não traz: " + string.Join(", ", faltam) + "." : "");
             if (_motivoClasse != null && origem != "instalado") selo += " · " + origem;
             MostrarClasse(selo, dica);
             MostrarCaminhos();
@@ -662,7 +662,7 @@ namespace MetroSP.Ids
             string caminho = TextoPsets();
             if (caminho.Length == 0 || !File.Exists(caminho))
             {
-                MessageBox.Show(this, "Escolha um padrão ou indique um .txt de property sets que exista.", Title);
+                MessageBox.Show(this, "Escolha um perfil ou indique um .txt de property sets que exista.", Title);
                 return;
             }
             ClassesIfc.Classe c = ClasseEscolhida;

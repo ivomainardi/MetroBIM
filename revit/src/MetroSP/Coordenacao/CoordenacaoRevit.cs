@@ -280,7 +280,7 @@ namespace MetroSP.Coordenacao
         public static PerfilCoordenacao Capturar(Document doc, string classe, string nome, bool porElemento, long fase = -1)
         {
             ClassesIfc.Classe c = ClassesIfc.Obter(classe);
-            if (c.Setup == null) throw new InvalidOperationException($"O padrão {classe} não tem setup (.json). Escolha o setup no Exportar IFC ou em Padrões › Exportação IFC.");
+            if (c.Setup == null) throw new InvalidOperationException($"O perfil {classe} não tem setup (.json). Escolha o setup no Exportar IFC ou em Exportar IFC › Perfis...");
             var p = new PerfilCoordenacao { Nome = nome, Classe = classe };
 
             JsonObject setup = JsonNode.Parse(File.ReadAllText(c.Setup), documentOptions: new System.Text.Json.JsonDocumentOptions

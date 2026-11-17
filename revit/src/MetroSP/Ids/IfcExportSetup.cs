@@ -40,6 +40,20 @@ namespace MetroSP.Ids
             "ExportUserDefinedParameterMappingFileName",
             // Fixadas pela MetroSP: coordenadas no PTL (Shared Coordinates) e sem EPSG
             "SitePlacement", "SelectedSite", "GeoRefEPSGCode",
+            // Fixadas pela MetroSP: property sets e quantidades (ver Forcadas)
+            "ExportIFCCommonPropertySets", "ExportInternalRevitPropertySets", "ExportMaterialPsets",
+        };
+
+        /// <summary>
+        /// Opções que a exportação MetroSP sempre usa, seja qual for o valor gravado no setup: psets do IFC padrão,
+        /// psets de material e quantidades base sempre; psets internos do Revit nunca.
+        /// </summary>
+        public static readonly (string Chave, bool Valor)[] Forcadas =
+        {
+            ("ExportIFCCommonPropertySets", true),
+            ("ExportMaterialPsets", true),
+            ("ExportBaseQuantities", true),
+            ("ExportInternalRevitPropertySets", false),
         };
 
         private readonly Dictionary<string, JsonElement> _props;
@@ -154,9 +168,9 @@ namespace MetroSP.Ids
                 o.SpaceBoundaryLevel = (int)nivel;
             o.WallAndColumnSplitting = Bool("SplitWallsAndColumns");
 
-            bool quantidades = Bool("ExportBaseQuantities");
-            o.ExportBaseQuantities = quantidades;
-            o.AddOption("ExportBaseQuantities", quantidades.ToString());
+            // Psets do IFC padrão, de material e quantidades base sempre; psets internos do Revit nunca (Forcadas).
+            o.ExportBaseQuantities = true;
+            foreach (var (chave, valor) in Forcadas) o.AddOption(chave, valor.ToString());
 
             // A fase só vale para o modelo inteiro, e só se existir neste arquivo
             long faseId = fase ?? Fase;
