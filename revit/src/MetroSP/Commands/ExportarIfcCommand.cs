@@ -79,6 +79,8 @@ namespace MetroSP.Commands
             string passo = "montar as opções do setup";
             EixosIfc eixos = null;
             AcoIfc aco = null;
+            Dictionary<long, string> classesPedidas = null;
+            TimeSpan tCorrecoes = TimeSpan.Zero;
             try
             {
                 Directory.CreateDirectory(pastaTemp);
@@ -130,6 +132,15 @@ namespace MetroSP.Commands
                         exportou = doc.Export(pastaTemp, janela.NomeArquivo + ".ifc", opcoes);
                         tExportador = relogio.Elapsed - tPreparo;
                     }
+                    // Classe pedida dos elementos que saíram como proxy: lida ainda aqui, porque o "Exportar para IFC como" do
+                    // arquivo de coordenação só existe nesta transação.
+                    if (exportou && File.Exists(arquivo))
+                    {
+                        TimeSpan t0 = relogio.Elapsed;
+                        try { classesPedidas = CorrecoesRevit.ClassesPedidas(doc, Ifc.CorrecoesIfc.TagsDeProxies(arquivo)); }
+                        catch { classesPedidas = null; }
+                        tCorrecoes += relogio.Elapsed - t0;
+                    }
                     eixos?.Restaurar();
                     aco?.Restaurar(doc);
 
@@ -159,6 +170,7 @@ namespace MetroSP.Commands
 
             // Completar e conferir o IFC também leva tempo num modelo grande: a janela de andamento fica aberta.
             LocalizacaoIfc.Conferencia conferencia;
+            Ifc.CorrecoesIfc.Resultado correcoes = null;
             bool semElementos = false;
             int gridsNoIfc = -1;
             var progressoIfc = Ui.Progresso.Abrir("Exportar IFC");
@@ -231,6 +243,21 @@ namespace MetroSP.Commands
                         if (armaduras.ToString() is string linha) avisosClassificacao.Add(linha);
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar as quantidades das armaduras: " + ex.Message); }
+                    // Correções do exportador: classe IFC dos proxies, lances de escada/rampa, telas soldadas, quantidades base,
+                    // MetroQto, sistemas MEP e materiais (janela "O que o MetroSP corrige no IFC").
+                    TimeSpan t1 = relogio.Elapsed;
+                    try
+                    {
+                        string metroData = null;
+                        try { metroData = MetroSP.Conferencia.PacoteMetro.Abrir()?.MetroData; } catch { }
+                        var fonte = CorrecoesRevit.Fonte(doc, classesPedidas, CategoriasIfc.EsquemaDaVersao(setup.Versao.ToString()) ?? CategoriasIfc.Ifc4,
+                            CorrecoesRevit.MetroQto(metroData, janela.PropertySetsEscolhido));
+                        correcoes = Ifc.CorrecoesIfc.Aplicar(modelo, fonte);
+                        if (correcoes.Alterou) salvar = true;
+                        avisosClassificacao.AddRange(correcoes.Linhas());
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível aplicar as correções do exportador: " + ex.Message); }
+                    tCorrecoes += relogio.Elapsed - t1;
                     try
                     {
                         escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);
@@ -271,9 +298,15 @@ namespace MetroSP.Commands
             arquivo = destino;
             TimeSpan tTotal = relogio.Elapsed;
             conferencia.Linhas.Add($"Tempo: {Duracao(tTotal)} no total ({Duracao(tPreparo)} de preparação, {Duracao(tExportador)} no exportador do Revit, " +
-                                   $"{Duracao(tTotal - tPreparo - tExportador)} para completar e conferir o IFC).");
+                                   $"{Duracao(tTotal - tPreparo - tExportador)} para completar e conferir o IFC, dos quais {Duracao(tCorrecoes)} nas correções do exportador).");
             string log = local.GravarLog(doc, arquivo, setup.Nome, escolha, alteracoes, conferencia,
                 uiapp.Application.VersionName, Ui.SobreWindow.Versao);
+            // Valores do exportador que o MetroSP trocou (quantidades zeradas ou diferentes do Revit), para conferir depois.
+            if (log != null && correcoes != null && correcoes.Trocas.Count > 0)
+            {
+                try { File.AppendAllLines(log, new[] { "", "Quantidades trocadas (exportador → Revit):" }.Concat(correcoes.Trocas)); }
+                catch { /* o registro é só para consulta */ }
+            }
             string avisosSetup =
                 (setup.SitePlacementDiferente == null ? "" : $"\nO setup usa a base {setup.SitePlacementDiferente}; o IFC saiu com Shared Coordinates.") +
                 (setup.EpsgDoSetup == null || !janela.EpsgEmBranco ? "" : $"\nO setup tem o EPSG {setup.EpsgDoSetup}; o IFC saiu sem EPSG.");

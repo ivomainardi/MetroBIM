@@ -189,6 +189,20 @@ namespace MetroSP.Ifc
             _dirty.Remove(id);
         }
 
+        /// <summary>
+        /// Troca a classe da entidade (ex.: IFCBUILDINGELEMENTPROXY → IFCCOVERING) e os argumentos. A entrada antiga no
+        /// índice por tipo fica, mas OfType a pula (confere o tipo atual).
+        /// </summary>
+        public void TrocarTipo(int id, string type, IList<string> args)
+        {
+            var e = Get(id);
+            if (e == null) return;
+            e.Type = type.ToUpperInvariant();
+            e.Args = args.ToList();
+            Index(id, e.Type);
+            _dirty.Add(id);
+        }
+
         public void SetArg(int id, int index, string value)
         {
             var e = Get(id);
