@@ -36,10 +36,23 @@ namespace MetroSP.Ids
                             lista.AddRange(Uniformes(item.NumberOfBarPositions, item.DoesBarExistAtPosition, item.TotalLength,
                                 item.Quantity, KgPorMetro(doc, rc, item.BarTypeId)));
                         return lista;
+                    // Armadura de área ou de caminho: o exportador pode marcar as barras com o Id do conjunto.
+                    case AreaReinforcement ar: return DoSistema(doc, ar.GetRebarInSystemIds());
+                    case PathReinforcement pr: return DoSistema(doc, pr.GetRebarInSystemIds());
                     default: return null;
                 }
             }
             catch { return null; }   // elemento que não é armadura, ou API que falhou: fica sem as quantidades
+        }
+
+        private static List<BarraRevit> DoSistema(Document doc, IEnumerable<ElementId> ids)
+        {
+            var lista = new List<BarraRevit>();
+            foreach (ElementId i in ids)
+                if (doc.GetElement(i) is RebarInSystem ris)
+                    lista.AddRange(Uniformes(ris.NumberOfBarPositions, ris.DoesBarExistAtPosition, ris.TotalLength, ris.Quantity,
+                        KgPorMetro(doc, ris, ris.GetTypeId())));
+            return lista;
         }
 
         private static List<BarraRevit> DoRebar(Document doc, Rebar rebar)

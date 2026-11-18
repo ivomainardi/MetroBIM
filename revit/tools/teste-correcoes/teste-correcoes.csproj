@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Testes das correções do IFC (CorrecoesIfc), sem Revit. Rodar: dotnet run (na pasta tools/teste-correcoes).
+       "dotnet run grande" mede o tempo num IFC sintético grande; "dotnet run (pasta)" grava os IFCs corrigidos lá. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="Program.cs;../teste-armadura/Compat.cs" />
+    <Compile Include="../../src/MetroSP/Ids/StepModel.cs" />
+    <Compile Include="../../src/MetroSP/Ids/ArmaduraIfc.cs" />
+    <Compile Include="../../src/MetroSP/Ids/CorrecoesIfc.cs" />
+    <Compile Include="../../src/MetroSP/Ids/CorrecoesIfc.Dados.cs" />
+  </ItemGroup>
+</Project>

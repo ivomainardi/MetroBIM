@@ -256,7 +256,14 @@ namespace MetroSP.Ids
                 ToolTip = "Sempre exportar os eixos (Grids): os eixos do Revit saem no IFC como IfcGrid mesmo exportando só o visível numa vista 3D, " +
                           "e mesmo que a tabela de categorias diga para não exportar a categoria Grids.",
             };
-            var opcoes = new StackPanel { Orientation = Orientation.Horizontal };
+            var opcoes = new DockPanel { LastChildFill = false };
+            var correcoes = Theme.Link("O que o MetroSP corrige no IFC...");
+            correcoes.Margin = new Thickness(16, 0, 0, 0);
+            correcoes.ToolTip = "Depois do exportador do Revit, o MetroSP completa o IFC: classe dos proxies, lances, quantidades (Qto e MetroQto), " +
+                                "sistemas MEP, materiais, armaduras, localização e dados do projeto.";
+            correcoes.Click += (s, e) => CorrecoesIfcWindow.Mostrar(Window.GetWindow(correcoes));
+            DockPanel.SetDock(correcoes, Dock.Right);
+            opcoes.Children.Add(correcoes);
             opcoes.Children.Add(_eixos);
             opcoes.Children.Add(_epsgEmBranco);
             LinhaGrade(grade, "Opções", opcoes);

@@ -4,6 +4,44 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.11 (18/11/2026)
+
+Revit 0.3.14 · Civil 3D 0.12.6
+
+- Revit, **Exportar IFC: correções do exportador da Autodesk**. Depois de exportar, o MetroSP corrige no IFC as falhas
+  mais comuns do exportador (confirmadas nos fóruns da Autodesk e nas notas do revit-ifc), só nos elementos que vão
+  para o IFC e numa passada só pelo arquivo, que já era lido. O Revit só é consultado nos elementos que precisam:
+  - **Classe IFC**: elementos que saíram como IfcBuildingElementProxy apesar do "Exportar para IFC como" (sancas,
+    frisos, famílias no local) voltam para a classe e o tipo pré-definido pedidos, junto com o tipo (IfcXxxType).
+    A classe é lida ainda na exportação, então vale também a do arquivo de coordenação.
+  - **Escadas e rampas**: partes que não são patamar e saíram como IfcSlab dentro de IfcRamp/IfcStair viram
+    IfcRampFlight/IfcStairFlight.
+  - **Quantidades base (Qto)**: volume, área e comprimento que faltam ou saíram zerados, calculados pelo Revit
+    (parâmetro do Revit e, sem ele, a geometria), em escadas, lances e patamares, rampas, paredes, lajes, coberturas,
+    pilares, vigas, fundações, estacas, placas, revestimentos, guarda-corpos, fachadas cortina, portas, janelas,
+    proxies, tubos, dutos e eletrocalhas. Volumes e áreas "Net" que diferem mais de 10% do Revit são trocados, e o valor
+    do exportador fica no registro da exportação. Só quando o setup exporta as quantidades base (senão o resumo avisa).
+  - **MetroQto**: os mesmos valores (Volume, Area, AreaSuperficie, Secao, Comprimento, Largura, Altura, Espessura e
+    Peso) nas propriedades do MetroQto que a planilha **MetroDATA** da Entrega (ou o .txt de property sets) pede e o
+    exportador não gravou, porque o elemento não tem o parâmetro.
+  - **Telas soldadas**: dimensões, diâmetros, áreas e espaçamentos do IfcReinforcingMesh e o peso (Weight) pelo Revit.
+    Armaduras de área e de caminho marcadas com o Id do conjunto também recebem as quantidades das barras.
+  - **Sistemas MEP**: tubos, dutos, equipamentos e circuitos que saíram fora de qualquer sistema entram no
+    IfcDistributionSystem do Revit (nome, tipo e classificação), ligado ao IfcBuilding.
+  - **Materiais**: elementos sem material (nem no tipo) recebem o material do Revit; vários materiais viram um
+    IfcMaterialConstituentSet com a fração de volume de cada um.
+  - O resumo do fim diz o que foi corrigido e quanto tempo as correções levaram.
+- Revit, **Exportar IFC › "O que o MetroSP corrige no IFC..."**: link novo na linha Opções que abre uma janela com
+  todas as correções feitas depois do exportador (localização, dados do projeto, classificação, fase, classe, lances,
+  sistemas, materiais, ligações metálicas, quantidades, MetroQto e armaduras), com o detalhe na dica de cada item.
+- Testar no Revit (2025 a 2027, e 2022 a 2024 com IFC4):
+  - Uma família com "Exportar para IFC como" = IfcCovering.CLADDING numa categoria que o exportador manda como proxy:
+    no IFC deve sair IfcCovering.
+  - Uma escada e uma rampa de vários lances: Qto_StairFlightBaseQuantities com NetVolume, e lances de rampa como
+    IfcRampFlight.
+  - Um tubo de um sistema, um elemento sem material e uma tela soldada; e o MetroQto de uma categoria do MetroDATA.
+  - O tempo do resumo ("dos quais ... nas correções do exportador") num modelo grande.
+
 ## 1.0.10 (17/11/2026)
 
 Revit 0.3.13 · Civil 3D 0.12.6
