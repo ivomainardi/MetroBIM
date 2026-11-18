@@ -103,6 +103,8 @@ Source: "{#Civil3D}\PackageContents.xml"; DestDir: "{#BundleCivil}"; Components:
 Source: "{#Civil3D}\Contents\R25\MetroSP.dll"; DestDir: "{#BundleCivil}\Contents\R25"; Components: civil3d; Flags: ignoreversion
 Source: "{#Civil3D}\Contents\R26\MetroSP.dll"; DestDir: "{#BundleCivil}\Contents\R26"; Components: civil3d; Flags: ignoreversion
 Source: "{#Civil3D}\Contents\Padrao\*"; DestDir: "{#BundleCivil}\Contents\Padrao"; Components: civil3d; Flags: recursesubdirs ignoreversion
+; Perfis de exportação pré-configurados (um por disciplina: via permanente, drenagem...).
+Source: "{#Civil3D}\Contents\Perfis\*"; DestDir: "{#BundleCivil}\Contents\Perfis"; Components: civil3d; Flags: recursesubdirs ignoreversion
 ; Configuração do usuário (Forma/APS): só na primeira instalação, para não apagar o que já foi preenchido.
 Source: "{#Civil3D}\Contents\MetroSP.settings.json"; DestDir: "{#BundleCivil}\Contents"; Components: civil3d; Flags: onlyifdoesntexist uninsneveruninstall
 #ifdef ComNavisworks

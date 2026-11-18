@@ -1,5 +1,23 @@
 # Notas da versão: MetroSP para Civil 3D
 
+## 0.12.7 (18/11/2026)
+
+- **Perfis de exportação por disciplina**: Via permanente, Remanejamento de interferências, Viário urbano, Drenagem e
+  Terraplenagem, pré-configurados (`MetroSP.bundle\Contents\Perfis`). Cada um desliga os property sets que o
+  IFCINFRAEXPORT cria e não são padrão (General, Properties, Geometry, Summary, LandXML, Corridor Property Data,
+  U_pset_*...) e liga só os do **MetroDATA** (Metro, MetroLoc, MetroQto, MetroClassificacao) e da **ISO 16739 / IFC 4.3**
+  da disciplina (ex.: Pset_RailTypeRail, Pset_PipeSegmentTypeCommon, Pset_KerbCommon), com o tipo IFC de cada
+  propriedade. Dados nativos úteis do Civil 3D saem com o nome do padrão (volume do corredor em `MetroQto.Volume`).
+  Viário urbano usa IfcRoad como instalação. O perfil traz também a planilha `MetroSP.property-sets.csv` com o
+  "Aplica-se a" de cada property set, usada pelo passo 3 Property sets.
+- **Property sets › Mais › Modelo pronto**: um modelo por disciplina (Padrão Via permanente, Padrão Drenagem...).
+- **Exportar IFC apaga os property sets fora do padrão**: depois da classificação, saem do IFC os Psets que não são ISO
+  (`Pset_`, `Qto_`), MetroDATA nem MetroSP, com as propriedades que só eles usavam. Antes, o volume e o comprimento que o
+  exportador grava em "Quantities" e as estacas de "Corridor Shape Information" passam para `MetroQto` e `MetroLoc`.
+  Desliga-se em `MetroSP.ifc.json` › `Psets.ApagarForaDoPadrao`; outros nomes podem ficar em `Psets.Permitidos`.
+- Property sets do perfil: linhas desligadas (`Active = FALSE`) e as que só renomeiam um property set do Civil 3D não
+  contam mais como "falta criar" no passo 3 nem na conferência da Entrega.
+
 ## 0.12.6 (17/11/2026)
 
 - **Entrega passo a passo na ordem do Revit**: **1 Perfis**, **2 Classes IFC**, **3 Property sets**, **4 MetroDATA**,

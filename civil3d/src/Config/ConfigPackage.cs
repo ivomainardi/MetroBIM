@@ -28,6 +28,18 @@ namespace MetroSP.Config
 
         /// <summary>Gravadas como Pset "MetroSP_Projeto" no IfcProject (linha, lote, contrato...).</summary>
         public Dictionary<string, string> PropriedadesProjeto { get; set; } = new Dictionary<string, string>();
+
+        /// <summary>Limpeza dos property sets fora do padrão no IFC exportado.</summary>
+        public PsetsOptions Psets { get; set; } = new PsetsOptions();
+    }
+
+    public class PsetsOptions
+    {
+        /// <summary>Apaga do IFC os Psets que não são ISO (Pset_/Qto_), MetroDATA nem MetroSP.</summary>
+        public bool ApagarForaDoPadrao { get; set; } = true;
+
+        /// <summary>Outros nomes de Pset que ficam no IFC (ex.: um Pset combinado com o cliente).</summary>
+        public List<string> Permitidos { get; set; } = new List<string>();
     }
 
     public class AlignmentOptions

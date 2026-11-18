@@ -1,0 +1,288 @@
+{
+  "PropertySetTemplates": [
+    {
+      "Name": "Classification",
+      "Description": "Plugin (vira IfcClassificationReference) · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "ClassificationCode",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "MetroClassificacao",
+      "Description": "MetroDATA · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment,IfcPipeFitting,IfcDistributionChamberElement,IfcMember,IfcCableCarrierSegment,IfcCableSegment,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "CodigoMetro",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "Metro",
+      "Description": "MetroDATA · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment,IfcPipeFitting,IfcDistributionChamberElement,IfcMember,IfcCableCarrierSegment,IfcCableSegment,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Nome",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Descricao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcText"
+        },
+        {
+          "Name": "CodigoElemento",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        },
+        {
+          "Name": "Tipo",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "TipoRede",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "TipoSecao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Material",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "DiametroNominal",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Declividade",
+          "Description": "",
+          "PrimaryMeasureType": "IfcRatioMeasure"
+        },
+        {
+          "Name": "Estado",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Responsavel",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "DataInspecao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcDate"
+        },
+        {
+          "Name": "TipoInspecao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "ResponsavelInspecao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "PossuiLuminaria",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "PossuiTransformador",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "MetroLoc",
+      "Description": "MetroDATA · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment,IfcPipeFitting,IfcDistributionChamberElement,IfcMember,IfcCableCarrierSegment,IfcCableSegment,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "CoordenadaEInicio",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CoordenadaNInicio",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CoordenadaEFim",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CoordenadaNFim",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CotaTopoInicio",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CotaTopoFim",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CotaFundoInicio",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CotaFundoFim",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "GeratrizSuperior",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "GeratrizInferior",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CoordenadaEEstrutura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CoordenadaNEstrutura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CotaTopoEstrutura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CotaFundoEstrutura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "MetroQto",
+      "Description": "MetroDATA · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment,IfcPipeFitting,IfcDistributionChamberElement,IfcMember,IfcCableCarrierSegment,IfcCableSegment,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Comprimento",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Espessura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_PipeSegmentTypeCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalDiameter",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "InnerDiameter",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "OuterDiameter",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "WorkingPressure",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPressureMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_DistributionChamberElementTypeManhole",
+      "Description": "ISO 16739 / IFC 4.3 · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcDistributionChamberElement",
+      "PropertyTemplates": [
+        {
+          "Name": "InvertLevel",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "SoffitLevel",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "WallMaterial",
+          "Description": "",
+          "PrimaryMeasureType": "IfcMaterialDefinition"
+        },
+        {
+          "Name": "AccessCoverMaterial",
+          "Description": "",
+          "PrimaryMeasureType": "IfcMaterialDefinition"
+        },
+        {
+          "Name": "HasSteps",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_MemberTypePost",
+      "Description": "ISO 16739 / IFC 4.3 · Remanejamento de interferências",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcMember",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalHeight",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        }
+      ]
+    }
+  ]
+}

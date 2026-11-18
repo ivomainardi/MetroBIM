@@ -1,0 +1,110 @@
+{
+  "PropertySetTemplates": [
+    {
+      "Name": "Classification",
+      "Description": "Plugin (vira IfcClassificationReference) · Terraplenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "ClassificationCode",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "MetroClassificacao",
+      "Description": "MetroDATA · Terraplenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcEarthworksCut,IfcEarthworksFill,IfcEarthworksElement,IfcGeotechnicalStratum,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "CodigoMetro",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "Metro",
+      "Description": "MetroDATA · Terraplenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcEarthworksCut,IfcEarthworksFill,IfcEarthworksElement,IfcGeotechnicalStratum,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Nome",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Material",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Etapa",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "MetroLoc",
+      "Description": "MetroDATA · Terraplenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcEarthworksCut,IfcEarthworksFill,IfcEarthworksElement,IfcGeotechnicalStratum,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Nivel",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    },
+    {
+      "Name": "MetroQto",
+      "Description": "MetroDATA · Terraplenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcEarthworksCut,IfcEarthworksFill,IfcEarthworksElement,IfcGeotechnicalStratum,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Volume",
+          "Description": "",
+          "PrimaryMeasureType": "IfcVolumeMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_TrenchExcavationCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Terraplenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcEarthworksCut",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalDepth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalWidth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_TransitionSectionCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Terraplenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcEarthworksFill",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalLength",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        }
+      ]
+    }
+  ]
+}

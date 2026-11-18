@@ -1,0 +1,229 @@
+{
+  "PropertySetTemplates": [
+    {
+      "Name": "Classification",
+      "Description": "Plugin (vira IfcClassificationReference) · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "ClassificationCode",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "MetroClassificacao",
+      "Description": "MetroDATA · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment,IfcPipeFitting,IfcDistributionChamberElement,IfcWasteTerminal,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "CodigoMetro",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "Metro",
+      "Description": "MetroDATA · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment,IfcPipeFitting,IfcDistributionChamberElement,IfcWasteTerminal,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Sistema",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "TipoEscoamento",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "MaterialPrincipal",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "DiametroNominal",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Inclinacao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcRatioMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "MetroQto",
+      "Description": "MetroDATA · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment,IfcPipeFitting,IfcDistributionChamberElement,IfcWasteTerminal,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Comprimento",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Largura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Altura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_PipeSegmentTypeCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalDiameter",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "InnerDiameter",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "OuterDiameter",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_PipeSegmentOccurrence",
+      "Description": "ISO 16739 / IFC 4.3 · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment",
+      "PropertyTemplates": [
+        {
+          "Name": "Gradient",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveRatioMeasure"
+        },
+        {
+          "Name": "InvertElevation",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_PipeSegmentTypeCulvert",
+      "Description": "ISO 16739 / IFC 4.3 · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment",
+      "PropertyTemplates": [
+        {
+          "Name": "InternalWidth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "ClearDepth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_PipeSegmentTypeGutter",
+      "Description": "ISO 16739 / IFC 4.3 · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPipeSegment",
+      "PropertyTemplates": [
+        {
+          "Name": "Slope",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPlaneAngleMeasure"
+        },
+        {
+          "Name": "IsCovered",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_DistributionChamberElementTypeManhole",
+      "Description": "ISO 16739 / IFC 4.3 · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcDistributionChamberElement",
+      "PropertyTemplates": [
+        {
+          "Name": "InvertLevel",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "SoffitLevel",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "WallMaterial",
+          "Description": "",
+          "PrimaryMeasureType": "IfcMaterialDefinition"
+        },
+        {
+          "Name": "AccessCoverMaterial",
+          "Description": "",
+          "PrimaryMeasureType": "IfcMaterialDefinition"
+        },
+        {
+          "Name": "HasSteps",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_WasteTerminalTypeGullySump",
+      "Description": "ISO 16739 / IFC 4.3 · Drenagem",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcWasteTerminal",
+      "PropertyTemplates": [
+        {
+          "Name": "GullyType",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "NominalSumpLength",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "NominalSumpWidth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "NominalSumpDepth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        },
+        {
+          "Name": "OutletConnectionSize",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        }
+      ]
+    }
+  ]
+}

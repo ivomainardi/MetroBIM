@@ -4,6 +4,15 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.12 (18/11/2026)
+
+Revit 0.3.14 · Civil 3D 0.12.7
+
+- Civil 3D, **perfis de exportação por disciplina** (Via permanente, Remanejamento de interferências, Viário urbano,
+  Drenagem e Terraplenagem) só com os property sets do MetroDATA e da ISO 16739 / IFC 4.3.
+- Civil 3D, **Exportar IFC apaga os property sets fora do padrão** que o exportador da Autodesk cria (General,
+  Properties, Geometry, LandXML...). Volume, comprimento e estacas que o exportador grava passam antes para MetroQto e MetroLoc.
+
 ## 1.0.11 (18/11/2026)
 
 Revit 0.3.14 · Civil 3D 0.12.6

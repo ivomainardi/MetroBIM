@@ -1,0 +1,221 @@
+{
+  "PropertySetTemplates": [
+    {
+      "Name": "Classification",
+      "Description": "Plugin (vira IfcClassificationReference) · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "ClassificationCode",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "MetroClassificacao",
+      "Description": "MetroDATA · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcCourse,IfcPavement,IfcKerb,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "CodigoMetro",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "Metro",
+      "Description": "MetroDATA · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcCourse,IfcPavement,IfcKerb,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Nome",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Descricao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcText"
+        },
+        {
+          "Name": "Tipo",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Material",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Estado",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "DeclividadeLongitudinal",
+          "Description": "",
+          "PrimaryMeasureType": "IfcRatioMeasure"
+        },
+        {
+          "Name": "DeclividadeTransversal",
+          "Description": "",
+          "PrimaryMeasureType": "IfcRatioMeasure"
+        },
+        {
+          "Name": "AreaSecao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcAreaMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "MetroLoc",
+      "Description": "MetroDATA · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcCourse,IfcPavement,IfcKerb,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "InicioEstaca",
+          "Description": "",
+          "PrimaryMeasureType": "IfcText"
+        },
+        {
+          "Name": "FimEstaca",
+          "Description": "",
+          "PrimaryMeasureType": "IfcText"
+        }
+      ]
+    },
+    {
+      "Name": "MetroQto",
+      "Description": "MetroDATA · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcCourse,IfcPavement,IfcKerb,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Comprimento",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Espessura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Area",
+          "Description": "",
+          "PrimaryMeasureType": "IfcAreaMeasure"
+        },
+        {
+          "Name": "Volume",
+          "Description": "",
+          "PrimaryMeasureType": "IfcVolumeMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_CourseCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcCourse",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalThickness",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalWidth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalLength",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_PavementCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcPavement",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalThickness",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalWidth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "StructuralSlope",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveRatioMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_KerbCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcKerb",
+      "PropertyTemplates": [
+        {
+          "Name": "CombinedKerbGutter",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "Upstand",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "Mountable",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_PrecastKerbStone",
+      "Description": "ISO 16739 / IFC 4.3 · Viário urbano",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcKerb",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalHeight",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalWidth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalLength",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "TypeDesignation",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        }
+      ]
+    }
+  ]
+}

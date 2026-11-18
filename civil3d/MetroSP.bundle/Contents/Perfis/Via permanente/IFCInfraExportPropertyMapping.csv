@@ -1,0 +1,276 @@
+﻿IfcPropertySet Name,IfcProperty Name,Active,Source,Group,Civil 3D Name
+Summary,Title,FALSE,DrawingProperties,Summary,Title
+Summary,Subject,FALSE,DrawingProperties,Summary,Subject
+Summary,Author,FALSE,DrawingProperties,Summary,Author
+Summary,Keywords,FALSE,DrawingProperties,Summary,Keywords
+Summary,Comments,FALSE,DrawingProperties,Summary,Comments
+Summary,HyperlinkBase,FALSE,DrawingProperties,Summary,HyperlinkBase
+Custom_Properties,IfcFacility_GlobalId,FALSE,DrawingProperties,Custom_Properties,IfcFacility_GlobalId
+Custom_Properties,IfcFacility_Name,FALSE,DrawingProperties,Custom_Properties,IfcFacility_Name
+Custom_Properties,IfcProject_GlobalId,FALSE,DrawingProperties,Custom_Properties,IfcProject_GlobalId
+Custom_Properties,IfcProject_ShortName,FALSE,DrawingProperties,Custom_Properties,IfcProject_ShortName
+Properties,Convergence,FALSE,General,Properties,Convergence
+Properties,DescriptionFormat,FALSE,General,Properties,DescriptionFormat
+Properties,Elevation,FALSE,General,Properties,Elevation
+Properties,ElevationOverride,FALSE,General,Properties,ElevationOverride
+Properties,FullDescription,FALSE,General,Properties,FullDescription
+Properties,FullDescriptionOverride,FALSE,General,Properties,FullDescriptionOverride
+Properties,GridEasting,FALSE,General,Properties,GridEasting
+Properties,GridNorthing,FALSE,General,Properties,GridNorthing
+Properties,IsCheckedOut,FALSE,General,Properties,IsCheckedOut
+Properties,IsLabelDragged,FALSE,General,Properties,IsLabelDragged
+Properties,IsLabelPinned,FALSE,General,Properties,IsLabelPinned
+Properties,IsLabelVisible,FALSE,General,Properties,IsLabelVisible
+Properties,IsLocked,FALSE,General,Properties,IsLocked
+Properties,IsMovable,FALSE,General,Properties,IsMovable
+Properties,IsProjectPoint,FALSE,General,Properties,IsProjectPoint
+Properties,IsSurveyPoint,FALSE,General,Properties,IsSurveyPoint
+Properties,LabelRotation,FALSE,General,Properties,LabelRotation
+Properties,Latitude,FALSE,General,Properties,Latitude
+Properties,Longitude,FALSE,General,Properties,Longitude
+Properties,MarkerRotation,FALSE,General,Properties,MarkerRotation
+Properties,PointName,FALSE,General,Properties,PointName
+Properties,PointNumber,FALSE,General,Properties,PointNumber
+Properties,RawDescription,FALSE,General,Properties,RawDescription
+Properties,RawDescriptionOverride,FALSE,General,Properties,RawDescriptionOverride
+Properties,Scale,FALSE,General,Properties,Scale
+Properties,ScaleXY,FALSE,General,Properties,ScaleXY
+Properties,ScaleZ,FALSE,General,Properties,ScaleZ
+Properties,ShowToolTip,FALSE,General,Properties,ShowToolTip
+Properties,CloneMeForDragging,FALSE,General,Properties,CloneMeForDragging
+Properties,ForceAnnoAllVisible,FALSE,General,Properties,ForceAnnoAllVisible
+Properties,HasSaveVersionOverride,FALSE,General,Properties,HasSaveVersionOverride
+Properties,IsCancelling,FALSE,General,Properties,IsCancelling
+Properties,IsErased,FALSE,General,Properties,IsErased
+Properties,IsEraseStatusToggled,FALSE,General,Properties,IsEraseStatusToggled
+Properties,IsModified,FALSE,General,Properties,IsModified
+Properties,IsModifiedGraphics,FALSE,General,Properties,IsModifiedGraphics
+Properties,IsModifiedXData,FALSE,General,Properties,IsModifiedXData
+Properties,IsNewObject,FALSE,General,Properties,IsNewObject
+Properties,IsNotifyEnabled,FALSE,General,Properties,IsNotifyEnabled
+Properties,IsNotifying,FALSE,General,Properties,IsNotifying
+Properties,IsObjectIdsInFlux,FALSE,General,Properties,IsObjectIdsInFlux
+Properties,IsPersistent,FALSE,General,Properties,IsPersistent
+Properties,IsReadEnabled,FALSE,General,Properties,IsReadEnabled
+Properties,IsReallyClosing,FALSE,General,Properties,IsReallyClosing
+Properties,IsTransactionResident,FALSE,General,Properties,IsTransactionResident
+Properties,IsUndoing,FALSE,General,Properties,IsUndoing
+Properties,IsWriteEnabled,FALSE,General,Properties,IsWriteEnabled
+Properties,Bounds,FALSE,General,Properties,Bounds
+Properties,AutoDelete,FALSE,General,Properties,AutoDelete
+Properties,IsDisposed,FALSE,General,Properties,IsDisposed
+Properties,AutoRebuild,FALSE,General,Properties,AutoRebuild
+Properties,HasSnapshot,FALSE,General,Properties,HasSnapshot
+Properties,IsLevelOfDetailEnabled,FALSE,General,Properties,IsLevelOfDetailEnabled
+Properties,IsOutOfDate,FALSE,General,Properties,IsOutOfDate
+Properties,IsSnapshotOutOfDate,FALSE,General,Properties,IsSnapshotOutOfDate
+Properties,IsVolumeSurface,FALSE,General,Properties,IsVolumeSurface
+Properties,Lock,FALSE,General,Properties,Lock
+Properties,Description,FALSE,General,Properties,Description
+Properties,DisplayName,FALSE,General,Properties,DisplayName
+Properties,FingerPrint,FALSE,General,Properties,FingerPrint
+Properties,IsCWSReferenceObject,FALSE,General,Properties,IsCWSReferenceObject
+Properties,IsCWSSourceObject,FALSE,General,Properties,IsCWSSourceObject
+Properties,IsPartialReferenceObject,FALSE,General,Properties,IsPartialReferenceObject
+Properties,IsReadOnlyReferenceObject,FALSE,General,Properties,IsReadOnlyReferenceObject
+Properties,IsReferenceObject,FALSE,General,Properties,IsReferenceObject
+Properties,IsReferenceStale,FALSE,General,Properties,IsReferenceStale
+Properties,IsReferenceSubObject,FALSE,General,Properties,IsReferenceSubObject
+Properties,IsReferenceValid,FALSE,General,Properties,IsReferenceValid
+Properties,IsUsed,FALSE,General,Properties,IsUsed
+Properties,Name,FALSE,General,Properties,Name
+Properties,StyleName,FALSE,General,Properties,StyleName
+Misc,BlockName,FALSE,General,Misc,BlockName
+Misc,ClassID,FALSE,General,Misc,ClassID
+Misc,HasFields,FALSE,General,Misc,HasFields
+Misc,IsAProxy,FALSE,General,Misc,IsAProxy
+3D Visualization,CastShadows,FALSE,General,3D Visualization,CastShadows
+3D Visualization,Material,FALSE,General,3D Visualization,Material
+3D Visualization,ReceiveShadows,FALSE,General,3D Visualization,ReceiveShadows
+General,ColorIndex,FALSE,General,General,ColorIndex
+General,Layer,FALSE,General,General,Layer
+General,Linetype,FALSE,General,General,Linetype
+General,LinetypeScale,FALSE,General,General,LinetypeScale
+General,PlotStyleName,FALSE,General,General,PlotStyleName
+General,Visible,FALSE,General,General,Visible
+General,LayerKey,FALSE,General,General,LayerKey
+Geometry,IsPlanar,FALSE,General,Geometry,IsPlanar
+Geometry,Closed,FALSE,General,Geometry,Closed
+Geometry,IsPeriodic,FALSE,General,Geometry,IsPeriodic
+Miscellaneous,IsHighlighting,FALSE,General,Miscellaneous,IsHighlighting
+Miscellaneous,NeedsPromoting,FALSE,General,Miscellaneous,NeedsPromoting
+Miscellaneous,SupportsBaseCurveCommands,FALSE,General,Miscellaneous,SupportsBaseCurveCommands
+Miscellaneous,SupportsProfileCommands,FALSE,General,Miscellaneous,SupportsProfileCommands
+Miscellaneous,SwappingReferences,FALSE,General,Miscellaneous,SwappingReferences
+Miscellaneous,TypeIcon,FALSE,General,Miscellaneous,TypeIcon
+PONTOS,PONTOS,FALSE,UserDefined,PONTOS,PONTOS
+CMSP-C1,Nome_Ponto,FALSE,UserDefined,CMSP-C1,Nome_Ponto
+Dados adicionais,Nome da Estação,FALSE,UserDefined,Dados adicionais,Nome da Estação
+Corridor Property Data – User Defined,HorizontalBaseline,FALSE,PropertySet,Corridor Property Data – User Defined,HorizontalBaseline
+Corridor Property Data – User Defined,VerticalBaseline,FALSE,PropertySet,Corridor Property Data – User Defined,VerticalBaseline
+Corridor Property Data – User Defined,CorridorName,FALSE,PropertySet,Corridor Property Data – User Defined,CorridorName
+Corridor Property Data – User Defined,AssemblyName,FALSE,PropertySet,Corridor Property Data – User Defined,AssemblyName
+Corridor Property Data – User Defined,RegionName,FALSE,PropertySet,Corridor Property Data – User Defined,RegionName
+Corridor Property Data – User Defined,EndStation,FALSE,PropertySet,Corridor Property Data – User Defined,EndStation
+Corridor Property Data – User Defined,ShapeCodeName,FALSE,PropertySet,Corridor Property Data – User Defined,ShapeCodeName
+Corridor Property Data – User Defined,RegionID,FALSE,PropertySet,Corridor Property Data – User Defined,RegionID
+IfcObject Hiearchy,IFC::CorridorName,FALSE,PropertySet,IfcObject Hiearchy,IFC::CorridorName
+IfcObject Hiearchy,IFC::BaselineName,FALSE,PropertySet,IfcObject Hiearchy,IFC::BaselineName
+IfcObject Hiearchy,IFC::BaselineRegionName,FALSE,PropertySet,IfcObject Hiearchy,IFC::BaselineRegionName
+IfcObject Properties,IFC::GlobalId,FALSE,PropertySet,IfcObject Properties,IFC::GlobalId
+IfcObject Properties,IFC::IfcExportAs,FALSE,PropertySet,IfcObject Properties,IFC::IfcExportAs
+Imported LandXML File [AeccDbAlignment],[LandXML::Creation date],FALSE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::Creation date]
+Imported LandXML File [AeccDbAlignment],[LandXML::File name],FALSE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::File name]
+Imported LandXML File [AeccDbAlignment],[LandXML::File path],FALSE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::File path]
+Imported LandXML File [AeccDbAlignment],[LandXML::Import date event],FALSE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::Import date event]
+Imported LandXML File [AeccDbAlignment],[LandXML::Version],FALSE,PropertySet,Imported LandXML File [AeccDbAlignment],[LandXML::Version]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::Creation date],FALSE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::Creation date]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::File name],FALSE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::File name]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::File path],FALSE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::File path]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::Import date event],FALSE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::Import date event]
+Imported LandXML File [AeccDbCogoPoint],[LandXML::Version],FALSE,PropertySet,Imported LandXML File [AeccDbCogoPoint],[LandXML::Version]
+LandXML Attributes [AeccDbAlignment],[Alignments::desc],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignments::desc]
+LandXML Attributes [AeccDbAlignment],[Alignments::name],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignments::name]
+LandXML Attributes [AeccDbAlignment],[Alignments::state],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignments::state]
+LandXML Attributes [AeccDbAlignment],[Alignment::desc],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::desc]
+LandXML Attributes [AeccDbAlignment],[Alignment::length],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::length]
+LandXML Attributes [AeccDbAlignment],[Alignment::name],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::name]
+LandXML Attributes [AeccDbAlignment],[Alignment::oID],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::oID]
+LandXML Attributes [AeccDbAlignment],[Alignment::staStart],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::staStart]
+LandXML Attributes [AeccDbAlignment],[Alignment::state],FALSE,PropertySet,LandXML Attributes [AeccDbAlignment],[Alignment::state]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::DTMAttribute],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::DTMAttribute]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::code],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::code]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::desc],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::desc]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::name],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::name]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::state],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::state]
+LandXML Attributes [AeccDbCogoPoint],[CgPoints::zoneNumber],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoints::zoneNumber]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::DTMAttribute],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::DTMAttribute]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::code],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::code]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::desc],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::desc]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::determinedTimeStamp],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::determinedTimeStamp]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::eastingStdError],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::eastingStdError]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::elevationStdError],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::elevationStdError]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::ellipsoidHeight],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::ellipsoidHeight]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::featureRef],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::featureRef]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::latitude],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::latitude]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::localUncertainity],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::localUncertainity]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::longitude],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::longitude]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::name],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::name]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::northingStdError],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::northingStdError]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::oID],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::oID]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntRef],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntRef]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntSurv],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::pntSurv]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::pointGeometry],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::pointGeometry]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::positionalUncertainity],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::positionalUncertainity]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::role],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::role]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::state],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::state]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyHorizontalOrder],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyHorizontalOrder]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyOrder],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyOrder]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyVerticalOrder],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::surveyVerticalOrder]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::timeStamp],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::timeStamp]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::zone],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::zone]
+LandXML Attributes [AeccDbCogoPoint],[CgPoint::zoneNumber],FALSE,PropertySet,LandXML Attributes [AeccDbCogoPoint],[CgPoint::zoneNumber]
+LandXML Features [AeccDbAlignment],[Alignment::speed],FALSE,PropertySet,LandXML Features [AeccDbAlignment],[Alignment::speed]
+LandXML Features [AeccDbAlignment],[Alignment::station],FALSE,PropertySet,LandXML Features [AeccDbAlignment],[Alignment::station]
+MetroFase,Phase Created,FALSE,PropertySet,MetroFase,Phase Created
+Platform Edge Information,AlignmentName,FALSE,PropertySet,Platform Edge Information,AlignmentName
+Platform Edge Information,ProfileName,FALSE,PropertySet,Platform Edge Information,ProfileName
+Platform Edge Information,StartStation,FALSE,PropertySet,Platform Edge Information,StartStation
+Platform Edge Information,EndStation,FALSE,PropertySet,Platform Edge Information,EndStation
+Platform Edge Information,Length,FALSE,PropertySet,Platform Edge Information,Length
+Platform Edge Information,TrackGauge,FALSE,PropertySet,Platform Edge Information,TrackGauge
+Platform Edge Information,Side,FALSE,PropertySet,Platform Edge Information,Side
+Platform Edge Information,RailType,FALSE,PropertySet,Platform Edge Information,RailType
+Platform Edge Information,CalculationInterval,FALSE,PropertySet,Platform Edge Information,CalculationInterval
+Platform Edge Information,PlatformEdgeType,FALSE,PropertySet,Platform Edge Information,PlatformEdgeType
+Platform Edge Information,DesignCriteria,FALSE,PropertySet,Platform Edge Information,DesignCriteria
+Platform Edge Information,Parameters,FALSE,PropertySet,Platform Edge Information,Parameters
+Platform Edge Information,CarriageLength,FALSE,PropertySet,Platform Edge Information,CarriageLength
+Platform Edge Information,CarriageWidth,FALSE,PropertySet,Platform Edge Information,CarriageWidth
+Platform Edge Information,BogieOffset,FALSE,PropertySet,Platform Edge Information,BogieOffset
+Platform Edge Information,AxleSpacing,FALSE,PropertySet,Platform Edge Information,AxleSpacing
+Platform Edge Information,OffsetFromCarriage,FALSE,PropertySet,Platform Edge Information,OffsetFromCarriage
+Platform Edge Information,SafetyTolerance,FALSE,PropertySet,Platform Edge Information,SafetyTolerance
+Platform Edge Information,PlatformHeight,FALSE,PropertySet,Platform Edge Information,PlatformHeight
+Source IFC File,IFC::File Name,FALSE,PropertySet,Source IFC File,IFC::File Name
+Source IFC File,IFC::File Path,FALSE,PropertySet,Source IFC File,IFC::File Path
+Source IFC File,IFC::Creation Date,FALSE,PropertySet,Source IFC File,IFC::Creation Date
+Source IFC File,IFC::Originating System,FALSE,PropertySet,Source IFC File,IFC::Originating System
+Source IFC File,IFC::Import Date Event,FALSE,PropertySet,Source IFC File,IFC::Import Date Event
+U_Escadas,DocRef,FALSE,PropertySet,U_Escadas,DocRef
+U_Escadas,NumPreco,FALSE,PropertySet,U_Escadas,NumPreco
+U_Escadas,Km,FALSE,PropertySet,U_Escadas,Km
+U_Escadas,Via,FALSE,PropertySet,U_Escadas,Via
+U_Escadas,Name,FALSE,PropertySet,U_Escadas,Name
+U_pset_hectometrico,Via,FALSE,PropertySet,U_pset_hectometrico,Via
+U_pset_hectometrico,pk,FALSE,PropertySet,U_pset_hectometrico,pk
+U_pset_via permanente,Descrição,FALSE,PropertySet,U_pset_via permanente,Descrição
+U_pset_via permanente,Via,FALSE,PropertySet,U_pset_via permanente,Via
+U_pset_via permanente,Unidade,FALSE,PropertySet,U_pset_via permanente,Unidade
+U_pset_via permanente,Quantidade,FALSE,PropertySet,U_pset_via permanente,Quantidade
+U_pset_via permanente,pk Final,FALSE,PropertySet,U_pset_via permanente,pk Final
+U_pset_via permanente,pk Inicial,FALSE,PropertySet,U_pset_via permanente,pk Inicial
+U_pset_via permanente,Preço MAN,FALSE,PropertySet,U_pset_via permanente,Preço MAN
+U_pset_via permanente,Cod. Insumo,FALSE,PropertySet,U_pset_via permanente,Cod. Insumo
+Pset_EnvironmentalImpactIndicators,Reference,FALSE,PropertySet,Pset_EnvironmentalImpactIndicators,Reference
+Pset_ReinforcementBarPitchOfSlab,Reference,FALSE,PropertySet,Pset_ReinforcementBarPitchOfSlab,Reference
+Pset_SlabCommon,IsExternal,FALSE,PropertySet,Pset_SlabCommon,IsExternal
+Pset_SlabCommon,Reference,FALSE,PropertySet,Pset_SlabCommon,Reference
+Pset_SlabCommon,PitchAngle,FALSE,PropertySet,Pset_SlabCommon,PitchAngle
+Pset_SlabCommon,LoadBearing,FALSE,PropertySet,Pset_SlabCommon,LoadBearing
+MetroQto,Volume,TRUE,PropertySet,Corridor Property Data – User Defined,Volume
+MetroQto,Comprimento,TRUE,PropertySet,Corridor Property Data – User Defined,Lenght
+MetroLoc,Quilometragem,TRUE,PropertySet,Corridor Property Data – User Defined,StartStation
+Metro,CoordenadaE,TRUE,General,Properties,Easting
+Metro,CoordenadaN,TRUE,General,Properties,Northing
+Classification,ClassificationCode,TRUE,PropertySet,Classification,ClassificationCode
+MetroClassificacao,CodigoMetro,TRUE,PropertySet,MetroClassificacao,CodigoMetro
+Metro,Tipo,TRUE,PropertySet,Metro,Tipo
+Metro,Material,TRUE,PropertySet,Metro,Material
+Metro,Numero,TRUE,PropertySet,Metro,Numero
+Metro,Lado,TRUE,PropertySet,Metro,Lado
+Metro,Bitola,TRUE,PropertySet,Metro,Bitola
+Metro,Espacamento,TRUE,PropertySet,Metro,Espacamento
+Metro,Resistencia,TRUE,PropertySet,Metro,Resistencia
+Metro,Densidade,TRUE,PropertySet,Metro,Densidade
+Metro,RigidezEstatica,TRUE,PropertySet,Metro,RigidezEstatica
+Metro,RigidezDinamica,TRUE,PropertySet,Metro,RigidezDinamica
+Metro,CoeficienteAbsorcaoSonora,TRUE,PropertySet,Metro,CoeficienteAbsorcaoSonora
+Metro,LimitadorCarga,TRUE,PropertySet,Metro,LimitadorCarga
+Metro,PIV,TRUE,PropertySet,Metro,PIV
+Metro,Angulo,TRUE,PropertySet,Metro,Angulo
+Metro,Azimute,TRUE,PropertySet,Metro,Azimute
+Metro,RaioHorizontal,TRUE,PropertySet,Metro,RaioHorizontal
+Metro,RaioVertical,TRUE,PropertySet,Metro,RaioVertical
+Metro,Espiral,TRUE,PropertySet,Metro,Espiral
+Metro,Superelevacao,TRUE,PropertySet,Metro,Superelevacao
+Metro,Distancia,TRUE,PropertySet,Metro,Distancia
+Metro,VelocidadeMaximaHorizontal,TRUE,PropertySet,Metro,VelocidadeMaximaHorizontal
+Metro,VelocidadeMaximaVertical,TRUE,PropertySet,Metro,VelocidadeMaximaVertical
+Metro,VelocidadeVertical,TRUE,PropertySet,Metro,VelocidadeVertical
+Metro,CoordenadaE,TRUE,PropertySet,Metro,CoordenadaE
+Metro,CoordenadaN,TRUE,PropertySet,Metro,CoordenadaN
+MetroLoc,Quilometragem,TRUE,PropertySet,MetroLoc,Quilometragem
+MetroLoc,CotaTB,TRUE,PropertySet,MetroLoc,CotaTB
+MetroQto,Comprimento,TRUE,PropertySet,MetroQto,Comprimento
+MetroQto,Largura,TRUE,PropertySet,MetroQto,Largura
+MetroQto,Altura,TRUE,PropertySet,MetroQto,Altura
+MetroQto,Espessura,TRUE,PropertySet,MetroQto,Espessura
+MetroQto,Area,TRUE,PropertySet,MetroQto,Area
+MetroQto,Volume,TRUE,PropertySet,MetroQto,Volume
+Pset_RailTypeRail,PositionInTrack,TRUE,PropertySet,Pset_RailTypeRail,PositionInTrack
+Pset_RailTypeRail,RailElementaryLength,TRUE,PropertySet,Pset_RailTypeRail,RailElementaryLength
+Pset_RailTypeRail,IsStainless,TRUE,PropertySet,Pset_RailTypeRail,IsStainless
+Pset_TrackElementTypeSleeper,SleeperType,TRUE,PropertySet,Pset_TrackElementTypeSleeper,SleeperType
+Pset_TrackElementTypeSleeper,FasteningType,TRUE,PropertySet,Pset_TrackElementTypeSleeper,FasteningType
+Pset_TrackElementTypeSleeper,IsElectricallyInsulated,TRUE,PropertySet,Pset_TrackElementTypeSleeper,IsElectricallyInsulated
+Pset_CourseCommon,NominalThickness,TRUE,PropertySet,Pset_CourseCommon,NominalThickness
+Pset_CourseCommon,NominalWidth,TRUE,PropertySet,Pset_CourseCommon,NominalWidth
+Pset_CourseCommon,NominalLength,TRUE,PropertySet,Pset_CourseCommon,NominalLength
+Pset_MechanicalFastenerTypeRailJoint,IsJointInsulated,TRUE,PropertySet,Pset_MechanicalFastenerTypeRailJoint,IsJointInsulated
+Pset_MechanicalFastenerTypeRailJoint,IsCWRJoint,TRUE,PropertySet,Pset_MechanicalFastenerTypeRailJoint,IsCWRJoint
+Pset_MechanicalFastenerTypeRailJoint,RailGap,TRUE,PropertySet,Pset_MechanicalFastenerTypeRailJoint,RailGap
+Pset_ElementAssemblyTypeTurnoutPanel,TypeOfTurnout,TRUE,PropertySet,Pset_ElementAssemblyTypeTurnoutPanel,TypeOfTurnout
+Pset_ElementAssemblyTypeTurnoutPanel,TurnoutCurvedRadius,TRUE,PropertySet,Pset_ElementAssemblyTypeTurnoutPanel,TurnoutCurvedRadius
+Pset_ElementAssemblyTypeTurnoutPanel,BranchLineDirection,TRUE,PropertySet,Pset_ElementAssemblyTypeTurnoutPanel,BranchLineDirection
+Pset_ElementAssemblyTypeTurnoutPanel,TrackGaugeLength,TRUE,PropertySet,Pset_ElementAssemblyTypeTurnoutPanel,TrackGaugeLength

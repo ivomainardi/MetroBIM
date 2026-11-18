@@ -27,7 +27,7 @@ namespace MetroSP.Ifc
 
         public static void ProcessFile(string ifcPath, IList<AlignmentModel> alignments, SpatialConfig spatial,
                                        IDictionary<string, string> projectProperties, Action<string> log,
-                                       string sourceFile = null)
+                                       string sourceFile = null, Config.PsetsOptions psets = null)
         {
             var model = StepModel.Load(ifcPath);
             var pp = new IfcPostProcessor(model, log) { SourceFile = sourceFile };
@@ -37,6 +37,12 @@ namespace MetroSP.Ifc
             if (projectProperties != null && projectProperties.Count > 0) pp.ApplyProjectProperties(projectProperties);
             try { IfcClassificacao.Aplicar(model, RegraIfc.DosPadroes(), log); }
             catch (Exception ex) { log?.Invoke("classificação não foi gravada como IfcClassificationReference: " + ex.Message); }
+            // Depois da classificação (ela lê os Psets de classificação) e antes da marca MetroSP_Projeto.
+            if (psets == null || psets.ApagarForaDoPadrao)
+            {
+                try { LimpezaPsets.Aplicar(model, psets?.Permitidos, log); }
+                catch (Exception ex) { log?.Invoke("os property sets fora do padrão não foram apagados: " + ex.Message); }
+            }
             // Por último: Plugin e VersaoPlugin no Pset MetroSP_Projeto e a marca no cabeçalho.
             try { OrigemIfc.Marcar(model, "MetroSP Civil 3D", log); }
             catch (Exception ex) { log?.Invoke("origem MetroSP não foi gravada no IFC: " + ex.Message); }
