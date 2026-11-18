@@ -211,6 +211,14 @@ namespace MetroSP.Commands
                             catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar as peças das ligações metálicas: " + ex.Message); }
                         }
                     }
+                    // Vigas, pilares e barras com o corpo no dobro do comprimento (exportador do Revit): volta ao comprimento do Revit.
+                    try
+                    {
+                        var perfis = Ifc.PerfisIfc.Aplicar(modelo, id => ComprimentoBarra(doc, id));
+                        if (perfis.Extrusoes > 0) salvar = true;
+                        if (perfis.ToString() is string linha) avisosClassificacao.Add(linha);
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível conferir o comprimento dos perfis metálicos: " + ex.Message); }
                     // O que saiu: elementos por classe e, se o IFC saiu só com ambientes, a causa provável (fase ou vista).
                     try
                     {
@@ -218,7 +226,7 @@ namespace MetroSP.Commands
                             FiltroIfc.Fase(doc, janela.Fase, janela.Vista), out semElementos);
                     }
                     catch (Exception ex) { linhasElementos.Add("Não foi possível contar os elementos do IFC: " + ex.Message); }
-                    try { salvar = Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0; }
+                    try { salvar |= Ifc.IfcClassificacao.Aplicar(modelo, Ifc.RegraIfc.DosPadroes(), avisosClassificacao.Add) > 0; }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar a classificação como IfcClassificationReference: " + ex.Message); }
                     // Status de fase (Pset_*Common.Status e Estado do Pset Metro) na fase exportada.
                     try
@@ -377,6 +385,31 @@ namespace MetroSP.Commands
 
         private static string Duracao(TimeSpan t) =>
             t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes} min {t.Seconds:00} s" : $"{Math.Max(1, (int)Math.Round(t.TotalSeconds))} s";
+
+        /// <summary>
+        /// Comprimento da barra no Revit, em metros: a curva de locação (vigas, contraventamentos, pilares inclinados) ou,
+        /// no pilar vertical, do nível/deslocamento da base ao do topo. Null se não for barra.
+        /// </summary>
+        private static double? ComprimentoBarra(Document doc, long id)
+        {
+            try
+            {
+                Element e = doc.GetElement(Compat.NovoId(id));
+                if (e == null) return null;
+                if (e.Location is LocationCurve lc && lc.Curve != null) return lc.Curve.Length * 0.3048;
+                if (!(e.Location is LocationPoint)) return null;
+                double? Cota(BuiltInParameter nivel, BuiltInParameter desloc)
+                {
+                    ElementId nid = e.get_Parameter(nivel)?.AsElementId();
+                    if (nid == null || nid == ElementId.InvalidElementId || !(doc.GetElement(nid) is Level l)) return null;
+                    return l.Elevation + (e.get_Parameter(desloc)?.AsDouble() ?? 0);
+                }
+                double? b = Cota(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM, BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM);
+                double? t = Cota(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM, BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM);
+                return b != null && t != null && t > b ? (t - b) * 0.3048 : (double?)null;
+            }
+            catch { return null; }
+        }
 
         /// <summary>Status de fase do elemento na fase exportada, como no IFC (PEnum_ElementStatus), ou null.</summary>
         private static string StatusNaFase(Document doc, long id, ElementId fase)

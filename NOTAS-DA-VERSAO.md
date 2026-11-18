@@ -4,6 +4,15 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.15 (18/11/2026)
+
+Revit 0.3.15 · Civil 3D 0.12.9
+
+- Revit, **vigas e pilares metálicos no comprimento certo**: o exportador do Revit gravava o corpo de vigas, pilares e
+  barras com o dobro do comprimento, centrado no eixo (vigas atravessando os pilares, pilares passando da cobertura).
+  O Exportar IFC agora confere cada perfil com o comprimento do Revit e, quando está no dobro, refaz a extrusão no mesmo
+  centro e corrige Length, GrossVolume e OuterSurfaceArea do Qto. O registro mostra quantos elementos foram corrigidos.
+
 ## 1.0.14 (18/11/2026)
 
 Revit 0.3.14 · Civil 3D 0.12.9
