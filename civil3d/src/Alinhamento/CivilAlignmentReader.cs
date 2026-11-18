@@ -25,12 +25,33 @@ namespace MetroSP.Alinhamento
             };
 
             ReadHorizontal(al, m);
+            ReadEquations(al, m);
             if (profile != null)
             {
                 ReadVertical(al, profile, m);
                 SampleAxis(al, profile, m, sampleStep);
             }
             return m;
+        }
+
+        // ------------------------------------------------------------------ equações de estaca
+
+        /// <summary>Equações de estaca do alinhamento (vão para o Pset_Stationing dos IfcReferent).</summary>
+        static void ReadEquations(Alignment al, AlignmentModel m)
+        {
+            try
+            {
+                foreach (StationEquation eq in al.StationEquations)
+                    m.Equations.Add(new StationEquationModel
+                    {
+                        // estaca bruta (sem equações) menos a estaca inicial = distância ao longo do eixo
+                        DistAlong = eq.RawStationBack - al.StartingStation,
+                        StationBack = eq.StationBack,
+                        StationAhead = eq.StationAhead,
+                        Increasing = eq.EquationType != StationEquationType.Decreasing
+                    });
+            }
+            catch (Exception ex) { Log.Erro($"equações de estaca do alinhamento {al.Name}", ex); }
         }
 
         // ------------------------------------------------------------------ horizontal

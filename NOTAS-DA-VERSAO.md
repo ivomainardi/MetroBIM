@@ -4,6 +4,14 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.14 (em teste)
+
+Revit 0.3.14 · Civil 3D 0.12.9
+
+- Civil 3D, **dados do LandXML no IFC 4.3**, para o Iris analisar o modelo só com o IFC: superfícies TIN como
+  `IfcGeographicElement.TERRAIN` (malha de triângulos e Pset `MetroSP_Superficie`), equações de estaca no
+  `Pset_Stationing` dos `IfcReferent` e pontos COGO como pontos de levantamento (`SURVEY`) com o Pset `MetroSP_Ponto`.
+
 ## 1.0.13 (18/11/2026)
 
 Revit 0.3.14 · Civil 3D 0.12.8

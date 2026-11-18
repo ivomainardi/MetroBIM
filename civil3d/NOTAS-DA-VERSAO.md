@@ -1,5 +1,23 @@
 # Notas da versão: MetroSP para Civil 3D
 
+## 0.12.9 (em teste)
+
+Dados que iam no LandXML passam a ir no IFC 4.3, para o Iris analisar o modelo só com o IFC:
+
+- **Superfícies TIN como terreno**: cada superfície TIN do desenho que vai para o IFC (layer ligado e não marcado
+  para ficar fora da exportação) entra como `IfcGeographicElement.TERRAIN`, com a malha de triângulos
+  (`IfcTriangulatedFaceSet`), cor de terreno, contida no IfcSite e com o Pset `MetroSP_Superficie` (pontos,
+  triângulos, cota mínima e máxima, área em planta e 3D, layer e arquivo). Se a Autodesk já tiver gravado a
+  superfície com o mesmo nome, fica a dela.
+- **Equações de estaca**: cada equação do alinhamento vai no `Pset_Stationing` do `IfcReferent` de estaca no ponto da
+  equação (`Station` = estaca adiante, `IncomingStation` = estaca atrás, `HasIncreasingStation`). Sem referente da
+  Autodesk nesse ponto, o MetroSP acrescenta um sobre o eixo.
+- **Pontos COGO como pontos de levantamento**: os `IfcAnnotation` dos pontos passam a `SURVEY` e ganham o Pset
+  `MetroSP_Ponto` (número, nome, descrições, leste, norte, cota, latitude e longitude em graus). Antes, esses dados
+  ficavam em Psets da Autodesk que a limpeza dos Psets fora do padrão apaga. Os grupos de pontos continuam como
+  `IfcGroup`.
+- Já vinham da Autodesk e continuam: horizontal, vertical e superelevação (`IfcAlignmentCant`) dos alinhamentos, estacas
+  como `IfcReferent` e o sistema de coordenadas.
 ## 0.12.8 (18/11/2026)
 
 - **Exportar IFC › Property sets: "Exportar também os Psets fora do padrão"**, desmarcado por padrão. Desmarcado, o IFC

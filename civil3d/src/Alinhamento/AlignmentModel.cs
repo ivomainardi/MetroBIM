@@ -30,6 +30,15 @@ namespace MetroSP.Alinhamento
         public double Radius;          // 0 para rampa constante
     }
 
+    /// <summary>Equação de estaca: na distância DistAlong (a partir do início) a estaca passa de StationBack para StationAhead.</summary>
+    public class StationEquationModel
+    {
+        public double DistAlong;
+        public double StationBack;
+        public double StationAhead;
+        public bool Increasing = true;
+    }
+
     public class AlignmentModel
     {
         /// <summary>Estacas do eixo 3D em que o perfil não tem cota (perfil com trecho faltando).</summary>
@@ -44,6 +53,7 @@ namespace MetroSP.Alinhamento
         public List<HorizontalSegment> Horizontal = new List<HorizontalSegment>();
         public List<VerticalSegment> Vertical = new List<VerticalSegment>();
         public List<double[]> Axis3D = new List<double[]>();   // {x, y, z} amostrados no Civil 3D
+        public List<StationEquationModel> Equations = new List<StationEquationModel>();
     }
 
     public class IfcExportInfo
