@@ -214,11 +214,14 @@ namespace MetroSP.Commands
                     // Vigas, pilares e barras com o corpo no dobro do comprimento (exportador do Revit): volta ao comprimento do Revit.
                     try
                     {
-                        var perfis = Ifc.PerfisIfc.Aplicar(modelo, id => ComprimentoBarra(doc, id));
+                        var perfis = Ifc.PerfisIfc.Aplicar(modelo, id => BarraRevit(doc, id));
                         if (perfis.Extrusoes > 0) salvar = true;
                         if (perfis.ToString() is string linha) avisosClassificacao.Add(linha);
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível conferir o comprimento dos perfis metálicos: " + ex.Message); }
+                    // Todos os objetos: largura, profundidade e altura do corpo no IFC contra o Revit (só confere, no registro).
+                    try { avisosClassificacao.AddRange(Ifc.ConferenciaGeometriaIfc.Aplicar(modelo, id => CaixaRevit(doc, id)).Linhas()); }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível conferir as medidas dos objetos: " + ex.Message); }
                     // O que saiu: elementos por classe e, se o IFC saiu só com ambientes, a causa provável (fase ou vista).
                     try
                     {
@@ -387,26 +390,80 @@ namespace MetroSP.Commands
             t.TotalMinutes >= 1 ? $"{(int)t.TotalMinutes} min {t.Seconds:00} s" : $"{Math.Max(1, (int)Math.Round(t.TotalSeconds))} s";
 
         /// <summary>
-        /// Comprimento da barra no Revit, em metros: a curva de locação (vigas, contraventamentos, pilares inclinados) ou,
-        /// no pilar vertical, do nível/deslocamento da base ao do topo. Null se não for barra.
+        /// A barra no Revit, em metros: comprimento da curva de locação (vigas, contraventamentos, pilares inclinados) ou, no
+        /// pilar vertical, do nível/deslocamento da base ao do topo; e o trecho do corpo de verdade ao longo dela, a partir do
+        /// meio. Null se não for barra.
         /// </summary>
-        private static double? ComprimentoBarra(Document doc, long id)
+        private static Ifc.BarraRevit BarraRevit(Document doc, long id)
         {
             try
             {
                 Element e = doc.GetElement(Compat.NovoId(id));
                 if (e == null) return null;
-                if (e.Location is LocationCurve lc && lc.Curve != null) return lc.Curve.Length * 0.3048;
-                if (!(e.Location is LocationPoint)) return null;
-                double? Cota(BuiltInParameter nivel, BuiltInParameter desloc)
+                XYZ meio, dir;
+                double comp;
+                if (e.Location is LocationCurve lc && lc.Curve != null)
                 {
-                    ElementId nid = e.get_Parameter(nivel)?.AsElementId();
-                    if (nid == null || nid == ElementId.InvalidElementId || !(doc.GetElement(nid) is Level l)) return null;
-                    return l.Elevation + (e.get_Parameter(desloc)?.AsDouble() ?? 0);
+                    if (!(lc.Curve is Line ln)) return new Ifc.BarraRevit { Comprimento = lc.Curve.Length * 0.3048 };
+                    XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
+                    comp = ln.Length;
+                    meio = (a + b) / 2;
+                    dir = (b - a).Normalize();
                 }
-                double? b = Cota(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM, BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM);
-                double? t = Cota(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM, BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM);
-                return b != null && t != null && t > b ? (t - b) * 0.3048 : (double?)null;
+                else if (e.Location is LocationPoint lp)
+                {
+                    double? Cota(BuiltInParameter nivel, BuiltInParameter desloc)
+                    {
+                        ElementId nid = e.get_Parameter(nivel)?.AsElementId();
+                        if (nid == null || nid == ElementId.InvalidElementId || !(doc.GetElement(nid) is Level l)) return null;
+                        return l.Elevation + (e.get_Parameter(desloc)?.AsDouble() ?? 0);
+                    }
+                    double? cb = Cota(BuiltInParameter.FAMILY_BASE_LEVEL_PARAM, BuiltInParameter.FAMILY_BASE_LEVEL_OFFSET_PARAM);
+                    double? ct = Cota(BuiltInParameter.FAMILY_TOP_LEVEL_PARAM, BuiltInParameter.FAMILY_TOP_LEVEL_OFFSET_PARAM);
+                    if (cb == null || ct == null || ct <= cb) return null;
+                    comp = ct.Value - cb.Value;
+                    meio = new XYZ(lp.Point.X, lp.Point.Y, (cb.Value + ct.Value) / 2);
+                    dir = XYZ.BasisZ;
+                }
+                else return null;
+                var barra = new Ifc.BarraRevit { Comprimento = comp * 0.3048, Dir = new[] { dir.X, dir.Y, dir.Z } };
+                double min = double.MaxValue, max = double.MinValue;
+                void Pontos(GeometryElement ge, int nivel)
+                {
+                    if (ge == null || nivel > 3) return;
+                    foreach (GeometryObject g in ge)
+                    {
+                        if (g is Solid so && so.Volume > 1e-9)
+                        {
+                            foreach (Edge ed in so.Edges)
+                                foreach (XYZ p in ed.Tessellate())
+                                {
+                                    double t = (p - meio).DotProduct(dir);
+                                    if (t < min) min = t;
+                                    if (t > max) max = t;
+                                }
+                        }
+                        else if (g is GeometryInstance gi) Pontos(gi.GetInstanceGeometry(), nivel + 1);
+                    }
+                }
+                Pontos(e.get_Geometry(new Options { DetailLevel = ViewDetailLevel.Fine }), 0);
+                if (max > min) { barra.Ini = min * 0.3048; barra.Fim = max * 0.3048; }
+                return barra;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>Caixa do elemento no Revit, em metros, nas coordenadas internas.</summary>
+        private static (double[] Min, double[] Max)? CaixaRevit(Document doc, long id)
+        {
+            try
+            {
+                Element e = doc.GetElement(Compat.NovoId(id));
+                BoundingBoxXYZ bb = e?.get_BoundingBox(null);
+                if (bb == null || !bb.Enabled) return null;
+                XYZ a = bb.Transform.OfPoint(bb.Min), b = bb.Transform.OfPoint(bb.Max);
+                return (new[] { Math.Min(a.X, b.X) * 0.3048, Math.Min(a.Y, b.Y) * 0.3048, Math.Min(a.Z, b.Z) * 0.3048 },
+                        new[] { Math.Max(a.X, b.X) * 0.3048, Math.Max(a.Y, b.Y) * 0.3048, Math.Max(a.Z, b.Z) * 0.3048 });
             }
             catch { return null; }
         }

@@ -12,6 +12,10 @@ Revit 0.3.15 · Civil 3D 0.12.9
   barras com o dobro do comprimento, centrado no eixo (vigas atravessando os pilares, pilares passando da cobertura).
   O Exportar IFC agora confere cada perfil com o comprimento do Revit e, quando está no dobro, refaz a extrusão no mesmo
   centro e corrige Length, GrossVolume e OuterSurfaceArea do Qto. O registro mostra quantos elementos foram corrigidos.
+- Revit, **recortes das ligações**: cada viga e pilar corrigido ganha o corpo com o trecho real do Revit (recuado nas
+  faces dos pilares e nas ligações), em vez da barra inteira do tipo.
+- Revit, **conferência das medidas de todos os objetos**: o Exportar IFC compara a largura, a profundidade e a altura do
+  corpo de cada objeto no IFC com o Revit e lista no registro os que não batem (até 30, com as medidas dos dois lados).
 
 ## 1.0.14 (18/11/2026)
 
