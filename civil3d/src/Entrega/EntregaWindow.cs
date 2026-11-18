@@ -1180,6 +1180,32 @@ namespace MetroSP.Entrega
             };
             topo.Children.Add(Linha("Objetos", objetos, Info("O exportador da Autodesk pergunta onde salvar o arquivo.")));
 
+            // Psets fora do padrão (General, Properties, LandXML, criados à mão...): por padrão saem do IFC.
+            MetroSpIfcConfig metro;
+            try { metro = ConfigPackage.LoadMetroSp(); } catch { metro = new MetroSpIfcConfig(); }
+            var foraPadrao = new CheckBox
+            {
+                Content = "Exportar também os Psets fora do padrão",
+                IsChecked = !(metro.Psets?.ApagarForaDoPadrao ?? true),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "Desmarcado (recomendado): o IFC sai só com os Psets da ISO (Pset_ e Qto_), do MetroDATA e do MetroSP.\n" +
+                          "Marcado: ficam também os que o exportador da Autodesk cria (General, Properties, Geometry, LandXML...)\n" +
+                          "e os criados à mão nos desenhos. Volume, comprimento e estacas vão para os Psets padrão nos dois casos.\n" +
+                          "Gravado no perfil de exportação.",
+            };
+            foraPadrao.Click += (s, e) =>
+            {
+                try
+                {
+                    var cfg = ConfigPackage.LoadMetroSp();
+                    cfg.Psets ??= new PsetsOptions();
+                    cfg.Psets.ApagarForaDoPadrao = foraPadrao.IsChecked != true;
+                    ConfigPackage.SaveMetroSp(cfg);
+                }
+                catch (Exception ex) { MessageBox.Show(this, "Não foi possível gravar a opção:\n" + ex.Message, "MetroSP"); }
+            };
+            topo.Children.Add(Linha("Property sets", foraPadrao, Info("Desmarcado: só ISO, MetroDATA e MetroSP.")));
+
             topo.Children.Add(Secao("PROJETO E LOCAL"));
             var d = new DockPanel();
             DockPanel.SetDock(topo, Dock.Top);
