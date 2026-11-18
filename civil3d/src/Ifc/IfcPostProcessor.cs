@@ -27,14 +27,29 @@ namespace MetroSP.Ifc
 
         public static void ProcessFile(string ifcPath, IList<AlignmentModel> alignments, SpatialConfig spatial,
                                        IDictionary<string, string> projectProperties, Action<string> log,
-                                       string sourceFile = null, Config.PsetsOptions psets = null)
+                                       string sourceFile = null, Config.PsetsOptions psets = null,
+                                       IList<Terreno.SurfaceModel> surfaces = null)
         {
             var model = StepModel.Load(ifcPath);
             var pp = new IfcPostProcessor(model, log) { SourceFile = sourceFile };
-            if (alignments != null && alignments.Count > 0) pp.ApplyAlignments(alignments);
-            if (spatial == null || spatial.CoordenadasPtl) pp.ApplyPtl(spatial?.Terreno);
+            if (alignments != null && alignments.Count > 0)
+            {
+                pp.ApplyAlignments(alignments);
+                try { pp.ApplyStationEquations(alignments); }
+                catch (Exception ex) { log?.Invoke("equações de estaca não foram gravadas: " + ex.Message); }
+            }
+            var ptl = spatial == null || spatial.CoordenadasPtl;
+            if (ptl) pp.ApplyPtl(spatial?.Terreno);
             if (spatial != null) pp.ApplySpatial(spatial);
             if (projectProperties != null && projectProperties.Count > 0) pp.ApplyProjectProperties(projectProperties);
+            if (surfaces != null && surfaces.Count > 0)
+            {
+                try { pp.ApplySurfaces(surfaces, ptl); }
+                catch (Exception ex) { log?.Invoke("superfícies não foram gravadas: " + ex.Message); }
+            }
+            // Antes da limpeza dos Psets: os dados dos pontos COGO estão em Psets fora do padrão (C3D_Attributes...).
+            try { pp.ApplyCogoPoints(); }
+            catch (Exception ex) { log?.Invoke("dados dos pontos COGO não foram gravados no MetroSP_Ponto: " + ex.Message); }
             try { IfcClassificacao.Aplicar(model, RegraIfc.DosPadroes(), log); }
             catch (Exception ex) { log?.Invoke("classificação não foi gravada como IfcClassificationReference: " + ex.Message); }
             // Depois da classificação (ela lê os Psets de classificação) e antes da marca MetroSP_Projeto.
@@ -119,12 +134,16 @@ namespace MetroSP.Ifc
                 _log($"{a.Name}: eixo 3D aplicado ({a.Axis3D.Count} pontos, perfil {a.ProfileName}).");
             }
 
+            _knownShift = knownShift;
             foreach (var (al, a) in empty) done += Refill(al, a, axisCtx, knownShift);
 
             var missing = alignments.Where(a => !used.Contains(a) && a.Horizontal.Count > 0).ToList();
             if (missing.Count > 0) done += AddMissing(missing, axisCtx, knownShift);
             return done;
         }
+
+        /// <summary>Correção de coordenadas medida nos alinhamentos da Autodesk (desenho → IFC), ou null.</summary>
+        double[] _knownShift;
 
         /// <summary>Nome do DWG, gravado no Pset MetroSP_Alinhamento dos alinhamentos acrescentados.</summary>
         public string SourceFile { get; set; }
@@ -385,6 +404,326 @@ namespace MetroSP.Ifc
             var model = _m.OfType("IFCGEOMETRICREPRESENTATIONCONTEXT").FirstOrDefault(c => StepModel.Text(c.Args[1]) == "Model")
                         ?? _m.OfType("IFCGEOMETRICREPRESENTATIONCONTEXT").First();
             return _m.Add("IFCGEOMETRICREPRESENTATIONSUBCONTEXT", "'Axis'", "'Model'", "*", "*", "*", "*", "#" + model.Id, "$", ".MODEL_VIEW.", "$");
+        }
+
+        // ================================================================== equações de estaca
+
+        /// <summary>
+        /// Equações de estaca do desenho no Pset_Stationing dos IfcReferent (padrão IFC 4.3): no ponto da equação,
+        /// Station = estaca adiante e IncomingStation = estaca atrás. Usa o IfcReferent da Autodesk que estiver na
+        /// mesma distância ao longo do eixo; se não houver, acrescenta um, sobre a mesma curva dos outros.
+        /// </summary>
+        public int ApplyStationEquations(IList<AlignmentModel> alignments)
+        {
+            var comEquacao = alignments.Where(a => a.Equations.Count > 0).ToList();
+            if (comEquacao.Count == 0) return 0;
+            var byName = alignments.GroupBy(a => Norm(a.Name)).ToDictionary(g => g.Key, g => g.First());
+            var children = ChildAlignments();
+            var tops = _m.OfType("IFCALIGNMENT").Where(al => !children.ContainsKey(al.Id) || children[al.Id] == 0).ToList();
+            int feitas = 0;
+            foreach (var al in tops)
+            {
+                var a = Match(StepModel.Text(al.Args[2]), byName, tops.Count);
+                if (a == null || a.Equations.Count == 0) continue;
+
+                // IfcReferent pendurados no alinhamento e a distância de cada um
+                var referentes = _m.OfType("IFCRELNESTS").Where(n => StepModel.Ref(n.Args[4]) == al.Id)
+                    .SelectMany(n => StepModel.RefList(n.Args[5])).Where(r => _m.TypeOf(r) == "IFCREFERENT")
+                    .Select(r => (id: r, dist: DistanciaAoLongo(r))).Where(t => t.dist.HasValue).ToList();
+                // só os de estaca (.STATION.): um marco (REFERENCEMARKER) no mesmo ponto não vira equação
+                var estacas = referentes.Where(t => _m.Get(t.id).Args.Count > 7 && _m.Get(t.id).Args[7].Trim() == ".STATION.").ToList();
+
+                foreach (var eq in a.Equations)
+                {
+                    var r = estacas.Where(t => Math.Abs(t.dist.Value - eq.DistAlong) < 1e-3).Select(t => t.id).FirstOrDefault();
+                    if (r == 0) r = NovoReferente(al, eq, referentes);
+                    if (r == 0)
+                    {
+                        _log($"aviso: {a.Name}: equação de estaca {eq.StationBack:0.000} = {eq.StationAhead:0.000} sem IfcReferent de referência no IFC; não gravada.");
+                        continue;
+                    }
+                    Stationing(r, eq);
+                    feitas++;
+                }
+                _log($"{a.Name}: {a.Equations.Count} equação(ões) de estaca no Pset_Stationing.");
+            }
+            return feitas;
+        }
+
+        /// <summary>Distância ao longo do eixo de um IfcReferent posicionado por IfcLinearPlacement.</summary>
+        double? DistanciaAoLongo(int referente)
+        {
+            var lp = _m.Get(StepModel.Ref(_m.Get(referente).Args[5]));
+            if (lp == null || lp.Type != "IFCLINEARPLACEMENT") return null;
+            var ax = _m.Get(StepModel.Ref(lp.Args[1]));
+            if (ax == null || ax.Type != "IFCAXIS2PLACEMENTLINEAR") return null;
+            var pt = _m.Get(StepModel.Ref(ax.Args[0]));
+            if (pt == null || pt.Type != "IFCPOINTBYDISTANCEEXPRESSION") return null;
+            var mm = System.Text.RegularExpressions.Regex.Match(pt.Args[0], @"-?\d+(\.\d*)?([eE][-+]?\d+)?");
+            return mm.Success ? StepModel.Real(mm.Value) : (double?)null;
+        }
+
+        /// <summary>IfcReferent .STATION. novo na distância da equação, sobre a mesma curva e colocação do modelo.</summary>
+        int NovoReferente(StepEntity al, StationEquationModel eq, List<(int id, double? dist)> referentes)
+        {
+            if (referentes.Count == 0) return 0;
+            var modelo = referentes[0].id;
+            var lp = _m.Get(StepModel.Ref(_m.Get(modelo).Args[5]));
+            var ax = _m.Get(StepModel.Ref(lp.Args[1]));
+            var pt = _m.Get(StepModel.Ref(ax.Args[0]));
+            var gid = (StepModel.Text(al.Args[0]) ?? "") + "|eq|" + IfcAlignmentWriter.F(eq.DistAlong);
+            var dist = _m.Add("IFCPOINTBYDISTANCEEXPRESSION", "IFCLENGTHMEASURE(" + IfcAlignmentWriter.F(eq.DistAlong) + ")", "$", "$", "$", pt.Args[4]);
+            var axis = _m.Add("IFCAXIS2PLACEMENTLINEAR", "#" + dist, ax.Args[1], ax.Args[2]);
+            var place = _m.Add("IFCLINEARPLACEMENT", lp.Args[0], "#" + axis, PosicaoInterpolada(referentes, eq.DistAlong));
+            var r = _m.Add("IFCREFERENT", Guid(gid, "referente"), "$", IfcAlignmentWriter.S(eq.StationAhead.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)),
+                IfcAlignmentWriter.S($"Equação de estaca: {eq.StationBack:0.000} = {eq.StationAhead:0.000}"), "$", "#" + place, "$", ".STATION.");
+            _m.Add("IFCRELNESTS", Guid(gid, "nest"), "$", "'AlignmentStationEquation'", "$", "#" + al.Id, "(#" + r + ")");
+            return r;
+        }
+
+        /// <summary>
+        /// CartesianPosition do IfcLinearPlacement (visualizadores como o web-ifc usam essa posição): interpolada
+        /// entre os dois referentes vizinhos da Autodesk (marcos a cada 20 m, erro desprezível em curva). "$" se não der.
+        /// </summary>
+        string PosicaoInterpolada(List<(int id, double? dist)> referentes, double dist)
+        {
+            double[] Pos(int r)
+            {
+                var lp = _m.Get(StepModel.Ref(_m.Get(r).Args[5]));
+                var cp = lp.Args.Count > 2 ? _m.Get(StepModel.Ref(lp.Args[2])) : null;
+                if (cp == null || cp.Type != "IFCAXIS2PLACEMENT3D") return null;
+                var q = StepModel.RealList(_m.Get(StepModel.Ref(cp.Args[0])).Args[0]);
+                while (q.Count < 3) q.Add(0);
+                return q.ToArray();
+            }
+            var com = referentes.Select(t => (t.dist.Value, p: Pos(t.id))).Where(t => t.p != null).OrderBy(t => t.Item1).ToList();
+            var antes = com.LastOrDefault(t => t.Item1 <= dist);
+            var depois = com.FirstOrDefault(t => t.Item1 >= dist);
+            if (antes.p == null || depois.p == null) return "$";
+            var span = depois.Item1 - antes.Item1;
+            var k = span < 1e-9 ? 0 : (dist - antes.Item1) / span;
+            string F(double v) => IfcAlignmentWriter.F(v);
+            var pt = _m.Add("IFCCARTESIANPOINT", "(" + F(antes.p[0] + k * (depois.p[0] - antes.p[0])) + "," +
+                F(antes.p[1] + k * (depois.p[1] - antes.p[1])) + "," + F(antes.p[2] + k * (depois.p[2] - antes.p[2])) + ")");
+            return "#" + _m.Add("IFCAXIS2PLACEMENT3D", "#" + pt, "$", "$");
+        }
+
+        /// <summary>Station, IncomingStation e HasIncreasingStation no Pset_Stationing do referente.</summary>
+        void Stationing(int referente, StationEquationModel eq)
+        {
+            var valores = new Dictionary<string, string>
+            {
+                ["Station"] = "IFCLENGTHMEASURE(" + IfcAlignmentWriter.F(eq.StationAhead) + ")",
+                ["IncomingStation"] = "IFCLENGTHMEASURE(" + IfcAlignmentWriter.F(eq.StationBack) + ")",
+                ["HasIncreasingStation"] = "IFCBOOLEAN(" + (eq.Increasing ? ".T." : ".F.") + ")",
+            };
+            var rel = _m.OfType("IFCRELDEFINESBYPROPERTIES").FirstOrDefault(r =>
+                StepModel.RefList(r.Args[4]).Contains(referente) &&
+                _m.TypeOf(StepModel.Ref(r.Args[5])) == "IFCPROPERTYSET" &&
+                StepModel.Text(_m.Get(StepModel.Ref(r.Args[5])).Args[2]) == "Pset_Stationing");
+            var novas = new List<int>();
+            if (rel != null)
+            {
+                var pset = _m.Get(StepModel.Ref(rel.Args[5]));
+                foreach (var pid in StepModel.RefList(pset.Args[4]))
+                {
+                    var p = _m.Get(pid);
+                    var nome = p != null && p.Type == "IFCPROPERTYSINGLEVALUE" ? StepModel.Text(p.Args[0]) : null;
+                    if (nome != null && valores.TryGetValue(nome, out var v)) { _m.SetArg(pid, 2, v); valores.Remove(nome); }
+                    novas.Add(pid);
+                }
+                foreach (var kv in valores) novas.Add(_m.Add("IFCPROPERTYSINGLEVALUE", IfcAlignmentWriter.S(kv.Key), "$", kv.Value, "$"));
+                _m.SetArg(pset.Id, 4, StepModel.RefListText(novas));
+                return;
+            }
+            var seed = StepModel.Text(_m.Get(referente).Args[0]) ?? referente.ToString();
+            foreach (var kv in valores) novas.Add(_m.Add("IFCPROPERTYSINGLEVALUE", IfcAlignmentWriter.S(kv.Key), "$", kv.Value, "$"));
+            var ps = _m.Add("IFCPROPERTYSET", Guid(seed, "pset-stationing"), "$", "'Pset_Stationing'", "$", StepModel.RefListText(novas));
+            _m.Add("IFCRELDEFINESBYPROPERTIES", Guid(seed, "pset-stationing-rel"), "$", "$", "$", "(#" + referente + ")", "#" + ps);
+        }
+
+        // ================================================================== pontos COGO
+
+        static readonly (string de, string para)[] CamposPonto =
+        {
+            ("PointNumber", "Numero"), ("PointName", "Nome"), ("RawDescription", "DescricaoBruta"),
+            ("FullDescription", "DescricaoCompleta"), ("Easting", "Leste"), ("Northing", "Norte"), ("Elevation", "Cota"),
+            ("Latitude", "Latitude"), ("Longitude", "Longitude"),
+        };
+
+        /// <summary>Valor da propriedade da Autodesk como vai no MetroSP_Ponto; latitude e longitude vêm em radianos e vão em graus.</summary>
+        static string ValorPonto(string campo, string valor)
+        {
+            if (valor.EndsWith("('')", StringComparison.Ordinal)) return null;   // texto vazio
+            if (campo != "Latitude" && campo != "Longitude") return valor;
+            var mm = System.Text.RegularExpressions.Regex.Match(valor, @"-?\d+(\.\d*)?([eE][-+]?\d+)?");
+            if (!mm.Success) return null;
+            var v = StepModel.Real(mm.Value);
+            var graus = Math.Abs(v) <= Math.PI + 1e-9 ? v * 180 / Math.PI : v;
+            return "IFCREAL(" + IfcAlignmentWriter.F(Math.Round(graus, 9)) + ")";
+        }
+
+        /// <summary>
+        /// Pontos COGO (IfcAnnotation "CogoPoint" da Autodesk): passam a .SURVEY. (ponto de levantamento, IFC 4.3) e
+        /// ganham o Pset MetroSP_Ponto com número, nome, descrições e coordenadas, copiados dos Psets da Autodesk, que
+        /// a limpeza dos Psets fora do padrão apaga. Os grupos de pontos já vêm como IfcGroup.
+        /// </summary>
+        public int ApplyCogoPoints()
+        {
+            var pontos = _m.OfType("IFCANNOTATION").Where(a => StepModel.Text(a.Args[4]) == "CogoPoint").ToList();
+            if (pontos.Count == 0) return 0;
+            var ids = new HashSet<int>(pontos.Select(p => p.Id));
+            var psetsDe = new Dictionary<int, List<int>>();
+            foreach (var r in _m.OfType("IFCRELDEFINESBYPROPERTIES"))
+            {
+                var ps = StepModel.Ref(r.Args[5]);
+                foreach (var o in StepModel.RefList(r.Args[4]))
+                    if (ids.Contains(o)) { if (!psetsDe.TryGetValue(o, out var l)) psetsDe[o] = l = new List<int>(); l.Add(ps); }
+            }
+            int n = 0;
+            foreach (var a in pontos)
+            {
+                var valores = new Dictionary<string, string>(StringComparer.Ordinal);
+                if (psetsDe.TryGetValue(a.Id, out var lista))
+                    foreach (var ps in lista)
+                    {
+                        var e = _m.Get(ps);
+                        if (e == null || e.Type != "IFCPROPERTYSET" || StepModel.Text(e.Args[2]) == "MetroSP_Ponto") continue;
+                        foreach (var pid in StepModel.RefList(e.Args[4]))
+                        {
+                            var p = _m.Get(pid);
+                            if (p == null || p.Type != "IFCPROPERTYSINGLEVALUE" || p.Args[2] == "$") continue;
+                            var nome = StepModel.Text(p.Args[0]);
+                            if (nome != null && !valores.ContainsKey(nome)) valores[nome] = p.Args[2];
+                        }
+                    }
+                var props = CamposPonto.Where(c => valores.ContainsKey(c.de))
+                    .Select(c => (c.para, v: ValorPonto(c.de, valores[c.de]))).Where(t => t.v != null)
+                    .Select(t => _m.Add("IFCPROPERTYSINGLEVALUE", IfcAlignmentWriter.S(t.para == "Latitude" || t.para == "Longitude" ? t.para + "Graus" : t.para), "$", t.v, "$")).ToList();
+                if (a.Args.Count > 7 && a.Args[7] == "$") _m.SetArg(a.Id, 7, ".SURVEY.");
+                if (props.Count == 0) continue;
+                var seed = StepModel.Text(a.Args[0]) ?? a.Id.ToString();
+                var pset = _m.Add("IFCPROPERTYSET", Guid(seed, "pset-ponto"), "$", "'MetroSP_Ponto'", "$", StepModel.RefListText(props));
+                _m.Add("IFCRELDEFINESBYPROPERTIES", Guid(seed, "pset-ponto-rel"), "$", "$", "$", "(#" + a.Id + ")", "#" + pset);
+                n++;
+            }
+            _log($"pontos COGO: {pontos.Count} como ponto de levantamento (SURVEY), {n} com o Pset MetroSP_Ponto.");
+            return n;
+        }
+
+        // ================================================================== superfícies (terreno)
+
+        /// <summary>
+        /// Superfícies TIN do desenho como IfcGeographicElement.TERRAIN (IFC 4.3), com malha de triângulos
+        /// (IfcTriangulatedFaceSet, que o web-ifc do Iris desenha), cor de terreno, contidas no IfcSite e com o
+        /// Pset MetroSP_Superficie (pontos, triângulos, cotas e áreas). Superfície que a Autodesk já gravou
+        /// (mesmo nome num IfcGeographicElement) fica como veio.
+        /// </summary>
+        public int ApplySurfaces(IList<Terreno.SurfaceModel> surfaces, bool ptl)
+        {
+            var site = _m.OfType("IFCSITE").FirstOrDefault();
+            if (site == null)
+            {
+                _log("aviso: IFC sem IfcSite; superfícies não gravadas.");
+                return 0;
+            }
+            var existentes = new HashSet<string>(_m.OfType("IFCGEOGRAPHICELEMENT").Select(g => Norm(StepModel.Text(g.Args[2]))));
+
+            // Mesmo sistema do IfcSite: no PTL as coordenadas absolutas do IFC são as do desenho; sem PTL, vale a
+            // correção medida nos alinhamentos da Autodesk (como nos alinhamentos acrescentados).
+            var sitePlacement = StepModel.Ref(site.Args[5]);
+            var toLocal = (sitePlacement != 0 ? PlacementMatrix(sitePlacement) : Matrix.Identity).Inverse();
+            var shift = ptl ? new double[3] : _knownShift ?? new double[3];
+            if (!ptl && _knownShift == null && sitePlacement != 0)
+                _log("aviso: nenhum alinhamento da Autodesk para conferir o deslocamento de coordenadas das superfícies; usando a colocação do IfcSite.");
+
+            var body = BodyContext();
+            var seed0 = StepModel.Text(site.Args[0]) ?? "";
+            var estilo = 0;
+            var ids = new List<int>();
+            foreach (var s in surfaces)
+            {
+                if (existentes.Contains(Norm(s.Name)))
+                {
+                    _log($"superfície {s.Name}: a Autodesk já gravou; mantida como veio.");
+                    continue;
+                }
+                var seed = seed0 + "|" + (SourceFile ?? "") + "|" + s.Handle;
+
+                var sb = new StringBuilder(s.Points.Count * 40);
+                sb.Append('(');
+                for (int i = 0; i < s.Points.Count; i++)
+                {
+                    var q = toLocal.Apply(s.Points[i][0], s.Points[i][1], s.Points[i][2], shift);
+                    if (i > 0) sb.Append(',');
+                    sb.Append('(').Append(F3(q[0])).Append(',').Append(F3(q[1])).Append(',').Append(F3(q[2])).Append(')');
+                }
+                sb.Append(')');
+                var pts = _m.Add("IFCCARTESIANPOINTLIST3D", sb.ToString(), "$");
+
+                sb.Clear().Append('(');
+                for (int i = 0; i < s.Triangles.Count; i++)
+                {
+                    var t = s.Triangles[i];
+                    if (i > 0) sb.Append(',');
+                    sb.Append('(').Append(t[0] + 1).Append(',').Append(t[1] + 1).Append(',').Append(t[2] + 1).Append(')');
+                }
+                sb.Append(')');
+                var malha = _m.Add("IFCTRIANGULATEDFACESET", "#" + pts, "$", ".F.", sb.ToString(), "$");
+
+                if (estilo == 0)
+                {
+                    var cor = _m.Add("IFCCOLOURRGB", "'Terreno'", "0.62", "0.55", "0.42");
+                    var sombra = _m.Add("IFCSURFACESTYLESHADING", "#" + cor, "0.");
+                    estilo = _m.Add("IFCSURFACESTYLE", "'MetroSP Terreno'", ".BOTH.", "(#" + sombra + ")");
+                }
+                _m.Add("IFCSTYLEDITEM", "#" + malha, "(#" + estilo + ")", "$");
+
+                var rep = _m.Add("IFCSHAPEREPRESENTATION", "#" + body, "'Body'", "'Tessellation'", "(#" + malha + ")");
+                var pds = _m.Add("IFCPRODUCTDEFINITIONSHAPE", "$", "$", "(#" + rep + ")");
+                var o = _m.Add("IFCCARTESIANPOINT", "(0.,0.,0.)");
+                var place = _m.Add("IFCLOCALPLACEMENT", sitePlacement != 0 ? "#" + sitePlacement : "$", "#" + _m.Add("IFCAXIS2PLACEMENT3D", "#" + o, "$", "$"));
+                var ge = _m.Add("IFCGEOGRAPHICELEMENT", Guid(seed, "terreno"), "$", IfcAlignmentWriter.S(s.Name), Opt(s.Description),
+                    IfcAlignmentWriter.S("Superfície TIN"), "#" + place, "#" + pds, "$", ".TERRAIN.");
+
+                var props = new List<int>
+                {
+                    Prop("Pontos", "IFCCOUNTMEASURE(" + s.Points.Count + ")"),
+                    Prop("Triangulos", "IFCCOUNTMEASURE(" + s.Triangles.Count + ")"),
+                    Prop("CotaMinima", "IFCLENGTHMEASURE(" + IfcAlignmentWriter.F(Math.Round(s.MinZ, 3)) + ")"),
+                    Prop("CotaMaxima", "IFCLENGTHMEASURE(" + IfcAlignmentWriter.F(Math.Round(s.MaxZ, 3)) + ")"),
+                    Prop("AreaPlanta", "IFCAREAMEASURE(" + IfcAlignmentWriter.F(Math.Round(s.Area2D, 2)) + ")"),
+                    Prop("Area3D", "IFCAREAMEASURE(" + IfcAlignmentWriter.F(Math.Round(s.Area3D, 2)) + ")"),
+                };
+                if (!string.IsNullOrWhiteSpace(s.Layer)) props.Add(Prop("Layer", "IFCLABEL(" + IfcAlignmentWriter.S(s.Layer) + ")"));
+                if (!string.IsNullOrWhiteSpace(SourceFile)) props.Add(Prop("ArquivoOrigem", "IFCLABEL(" + IfcAlignmentWriter.S(SourceFile) + ")"));
+                var pset = _m.Add("IFCPROPERTYSET", Guid(seed, "pset-superficie"), "$", "'MetroSP_Superficie'", "$", StepModel.RefListText(props));
+                _m.Add("IFCRELDEFINESBYPROPERTIES", Guid(seed, "pset-superficie-rel"), "$", "$", "$", "(#" + ge + ")", "#" + pset);
+                ids.Add(ge);
+                _log($"superfície {s.Name}: IfcGeographicElement.TERRAIN com {s.Triangles.Count} triângulos (cotas {s.MinZ:0.00} a {s.MaxZ:0.00}).");
+            }
+            if (ids.Count > 0)
+                _m.Add("IFCRELCONTAINEDINSPATIALSTRUCTURE", Guid(seed0, "metrosp-site-terreno|" + string.Join(",", ids)), "$", "'Terreno'", "$",
+                    StepModel.RefListText(ids), "#" + site.Id);
+            return ids.Count;
+        }
+
+        int Prop(string nome, string valor) => _m.Add("IFCPROPERTYSINGLEVALUE", IfcAlignmentWriter.S(nome), "$", valor, "$");
+
+        /// <summary>Coordenada com 3 casas (milímetro): mantém o arquivo menor que o "R" completo.</summary>
+        static string F3(double v)
+        {
+            var s = Math.Round(v, 3).ToString("0.0##", System.Globalization.CultureInfo.InvariantCulture);
+            return s == "-0.0" ? "0.0" : s;
+        }
+
+        int BodyContext()
+        {
+            foreach (var c in _m.OfType("IFCGEOMETRICREPRESENTATIONSUBCONTEXT"))
+                if (StepModel.Text(c.Args[0]) == "Body") return c.Id;
+            var model = _m.OfType("IFCGEOMETRICREPRESENTATIONCONTEXT").FirstOrDefault(c => StepModel.Text(c.Args[1]) == "Model")
+                        ?? _m.OfType("IFCGEOMETRICREPRESENTATIONCONTEXT").First();
+            return _m.Add("IFCGEOMETRICREPRESENTATIONSUBCONTEXT", "'Body'", "'Model'", "*", "*", "*", "*", "#" + model.Id, "$", ".MODEL_VIEW.", "$");
         }
 
         // ================================================================== projeto, terreno, edificações

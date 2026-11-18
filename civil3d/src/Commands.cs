@@ -31,6 +31,7 @@ namespace MetroSP
             public DateTime StartUtc;
             public string DwgDir;
             public List<AlignmentModel> Alignments;
+            public List<Terreno.SurfaceModel> Surfaces;
         }
 
         static PendingExport _pending;
@@ -203,13 +204,27 @@ namespace MetroSP
                 if (alignments == null && metro.Alinhamento.AplicarNoIfc)
                     alignments = AlignmentCommands.ReadAll(doc, metro.Alinhamento, interactive: true);
 
+                var surfaces = pending?.Surfaces ?? LerSuperficies(doc);
+
                 ed.WriteMessage($"\nMetroSP: pós-processando {Path.GetFileName(ifc)}...");
                 IfcPostProcessor.ProcessFile(ifc, metro.Alinhamento.AplicarNoIfc ? alignments : null,
                     metro.Estrutura, metro.PropriedadesProjeto, m => ed.WriteMessage("\nMetroSP: " + m),
-                    Path.GetFileName(doc.Name), metro.Psets);
+                    Path.GetFileName(doc.Name), metro.Psets, surfaces);
                 ed.WriteMessage($"\nMetroSP: IFC pronto: {ifc}");
             }
             catch (System.Exception ex) { Fail(ed, ex); }
+        }
+
+        /// <summary>Superfícies TIN que vão para o IFC como terreno; um erro aqui não para a exportação.</summary>
+        static List<Terreno.SurfaceModel> LerSuperficies(AcDocument doc)
+        {
+            try { return Terreno.CivilSurfaceReader.ReadAll(doc); }
+            catch (System.Exception ex)
+            {
+                doc.Editor.WriteMessage("\nMetroSP: aviso - não deu para ler as superfícies (" + ex.Message + "); o IFC vai sem o terreno MetroSP.");
+                Log.Erro("superfícies", ex);
+                return null;
+            }
         }
 
         // ------------------------------------------------------------------ fluxo principal
@@ -277,7 +292,8 @@ namespace MetroSP
                     Command = cmd,
                     StartUtc = DateTime.UtcNow,
                     DwgDir = dwgDir,
-                    Alignments = alignments
+                    Alignments = alignments,
+                    Surfaces = LerSuperficies(doc)
                 };
                 doc.CommandEnded += OnCommandEnded;
                 doc.CommandCancelled += OnCommandAborted;
