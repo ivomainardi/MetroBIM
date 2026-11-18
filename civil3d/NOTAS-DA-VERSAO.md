@@ -1,6 +1,6 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## 0.12.9 (em teste)
+## 0.12.9 (18/11/2026)
 
 Dados que iam no LandXML passam a ir no IFC 4.3, para o Iris analisar o modelo só com o IFC:
 
