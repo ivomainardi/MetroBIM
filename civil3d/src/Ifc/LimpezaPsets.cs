@@ -31,6 +31,27 @@ namespace MetroSP.Ifc
             ("Corridor Shape Information", "AssemblyEndStation", "MetroLoc", "FimEstaca"),
         };
 
+        /// <summary>Classe IFC → quantidades base da ISO (Qto) que recebem o comprimento e o volume do "Quantities" do exportador.</summary>
+        public static readonly Dictionary<string, (string Qto, string Comprimento, string Volume)> QtoIso =
+            new Dictionary<string, (string, string, string)>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["IFCRAIL"] = ("Qto_RailBaseQuantities", "Length", "Volume"),
+                ["IFCCOURSE"] = ("Qto_CourseBaseQuantities", "Length", "Volume"),
+                ["IFCKERB"] = ("Qto_KerbBaseQuantities", "Length", "Volume"),
+                ["IFCPAVEMENT"] = ("Qto_PavementBaseQuantities", "Length", "NetVolume"),
+                ["IFCEARTHWORKSCUT"] = ("Qto_EarthworksCutBaseQuantities", "Length", "UndisturbedVolume"),
+                ["IFCEARTHWORKSFILL"] = ("Qto_EarthworksFillBaseQuantities", "Length", "CompactedVolume"),
+                ["IFCREINFORCEDSOIL"] = ("Qto_ReinforcedSoilBaseQuantities", "Length", "Volume"),
+                ["IFCPIPESEGMENT"] = ("Qto_PipeSegmentBaseQuantities", "Length", null),
+                ["IFCSLAB"] = ("Qto_SlabBaseQuantities", "Length", "NetVolume"),
+                ["IFCWALL"] = ("Qto_WallBaseQuantities", "Length", "NetVolume"),
+                ["IFCBEAM"] = ("Qto_BeamBaseQuantities", "Length", "NetVolume"),
+                ["IFCMEMBER"] = ("Qto_MemberBaseQuantities", "Length", "NetVolume"),
+                ["IFCCOLUMN"] = ("Qto_ColumnBaseQuantities", "Length", "NetVolume"),
+                ["IFCFOOTING"] = ("Qto_FootingBaseQuantities", "Length", "NetVolume"),
+                ["IFCPILE"] = ("Qto_PileBaseQuantities", "Length", "NetVolume"),
+            };
+
         public static bool Permitido(string nome, ICollection<string> extras)
         {
             if (string.IsNullOrWhiteSpace(nome)) return true;   // sem nome: não é nosso decidir
@@ -41,11 +62,22 @@ namespace MetroSP.Ifc
             return extras != null && extras.Any(p => string.Equals(p?.Trim(), nome, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>Apaga os IfcPropertySet fora do padrão, as relações e as propriedades que só eles usavam. Devolve quantos saíram.</summary>
-        public static int Aplicar(StepModel m, ICollection<string> extras, Action<string> log)
+        /// <summary>
+        /// Passa os dados úteis do exportador para os Psets padrão (MetroQto, MetroLoc e as quantidades base da ISO) e,
+        /// se <paramref name="apagar"/>, apaga os IfcPropertySet fora do padrão, as relações e as propriedades que só
+        /// eles usavam. Devolve quantos saíram.
+        /// </summary>
+        public static int Aplicar(StepModel m, ICollection<string> extras, bool apagar, Action<string> log)
         {
+            try { Quantidades(m, log); }
+            catch (Exception ex) { log?.Invoke("as quantidades base da ISO (Qto) não foram gravadas: " + ex.Message); }
             try { Converte(m, log); }
             catch (Exception ex) { log?.Invoke("os dados do exportador não passaram para o MetroQto/MetroLoc: " + ex.Message); }
+            if (!apagar)
+            {
+                log?.Invoke("property sets fora do padrão mantidos no IFC (opção \"Exportar também os Psets fora do padrão\").");
+                return 0;
+            }
 
             var fora = new HashSet<int>();
             var nomes = new SortedDictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -165,6 +197,67 @@ namespace MetroSP.Ifc
             }
             if (criados > 0)
                 log?.Invoke($"{criados} Pset(s) MetroQto/MetroLoc criados com o volume, o comprimento e as estacas que o exportador gravou em Quantities e Corridor Shape Information.");
+        }
+
+        /// <summary>
+        /// Comprimento e volume do "Quantities" do exportador viram as quantidades base da ISO (IfcElementQuantity Qto_...)
+        /// da classe do objeto, nos objetos que ainda não têm esse Qto.
+        /// </summary>
+        static void Quantidades(StepModel m, Action<string> log)
+        {
+            var temQto = new HashSet<(int, string)>();
+            var fontes = new List<(StepEntity Rel, StepEntity Pset)>();
+            foreach (var r in m.OfType("IFCRELDEFINESBYPROPERTIES").ToList())
+            {
+                var d = m.Get(StepModel.Ref(r.Args[5]));
+                if (d == null) continue;
+                string nome = StepModel.Text(d.Args[2]) ?? "";
+                if (d.Type == "IFCELEMENTQUANTITY")
+                    foreach (int o in StepModel.RefList(r.Args[4])) temQto.Add((o, nome));
+                else if (d.Type == "IFCPROPERTYSET" && string.Equals(nome, "Quantities", StringComparison.OrdinalIgnoreCase))
+                    fontes.Add((r, d));
+            }
+            int criados = 0;
+            foreach (var (rel, ps) in fontes)
+            {
+                string comp = null, vol = null;
+                foreach (int pid in StepModel.RefList(ps.Args[4]))
+                {
+                    var pe = m.Get(pid);
+                    if (pe == null || pe.Type != "IFCPROPERTYSINGLEVALUE" || pe.Args.Count < 3) continue;
+                    string v = Numero(pe.Args[2]);
+                    string n = StepModel.Text(pe.Args[0]);
+                    if (string.Equals(n, "ComputedLength", StringComparison.OrdinalIgnoreCase)) comp = v;
+                    else if (string.Equals(n, "ComputedVolume", StringComparison.OrdinalIgnoreCase)) vol = v;
+                }
+                if (comp == null && vol == null) continue;
+                foreach (var grupo in StepModel.RefList(rel.Args[4]).GroupBy(o => m.TypeOf(o) ?? ""))
+                {
+                    if (!QtoIso.TryGetValue(grupo.Key, out var q)) continue;
+                    var alvo = grupo.Where(o => !temQto.Contains((o, q.Qto))).ToList();
+                    if (alvo.Count == 0) continue;
+                    var qs = new List<int>();
+                    if (comp != null && q.Comprimento != null) qs.Add(m.Add("IFCQUANTITYLENGTH", Txt(q.Comprimento), "$", "$", comp, "$"));
+                    if (vol != null && q.Volume != null) qs.Add(m.Add("IFCQUANTITYVOLUME", Txt(q.Volume), "$", "$", vol, "$"));
+                    if (qs.Count == 0) continue;
+                    string semente = StepModel.Text(rel.Args[0]) + "|" + q.Qto;
+                    int eq = m.Add("IFCELEMENTQUANTITY", Guid(semente + "|qto"), "$", Txt(q.Qto), "$", "'MetroSP (Quantities do Civil 3D)'", StepModel.RefListText(qs));
+                    m.Add("IFCRELDEFINESBYPROPERTIES", Guid(semente + "|qto-rel"), "$", "$", "$", StepModel.RefListText(alvo), "#" + eq);
+                    foreach (int o in alvo) temQto.Add((o, q.Qto));
+                    criados++;
+                }
+            }
+            if (criados > 0) log?.Invoke($"{criados} quantidade(s) base da ISO (Qto_...) gravadas com o comprimento e o volume do Civil 3D.");
+        }
+
+        /// <summary>IFCLENGTHMEASURE(12.5) → "12.5" (null se não é número).</summary>
+        static string Numero(string arg)
+        {
+            if (arg == null) return null;
+            string s = arg.Trim();
+            int a = s.IndexOf('(');
+            if (a >= 0) s = s.Substring(a + 1).TrimEnd(')');
+            return double.TryParse(s, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out _) ? s : null;
         }
 
         static string Txt(string s) => "'" + (s ?? "").Replace("'", "''") + "'";

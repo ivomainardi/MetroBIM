@@ -35,7 +35,10 @@ namespace MetroSP.Config
 
     public class PsetsOptions
     {
-        /// <summary>Apaga do IFC os Psets que não são ISO (Pset_/Qto_), MetroDATA nem MetroSP.</summary>
+        /// <summary>
+        /// Apaga do IFC os Psets que não são ISO (Pset_/Qto_), MetroDATA nem MetroSP (padrão). Na tela: "Exportar também
+        /// os Psets fora do padrão", desmarcada.
+        /// </summary>
         public bool ApagarForaDoPadrao { get; set; } = true;
 
         /// <summary>Outros nomes de Pset que ficam no IFC (ex.: um Pset combinado com o cliente).</summary>
