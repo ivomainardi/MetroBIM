@@ -53,11 +53,8 @@ namespace MetroSP.Ifc
             try { IfcClassificacao.Aplicar(model, RegraIfc.DosPadroes(), log); }
             catch (Exception ex) { log?.Invoke("classificação não foi gravada como IfcClassificationReference: " + ex.Message); }
             // Depois da classificação (ela lê os Psets de classificação) e antes da marca MetroSP_Projeto.
-            if (psets == null || psets.ApagarForaDoPadrao)
-            {
-                try { LimpezaPsets.Aplicar(model, psets?.Permitidos, log); }
-                catch (Exception ex) { log?.Invoke("os property sets fora do padrão não foram apagados: " + ex.Message); }
-            }
+            try { LimpezaPsets.Aplicar(model, psets?.Permitidos, psets == null || psets.ApagarForaDoPadrao, log); }
+            catch (Exception ex) { log?.Invoke("os property sets fora do padrão não foram apagados: " + ex.Message); }
             // Por último: Plugin e VersaoPlugin no Pset MetroSP_Projeto e a marca no cabeçalho.
             try { OrigemIfc.Marcar(model, "MetroSP Civil 3D", log); }
             catch (Exception ex) { log?.Invoke("origem MetroSP não foi gravada no IFC: " + ex.Message); }

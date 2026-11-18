@@ -1,6 +1,6 @@
 # Notas da versão: MetroSP para Civil 3D
 
-## 0.12.8 (em teste)
+## 0.12.9 (em teste)
 
 Dados que iam no LandXML passam a ir no IFC 4.3, para o Iris analisar o modelo só com o IFC:
 
@@ -18,6 +18,15 @@ Dados que iam no LandXML passam a ir no IFC 4.3, para o Iris analisar o modelo s
   `IfcGroup`.
 - Já vinham da Autodesk e continuam: horizontal, vertical e superelevação (`IfcAlignmentCant`) dos alinhamentos, estacas
   como `IfcReferent` e o sistema de coordenadas.
+## 0.12.8 (18/11/2026)
+
+- **Exportar IFC › Property sets: "Exportar também os Psets fora do padrão"**, desmarcado por padrão. Desmarcado, o IFC
+  sai só com os property sets ISO (`Pset_`, `Qto_`), MetroDATA e MetroSP. Marcado, os da Autodesk (General, Properties,
+  LandXML...) ficam também. A escolha fica salva no perfil (`MetroSP.ifc.json` › `Psets.ApagarForaDoPadrao`).
+- **Quantidades ISO preenchidas sempre**: o comprimento e o volume que o exportador grava em "Quantities" passam para o
+  Qto da ISO de cada classe (Qto_RailBaseQuantities, Qto_CourseBaseQuantities, Qto_KerbBaseQuantities,
+  Qto_PavementBaseQuantities, Qto_EarthworksCut/FillBaseQuantities, Qto_PipeSegmentBaseQuantities, Qto_SlabBaseQuantities...),
+  além de `MetroQto` e `MetroLoc`, com a opção marcada ou não.
 
 ## 0.12.7 (18/11/2026)
 
