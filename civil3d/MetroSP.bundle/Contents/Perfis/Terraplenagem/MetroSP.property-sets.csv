@@ -1,0 +1,11 @@
+﻿Property set;Propriedade;Tipo;Valor padrão;Aplica-se a;Descrição;IFC
+Classification;ClassificationCode;Texto;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";Plugin (vira IfcClassificationReference) · Terraplenagem;Não
+MetroClassificacao;CodigoMetro;Texto;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";MetroDATA · Terraplenagem;Não
+Metro;Nome;Texto;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";MetroDATA · Terraplenagem;Não
+Metro;Material;Texto;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";MetroDATA · Terraplenagem;Não
+Metro;Etapa;Texto;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";MetroDATA · Terraplenagem;Não
+MetroLoc;Nivel;Texto;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";MetroDATA · Terraplenagem;Não
+MetroQto;Volume;Real;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";MetroDATA · Terraplenagem;Não
+Pset_TrenchExcavationCommon;NominalDepth;Real;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Terraplenagem;Não
+Pset_TrenchExcavationCommon;NominalWidth;Real;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Terraplenagem;Não
+Pset_TransitionSectionCommon;NominalLength;Real;;"Superfície TIN; Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Terraplenagem;Não

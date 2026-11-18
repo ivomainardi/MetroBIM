@@ -548,7 +548,9 @@ namespace MetroSP.PropertySets
             int iSource = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "source");
             int iCivil = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "civil 3d name");
             int iGroup = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "group");
-            return iSource >= 0 && iCivil >= 0 && iGroup >= 0 ? LerMapeamentoAutodesk(linhas.Skip(cab).ToList(), iSource, iGroup, iCivil) : null;
+            int iAtiva = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "active");
+            int iPsetIfc = titulos.FindIndex(c => MapaColunas.Normalizar(c) == "ifcpropertyset name");
+            return iSource >= 0 && iCivil >= 0 && iGroup >= 0 ? LerMapeamentoAutodesk(linhas.Skip(cab).ToList(), iSource, iGroup, iCivil, iAtiva, iPsetIfc) : null;
         }
 
         /// <summary>
@@ -636,14 +638,20 @@ namespace MetroSP.PropertySets
             catch { }
         }
 
-        static List<PsetMontagem> LerMapeamentoAutodesk(List<List<string>> linhas, int iSource, int iGroup, int iCivil)
+        /// <summary>
+        /// Property sets que o mapeamento lê do desenho (Source = PropertySet). Linha desligada (Active = FALSE) não conta,
+        /// nem a que só renomeia um property set do próprio Civil 3D para um Pset padrão (Pset no IFC diferente do Group).
+        /// </summary>
+        static List<PsetMontagem> LerMapeamentoAutodesk(List<List<string>> linhas, int iSource, int iGroup, int iCivil, int iAtiva = -1, int iPsetIfc = -1)
         {
             string At(List<string> l, int i) => i < l.Count ? (l[i] ?? "").Trim() : "";
             var r = new List<PsetMontagem>();
             foreach (List<string> l in linhas)
             {
                 if (!string.Equals(At(l, iSource), "PropertySet", StringComparison.OrdinalIgnoreCase)) continue;
+                if (iAtiva >= 0 && string.Equals(At(l, iAtiva), "false", StringComparison.OrdinalIgnoreCase)) continue;
                 string ps = At(l, iGroup), pr = At(l, iCivil);
+                if (iPsetIfc >= 0 && At(l, iPsetIfc).Length > 0 && !string.Equals(At(l, iPsetIfc), ps, StringComparison.OrdinalIgnoreCase)) continue;
                 if (ps.Length == 0 || pr.Length == 0) continue;
                 PsetMontagem p = r.FirstOrDefault(x => string.Equals(x.Nome, ps, StringComparison.OrdinalIgnoreCase));
                 if (p == null) r.Add(p = new PsetMontagem { Nome = ps, LevarIfc = false });
@@ -674,8 +682,26 @@ namespace MetroSP.PropertySets
                 }
             }
             catch { }
+            // "Aplica-se a" e descrição vêm da planilha do perfil, quando ele traz uma (perfis por disciplina).
+            try
+            {
+                string pl = Path.Combine(ConfigPackage.ActiveDir, PlanilhaDoPerfil);
+                if (File.Exists(pl))
+                    foreach (PsetMontagem x in LerPlanilha(pl, out _))
+                    {
+                        PsetMontagem p = lista.FirstOrDefault(y => string.Equals(y.Nome, x.Nome, StringComparison.OrdinalIgnoreCase));
+                        if (p == null) continue;
+                        p.TodosObjetos = x.TodosObjetos;
+                        p.Classes = x.Classes;
+                        if (string.IsNullOrEmpty(p.Descricao)) p.Descricao = x.Descricao;
+                    }
+            }
+            catch { }
             return lista;
         }
+
+        /// <summary>Planilha do perfil (mesmo formato do Importar planilha) com o "Aplica-se a" de cada property set.</summary>
+        public const string PlanilhaDoPerfil = "MetroSP.property-sets.csv";
 
         /// <summary>Salva a lista numa planilha .csv (UTF-8, separador ;), que abre direto no Excel.</summary>
         public static void ExportarPlanilha(string arquivo, IEnumerable<PsetMontagem> lista)
@@ -849,16 +875,33 @@ namespace MetroSP.PropertySets
         // ------------------------------------------------------------------ modelos prontos
 
         /// <summary>Modelos prontos para começar (o padrão completo do Metrô vem da planilha da equipe).</summary>
-        public static List<(string Rotulo, string Dica, Func<PsetMontagem> Criar)> Modelos() => new List<(string, string, Func<PsetMontagem>)>
+        public static List<(string Rotulo, string Dica, Func<List<PsetMontagem>> Criar)> Modelos()
         {
-            ("Classificação (exportador IFC)",
-             "Property set Classification com ClassificationCode, o mesmo que o Verificar classificação usa e o exportador IFC lê.",
-             () => new PsetMontagem
-             {
-                 Nome = Classificacao.ClassificacaoCore.PsetPadrao,
-                 Descricao = "Classificação (MetroSP)",
-                 Propriedades = { new PropriedadeMontagem { Nome = "ClassificationCode" } },
-             }),
-        };
+            var r = new List<(string, string, Func<List<PsetMontagem>>)>
+            {
+                ("Classificação (exportador IFC)",
+                 "Property set Classification com ClassificationCode, o mesmo que o Verificar classificação usa e o exportador IFC lê.",
+                 () => new List<PsetMontagem> { new PsetMontagem
+                 {
+                     Nome = Classificacao.ClassificacaoCore.PsetPadrao,
+                     Descricao = "Classificação (MetroSP)",
+                     Propriedades = { new PropriedadeMontagem { Nome = "ClassificationCode" } },
+                 } }),
+            };
+            // Um modelo por perfil pré-configurado que traz planilha (via permanente, drenagem...).
+            try
+            {
+                foreach (string perfil in ConfigPackage.Perfis().Where(ConfigPackage.PreConfigurado))
+                {
+                    string pl = Path.Combine(ConfigPackage.OrigemPreConfigurada(perfil), PlanilhaDoPerfil);
+                    if (!File.Exists(pl)) continue;
+                    r.Add(($"Padrão {perfil} (MetroDATA e ISO)",
+                           $"Property sets do MetroDATA e da ISO 16739 (IFC 4.3) para {perfil}, com o \"Aplica-se a\" de cada um.",
+                           () => LerPlanilha(pl, out _)));
+                }
+            }
+            catch { }
+            return r;
+        }
     }
 }

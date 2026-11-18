@@ -478,7 +478,7 @@ namespace MetroSP.PropertySets
             foreach (var (rotulo, dica, criar) in PsetsCore.Modelos())
             {
                 var i = new MenuItem { Header = rotulo, ToolTip = dica };
-                i.Click += (s, e) => { Juntar(new[] { criar() }); _soIfc.IsChecked = false; Atualizar(); };
+                i.Click += (s, e) => { Juntar(criar()); _soIfc.IsChecked = false; Atualizar(); };
                 modelos.Items.Add(i);
             }
             m.Items.Add(modelos);

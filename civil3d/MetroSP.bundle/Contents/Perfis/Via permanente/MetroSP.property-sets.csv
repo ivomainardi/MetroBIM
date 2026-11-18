@@ -1,0 +1,52 @@
+﻿Property set;Propriedade;Tipo;Valor padrão;Aplica-se a;Descrição;IFC
+Classification;ClassificationCode;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";Plugin (vira IfcClassificationReference) · Via permanente;Não
+MetroClassificacao;CodigoMetro;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Tipo;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Material;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Numero;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Lado;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Bitola;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Espacamento;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Resistencia;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Densidade;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;RigidezEstatica;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;RigidezDinamica;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;CoeficienteAbsorcaoSonora;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;LimitadorCarga;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;PIV;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Angulo;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Azimute;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;RaioHorizontal;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;RaioVertical;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Espiral;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Superelevacao;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;Distancia;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;VelocidadeMaximaHorizontal;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;VelocidadeMaximaVertical;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;VelocidadeVertical;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;CoordenadaE;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Metro;CoordenadaN;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroLoc;Quilometragem;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroLoc;CotaTB;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroQto;Comprimento;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroQto;Largura;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroQto;Altura;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroQto;Espessura;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroQto;Area;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+MetroQto;Volume;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";MetroDATA · Via permanente;Não
+Pset_RailTypeRail;PositionInTrack;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_RailTypeRail;RailElementaryLength;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_RailTypeRail;IsStainless;Sim/Não;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_TrackElementTypeSleeper;SleeperType;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_TrackElementTypeSleeper;FasteningType;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_TrackElementTypeSleeper;IsElectricallyInsulated;Sim/Não;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_CourseCommon;NominalThickness;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_CourseCommon;NominalWidth;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_CourseCommon;NominalLength;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_MechanicalFastenerTypeRailJoint;IsJointInsulated;Sim/Não;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_MechanicalFastenerTypeRailJoint;IsCWRJoint;Sim/Não;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_MechanicalFastenerTypeRailJoint;RailGap;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_ElementAssemblyTypeTurnoutPanel;TypeOfTurnout;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_ElementAssemblyTypeTurnoutPanel;TurnoutCurvedRadius;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_ElementAssemblyTypeTurnoutPanel;BranchLineDirection;Texto;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não
+Pset_ElementAssemblyTypeTurnoutPanel;TrackGaugeLength;Real;;"Corredor; Sólido 3D; Bloco; Alinhamento; Ponto COGO";ISO 16739 / IFC 4.3 · Via permanente;Não

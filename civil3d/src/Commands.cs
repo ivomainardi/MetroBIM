@@ -206,7 +206,7 @@ namespace MetroSP
                 ed.WriteMessage($"\nMetroSP: pós-processando {Path.GetFileName(ifc)}...");
                 IfcPostProcessor.ProcessFile(ifc, metro.Alinhamento.AplicarNoIfc ? alignments : null,
                     metro.Estrutura, metro.PropriedadesProjeto, m => ed.WriteMessage("\nMetroSP: " + m),
-                    Path.GetFileName(doc.Name));
+                    Path.GetFileName(doc.Name), metro.Psets);
                 ed.WriteMessage($"\nMetroSP: IFC pronto: {ifc}");
             }
             catch (System.Exception ex) { Fail(ed, ex); }

@@ -1,0 +1,30 @@
+﻿Property set;Propriedade;Tipo;Valor padrão;Aplica-se a;Descrição;IFC
+Classification;ClassificationCode;Texto;;"Corredor; Sólido 3D; Linha característica";Plugin (vira IfcClassificationReference) · Viário urbano;Não
+MetroClassificacao;CodigoMetro;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;Nome;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;Descricao;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;Tipo;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;Material;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;Estado;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;DeclividadeLongitudinal;Real;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;DeclividadeTransversal;Real;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Metro;AreaSecao;Real;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+MetroLoc;InicioEstaca;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+MetroLoc;FimEstaca;Texto;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+MetroQto;Comprimento;Real;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+MetroQto;Espessura;Real;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+MetroQto;Area;Real;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+MetroQto;Volume;Real;;"Corredor; Sólido 3D; Linha característica";MetroDATA · Viário urbano;Não
+Pset_CourseCommon;NominalThickness;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_CourseCommon;NominalWidth;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_CourseCommon;NominalLength;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_PavementCommon;NominalThickness;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_PavementCommon;NominalWidth;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_PavementCommon;StructuralSlope;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_KerbCommon;CombinedKerbGutter;Sim/Não;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_KerbCommon;Upstand;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_KerbCommon;Mountable;Sim/Não;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_PrecastKerbStone;NominalHeight;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_PrecastKerbStone;NominalWidth;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_PrecastKerbStone;NominalLength;Real;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não
+Pset_PrecastKerbStone;TypeDesignation;Texto;;"Corredor; Sólido 3D; Linha característica";ISO 16739 / IFC 4.3 · Viário urbano;Não

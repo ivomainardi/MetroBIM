@@ -1,0 +1,30 @@
+﻿Property set;Propriedade;Tipo;Valor padrão;Aplica-se a;Descrição;IFC
+Classification;ClassificationCode;Texto;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";Plugin (vira IfcClassificationReference) · Drenagem;Não
+MetroClassificacao;CodigoMetro;Texto;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+Metro;Sistema;Texto;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+Metro;TipoEscoamento;Texto;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+Metro;MaterialPrincipal;Texto;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+Metro;DiametroNominal;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+Metro;Inclinacao;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+MetroQto;Comprimento;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+MetroQto;Largura;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+MetroQto;Altura;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";MetroDATA · Drenagem;Não
+Pset_PipeSegmentTypeCommon;NominalDiameter;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentTypeCommon;InnerDiameter;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentTypeCommon;OuterDiameter;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentOccurrence;Gradient;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentOccurrence;InvertElevation;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentTypeCulvert;InternalWidth;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentTypeCulvert;ClearDepth;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentTypeGutter;Slope;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_PipeSegmentTypeGutter;IsCovered;Sim/Não;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_DistributionChamberElementTypeManhole;InvertLevel;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_DistributionChamberElementTypeManhole;SoffitLevel;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_DistributionChamberElementTypeManhole;WallMaterial;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_DistributionChamberElementTypeManhole;AccessCoverMaterial;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_DistributionChamberElementTypeManhole;HasSteps;Sim/Não;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_WasteTerminalTypeGullySump;GullyType;Texto;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_WasteTerminalTypeGullySump;NominalSumpLength;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_WasteTerminalTypeGullySump;NominalSumpWidth;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_WasteTerminalTypeGullySump;NominalSumpDepth;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não
+Pset_WasteTerminalTypeGullySump;OutletConnectionSize;Real;;"Tubo (gravidade); Estrutura (gravidade); Corredor; Sólido 3D";ISO 16739 / IFC 4.3 · Drenagem;Não

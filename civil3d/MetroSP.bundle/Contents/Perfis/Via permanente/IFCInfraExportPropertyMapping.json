@@ -1,0 +1,339 @@
+{
+  "PropertySetTemplates": [
+    {
+      "Name": "Classification",
+      "Description": "Plugin (vira IfcClassificationReference) · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElement",
+      "PropertyTemplates": [
+        {
+          "Name": "ClassificationCode",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "MetroClassificacao",
+      "Description": "MetroDATA · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcRail,IfcTrackElement,IfcCourse,IfcElementAssembly,IfcMechanicalFastener,IfcFastener,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "CodigoMetro",
+          "Description": "",
+          "PrimaryMeasureType": "IfcIdentifier"
+        }
+      ]
+    },
+    {
+      "Name": "Metro",
+      "Description": "MetroDATA · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcRail,IfcTrackElement,IfcCourse,IfcElementAssembly,IfcMechanicalFastener,IfcFastener,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Tipo",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Material",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Numero",
+          "Description": "",
+          "PrimaryMeasureType": "IfcText"
+        },
+        {
+          "Name": "Lado",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Bitola",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Espacamento",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Resistencia",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPressureMeasure"
+        },
+        {
+          "Name": "Densidade",
+          "Description": "",
+          "PrimaryMeasureType": "IfcMassDensityMeasure"
+        },
+        {
+          "Name": "RigidezEstatica",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLinearStiffnessMeasure"
+        },
+        {
+          "Name": "RigidezDinamica",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLinearStiffnessMeasure"
+        },
+        {
+          "Name": "CoeficienteAbsorcaoSonora",
+          "Description": "",
+          "PrimaryMeasureType": "IfcText"
+        },
+        {
+          "Name": "LimitadorCarga",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "PIV",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "Angulo",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPlaneAngleMeasure"
+        },
+        {
+          "Name": "Azimute",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPlaneAngleMeasure"
+        },
+        {
+          "Name": "RaioHorizontal",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "RaioVertical",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Espiral",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Superelevacao",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Distancia",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "VelocidadeMaximaHorizontal",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLinearVelocityMeasure"
+        },
+        {
+          "Name": "VelocidadeMaximaVertical",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLinearVelocityMeasure"
+        },
+        {
+          "Name": "VelocidadeVertical",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLinearVelocityMeasure"
+        },
+        {
+          "Name": "CoordenadaE",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CoordenadaN",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "MetroLoc",
+      "Description": "MetroDATA · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcRail,IfcTrackElement,IfcCourse,IfcElementAssembly,IfcMechanicalFastener,IfcFastener,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Quilometragem",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "CotaTB",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "MetroQto",
+      "Description": "MetroDATA · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcRail,IfcTrackElement,IfcCourse,IfcElementAssembly,IfcMechanicalFastener,IfcFastener,IfcSlab,IfcBuiltElement",
+      "PropertyTemplates": [
+        {
+          "Name": "Comprimento",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Largura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Altura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Espessura",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "Area",
+          "Description": "",
+          "PrimaryMeasureType": "IfcAreaMeasure"
+        },
+        {
+          "Name": "Volume",
+          "Description": "",
+          "PrimaryMeasureType": "IfcVolumeMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_RailTypeRail",
+      "Description": "ISO 16739 / IFC 4.3 · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcRail",
+      "PropertyTemplates": [
+        {
+          "Name": "PositionInTrack",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "RailElementaryLength",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "IsStainless",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_TrackElementTypeSleeper",
+      "Description": "ISO 16739 / IFC 4.3 · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcTrackElement",
+      "PropertyTemplates": [
+        {
+          "Name": "SleeperType",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "FasteningType",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "IsElectricallyInsulated",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_CourseCommon",
+      "Description": "ISO 16739 / IFC 4.3 · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcCourse",
+      "PropertyTemplates": [
+        {
+          "Name": "NominalThickness",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalWidth",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        },
+        {
+          "Name": "NominalLength",
+          "Description": "",
+          "PrimaryMeasureType": "IfcNonNegativeLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_MechanicalFastenerTypeRailJoint",
+      "Description": "ISO 16739 / IFC 4.3 · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcMechanicalFastener",
+      "PropertyTemplates": [
+        {
+          "Name": "IsJointInsulated",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "IsCWRJoint",
+          "Description": "",
+          "PrimaryMeasureType": "IfcBoolean"
+        },
+        {
+          "Name": "RailGap",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        }
+      ]
+    },
+    {
+      "Name": "Pset_ElementAssemblyTypeTurnoutPanel",
+      "Description": "ISO 16739 / IFC 4.3 · Via permanente",
+      "TemplateType": "NOTDEFINED",
+      "ApplicableEntities": "IfcElementAssembly",
+      "PropertyTemplates": [
+        {
+          "Name": "TypeOfTurnout",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "TurnoutCurvedRadius",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLengthMeasure"
+        },
+        {
+          "Name": "BranchLineDirection",
+          "Description": "",
+          "PrimaryMeasureType": "IfcLabel"
+        },
+        {
+          "Name": "TrackGaugeLength",
+          "Description": "",
+          "PrimaryMeasureType": "IfcPositiveLengthMeasure"
+        }
+      ]
+    }
+  ]
+}

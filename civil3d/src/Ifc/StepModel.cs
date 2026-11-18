@@ -233,6 +233,33 @@ namespace MetroSP.Ifc
             return false;
         }
 
+        static readonly Regex RefRx = new Regex(@"#(\d+)", RegexOptions.Compiled);
+
+        /// <summary>
+        /// Numa passada só pelo arquivo: as entidades (fora as próprias) que citam algum dos alvos, com os alvos que
+        /// cada uma cita. Não separa os argumentos de quem não cita nada.
+        /// </summary>
+        public Dictionary<int, List<int>> QuemCita(ICollection<int> alvos)
+        {
+            var r = new Dictionary<int, List<int>>();
+            if (alvos.Count == 0) return r;
+            var set = alvos as HashSet<int> ?? new HashSet<int>(alvos);
+            foreach (var x in Ids)
+            {
+                if (set.Contains(x)) continue;
+                var e = _byId[x];
+                string texto = e != null ? string.Join(",", e.Args) : _raw[x].Substring(_raw[x].IndexOf('='));
+                foreach (Match m in RefRx.Matches(texto))
+                {
+                    int id = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+                    if (!set.Contains(id)) continue;
+                    if (!r.TryGetValue(x, out var l)) r[x] = l = new List<int>();
+                    if (!l.Contains(id)) l.Add(id);
+                }
+            }
+            return r;
+        }
+
         static bool ContemRef(string texto, string r, int de)
         {
             int p = texto.IndexOf(r, de, StringComparison.Ordinal);

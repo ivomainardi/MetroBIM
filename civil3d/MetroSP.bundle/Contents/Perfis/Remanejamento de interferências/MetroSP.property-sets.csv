@@ -1,0 +1,45 @@
+﻿Property set;Propriedade;Tipo;Valor padrão;Aplica-se a;Descrição;IFC
+Classification;ClassificationCode;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";Plugin (vira IfcClassificationReference) · Remanejamento de interferências;Não
+MetroClassificacao;CodigoMetro;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;Nome;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;Descricao;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;CodigoElemento;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;Tipo;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;TipoRede;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;TipoSecao;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;Material;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;DiametroNominal;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;Declividade;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;Estado;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;Responsavel;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;DataInspecao;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;TipoInspecao;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;ResponsavelInspecao;Texto;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;PossuiLuminaria;Sim/Não;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Metro;PossuiTransformador;Sim/Não;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CoordenadaEInicio;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CoordenadaNInicio;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CoordenadaEFim;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CoordenadaNFim;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CotaTopoInicio;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CotaTopoFim;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CotaFundoInicio;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CotaFundoFim;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;GeratrizSuperior;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;GeratrizInferior;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CoordenadaEEstrutura;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CoordenadaNEstrutura;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CotaTopoEstrutura;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroLoc;CotaFundoEstrutura;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroQto;Comprimento;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+MetroQto;Espessura;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";MetroDATA · Remanejamento de interferências;Não
+Pset_PipeSegmentTypeCommon;NominalDiameter;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_PipeSegmentTypeCommon;InnerDiameter;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_PipeSegmentTypeCommon;OuterDiameter;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_PipeSegmentTypeCommon;WorkingPressure;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_DistributionChamberElementTypeManhole;InvertLevel;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_DistributionChamberElementTypeManhole;SoffitLevel;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_DistributionChamberElementTypeManhole;WallMaterial;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_DistributionChamberElementTypeManhole;AccessCoverMaterial;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_DistributionChamberElementTypeManhole;HasSteps;Sim/Não;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
+Pset_MemberTypePost;NominalHeight;Real;;"Tubo (gravidade); Estrutura (gravidade); Tubo de pressão; Conexão de pressão; Acessório de pressão; Bloco; Sólido 3D";ISO 16739 / IFC 4.3 · Remanejamento de interferências;Não
