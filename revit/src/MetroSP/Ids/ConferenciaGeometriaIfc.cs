@@ -22,6 +22,7 @@ namespace MetroSP.Ifc
         public sealed class Resultado
         {
             public int Conferidos, SemCaixa;
+            public double? Giro;
             public bool SistemaDiferente;
             public readonly List<Divergencia> Divergencias = new List<Divergencia>();
 
@@ -30,8 +31,8 @@ namespace MetroSP.Ifc
                 if (Conferidos == 0) yield break;
                 if (SistemaDiferente)
                 {
-                    yield return $"Medidas dos objetos: a maioria dos {Conferidos} objetos não bate com o Revit em X/Y; o IFC deve estar girado em " +
-                                 "relação às coordenadas internas, e a conferência foi pulada.";
+                    yield return $"Medidas dos objetos: a maioria dos {Conferidos} objetos não bate com o Revit em X/Y e não deu para achar o giro " +
+                                 "entre o IFC e as coordenadas internas (faltam vigas ou paredes retas); a conferência foi pulada.";
                     yield break;
                 }
                 if (Divergencias.Count == 0)
@@ -59,8 +60,28 @@ namespace MetroSP.Ifc
             "IFCZONE", "IFCSYSTEM", "IFCDISTRIBUTIONPORT", "IFCALIGNMENT", "IFCREFERENT",
         };
 
-        /// <param name="caixaRevit">Caixa do elemento no Revit pelo ElementId (Tag): mínimo e máximo, em metros, nas coordenadas internas.</param>
-        public static Resultado Aplicar(StepModel m, Func<long, (double[] Min, double[] Max)?> caixaRevit)
+        /// <summary>Caixa do elemento no Revit, em metros, nas coordenadas internas, e a direção da locação (se for uma linha).</summary>
+        public sealed class CaixaRevit
+        {
+            public double[] Min, Max, Dir;
+        }
+
+        /// <summary>
+        /// Giro entre o sistema do IfcSite e as coordenadas internas do Revit, pelos pares (ângulo no IFC, ângulo no Revit)
+        /// de barras e paredes. Módulo 180°, porque o sentido do eixo pode estar invertido. Null se não dá para saber.
+        /// </summary>
+        internal static double? EstimarGiro(IList<double> diferencas)
+        {
+            if (diferencas.Count < 3) return null;
+            double c = 0, s = 0;
+            foreach (double a in diferencas) { c += Math.Cos(2 * a); s += Math.Sin(2 * a); }
+            double rr = Math.Sqrt(c * c + s * s) / diferencas.Count;
+            if (rr < 0.98) return null;   // as barras não concordam
+            return Math.Atan2(s, c) / 2;
+        }
+
+        /// <param name="caixaRevit">Caixa do elemento no Revit pelo ElementId (Tag).</param>
+        public static Resultado Aplicar(StepModel m, Func<long, CaixaRevit> caixaRevit)
         {
             var r = new Resultado();
             double fator = FixadoresIfc.FatorComprimento(m);
@@ -85,6 +106,8 @@ namespace MetroSP.Ifc
                 string t = StepModel.Text(e.Args[7]) ?? "";
                 porTag[t] = (porTag.TryGetValue(t, out int n) ? n : 0) + 1;
             }
+            var itens = new List<(int Id, string Tipo, StepEntity E, long Tag, CaixaRevit Cr, double[,] P)>();
+            var difs = new List<double>();
             foreach (int id in elementos)
             {
                 string tipo = m.TypeOf(id);
@@ -99,6 +122,23 @@ namespace MetroSP.Ifc
                 double[,] P;
                 try { P = geo.Placement(StepModel.Ref(e.Args[5]), placementSite); }
                 catch { continue; }
+                itens.Add((id, tipo, e, tag, cr, P));
+                if (cr.Dir != null && Math.Abs(cr.Dir[2]) < 0.9 && geo.DirecaoDoEixo(e, P) is double[] di0 && Math.Abs(di0[2]) < 0.9)
+                    difs.Add(Math.Atan2(di0[1], di0[0]) - Math.Atan2(cr.Dir[1], cr.Dir[0]));
+            }
+            // IFC no sistema do Revit: gira de volta o que o exportador girou (sistema compartilhado, norte do projeto).
+            double? giro = EstimarGiro(difs);
+            r.Giro = giro;
+            if (giro is double g && Math.Abs(g) > 1e-6)
+            {
+                double c = Math.Cos(-g), sn = Math.Sin(-g);
+                var Rz = Geo.Id();
+                Rz[0, 0] = c; Rz[0, 1] = -sn; Rz[1, 0] = sn; Rz[1, 1] = c;
+                for (int i = 0; i < itens.Count; i++) itens[i] = (itens[i].Id, itens[i].Tipo, itens[i].E, itens[i].Tag, itens[i].Cr, Geo.Mul(Rz, itens[i].P));
+            }
+            foreach (var (id, tipo, e, tag, crv, P) in itens)
+            {
+                var cr = crv;
                 var caixa = new Caixa();
                 bool ok = true;
                 foreach (int rep in StepModel.RefList(m.Get(StepModel.Ref(e.Args[6])).Args[2]))
@@ -113,7 +153,7 @@ namespace MetroSP.Ifc
                 for (int k = 0; k < 3; k++)
                 {
                     di[k] = (caixa.Max[k] - caixa.Min[k]) / fator;
-                    dr[k] = cr.Value.Max[k] - cr.Value.Min[k];
+                    dr[k] = cr.Max[k] - cr.Min[k];
                 }
                 r.Conferidos++;
                 bool[] dif = new bool[3];
@@ -174,6 +214,58 @@ namespace MetroSP.Ifc
                     id = lp.Args[0].StartsWith("#") ? StepModel.Ref(lp.Args[0]) : 0;
                 }
                 return T;
+            }
+
+            /// <summary>Direção do eixo (representação Axis, do primeiro ao último ponto) no sistema de P, ou null.</summary>
+            public double[] DirecaoDoEixo(StepEntity e, double[,] P)
+            {
+                StepEntity pds = _m.Get(StepModel.Ref(e.Args[6]));
+                if (pds == null || pds.Args.Count < 3) return null;
+                foreach (int rep in StepModel.RefList(pds.Args[2]))
+                {
+                    StepEntity sr = _m.Get(rep);
+                    if (sr == null || sr.Args.Count < 4 || !string.Equals(StepModel.Text(sr.Args[1]), "Axis", StringComparison.OrdinalIgnoreCase)) continue;
+                    var its = StepModel.RefList(sr.Args[3]);
+                    if (its.Count == 0) continue;
+                    StepEntity it = _m.Get(its[0]);
+                    double[,] T = P;
+                    if (it != null && it.Type == "IFCMAPPEDITEM")
+                    {
+                        StepEntity mapa = _m.Get(StepModel.Ref(it.Args[0]));
+                        StepEntity rp = mapa == null ? null : _m.Get(StepModel.Ref(mapa.Args[1]));
+                        var its2 = rp == null ? new List<int>() : StepModel.RefList(rp.Args[3]);
+                        if (its2.Count == 0) continue;
+                        T = Mul(P, Mul(Operador(it.Args[1]), Axis3(mapa.Args[0])));
+                        it = _m.Get(its2[0]);
+                    }
+                    var pts = new List<double[]>();
+                    if (it != null && it.Type == "IFCINDEXEDPOLYCURVE")
+                    {
+                        StepEntity l = _m.Get(StepModel.Ref(it.Args[0]));
+                        if (l != null)
+                            foreach (string p in StepModel.SplitArgs(l.Args[0].Substring(1, l.Args[0].Length - 2)))
+                            {
+                                var v = StepModel.RealList(p);
+                                while (v.Count < 3) v.Add(0);
+                                pts.Add(v.ToArray());
+                            }
+                    }
+                    else if (it != null && it.Type == "IFCPOLYLINE")
+                        foreach (int pi in StepModel.RefList(it.Args[0]))
+                        {
+                            var v = StepModel.RealList(_m.Get(pi).Args[0]);
+                            while (v.Count < 3) v.Add(0);
+                            pts.Add(v.ToArray());
+                        }
+                    if (pts.Count < 2) continue;
+                    double[] a = pts[0], b = pts[pts.Count - 1];
+                    double[] d = new double[3];
+                    for (int i = 0; i < 3; i++) d[i] = T[i, 0] * (b[0] - a[0]) + T[i, 1] * (b[1] - a[1]) + T[i, 2] * (b[2] - a[2]);
+                    double n = Math.Sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+                    if (n < 1e-9) continue;
+                    return new[] { d[0] / n, d[1] / n, d[2] / n };
+                }
+                return null;
             }
 
             /// <summary>Soma o item à caixa. false se o item é de um tipo que a conferência não sabe medir.</summary>

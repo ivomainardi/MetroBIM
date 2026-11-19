@@ -117,10 +117,16 @@ namespace MetroSP.Ifc
                 int pds = StepModel.Ref(m.Get(el).Args[6]);
                 usoPds[pds] = (usoPds.TryGetValue(pds, out int u) ? u : 0) + 1;
             }
+            // Giro entre o sistema do IfcSite e as coordenadas internas, para saber de que lado fica cada recorte.
+            var difs = new List<double>();
+            foreach (int el in corrigidos.Keys)
+                if (barras.TryGetValue(el, out PerfilRevit b0) && b0.Dir != null)
+                    try { Aparar(m, geo, el, b0, fator, placementSite, estilos, usoPds, 0, difs); } catch { }
+            double giro = ConferenciaGeometriaIfc.EstimarGiro(difs) ?? double.NaN;
             foreach (int el in corrigidos.Keys)
             {
                 if (!barras.TryGetValue(el, out PerfilRevit b) || double.IsNaN(b.Ini) || double.IsNaN(b.Fim) || b.Fim - b.Ini < 0.01) continue;
-                try { if (Aparar(m, geo, el, b, fator, placementSite, estilos, usoPds)) r.Aparados++; }
+                try { if (Aparar(m, geo, el, b, fator, placementSite, estilos, usoPds, giro, null)) r.Aparados++; }
                 catch { /* fica com a barra inteira */ }
             }
             return r;
@@ -131,7 +137,7 @@ namespace MetroSP.Ifc
         /// no mesmo eixo. Só quando o corpo é uma extrusão só, sem escala.
         /// </summary>
         private static bool Aparar(StepModel m, ConferenciaGeometriaIfc.Geo geo, int el, PerfilRevit b, double fator, int placementSite,
-            Dictionary<int, StepEntity> estilos, Dictionary<int, int> usoPds)
+            Dictionary<int, StepEntity> estilos, Dictionary<int, int> usoPds, double giro, List<double> coletar)
         {
             StepEntity e = m.Get(el);
             int pdsId = StepModel.Ref(e.Args[6]);
@@ -174,7 +180,20 @@ namespace MetroSP.Ifc
             double lo, hi;
             double[,] P = geo.Placement(StepModel.Ref(e.Args[5]), placementSite);
             double[] uw = { P[0, 0] * u[0] + P[0, 1] * u[1] + P[0, 2] * u[2], P[1, 0] * u[0] + P[1, 1] * u[1] + P[1, 2] * u[2], P[2, 0] * u[0] + P[2, 1] * u[1] + P[2, 2] * u[2] };
-            double dot = b.Dir == null ? 0 : uw[0] * b.Dir[0] + uw[1] * b.Dir[1] + uw[2] * b.Dir[2];
+            if (coletar != null)
+            {
+                // Só coleta o ângulo da barra no IFC contra o do Revit (barras não verticais).
+                if (Math.Abs(b.Dir[2]) < 0.9 && Math.Abs(uw[2]) < 0.9)
+                    coletar.Add(Math.Atan2(uw[1], uw[0]) - Math.Atan2(b.Dir[1], b.Dir[0]));
+                return false;
+            }
+            double[] dr = b.Dir;
+            if (dr != null && !double.IsNaN(giro))
+            {
+                double cg = Math.Cos(giro), sg = Math.Sin(giro);
+                dr = new[] { cg * dr[0] - sg * dr[1], sg * dr[0] + cg * dr[1], dr[2] };
+            }
+            double dot = dr == null ? 0 : uw[0] * dr[0] + uw[1] * dr[1] + uw[2] * dr[2];
             if (Math.Abs(dot) > 0.99) { lo = dot > 0 ? b.Ini : -b.Fim; hi = dot > 0 ? b.Fim : -b.Ini; }
             else { lo = -(b.Fim - b.Ini) / 2; hi = -lo; }
             lo *= fator; hi *= fator;

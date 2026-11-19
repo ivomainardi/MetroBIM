@@ -4,6 +4,19 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.16 (19/11/2026)
+
+Revit 0.3.16 · Civil 3D 0.12.9
+
+- Revit, **ligações metálicas no IFC**: a geometria das chapas, parafusos e soldas passa a ser lida como a vista 3D
+  mostra (antes só sem vista, e a API não devolvia nada). Se as peças não vêm separadas, saem do corpo da ligação,
+  separadas pela subcategoria de cada sólido ou pela forma. Quando nenhuma peça sai, o registro traz um diagnóstico
+  do que a API devolveu, para a próxima correção.
+- Revit, **recortes das vigas e pilares**: a geometria das barras também é lida pela vista 3D, e o lado de cada recorte
+  leva em conta o giro entre o IFC e as coordenadas internas do Revit.
+- Revit, **conferência das medidas** com o IFC girado (coordenadas compartilhadas): o giro é calculado pelas vigas e
+  paredes retas, e a conferência não é mais pulada.
+
 ## 1.0.15 (19/11/2026)
 
 Revit 0.3.15 · Civil 3D 0.12.9

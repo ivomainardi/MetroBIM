@@ -31,6 +31,9 @@ namespace MetroSP.Ids
         private readonly List<ElementId> _criadas = new List<ElementId>();
         private readonly List<(Element Elemento, int Valor)> _exportarOriginal = new List<(Element, int)>();
         private View _vista;
+        /// <summary>Vista 3D usada para ler a geometria (as ligações detalhadas só mostram as peças numa vista).</summary>
+        private View3D _vista3d;
+        private int _diagnosticos;
         private readonly List<ElementId> _categoriasMostradas = new List<ElementId>();
 
         private static readonly Dictionary<BuiltInCategory, (string Peca, string Classe, bool Parafuso, bool Separar)> Categorias =
@@ -72,6 +75,7 @@ namespace MetroSP.Ids
             var r = new AcoIfc();
             bool porVista = vistaId != null && vistaId != ElementId.InvalidElementId && doc.GetElement(vistaId) is View;
             if (porVista) r._vista = (View)doc.GetElement(vistaId);
+            r._vista3d = Vista3D(doc, vistaId);
             FilteredElementCollector Coletor() => porVista ? new FilteredElementCollector(doc, vistaId) : new FilteredElementCollector(doc);
 
             var origens = new List<Element>();
@@ -108,20 +112,41 @@ namespace MetroSP.Ids
 
             // Cada subelemento é uma peça (ou um grupo de parafusos). Um elemento de fabricação avulso pode não ter
             // subelementos: aí ele próprio é a peça.
-            var itens = new List<(string Chave, Category Categoria, GeometryObject Geometria, Subelement Sub)>();
+            var itens = new List<(string Chave, Category Categoria, List<Solid> Geo, Subelement Sub)>();
             IList<Subelement> subs = null;
             try { subs = origem.GetSubelements(); } catch { /* elemento sem subelementos */ }
             if (subs != null)
                 foreach (Subelement s in subs)
                 {
                     GeometryObject g = null;
-                    try { g = s.GetGeometryObject(null); } catch { }
-                    itens.Add((s.UniqueId, s.Category, g, s));
+                    if (_vista3d != null) try { g = s.GetGeometryObject(_vista3d); } catch { }
+                    if (Solidos(g).Count == 0) try { g = s.GetGeometryObject(null); } catch { }
+                    itens.Add((s.UniqueId, s.Category, Solidos(g), s));
                 }
             if (!ehLigacao && itens.All(i => i.Categoria == null || !Categorias.ContainsKey(i.Categoria.BuiltInCategory)))
             {
                 itens.Clear();
-                itens.Add((origem.UniqueId, origem.Category, origem.get_Geometry(new Options { DetailLevel = ViewDetailLevel.Fine }), null));
+                itens.Add((origem.UniqueId, origem.Category, Solidos(Geometria(origem, _vista3d)), null));
+            }
+            // Ligação cujos subelementos não devolvem geometria: as peças vêm do corpo da ligação, separadas pela categoria
+            // (subcategoria) de cada sólido ou, sem ela, pela forma (chapa fina, parafuso pequeno).
+            if (ehLigacao && itens.All(i => i.Geo.Count == 0))
+            {
+                List<Solid> todos = Solidos(Geometria(origem, _vista3d));
+                var subPorCategoria = itens.Where(i => i.Categoria != null).GroupBy(i => i.Categoria.BuiltInCategory)
+                    .ToDictionary(g => g.Key, g => g.First().Sub);
+                itens.Clear();
+                foreach (var g in todos.GroupBy(so => CategoriaDoSolido(doc, so)))
+                {
+                    Category cat = Category.GetCategory(doc, g.Key);
+                    subPorCategoria.TryGetValue(g.Key, out Subelement sub);
+                    itens.Add((origem.UniqueId + "|" + ((int)g.Key).ToString(CultureInfo.InvariantCulture), cat, g.ToList(), sub));
+                }
+            }
+            if (itens.All(i => i.Geo.Count == 0) && _diagnosticos < 3)
+            {
+                _diagnosticos++;
+                Avisos.Add("Ligações metálicas, diagnóstico: " + Diagnostico(doc, origem, subs));
             }
 
             int criadas = 0, previstas = 0, separadas = 0;
@@ -129,7 +154,7 @@ namespace MetroSP.Ids
             foreach (var item in itens)
             {
                 if (item.Categoria == null || !Categorias.TryGetValue(item.Categoria.BuiltInCategory, out var info)) continue;
-                List<Solid> solidos = Solidos(item.Geometria);
+                List<Solid> solidos = item.Geo;
                 if (solidos.Count == 0) continue;
                 previstas++;
 
@@ -248,7 +273,85 @@ namespace MetroSP.Ids
 
         // ------------------------------------------------------------------ geometria
 
-        private static List<Solid> Solidos(GeometryObject g)
+        /// <summary>Vista 3D para ler a geometria: a da exportação, se for 3D, senão a primeira vista 3D comum do modelo.</summary>
+        internal static View3D Vista3D(Document doc, ElementId vistaId)
+        {
+            if (vistaId != null && vistaId != ElementId.InvalidElementId && doc.GetElement(vistaId) is View3D v && !v.IsTemplate) return v;
+            return new FilteredElementCollector(doc).OfClass(typeof(View3D)).Cast<View3D>()
+                .Where(x => !x.IsTemplate).OrderBy(x => x.Name == "{3D}" ? 0 : 1).FirstOrDefault();
+        }
+
+        /// <summary>
+        /// Geometria do elemento: primeiro como a vista 3D mostra (ligações detalhadas, perfis com recortes), depois sem
+        /// vista no nível Fino e, por último, incluindo os objetos invisíveis.
+        /// </summary>
+        internal static GeometryElement Geometria(Element e, View3D vista)
+        {
+            var opcoes = new List<Options>();
+            if (vista != null) opcoes.Add(new Options { View = vista });
+            opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine });
+            opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true });
+            GeometryElement primeira = null;
+            foreach (Options o in opcoes)
+            {
+                GeometryElement ge = null;
+                try { ge = e.get_Geometry(o); } catch { }
+                if (ge == null) continue;
+                primeira = primeira ?? ge;
+                if (Solidos(ge).Count > 0) return ge;
+            }
+            return primeira;
+        }
+
+        /// <summary>Categoria do sólido pelo estilo gráfico (subcategoria da ligação), ou pela forma quando não tem.</summary>
+        private static BuiltInCategory CategoriaDoSolido(Document doc, Solid s)
+        {
+            try
+            {
+                if (doc.GetElement(s.GraphicsStyleId) is GraphicsStyle gs && gs.GraphicsStyleCategory is Category c)
+                    for (Category x = c; x != null; x = x.Parent)
+                        if (Categorias.ContainsKey(x.BuiltInCategory)) return x.BuiltInCategory;
+            }
+            catch { }
+            BoundingBoxXYZ bb = s.GetBoundingBox();
+            double[] d = { bb.Max.X - bb.Min.X, bb.Max.Y - bb.Min.Y, bb.Max.Z - bb.Min.Z };
+            Array.Sort(d);
+            double m = 0.3048;
+            if (d[2] * m < 0.30 && d[0] * m > 0.004 && d[1] < d[0] * 2.5) return BuiltInCategory.OST_StructConnectionBolts;
+            return BuiltInCategory.OST_StructConnectionPlates;
+        }
+
+        /// <summary>O que a API devolve para a ligação, para o registro (quando nenhuma peça saiu).</summary>
+        private string Diagnostico(Document doc, Element origem, IList<Subelement> subs)
+        {
+            var sb = new StringBuilder();
+            sb.Append($"elemento {Compat.Numero(origem.Id)} ({origem.GetType().Name}, {origem.Category?.Name ?? "sem categoria"})");
+            sb.Append($"; subelementos: {subs?.Count ?? 0}");
+            if (subs != null && subs.Count > 0)
+                sb.Append(" [" + string.Join(", ", subs.Take(6).Select(x =>
+                {
+                    string tipo = "erro";
+                    try { tipo = x.GetGeometryObject(_vista3d)?.GetType().Name ?? "sem geometria"; } catch (Exception ex) { tipo = ex.GetType().Name; }
+                    return (x.Category?.Name ?? "?") + ": " + tipo;
+                })) + "]");
+            void Conta(string nome, Options o)
+            {
+                try
+                {
+                    GeometryElement ge = origem.get_Geometry(o);
+                    if (ge == null) { sb.Append($"; {nome}: nada"); return; }
+                    var tipos = ge.Cast<GeometryObject>().GroupBy(x => x.GetType().Name).Select(g => $"{g.Count()} {g.Key}");
+                    sb.Append($"; {nome}: {string.Join(", ", tipos)} ({Solidos(ge).Count} sólido(s))");
+                }
+                catch (Exception ex) { sb.Append($"; {nome}: {ex.GetType().Name}"); }
+            }
+            if (_vista3d != null) Conta("na vista " + _vista3d.Name, new Options { View = _vista3d });
+            Conta("Fino", new Options { DetailLevel = ViewDetailLevel.Fine });
+            Conta("com invisíveis", new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true });
+            return sb.ToString();
+        }
+
+        internal static List<Solid> Solidos(GeometryObject g)
         {
             var r = new List<Solid>();
             Juntar(g, r, 0);

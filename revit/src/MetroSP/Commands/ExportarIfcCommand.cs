@@ -214,9 +214,18 @@ namespace MetroSP.Commands
                     // Vigas, pilares e barras com o corpo no dobro do comprimento (exportador do Revit): volta ao comprimento do Revit.
                     try
                     {
-                        var perfis = Ifc.PerfisIfc.Aplicar(modelo, id => PerfilRevit(doc, id));
+                        View3D vista3d = AcoIfc.Vista3D(doc, janela.Vista);
+                        int semCorpo = 0;
+                        var perfis = Ifc.PerfisIfc.Aplicar(modelo, id =>
+                        {
+                            Ifc.PerfilRevit p = PerfilRevit(doc, id, vista3d);
+                            if (p != null && double.IsNaN(p.Ini)) semCorpo++;
+                            return p;
+                        });
                         if (perfis.Extrusoes > 0) salvar = true;
                         if (perfis.ToString() is string linha) avisosClassificacao.Add(linha);
+                        if (semCorpo > 0)
+                            avisosClassificacao.Add($"Perfis metálicos: a geometria de {semCorpo} barra(s) não foi lida pela API; elas ficaram com a barra inteira, sem os recortes das ligações.");
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível conferir o comprimento dos perfis metálicos: " + ex.Message); }
                     // Todos os objetos: largura, profundidade e altura do corpo no IFC contra o Revit (só confere, no registro).
@@ -394,7 +403,7 @@ namespace MetroSP.Commands
         /// pilar vertical, do nível/deslocamento da base ao do topo; e o trecho do corpo de verdade ao longo dela, a partir do
         /// meio. Null se não for barra.
         /// </summary>
-        private static Ifc.PerfilRevit PerfilRevit(Document doc, long id)
+        private static Ifc.PerfilRevit PerfilRevit(Document doc, long id, View3D vista)
         {
             try
             {
@@ -446,15 +455,15 @@ namespace MetroSP.Commands
                         else if (g is GeometryInstance gi) Pontos(gi.GetInstanceGeometry(), nivel + 1);
                     }
                 }
-                Pontos(e.get_Geometry(new Options { DetailLevel = ViewDetailLevel.Fine }), 0);
+                Pontos(AcoIfc.Geometria(e, vista), 0);
                 if (max > min) { barra.Ini = min * 0.3048; barra.Fim = max * 0.3048; }
                 return barra;
             }
             catch { return null; }
         }
 
-        /// <summary>Caixa do elemento no Revit, em metros, nas coordenadas internas.</summary>
-        private static (double[] Min, double[] Max)? CaixaRevit(Document doc, long id)
+        /// <summary>Caixa do elemento no Revit, em metros, nas coordenadas internas, e a direção da locação se for uma linha.</summary>
+        private static Ifc.ConferenciaGeometriaIfc.CaixaRevit CaixaRevit(Document doc, long id)
         {
             try
             {
@@ -462,8 +471,17 @@ namespace MetroSP.Commands
                 BoundingBoxXYZ bb = e?.get_BoundingBox(null);
                 if (bb == null || !bb.Enabled) return null;
                 XYZ a = bb.Transform.OfPoint(bb.Min), b = bb.Transform.OfPoint(bb.Max);
-                return (new[] { Math.Min(a.X, b.X) * 0.3048, Math.Min(a.Y, b.Y) * 0.3048, Math.Min(a.Z, b.Z) * 0.3048 },
-                        new[] { Math.Max(a.X, b.X) * 0.3048, Math.Max(a.Y, b.Y) * 0.3048, Math.Max(a.Z, b.Z) * 0.3048 });
+                var c = new Ifc.ConferenciaGeometriaIfc.CaixaRevit
+                {
+                    Min = new[] { Math.Min(a.X, b.X) * 0.3048, Math.Min(a.Y, b.Y) * 0.3048, Math.Min(a.Z, b.Z) * 0.3048 },
+                    Max = new[] { Math.Max(a.X, b.X) * 0.3048, Math.Max(a.Y, b.Y) * 0.3048, Math.Max(a.Z, b.Z) * 0.3048 },
+                };
+                if (e.Location is LocationCurve lc && lc.Curve is Line ln && ln.Length > 0.5)
+                {
+                    XYZ d = (ln.GetEndPoint(1) - ln.GetEndPoint(0)).Normalize();
+                    c.Dir = new[] { d.X, d.Y, d.Z };
+                }
+                return c;
             }
             catch { return null; }
         }
