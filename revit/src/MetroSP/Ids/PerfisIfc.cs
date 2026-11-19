@@ -10,11 +10,21 @@ namespace MetroSP.Ifc
     /// dobro do comprimento, centrado no eixo: a extrusão volta ao comprimento do Revit, no mesmo centro, e o Qto Length,
     /// GrossVolume e OuterSurfaceArea, que vieram do corpo dobrado, caem pela metade.
     /// </summary>
+    /// <summary>Barra do Revit, em metros: comprimento da locação e trecho do corpo ao longo dela, a partir do meio.</summary>
+    public sealed class BarraRevit
+    {
+        public double Comprimento;
+        /// <summary>Início e fim do corpo de verdade (com os recortes das ligações), medidos do meio da barra ao longo de Dir.</summary>
+        public double Ini = double.NaN, Fim = double.NaN;
+        /// <summary>Direção da barra nas coordenadas internas do Revit (início → fim, ou para cima no pilar).</summary>
+        public double[] Dir;
+    }
+
     public static class PerfisIfc
     {
         public sealed class Resultado
         {
-            public int Corrigidos, Extrusoes, Quantidades, Divergentes;
+            public int Corrigidos, Extrusoes, Quantidades, Divergentes, Aparados;
             public readonly Dictionary<string, int> PorClasse = new Dictionary<string, int>(StringComparer.Ordinal);
 
             public override string ToString()
@@ -22,7 +32,8 @@ namespace MetroSP.Ifc
                 if (Corrigidos == 0 && Divergentes == 0) return null;
                 string s = $"Perfis metálicos: {Corrigidos} elemento(s) com o corpo no dobro do comprimento do Revit voltaram ao comprimento certo (" +
                            string.Join(", ", PorClasse.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}")) +
-                           $"); {Extrusoes} extrusão(ões) e {Quantidades} quantidade(s) ajustadas.";
+                           $"); {Extrusoes} extrusão(ões) e {Quantidades} quantidade(s) ajustadas" +
+                           (Aparados > 0 ? $", e {Aparados} com o corpo recortado nas ligações como no Revit." : ".");
                 if (Divergentes > 0) s += $" {Divergentes} extrusão(ões) compartilhada(s) por elementos de comprimentos diferentes ficaram como estavam.";
                 return s;
             }
@@ -30,8 +41,8 @@ namespace MetroSP.Ifc
 
         private static readonly string[] Classes = { "IFCBEAM", "IFCCOLUMN", "IFCMEMBER" };
 
-        /// <param name="comprimentoRevit">Comprimento do elemento no Revit, em metros, pelo ElementId (Tag).</param>
-        public static Resultado Aplicar(StepModel m, Func<long, double?> comprimentoRevit)
+        /// <param name="barraRevit">A barra no Revit pelo ElementId (Tag), ou null.</param>
+        public static Resultado Aplicar(StepModel m, Func<long, BarraRevit> barraRevit)
         {
             var r = new Resultado();
             double fator = FixadoresIfc.FatorComprimento(m);
@@ -39,6 +50,7 @@ namespace MetroSP.Ifc
             var usos = new Dictionary<int, List<(int Elem, bool Dobro)>>();
             var extrusoesDoElemento = new Dictionary<int, List<(int Ext, double Escala)>>();
             var classeDoElemento = new Dictionary<int, string>();
+            var barras = new Dictionary<int, BarraRevit>();
             foreach (string classe in Classes)
                 foreach (StepEntity e in m.OfType(classe))
                 {
@@ -53,7 +65,8 @@ namespace MetroSP.Ifc
                         foreach (int it in StepModel.RefList(sr.Args[3])) Extrusoes(m, it, 1, exts, 0);
                     }
                     if (exts.Count == 0) continue;
-                    double? lr = comprimentoRevit(tag);
+                    BarraRevit barra = barraRevit(tag);
+                    double? lr = barra?.Comprimento;
                     foreach (var (ext, escala) in exts)
                     {
                         double prof = Prof(m, ext) * escala / fator;
@@ -63,6 +76,7 @@ namespace MetroSP.Ifc
                     }
                     extrusoesDoElemento[e.Id] = exts;
                     classeDoElemento[e.Id] = classe;
+                    if (barra != null) barras[e.Id] = barra;
                 }
 
             // Corrige cada extrusão uma vez, só se todos os elementos que a usam estão no dobro.
@@ -89,7 +103,101 @@ namespace MetroSP.Ifc
                 r.Corrigidos++;
             }
             r.Quantidades = Quantidades(m, corrigidos);
+            // O corpo do tipo é a barra inteira; cada elemento corrigido ganha o seu corpo com os recortes do Revit.
+            var geo = new ConferenciaGeometriaIfc.Geo(m);
+            int placementSite = 0;
+            StepEntity site = m.OfType("IFCSITE").FirstOrDefault();
+            if (site != null && site.Args.Count > 5) placementSite = StepModel.Ref(site.Args[5]);
+            var estilos = new Dictionary<int, StepEntity>();
+            foreach (StepEntity st in m.OfType("IFCSTYLEDITEM"))
+                if (st.Args.Count >= 3 && st.Args[0].StartsWith("#")) estilos[StepModel.Ref(st.Args[0])] = st;
+            var usoPds = new Dictionary<int, int>();
+            foreach (int el in extrusoesDoElemento.Keys)
+            {
+                int pds = StepModel.Ref(m.Get(el).Args[6]);
+                usoPds[pds] = (usoPds.TryGetValue(pds, out int u) ? u : 0) + 1;
+            }
+            foreach (int el in corrigidos.Keys)
+            {
+                if (!barras.TryGetValue(el, out BarraRevit b) || double.IsNaN(b.Ini) || double.IsNaN(b.Fim) || b.Fim - b.Ini < 0.01) continue;
+                try { if (Aparar(m, geo, el, b, fator, placementSite, estilos, usoPds)) r.Aparados++; }
+                catch { /* fica com a barra inteira */ }
+            }
             return r;
+        }
+
+        /// <summary>
+        /// Troca o corpo mapeado do elemento por uma extrusão própria do trecho do Revit (com os recortes nas ligações),
+        /// no mesmo eixo. Só quando o corpo é uma extrusão só, sem escala.
+        /// </summary>
+        private static bool Aparar(StepModel m, ConferenciaGeometriaIfc.Geo geo, int el, BarraRevit b, double fator, int placementSite,
+            Dictionary<int, StepEntity> estilos, Dictionary<int, int> usoPds)
+        {
+            StepEntity e = m.Get(el);
+            int pdsId = StepModel.Ref(e.Args[6]);
+            StepEntity pds = m.Get(pdsId);
+            var reps = StepModel.RefList(pds.Args[2]);
+            int srId = reps.FirstOrDefault(x => string.Equals(StepModel.Text(m.Get(x)?.Args[1]), "Body", StringComparison.OrdinalIgnoreCase));
+            StepEntity sr = srId == 0 ? null : m.Get(srId);
+            if (sr == null || reps.Count(x => string.Equals(StepModel.Text(m.Get(x)?.Args[1]), "Body", StringComparison.OrdinalIgnoreCase)) != 1) return false;
+            var itens = StepModel.RefList(sr.Args[3]);
+            if (itens.Count != 1) return false;
+            StepEntity it = m.Get(itens[0]);
+            double[,] Tm = ConferenciaGeometriaIfc.Geo.Id();
+            StepEntity ext = it;
+            if (it.Type == "IFCMAPPEDITEM")
+            {
+                StepEntity mapa = m.Get(StepModel.Ref(it.Args[0]));
+                StepEntity rep = m.Get(StepModel.Ref(mapa.Args[1]));
+                var its = StepModel.RefList(rep.Args[3]);
+                if (its.Count != 1) return false;
+                ext = m.Get(its[0]);
+                Tm = ConferenciaGeometriaIfc.Geo.Mul(geo.Operador(it.Args[1]), geo.Axis3(mapa.Args[0]));
+            }
+            if (ext == null || ext.Type != "IFCEXTRUDEDAREASOLID") return false;
+            double[,] F = ConferenciaGeometriaIfc.Geo.Mul(Tm, geo.Axis3(ext.Args[1]));
+            for (int j = 0; j < 3; j++)
+            {
+                double n = Math.Sqrt(F[0, j] * F[0, j] + F[1, j] * F[1, j] + F[2, j] * F[2, j]);
+                if (Math.Abs(n - 1) > 1e-6) return false;   // com escala: não mexe
+            }
+            double[] d = geo.Vet(ext.Args[2]) ?? new[] { 0.0, 0, 1 };
+            double dn = Math.Sqrt(d[0] * d[0] + d[1] * d[1] + d[2] * d[2]);
+            double prof = StepModel.Real(ext.Args[3]);
+            var S = new double[3]; var u = new double[3];
+            for (int i = 0; i < 3; i++)
+            {
+                S[i] = F[i, 3];
+                u[i] = (F[i, 0] * d[0] + F[i, 1] * d[1] + F[i, 2] * d[2]) / dn;
+            }
+            // Direção da barra no sistema do IfcSite, para saber de que lado fica o Ini e o Fim do Revit.
+            double lo, hi;
+            double[,] P = geo.Placement(StepModel.Ref(e.Args[5]), placementSite);
+            double[] uw = { P[0, 0] * u[0] + P[0, 1] * u[1] + P[0, 2] * u[2], P[1, 0] * u[0] + P[1, 1] * u[1] + P[1, 2] * u[2], P[2, 0] * u[0] + P[2, 1] * u[1] + P[2, 2] * u[2] };
+            double dot = b.Dir == null ? 0 : uw[0] * b.Dir[0] + uw[1] * b.Dir[1] + uw[2] * b.Dir[2];
+            if (Math.Abs(dot) > 0.99) { lo = dot > 0 ? b.Ini : -b.Fim; hi = dot > 0 ? b.Fim : -b.Ini; }
+            else { lo = -(b.Fim - b.Ini) / 2; hi = -lo; }
+            lo *= fator; hi *= fator;
+            if (Math.Abs(lo + prof / 2) < 1 * fator / 1000 && Math.Abs(hi - prof / 2) < 1 * fator / 1000) return false;   // já igual
+            if (lo < -prof / 2 * 1.05 || hi > prof / 2 * 1.05 || hi - lo < prof * 0.2) return false;   // o Revit não bate: deixa inteira
+            var o = new double[3];
+            for (int i = 0; i < 3; i++) o[i] = S[i] + u[i] * (prof / 2 + lo);
+            int ponto = m.Add("IFCCARTESIANPOINT", "(" + string.Join(",", o.Select(Num)) + ")");
+            int eixoZ = m.Add("IFCDIRECTION", "(" + Num(F[0, 2]) + "," + Num(F[1, 2]) + "," + Num(F[2, 2]) + ")");
+            int eixoX = m.Add("IFCDIRECTION", "(" + Num(F[0, 0]) + "," + Num(F[1, 0]) + "," + Num(F[2, 0]) + ")");
+            int pos = m.Add("IFCAXIS2PLACEMENT3D", "#" + ponto, "#" + eixoZ, "#" + eixoX);
+            int novo = m.Add("IFCEXTRUDEDAREASOLID", ext.Args[0], "#" + pos, ext.Args[2], Num(hi - lo));
+            if (estilos.TryGetValue(ext.Id, out StepEntity st)) m.Add("IFCSTYLEDITEM", "#" + novo, st.Args[1], st.Args[2]);
+            int novoSr = m.Add("IFCSHAPEREPRESENTATION", sr.Args[0], sr.Args[1], "'SweptSolid'", "(#" + novo + ")");
+            var novaLista = reps.Select(x => x == srId ? novoSr : x).ToList();
+            if (usoPds.TryGetValue(pdsId, out int uso) && uso > 1)
+            {
+                int novoPds = m.Add("IFCPRODUCTDEFINITIONSHAPE", pds.Args[0], pds.Args[1], StepModel.RefListText(novaLista));
+                m.SetArg(el, 6, "#" + novoPds);
+                usoPds[pdsId] = uso - 1;
+            }
+            else m.SetArg(pdsId, 2, StepModel.RefListText(novaLista));
+            return true;
         }
 
         private static void Extrusoes(StepModel m, int id, double escala, List<(int, double)> saida, int nivel)
