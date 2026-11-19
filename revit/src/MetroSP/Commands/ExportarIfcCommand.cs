@@ -214,7 +214,7 @@ namespace MetroSP.Commands
                     // Vigas, pilares e barras com o corpo no dobro do comprimento (exportador do Revit): volta ao comprimento do Revit.
                     try
                     {
-                        var perfis = Ifc.PerfisIfc.Aplicar(modelo, id => BarraRevit(doc, id));
+                        var perfis = Ifc.PerfisIfc.Aplicar(modelo, id => PerfilRevit(doc, id));
                         if (perfis.Extrusoes > 0) salvar = true;
                         if (perfis.ToString() is string linha) avisosClassificacao.Add(linha);
                     }
@@ -394,7 +394,7 @@ namespace MetroSP.Commands
         /// pilar vertical, do nível/deslocamento da base ao do topo; e o trecho do corpo de verdade ao longo dela, a partir do
         /// meio. Null se não for barra.
         /// </summary>
-        private static Ifc.BarraRevit BarraRevit(Document doc, long id)
+        private static Ifc.PerfilRevit PerfilRevit(Document doc, long id)
         {
             try
             {
@@ -404,7 +404,7 @@ namespace MetroSP.Commands
                 double comp;
                 if (e.Location is LocationCurve lc && lc.Curve != null)
                 {
-                    if (!(lc.Curve is Line ln)) return new Ifc.BarraRevit { Comprimento = lc.Curve.Length * 0.3048 };
+                    if (!(lc.Curve is Line ln)) return new Ifc.PerfilRevit { Comprimento = lc.Curve.Length * 0.3048 };
                     XYZ a = ln.GetEndPoint(0), b = ln.GetEndPoint(1);
                     comp = ln.Length;
                     meio = (a + b) / 2;
@@ -426,7 +426,7 @@ namespace MetroSP.Commands
                     dir = XYZ.BasisZ;
                 }
                 else return null;
-                var barra = new Ifc.BarraRevit { Comprimento = comp * 0.3048, Dir = new[] { dir.X, dir.Y, dir.Z } };
+                var barra = new Ifc.PerfilRevit { Comprimento = comp * 0.3048, Dir = new[] { dir.X, dir.Y, dir.Z } };
                 double min = double.MaxValue, max = double.MinValue;
                 void Pontos(GeometryElement ge, int nivel)
                 {

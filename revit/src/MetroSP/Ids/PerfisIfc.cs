@@ -11,7 +11,7 @@ namespace MetroSP.Ifc
     /// GrossVolume e OuterSurfaceArea, que vieram do corpo dobrado, caem pela metade.
     /// </summary>
     /// <summary>Barra do Revit, em metros: comprimento da locação e trecho do corpo ao longo dela, a partir do meio.</summary>
-    public sealed class BarraRevit
+    public sealed class PerfilRevit
     {
         public double Comprimento;
         /// <summary>Início e fim do corpo de verdade (com os recortes das ligações), medidos do meio da barra ao longo de Dir.</summary>
@@ -42,7 +42,7 @@ namespace MetroSP.Ifc
         private static readonly string[] Classes = { "IFCBEAM", "IFCCOLUMN", "IFCMEMBER" };
 
         /// <param name="barraRevit">A barra no Revit pelo ElementId (Tag), ou null.</param>
-        public static Resultado Aplicar(StepModel m, Func<long, BarraRevit> barraRevit)
+        public static Resultado Aplicar(StepModel m, Func<long, PerfilRevit> barraRevit)
         {
             var r = new Resultado();
             double fator = FixadoresIfc.FatorComprimento(m);
@@ -50,7 +50,7 @@ namespace MetroSP.Ifc
             var usos = new Dictionary<int, List<(int Elem, bool Dobro)>>();
             var extrusoesDoElemento = new Dictionary<int, List<(int Ext, double Escala)>>();
             var classeDoElemento = new Dictionary<int, string>();
-            var barras = new Dictionary<int, BarraRevit>();
+            var barras = new Dictionary<int, PerfilRevit>();
             foreach (string classe in Classes)
                 foreach (StepEntity e in m.OfType(classe))
                 {
@@ -65,7 +65,7 @@ namespace MetroSP.Ifc
                         foreach (int it in StepModel.RefList(sr.Args[3])) Extrusoes(m, it, 1, exts, 0);
                     }
                     if (exts.Count == 0) continue;
-                    BarraRevit barra = barraRevit(tag);
+                    PerfilRevit barra = barraRevit(tag);
                     double? lr = barra?.Comprimento;
                     foreach (var (ext, escala) in exts)
                     {
@@ -119,7 +119,7 @@ namespace MetroSP.Ifc
             }
             foreach (int el in corrigidos.Keys)
             {
-                if (!barras.TryGetValue(el, out BarraRevit b) || double.IsNaN(b.Ini) || double.IsNaN(b.Fim) || b.Fim - b.Ini < 0.01) continue;
+                if (!barras.TryGetValue(el, out PerfilRevit b) || double.IsNaN(b.Ini) || double.IsNaN(b.Fim) || b.Fim - b.Ini < 0.01) continue;
                 try { if (Aparar(m, geo, el, b, fator, placementSite, estilos, usoPds)) r.Aparados++; }
                 catch { /* fica com a barra inteira */ }
             }
@@ -130,7 +130,7 @@ namespace MetroSP.Ifc
         /// Troca o corpo mapeado do elemento por uma extrusão própria do trecho do Revit (com os recortes nas ligações),
         /// no mesmo eixo. Só quando o corpo é uma extrusão só, sem escala.
         /// </summary>
-        private static bool Aparar(StepModel m, ConferenciaGeometriaIfc.Geo geo, int el, BarraRevit b, double fator, int placementSite,
+        private static bool Aparar(StepModel m, ConferenciaGeometriaIfc.Geo geo, int el, PerfilRevit b, double fator, int placementSite,
             Dictionary<int, StepEntity> estilos, Dictionary<int, int> usoPds)
         {
             StepEntity e = m.Get(el);
