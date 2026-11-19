@@ -4,6 +4,17 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.17 (19/11/2026)
+
+Revit 0.3.17 · Civil 3D 0.12.9
+
+- Revit, **ligações metálicas no IFC**: na 1.0.16 as peças (chapas, parafusos, soldas) já eram montadas, mas o
+  exportador do Revit não as levava ao IFC, porque ele só exporta o que a vista mostra. Agora cada peça fica no mesmo
+  subprojeto (workset) da ligação, e não no subprojeto ativo, que pode estar oculto na vista. Antes de exportar, o
+  MetroSP confere se a vista mostra as peças; as que não aparecem são refeitas como Modelo genérico (a classe IFC
+  continua a certa) e, se mesmo assim ficarem de fora, o registro diz o motivo (categoria, subprojeto, fase, caixa de
+  corte, ocultar/isolar temporário, filtros).
+
 ## 1.0.16 (19/11/2026)
 
 Revit 0.3.16 · Civil 3D 0.12.9

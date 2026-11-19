@@ -29,6 +29,9 @@ namespace MetroSP.Ids
         public List<string> Avisos { get; } = new List<string>();
 
         private readonly List<ElementId> _criadas = new List<ElementId>();
+        /// <summary>Forma temporária → origem, sólidos e classe, para recriar como Modelo genérico se a vista não a mostrar.</summary>
+        private readonly Dictionary<ElementId, (Element Origem, List<Solid> Solidos, string Classe)> _formas =
+            new Dictionary<ElementId, (Element, List<Solid>, string)>();
         private readonly List<(Element Elemento, int Valor)> _exportarOriginal = new List<(Element, int)>();
         private View _vista;
         /// <summary>Vista 3D usada para ler a geometria (as ligações detalhadas só mostram as peças numa vista).</summary>
@@ -101,6 +104,7 @@ namespace MetroSP.Ids
             if (semGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
             if (r._vista != null) r.MostrarCategorias(doc);
+            if (r._criadas.Count > 0) r.ConferirNaVista(doc);
             return r;
         }
 
@@ -209,13 +213,13 @@ namespace MetroSP.Ids
             return criadas;
         }
 
-        private DirectShape CriarForma(Document doc, Element origem, Category categoria, List<Solid> solidos, string classe)
+        private DirectShape CriarForma(Document doc, Element origem, Category categoria, List<Solid> solidos, string classe, bool generico = false)
         {
-            ElementId cat = new[]
+            ElementId cat = (generico ? new[] { new ElementId(BuiltInCategory.OST_GenericModel) } : new[]
             {
                 categoria?.Id, categoria?.Parent?.Id, origem.Category?.Id,
                 new ElementId(BuiltInCategory.OST_StructConnections), new ElementId(BuiltInCategory.OST_GenericModel),
-            }.FirstOrDefault(c => c != null && DirectShape.IsValidCategoryId(c, doc));
+            }).FirstOrDefault(c => c != null && DirectShape.IsValidCategoryId(c, doc));
             if (cat == null) return null;
 
             var formas = solidos.Cast<GeometryObject>().ToList();
@@ -229,6 +233,16 @@ namespace MetroSP.Ids
                 return null;
             }
             _criadas.Add(ds.Id);
+            _formas[ds.Id] = (origem, solidos, classe);
+
+            // Mesmo subprojeto (workset) da origem: a forma nova cai no subprojeto ativo, que pode estar oculto na vista.
+            if (doc.IsWorkshared)
+                try
+                {
+                    Parameter ws = ds.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                    if (ws != null && !ws.IsReadOnly && origem.WorksetId != WorksetId.InvalidWorksetId) ws.Set(origem.WorksetId.IntegerValue);
+                }
+                catch { }
 
             // Mesma fase do elemento de origem, para sair na fase exportada como ele.
             try { ds.CreatedPhaseId = origem.CreatedPhaseId; } catch { }
@@ -256,6 +270,92 @@ namespace MetroSP.Ids
                 }
                 catch (Exception ex) { Avisos.Add($"Ligações metálicas: a vista \"{_vista.Name}\" não deixou mostrar as peças ({ex.Message})."); }
             }
+        }
+
+        /// <summary>
+        /// Na exportação por vista, o exportador só leva o que a vista mostra. Confere se as formas aparecem na vista;
+        /// as que não aparecem são recriadas como Modelo genérico (a classe IFC vem do "Exportar para IFC como") e,
+        /// se ainda assim ficarem de fora, o motivo vai para o registro.
+        /// </summary>
+        private void ConferirNaVista(Document doc)
+        {
+            try { doc.Regenerate(); } catch { }
+            if (_vista == null) return;
+            List<ElementId> fora = ForaDaVista(doc);
+            if (fora.Count == 0) return;
+
+            string motivo = MotivoFora(doc, doc.GetElement(fora[0]));
+            int recriadas = 0;
+            foreach (ElementId id in fora)
+            {
+                if (!_formas.TryGetValue(id, out var f) || !Pecas.TryGetValue(Compat.Numero(id), out PecaAco p)) continue;
+                DirectShape novo = CriarForma(doc, f.Origem, null, f.Solidos, f.Classe, generico: true);
+                if (novo == null) continue;
+                Pecas.Remove(Compat.Numero(id));
+                Pecas[Compat.Numero(novo.Id)] = p;
+                _formas.Remove(id);
+                _criadas.Remove(id);
+                try { doc.Delete(id); } catch { }
+                recriadas++;
+            }
+            if (recriadas > 0)
+            {
+                MostrarCategorias(doc);
+                try { doc.Regenerate(); } catch { }
+            }
+            List<ElementId> ainda = ForaDaVista(doc);
+            string antes = $"Ligações metálicas: {fora.Count} peça(s) não apareciam na vista \"{_vista.Name}\" ({motivo})";
+            if (ainda.Count == 0)
+                Avisos.Add(antes + $"; foram recriadas como Modelo genérico e entram no IFC com a classe certa.");
+            else
+                Avisos.Add(antes + $"; {ainda.Count} continuam fora ({MotivoFora(doc, doc.GetElement(ainda[0]))}) e não vão sair no IFC.");
+        }
+
+        private List<ElementId> ForaDaVista(Document doc)
+        {
+            var vivas = _criadas.Where(id => doc.GetElement(id) != null).ToList();
+            if (vivas.Count == 0) return vivas;
+            HashSet<ElementId> visiveis;
+            try
+            {
+                visiveis = new HashSet<ElementId>(new FilteredElementCollector(doc, _vista.Id)
+                    .WherePasses(new ElementIdSetFilter(vivas)).ToElementIds());
+            }
+            catch { return new List<ElementId>(); }
+            return vivas.Where(id => !visiveis.Contains(id)).ToList();
+        }
+
+        /// <summary>Por que a forma não aparece na vista da exportação (para o registro).</summary>
+        private string MotivoFora(Document doc, Element e)
+        {
+            if (e == null) return "forma apagada";
+            var r = new List<string>();
+            try
+            {
+                Category c = e.Category;
+                r.Add("categoria " + (c?.Name ?? "?"));
+                if (c != null && c.get_AllowsVisibilityControl(_vista) && !c.get_Visible(_vista)) r.Add("categoria oculta na vista");
+                if (e.IsHidden(_vista)) r.Add("elemento oculto na vista");
+                if (_vista.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate)) r.Add("vista com ocultar/isolar temporário ativo");
+                if (doc.IsWorkshared && !_vista.IsWorksetVisible(e.WorksetId)) r.Add("subprojeto oculto na vista");
+                if (e.DesignOption != null) r.Add("na opção de projeto " + e.DesignOption.Name);
+                ElementId fase = _vista.get_Parameter(BuiltInParameter.VIEW_PHASE)?.AsElementId();
+                if (fase != null && fase != ElementId.InvalidElementId) r.Add("fase " + e.GetPhaseStatus(fase));
+                if (_vista is View3D v3 && v3.IsSectionBoxActive)
+                {
+                    BoundingBoxXYZ caixa = v3.GetSectionBox(), bb = e.get_BoundingBox(null);
+                    if (bb != null)
+                    {
+                        XYZ centro = caixa.Transform.Inverse.OfPoint((bb.Min + bb.Max) / 2);
+                        bool dentro = centro.X >= caixa.Min.X && centro.X <= caixa.Max.X && centro.Y >= caixa.Min.Y && centro.Y <= caixa.Max.Y
+                            && centro.Z >= caixa.Min.Z && centro.Z <= caixa.Max.Z;
+                        if (!dentro) r.Add("fora da caixa de corte");
+                    }
+                }
+                if (_vista.GetFilters().Count > 0) r.Add($"{_vista.GetFilters().Count} filtro(s) na vista");
+            }
+            catch (Exception ex) { r.Add(ex.Message); }
+            return string.Join(", ", r);
         }
 
         /// <summary>
