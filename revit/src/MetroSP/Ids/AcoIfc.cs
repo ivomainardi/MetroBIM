@@ -140,7 +140,7 @@ namespace MetroSP.Ids
                 var subPorCategoria = itens.Where(i => i.Categoria != null).GroupBy(i => i.Categoria.BuiltInCategory)
                     .ToDictionary(g => g.Key, g => g.First().Sub);
                 itens.Clear();
-                foreach (var g in todos.GroupBy(so => CategoriaDoSolido(doc, so)))
+                foreach (var g in ClassificarVolumes(doc, todos).GroupBy(x => x.Categoria, x => x.Volume))
                 {
                     Category cat = Category.GetCategory(doc, g.Key);
                     subPorCategoria.TryGetValue(g.Key, out Subelement sub);
@@ -413,12 +413,61 @@ namespace MetroSP.Ids
                         if (Categorias.ContainsKey(x.BuiltInCategory)) return x.BuiltInCategory;
             }
             catch { }
+            return CategoriaPelaForma(s);
+        }
+
+        private static BuiltInCategory CategoriaPelaForma(Solid s)
+        {
             BoundingBoxXYZ bb = s.GetBoundingBox();
             double[] d = { bb.Max.X - bb.Min.X, bb.Max.Y - bb.Min.Y, bb.Max.Z - bb.Min.Z };
             Array.Sort(d);
             double m = 0.3048;
             if (d[2] * m < 0.30 && d[0] * m > 0.004 && d[1] < d[0] * 2.5) return BuiltInCategory.OST_StructConnectionBolts;
             return BuiltInCategory.OST_StructConnectionPlates;
+        }
+
+        /// <summary>
+        /// Separa o corpo da ligação em volumes e dá a categoria de cada um. Arruela e porca são discos e prismas
+        /// pequenos que a forma sozinha confunde com chapa: um volume pequeno (até 10 cm) que toca um parafuso é parte
+        /// dele, para o parafuso sair inteiro (cabeça, corpo, arruelas e porca) e as chapas só com as chapas.
+        /// </summary>
+        private static List<(BuiltInCategory Categoria, Solid Volume)> ClassificarVolumes(Document doc, List<Solid> solidos)
+        {
+            var vols = new List<(BuiltInCategory Categoria, Solid Volume)>();
+            foreach (Solid s in solidos)
+            {
+                BuiltInCategory cat = CategoriaDoSolido(doc, s);
+                List<Solid> partes;
+                try { partes = SolidUtils.SplitVolumes(s).Where(v => v.Volume > 1e-9).ToList(); }
+                catch { partes = new List<Solid>(); }
+                if (partes.Count == 0) partes.Add(s);
+                foreach (Solid v in partes)
+                    vols.Add((partes.Count > 1 && cat == BuiltInCategory.OST_StructConnectionPlates ? CategoriaPelaForma(v) : cat, v));
+            }
+            var caixas = vols.Select(v => Caixa(v.Volume)).ToList();
+            bool Pequeno(int i)
+            {
+                var c = caixas[i];
+                return Math.Max(c.Max.X - c.Min.X, Math.Max(c.Max.Y - c.Min.Y, c.Max.Z - c.Min.Z)) * 0.3048 <= 0.10;
+            }
+            const double folga = 0.5 / 304.8;
+            bool mudou = true;
+            while (mudou)
+            {
+                mudou = false;
+                for (int i = 0; i < vols.Count; i++)
+                {
+                    if (vols[i].Categoria != BuiltInCategory.OST_StructConnectionPlates || !Pequeno(i)) continue;
+                    for (int j = 0; j < vols.Count; j++)
+                        if (vols[j].Categoria == BuiltInCategory.OST_StructConnectionBolts && Tocam(caixas[i], caixas[j], folga))
+                        {
+                            vols[i] = (BuiltInCategory.OST_StructConnectionBolts, vols[i].Volume);
+                            mudou = true;
+                            break;
+                        }
+                }
+            }
+            return vols;
         }
 
         /// <summary>O que a API devolve para a ligação, para o registro (quando nenhuma peça saiu).</summary>
