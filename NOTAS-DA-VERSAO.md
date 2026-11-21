@@ -37,6 +37,9 @@ Revit 0.3.19 · Civil 3D 0.12.9
   MassaPorArea, ComprimentoDeAperto), MetroLoc (Nivel, UC), MetroQto (Espessura, Largura, Comprimento,
   ComprimentoFisico, AreaDaSecao, Peso em kg) e MetroClassificacao (CodigoMetro), juntando com o que o exportador já
   gravou. Soldas também no Pset_FastenerWeld. A resistência do parafuso vem da classe ISO 898-1 (8.8 → 640 MPa).
+- Revit, **perfis das ligações**: saem como IfcMember USERDEFINED com tipo "Cantoneira de ligação" (ou "Perfil de
+  ligação"), com área e massa linear nominais da seção; parafusos sem medidas no Revit (ex.: chumbadores da placa de
+  base) ganham diâmetro e comprimento pela geometria, e os longos saem como chumbador (ANCHORBOLT).
 - Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
   ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
   ler Width e Length (antes "Actual Tread Depth" e tipo Volume).

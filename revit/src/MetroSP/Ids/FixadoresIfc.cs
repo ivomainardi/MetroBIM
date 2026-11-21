@@ -111,6 +111,14 @@ namespace MetroSP.Ifc
                     string tipoIfc = TipoFixador(p.Peca);
                     if (tipoIfc != null) m.SetArg(e.Id, 10, tipoIfc);
                 }
+                // Perfil de ligação: IfcMember USERDEFINED, para separar das barras do pórtico e dos contraventamentos.
+                if ((e.Type == "IFCMEMBER" || e.Type == "IFCMEMBERSTANDARDCASE") && e.Args.Count >= 9)
+                {
+                    string perfil = Pegar(p, "Profile Type", "Tipo de perfil", "Perfil") ?? "";
+                    bool cantoneira = perfil.StartsWith("L", StringComparison.OrdinalIgnoreCase) && perfil.Length > 1 && char.IsDigit(perfil[1]);
+                    m.SetArg(e.Id, 4, S(cantoneira ? "Cantoneira de ligação" : "Perfil de ligação"));
+                    m.SetArg(e.Id, 8, ".USERDEFINED.");
+                }
                 switch (e.Type)
                 {
                     case "IFCMECHANICALFASTENER": r.Parafusos++; break;
