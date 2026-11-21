@@ -4,9 +4,9 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## 1.0.17 (a publicar)
+## 1.0.19 (a publicar)
 
-Revit 0.3.17 · Civil 3D 0.12.9
+Revit 0.3.19 · Civil 3D 0.12.9
 
 - Revit, **dados padrão das armaduras no IFC**: cada barra (IfcReinforcingBar) e cada tipo de barra passam a sair com
   diâmetro nominal, área da seção, comprimento da barra, superfície (nervurada ou lisa), categoria do aço (CA-50,
@@ -25,6 +25,24 @@ Revit 0.3.17 · Civil 3D 0.12.9
   antes toda barra aparecia com 1 diâmetro a menos que o Revit.
 - Revit 2027, **erro "carregar os property sets no modelo"** ("The referenced object is not valid"): os property sets
   do modelo são apagados um por vez, pulando o que já não existe, e a mensagem de erro passa a dizer a subetapa.
+## 1.0.18 (20/11/2026)
+
+Revit 0.3.18 · Civil 3D 0.12.9
+
+- Revit, **parafusos inteiros no IFC**: arruelas e porcas saíam como IfcPlate, separadas da cabeça do parafuso. Agora
+  cada volume pequeno (até 10 cm) que toca um parafuso entra nele, e cada parafuso sai como um IfcMechanicalFastener só,
+  com cabeça, corpo, arruelas e porca. As chapas da ligação continuam como IfcPlate e as cantoneiras como IfcMember.
+
+## 1.0.17 (19/11/2026)
+
+Revit 0.3.17 · Civil 3D 0.12.9
+
+- Revit, **ligações metálicas no IFC**: na 1.0.16 as peças (chapas, parafusos, soldas) já eram montadas, mas o
+  exportador do Revit não as levava ao IFC, porque ele só exporta o que a vista mostra. Agora cada peça fica no mesmo
+  subprojeto (workset) da ligação, e não no subprojeto ativo, que pode estar oculto na vista. Antes de exportar, o
+  MetroSP confere se a vista mostra as peças; as que não aparecem são refeitas como Modelo genérico (a classe IFC
+  continua a certa) e, se mesmo assim ficarem de fora, o registro diz o motivo (categoria, subprojeto, fase, caixa de
+  corte, ocultar/isolar temporário, filtros).
 
 ## 1.0.16 (19/11/2026)
 
