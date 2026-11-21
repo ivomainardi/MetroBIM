@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -112,7 +112,7 @@ namespace MetroSP.Commands
                     // Vigas pelo uso estrutural (contraventamento → IfcMember, pilar → IfcColumn), só sem classe no Revit.
                     passo = "classificar os perfis pelo uso estrutural";
                     try { usoEstrutural = UsoEstruturalIfc.Preparar(doc, janela.Vista); }
-                    catch { usoEstrutural = null; }
+                    catch (Exception ex) { usoEstrutural = null; avisoAco = (avisoAco == null ? "" : avisoAco + " ") + "Perfis pelo uso estrutural: erro (" + ex.Message + ")."; }
 
                     // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
                     if (janela.SempreEixos)
@@ -211,7 +211,7 @@ namespace MetroSP.Commands
                     gridsNoIfc = modelo.OfType("IFCGRID").Count();
                     // Peças das ligações metálicas: dados, GlobalId estável e agrupamento na ligação (antes da contagem).
                     if (avisoAco != null) avisosClassificacao.Add(avisoAco);
-                    if (usoEstrutural?.Aviso != null) avisosClassificacao.Add(usoEstrutural.Aviso);
+                    if (usoEstrutural?.Aviso != null) avisosClassificacao.Add(usoEstrutural.Aviso); if (usoEstrutural?.Diagnostico != null) avisosClassificacao.Add(usoEstrutural.Diagnostico);
                     if (aco != null)
                     {
                         avisosClassificacao.AddRange(aco.Avisos);

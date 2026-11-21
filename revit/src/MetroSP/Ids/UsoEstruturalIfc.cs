@@ -18,6 +18,17 @@ namespace MetroSP.Ids
     {
         private readonly List<Element> _alterados = new List<Element>();
         private readonly Dictionary<string, int> _porClasse = new Dictionary<string, int>(StringComparer.Ordinal);
+        /// <summary>Por que cada elemento ficou como estava (para o registro).</summary>
+        private readonly Dictionary<string, int> _ficaram = new Dictionary<string, int>(StringComparer.Ordinal);
+        private int _total;
+
+        private void Ficou(string motivo) => _ficaram[motivo] = _ficaram.TryGetValue(motivo, out int n) ? n + 1 : 1;
+
+        /// <summary>Contagem dos elementos de Structural Framing e do que aconteceu com eles (para o registro).</summary>
+        public string Diagnostico => _total == 0 ? null :
+            $"Perfis pelo uso estrutural, conferência: {_total} elemento(s) de Structural Framing; {_alterados.Count} com a classe trocada" +
+            (_ficaram.Count == 0 ? "." : "; ficaram como estavam: " +
+                string.Join(", ", _ficaram.OrderByDescending(k => k.Value).Select(k => $"{k.Value} {k.Key}")) + ".");
 
         /// <summary>Resumo para o registro, ou null se nada mudou.</summary>
         public string Aviso => _alterados.Count == 0 ? null :
@@ -33,23 +44,35 @@ namespace MetroSP.Ids
             foreach (FamilyInstance fi in coletor.OfCategory(BuiltInCategory.OST_StructuralFraming)
                          .WhereElementIsNotElementType().OfType<FamilyInstance>())
             {
+                r._total++;
                 try
                 {
                     Parameter como = Compat.ExportarComo(fi, false);
-                    if (como == null || como.IsReadOnly || Preenchido(como)) continue;
+                    if (como == null || como.IsReadOnly) { r.Ficou("sem o parâmetro \"Exportar para IFC como\" editável"); continue; }
+                    if (Preenchido(como)) { r.Ficou($"com classe na instância ({Valor(como)})"); continue; }
+                    // Parâmetro compartilhado IfcExportAs (modelos e famílias antigas): o exportador também lê, então é dado do Revit.
+                    Parameter compartilhado = fi.LookupParameter("IfcExportAs");
+                    if (compartilhado != null && compartilhado.IsShared && Preenchido(compartilhado) && compartilhado.Id != como.Id)
+                    { r.Ficou($"com IfcExportAs na instância ({Valor(compartilhado)})"); continue; }
                     ElementId tipoId = fi.GetTypeId();
                     if (!tiposComClasse.TryGetValue(tipoId, out bool tipoTem))
-                        tiposComClasse[tipoId] = tipoTem = Preenchido(Compat.ExportarComo(doc.GetElement(tipoId), true));
-                    if (tipoTem) continue;
+                    {
+                        Element tipo = doc.GetElement(tipoId);
+                        Parameter pt = Compat.ExportarComo(tipo, true);
+                        Parameter ptc = tipo?.LookupParameter("IfcExportAs[Type]") ?? tipo?.LookupParameter("IfcExportAs");
+                        tiposComClasse[tipoId] = tipoTem = Preenchido(pt) || Preenchido(ptc);
+                        if (tipoTem) r._valorTipo[tipoId] = Valor(Preenchido(pt) ? pt : ptc);
+                    }
+                    if (tipoTem) { r.Ficou($"com classe no tipo ({r._valorTipo[tipoId]})"); continue; }
 
                     string classe = Classe(fi);
-                    if (classe == null) continue;
+                    if (classe == null) { r.Ficou($"vigas (uso {UsoTexto(fi)})"); continue; }
                     como.Set(classe);
                     r._alterados.Add(fi);
                     string ent = classe.Split('.')[0];
                     r._porClasse[ent] = r._porClasse.TryGetValue(ent, out int n) ? n + 1 : 1;
                 }
-                catch { /* elemento que não aceita o parâmetro: fica como o exportador faz */ }
+                catch (Exception ex) { r.Ficou("com erro ao gravar (" + ex.Message + ")"); }
             }
             return r;
         }
@@ -82,6 +105,15 @@ namespace MetroSP.Ids
             double comp = d.GetLength();
             if (comp < 1e-6) return false;
             return Math.Abs(d.Z) / comp >= Math.Cos(5 * Math.PI / 180);
+        }
+
+        private readonly Dictionary<ElementId, string> _valorTipo = new Dictionary<ElementId, string>();
+
+        private static string Valor(Parameter p) => p == null ? "" : (p.StorageType == StorageType.String ? p.AsString() : p.AsValueString())?.Trim();
+
+        private static string UsoTexto(FamilyInstance fi)
+        {
+            try { return fi.StructuralUsage.ToString(); } catch { return "?"; }
         }
 
         private static bool Preenchido(Parameter p)

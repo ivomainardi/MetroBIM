@@ -40,6 +40,10 @@ namespace MetroSP.Ids
         /// <summary>Soldas lidas do corpo sem vista, e ligações com solda nos subelementos sem nenhum sólido de solda.</summary>
         public int SoldasRecuperadas { get; private set; }
         public int LigacoesComSoldaSemGeometria { get; private set; }
+        /// <summary>Categorias dos subelementos e estilos dos sólidos lidos (para o registro: confere soldas e peças).</summary>
+        private readonly Dictionary<string, int> _catSubs = new Dictionary<string, int>(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _estilos = new Dictionary<string, int>(StringComparer.Ordinal);
+        private static void Contar(Dictionary<string, int> d, string k) => d[k ?? "?"] = d.TryGetValue(k ?? "?", out int n) ? n + 1 : 1;
         private readonly List<ElementId> _categoriasMostradas = new List<ElementId>();
 
         private static readonly Dictionary<BuiltInCategory, (string Peca, string Classe, bool Parafuso, bool Separar)> Categorias =
@@ -106,6 +110,11 @@ namespace MetroSP.Ids
             }
             if (semGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
+            if (r._catSubs.Count > 0 || r._estilos.Count > 0)
+                r.Avisos.Add("Ligações metálicas, conferência: subelementos por categoria: " +
+                    string.Join(", ", r._catSubs.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}")) +
+                    "; sólidos por estilo: " + string.Join(", ", r._estilos.OrderByDescending(k => k.Value).Take(12).Select(k => $"{k.Key} {k.Value}")) +
+                    $"; soldas lidas sem a vista: {r.SoldasRecuperadas}.");
             if (r.LigacoesComSoldaSemGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {r.LigacoesComSoldaSemGeometria} ligação(ões) têm solda nos dados, mas a API não devolveu a geometria da solda.");
             if (r._vista != null) r.MostrarCategorias(doc);
@@ -135,6 +144,7 @@ namespace MetroSP.Ids
             if (subs != null)
                 foreach (Subelement s in subs)
                 {
+                    try { Contar(_catSubs, s?.Category?.Name); } catch { }
                     if (s?.Category == null || !Categorias.ContainsKey(s.Category.BuiltInCategory)) continue;
                     try { dadosSubs.Add((s.Category.BuiltInCategory, LerDados(doc, s))); } catch { }
                 }
@@ -143,6 +153,12 @@ namespace MetroSP.Ids
             else
             {
                 List<Solid> todos = Solidos(Geometria(origem, _vista3d));
+                foreach (Solid x in todos)
+                {
+                    string est = "sem estilo";
+                    try { if (doc.GetElement(x.GraphicsStyleId) is GraphicsStyle gs && gs.GraphicsStyleCategory is Category c) est = c.Name; } catch { }
+                    Contar(_estilos, est);
+                }
                 var vols = ClassificarVolumes(doc, todos);
                 // Soldas: a vista 3D muitas vezes não as mostra (subcategoria oculta ou só simbólica). Se a ligação tem
                 // solda nos subelementos e nenhum volume de solda veio da vista, lê o corpo sem vista, incluindo os
