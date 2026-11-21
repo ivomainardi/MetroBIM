@@ -114,6 +114,9 @@ namespace MetroSP.Ids
             bool ehLigacao = origem is StructuralConnectionHandler;
             string ligacao = ehLigacao ? doc.GetElement(origem.GetTypeId())?.Name : null;
             var doHost = DadosDoHost(doc, origem);
+            // Ligação com um só elemento de aço (ex.: placa de base do pilar): do outro lado do parafuso não há viga nem
+            // pilar de aço, então os parafusos dela são chumbadores.
+            bool soUmAco = ehLigacao && ElementosDeAco(doc, (StructuralConnectionHandler)origem) == 1;
 
             // Cada subelemento é uma peça (ou um grupo de parafusos). Um elemento de fabricação avulso pode não ter
             // subelementos: aí ele próprio é a peça.
@@ -196,14 +199,14 @@ namespace MetroSP.Ids
                         Volume = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } }) * 0.028316846592,
                     };
                     // Parafuso sem diâmetro ou comprimento nos dados (ex.: chumbadores de placa de base que vêm do corpo da
-                    // ligação): as medidas saem da geometria (corpo cilíndrico). Peça longa (10 diâmetros ou mais) e sem norma é chumbador.
+                    // ligação): as medidas saem da geometria (corpo cilíndrico).
                     if (info.Parafuso && (p.Diametro == null || p.Comprimento == null))
                     {
                         var med = MedidasDoFixador(pecas[i]);
                         p.Diametro ??= med.Diametro;
                         p.Comprimento ??= med.Comprimento;
-                        if (p.Peca == "Parafuso" && dados.Norma == null && med.Comprimento > 0 && med.Diametro > 0 && med.Comprimento >= 10 * med.Diametro) p.Peca = "Chumbador";
                     }
+                    if (soUmAco && p.Peca == "Parafuso") p.Peca = "Chumbador";
                     p.Nome = NomePeca(p);
                     Pecas[Compat.Numero(ds.Id)] = p;
                     novas.Add(p);
@@ -620,6 +623,17 @@ namespace MetroSP.Ids
                 if (p != null && p.StorageType == StorageType.Integer) { galv = p.AsInteger() == 1; break; }
             }
             return (uc, codigo, galv);
+        }
+
+        /// <summary>Quantos elementos de aço (viga, pilar, contraventamento com material estrutural aço) a ligação une.</summary>
+        private static int ElementosDeAco(Document doc, StructuralConnectionHandler h)
+        {
+            try
+            {
+                return h.GetConnectedElementIds().Select(i => doc.GetElement(i)).OfType<FamilyInstance>()
+                    .Count(e => e.StructuralMaterialType == StructuralMaterialType.Steel);
+            }
+            catch { return -1; }
         }
 
         /// <summary>

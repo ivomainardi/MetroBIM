@@ -39,7 +39,7 @@ Revit 0.3.19 · Civil 3D 0.12.9
   gravou. Soldas também no Pset_FastenerWeld. A resistência do parafuso vem da classe ISO 898-1 (8.8 → 640 MPa).
 - Revit, **perfis das ligações**: saem como IfcMember USERDEFINED com tipo "Cantoneira de ligação" (ou "Perfil de
   ligação"), com área e massa linear nominais da seção; parafusos sem medidas no Revit (ex.: chumbadores da placa de
-  base) ganham diâmetro e comprimento pela geometria, e os longos (10 diâmetros ou mais, sem norma) saem como chumbador (ANCHORBOLT).
+  base) ganham diâmetro e comprimento pela geometria, e os parafusos de ligação com um só elemento de aço (ex.: placa de base) saem como chumbador (ANCHORBOLT).
 - Revit, **tipo de dado nos Psets do Metrô**: Peso, MassaLinear, MassaPorArea e ModuloElasticidade que o exportador
   grava como número sem unidade (IfcReal) passam a sair em kg, kg/m, kg/m² e Pa, em todos os elementos.
 - Revit, **ligações metálicas respeitam o exportador**: o MetroSP só acrescenta nos Psets as propriedades que o
