@@ -14,6 +14,6 @@
     <Compile Include="../../src/MetroSP/Ids/ArmaduraIsoIfc.cs" />
     <Compile Include="../../src/MetroSP/Ids/ConferenciaGeometriaIfc.cs" />
     <Compile Include="../../src/MetroSP/Ids/FixadoresIfc.cs" />
-    <Compile Include="ProgramIso.cs" />
+    <Compile Include="ProgramIso.cs;ProgramAco.cs" />
   </ItemGroup>
 </Project>

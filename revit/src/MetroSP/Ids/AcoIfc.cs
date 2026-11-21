@@ -164,7 +164,12 @@ namespace MetroSP.Ids
 
                 Dados dados = item.Sub != null ? LerDados(doc, item.Sub) : LerDados(doc, origem);
                 // Grupo de parafusos: cada conjunto de sólidos que se tocam (parafuso, porca, arruelas) é um parafuso.
-                List<List<Solid>> pecas = info.Separar ? Agrupar(solidos) : new List<List<Solid>> { solidos };
+                // Perfis e chapas: cada sólido é uma peça (um item de perfil pode ter 2 ou 4 cantoneiras).
+                bool porSolido = item.Categoria.BuiltInCategory == BuiltInCategory.OST_StructConnectionProfiles ||
+                                 item.Categoria.BuiltInCategory == BuiltInCategory.OST_StructConnectionPlates;
+                List<List<Solid>> pecas = info.Separar ? Agrupar(solidos)
+                    : porSolido ? solidos.Select(x => new List<Solid> { x }).ToList()
+                    : new List<List<Solid>> { solidos };
                 int antes = criadas;
                 for (int i = 0; i < pecas.Count; i++)
                 {
@@ -183,6 +188,8 @@ namespace MetroSP.Ids
                         EhParafuso = info.Parafuso,
                         Tipo = dados.Tipo,
                         Propriedades = dados.Propriedades,
+                        PecasNoItem = pecas.Count,
+                        Volume = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } }) * 0.028316846592,
                     };
                     p.Nome = NomePeca(p);
                     Pecas[Compat.Numero(ds.Id)] = p;
@@ -642,6 +649,10 @@ namespace MetroSP.Ids
             string n = SemAcento(nome).ToLowerInvariant();
             bool furo = n.Contains("hole") || n.Contains("furo") || n.Contains("thread") || n.Contains("rosca") || n.Contains("grip") || n.Contains("aperto");
             if (!furo && d.Diametro == null && pes > 0 && (n.Contains("diameter") || n.Contains("diametro"))) d.Diametro = pes * 0.3048;
+            // Diâmetro guardado como número ou texto, sem unidade de comprimento (ex.: "12.7"): em mm.
+            else if (!furo && d.Diametro == null && pes == null && (n == "diameter" || n == "diametro" || n == "bolt diameter" || n == "diametro do parafuso") &&
+                     double.TryParse(texto.Replace("mm", "").Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double mm) && mm > 2 && mm < 200)
+                d.Diametro = mm / 1000;
             else if (!furo && d.Comprimento == null && pes > 0 && (n.Contains("length") || n.Contains("comprimento"))) d.Comprimento = pes * 0.3048;
             if (d.Norma == null && (n.Contains("standard") || n.Contains("norma"))) d.Norma = texto.Trim();
             if (d.Classe == null && (n.Contains("grade") || n.Contains("classe"))) d.Classe = texto.Trim();

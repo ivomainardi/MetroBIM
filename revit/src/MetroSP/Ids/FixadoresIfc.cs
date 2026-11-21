@@ -33,6 +33,10 @@ namespace MetroSP.Ifc
         public bool TirarCorpoDoHost { get; set; }
         /// <summary>Demais parâmetros do Revit (subelemento e tipo), já como texto.</summary>
         public Dictionary<string, string> Propriedades { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        /// <summary>Em quantas peças o item do Revit foi separado (cantoneiras de um perfil, parafusos de um grupo).</summary>
+        public int PecasNoItem { get; set; } = 1;
+        /// <summary>Volume da peça em m³ (dos sólidos dela), para o peso quando o Revit só dá o peso do item inteiro.</summary>
+        public double Volume { get; set; }
     }
 
     /// <summary>
@@ -47,7 +51,7 @@ namespace MetroSP.Ifc
 
         public class Resultado
         {
-            public int Pecas, Ligacoes, Parafusos, Chapas, Soldas, Outras;
+            public int Pecas, Ligacoes, Conjuntos, Parafusos, Chapas, Soldas, Outras, ComPeso, Materiais;
         }
 
         private static readonly string[] Produtos =
@@ -97,6 +101,8 @@ namespace MetroSP.Ifc
                 {
                     if (p.Diametro > 0) m.SetArg(e.Id, 8, Num(p.Diametro.Value * fator));
                     if (p.Comprimento > 0) m.SetArg(e.Id, 9, Num(p.Comprimento.Value * fator));
+                    string tipoIfc = TipoFixador(p.Peca);
+                    if (tipoIfc != null && (e.Args[10] == "$" || e.Args[10] == ".NOTDEFINED.")) m.SetArg(e.Id, 10, tipoIfc);
                 }
                 switch (e.Type)
                 {
@@ -130,40 +136,70 @@ namespace MetroSP.Ifc
                 }
                 ps.Objetos.Add(objeto);
             }
+            double fatorMassa = FatorMassa(m);
+            var pesoDaEntidade = new Dictionary<int, double>();
             foreach (var kv in entidadeDaPeca.OrderBy(k => k.Key))
             {
                 PecaAco p = kv.Value;
                 var metro = new List<(string, string)>();
                 void Add(string nome, string valor) { if (valor != null && !metro.Any(x => string.Equals(x.Item1, nome, StringComparison.OrdinalIgnoreCase))) metro.Add((nome, valor)); }
+                // Só o que o padrão IFC não cobre: diâmetro e comprimento vão nos atributos do IfcMechanicalFastener,
+                // espessura e pesos no Qto, a norma e a classe também no material.
                 Add("Peca", Label(p.Peca));
                 Add("Ligacao", Label(p.Ligacao));
                 Add("Norma", Label(p.Norma));
                 Add("Classe", Label(p.Classe));
-                if (p.Diametro > 0) Add("Diametro", "IFCPOSITIVELENGTHMEASURE(" + Num(p.Diametro.Value * fator) + ")");
-                if (p.Comprimento > 0) Add("Comprimento", "IFCPOSITIVELENGTHMEASURE(" + Num(p.Comprimento.Value * fator) + ")");
-                foreach (var x in p.Propriedades.OrderBy(x => x.Key, StringComparer.OrdinalIgnoreCase))
-                    if (!string.IsNullOrWhiteSpace(x.Value)) Add(x.Key, Label(x.Value));
+                Add("Descricao", Label(Pegar(p, "Descricao Complementar", "Descrição Complementar", "Description", "Descrição")));
+                Add("Perfil", Label(Pegar(p, "Profile Type", "Tipo de perfil", "Perfil")));
+                if (!p.EhParafuso) Add("Tipo", Label(Pegar(p, "Type", "Tipo") ?? p.Tipo));
+                if (!p.EhParafuso) Add("Material", Label(Pegar(p, "Structural Material", "Material estrutural", "Material")));
+                string revestimento = Pegar(p, "Coating", "Revestimento");
+                if (revestimento != null && revestimento.Trim('-', ' ').Length > 0) Add("Revestimento", Label(revestimento));
+                if (p.EhParafuso && Numero(Pegar(p, "Grip Length", "Comprimento de aperto")) is double aperto && aperto > 0)
+                    Add("ComprimentoDeAperto", "IFCPOSITIVELENGTHMEASURE(" + Num(aperto / 1000 * fator) + ")");
+                double? peso = Peso(p);
+                if (peso > 0)
+                {
+                    pesoDaEntidade[kv.Key] = peso.Value;
+                    Add("Peso", "IFCMASSMEASURE(" + Num(peso.Value * fatorMassa) + ")");
+                    r.ComPeso++;
+                }
                 Ligar(Pset, metro, kv.Key);
 
                 if (p.EhParafuso && p.Diametro > 0)
                     Ligar("Pset_MechanicalFastenerBolt", new List<(string, string)> { ("ThreadDiameter", "IFCPOSITIVELENGTHMEASURE(" + Num(p.Diametro.Value * fator) + ")") }, kv.Key);
             }
-            foreach (var ps in psets)
-                m.Add("IFCRELDEFINESBYPROPERTIES", Guid("rel|" + ps.Key), historico, "$", "$",
-                    StepModel.RefListText(ps.Value.Objetos), "#" + ps.Value.Pset);
+            CompletarQto(m, entidadeDaPeca, pesoDaEntidade, fator, fatorMassa, historico);
+            r.Materiais = MaterialDosParafusos(m, entidadeDaPeca, historico);
 
             // Cada peça agregada à sua ligação, quando a ligação está no IFC. A peça deixa de estar contida no pavimento
             // (no IFC, a parte segue a estrutura espacial do todo).
+            // Quando a ligação não está no IFC (o exportador não leva a ligação do Revit), as peças dela são agrupadas
+            // num IfcElementAssembly novo, contido no pavimento onde as peças estavam.
             var agregadas = new HashSet<int>();
+            var contencaoDe = new Dictionary<int, int>();
+            foreach (StepEntity rel in m.OfType("IFCRELCONTAINEDINSPATIALSTRUCTURE"))
+                foreach (int i in StepModel.RefList(rel.Args[4])) if (!contencaoDe.ContainsKey(i)) contencaoDe[i] = rel.Id;
             foreach (var g in entidadeDaPeca.GroupBy(k => k.Value.HostId))
             {
-                if (!entidadeDoHost.TryGetValue(g.Key, out int host)) continue;
                 List<int> partes = g.Select(k => k.Key).OrderBy(i => i).ToList();
+                bool novo = false;
+                if (!entidadeDoHost.TryGetValue(g.Key, out int host))
+                {
+                    PecaAco p0 = g.First().Value;
+                    if (partes.Count < 2 && string.IsNullOrWhiteSpace(p0.Ligacao)) continue;
+                    host = CriarConjunto(m, g.Key, p0.Ligacao, partes[0], historico);
+                    if (contencaoDe.TryGetValue(partes[0], out int relPav))
+                        m.SetArg(relPav, 4, StepModel.RefListText(StepModel.RefList(m.Get(relPav).Args[4]).Concat(new[] { host })));
+                    Ligar(Pset, new List<(string, string)> { ("Peca", Label("Ligação")), ("Ligacao", Label(p0.Ligacao)) }.Where(x => x.Item2 != null).ToList(), host);
+                    novo = true;
+                    r.Conjuntos++;
+                }
                 m.Add("IFCRELAGGREGATES", Guid("agrega|" + g.First().Value.Chave), historico, S("Peças da ligação"), "$",
                     "#" + host, StepModel.RefListText(partes));
                 agregadas.UnionWith(partes);
-                if (g.Any(k => k.Value.TirarCorpoDoHost) && m.Get(host).Args.Count > 6) m.SetArg(host, 6, "$");
-                r.Ligacoes++;
+                if (!novo && g.Any(k => k.Value.TirarCorpoDoHost) && m.Get(host).Args.Count > 6) m.SetArg(host, 6, "$");
+                if (!novo) r.Ligacoes++;
             }
             if (agregadas.Count > 0)
                 foreach (StepEntity rel in m.OfType("IFCRELCONTAINEDINSPATIALSTRUCTURE").ToList())
@@ -174,17 +210,205 @@ namespace MetroSP.Ifc
                     if (ficam.Count == 0) m.Remove(rel.Id);
                     else m.SetArg(rel.Id, 4, StepModel.RefListText(ficam));
                 }
+            foreach (var ps in psets)
+                m.Add("IFCRELDEFINESBYPROPERTIES", Guid("rel|" + ps.Key), historico, "$", "$",
+                    StepModel.RefListText(ps.Value.Objetos), "#" + ps.Value.Pset);
 
             var partesTexto = new List<string>();
             if (r.Parafusos > 0) partesTexto.Add($"{r.Parafusos} parafuso(s) e fixador(es)");
             if (r.Chapas > 0) partesTexto.Add($"{r.Chapas} chapa(s)");
             if (r.Soldas > 0) partesTexto.Add($"{r.Soldas} solda(s)");
             if (r.Outras > 0) partesTexto.Add($"{r.Outras} outra(s) peça(s)");
+            int grupos = r.Ligacoes + r.Conjuntos;
             log("Ligações metálicas: " + string.Join(", ", partesTexto) + " como elementos próprios" +
-                (r.Ligacoes > 0 ? $", agrupados em {r.Ligacoes} ligação(ões)." : "."));
+                (grupos > 0 ? $", agrupados em {grupos} ligação(ões) (IfcElementAssembly)." : "."));
+            if (r.ComPeso > 0) log($"Ligações metálicas: peso em {r.ComPeso} peça(s) (Qto e Pset {Pset}).");
+            if (r.Materiais > 0) log($"Ligações metálicas: material dos parafusos pela norma e classe em {r.Materiais} parafuso(s).");
             int faltaram = pecas.Count - entidadeDaPeca.Count;
             if (faltaram > 0) log($"Ligações metálicas: {faltaram} peça(s) preparada(s) não saíram no IFC.");
             return r;
+        }
+
+        private static string TipoFixador(string peca)
+        {
+            switch (peca)
+            {
+                case "Parafuso": return ".BOLT.";
+                case "Chumbador": return ".ANCHORBOLT.";
+                case "Conector de cisalhamento": return ".SHEARCONNECTOR.";
+                default: return null;
+            }
+        }
+
+        /// <summary>Primeiro parâmetro do Revit, entre os nomes dados, que tem valor.</summary>
+        private static string Pegar(PecaAco p, params string[] nomes)
+        {
+            foreach (string n in nomes)
+                if (p.Propriedades.TryGetValue(n, out string v) && !string.IsNullOrWhiteSpace(v)) return v.Trim();
+            return null;
+        }
+
+        /// <summary>Número de um texto do Revit ("2,2416", "12,5 mm", "1.234,5"), sem a unidade.</summary>
+        internal static double? Numero(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto)) return null;
+            var mt = System.Text.RegularExpressions.Regex.Match(texto.Trim(), @"^-?[0-9][0-9.,]*");
+            if (!mt.Success) return null;
+            string n = mt.Value;
+            if (n.Contains(',') && n.Contains('.')) n = n.Replace(".", "");
+            n = n.Replace(',', '.');
+            return double.TryParse(n, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : (double?)null;
+        }
+
+        private const double DensidadeAco = 7850;   // kg/m³
+
+        /// <summary>
+        /// Peso de uma peça, em kg. Parafuso: peso total do grupo dividido pelo número de parafusos. Chapa e perfil:
+        /// o peso do Revit quando o item é uma peça só; quando o item foi separado (perfil com 2 ou 4 cantoneiras),
+        /// o volume da peça vezes 7850 kg/m³, porque o peso do Revit não diz a qual cantoneira se refere.
+        /// </summary>
+        internal static double? Peso(PecaAco p)
+        {
+            if (p.EhParafuso)
+            {
+                double? total = Numero(Pegar(p, "Total Weight", "Peso total"));
+                double? n = Numero(Pegar(p, "Number", "Número", "Quantidade"));
+                if (total > 0 && n >= 1 && p.PecasNoItem > 1) return total / n;
+                if (total > 0 && p.PecasNoItem <= 1) return total;
+            }
+            else if (p.PecasNoItem <= 1)
+            {
+                double? w = Numero(Pegar(p, "Exact Weight", "Peso exato", "Weight", "Peso"));
+                if (w > 0) return w;
+            }
+            return p.Volume > 0 ? p.Volume * DensidadeAco : (double?)null;
+        }
+
+        /// <summary>Quantos kg há na unidade de massa do IFC (1 para kg, 1000 para g).</summary>
+        private static double FatorMassa(StepModel m)
+        {
+            foreach (StepEntity u in m.OfType("IFCSIUNIT"))
+                if (u.Args.Count >= 4 && u.Args[1] == ".MASSUNIT.") return u.Args[2] == ".KILO." ? 1 : u.Args[2] == "$" ? 1000 : 1;
+            return 1;
+        }
+
+        /// <summary>
+        /// Qto_PlateBaseQuantities (Width = espessura, GrossWeight, NetWeight) e Qto_MemberBaseQuantities (pesos)
+        /// das peças. Um Qto compartilhado com outro elemento é copiado antes de mudar.
+        /// </summary>
+        private static void CompletarQto(StepModel m, Dictionary<int, PecaAco> pecas, Dictionary<int, double> pesos,
+            double fator, double fatorMassa, string historico)
+        {
+            var qtoDe = new Dictionary<int, (int Rel, int Qto)>();
+            var objetosDoRel = new Dictionary<int, int>();
+            foreach (StepEntity rel in m.OfType("IFCRELDEFINESBYPROPERTIES"))
+            {
+                int qto = StepModel.Ref(rel.Args[5]);
+                if (qto <= 0 || m.TypeOf(qto) != "IFCELEMENTQUANTITY") continue;
+                string nome = StepModel.Text(m.Get(qto).Args[2]) ?? "";
+                if (!nome.StartsWith("Qto_", StringComparison.OrdinalIgnoreCase)) continue;
+                List<int> objs = StepModel.RefList(rel.Args[4]);
+                foreach (int o in objs) if (pecas.ContainsKey(o) && !qtoDe.ContainsKey(o)) qtoDe[o] = (rel.Id, qto);
+            }
+            var usoDoQto = qtoDe.Values.GroupBy(x => x.Qto).ToDictionary(g => g.Key, g => g.Count());
+
+            foreach (var kv in pecas.OrderBy(k => k.Key))
+            {
+                string tipo = m.TypeOf(kv.Key);
+                bool chapa = tipo == "IFCPLATE" || tipo == "IFCPLATESTANDARDCASE";
+                bool perfil = tipo == "IFCMEMBER" || tipo == "IFCMEMBERSTANDARDCASE";
+                if (!chapa && !perfil) continue;
+                var novas = new List<(string Nome, string Entidade, string Valor)>();
+                if (chapa && Numero(Pegar(kv.Value, "Thickness", "Espessura")) is double esp && esp > 0)
+                    novas.Add(("Width", "IFCQUANTITYLENGTH", Num(esp / 1000 * fator)));
+                if (pesos.TryGetValue(kv.Key, out double peso))
+                {
+                    novas.Add(("GrossWeight", "IFCQUANTITYWEIGHT", Num(peso * fatorMassa)));
+                    novas.Add(("NetWeight", "IFCQUANTITYWEIGHT", Num(peso * fatorMassa)));
+                }
+                if (novas.Count == 0) continue;
+
+                List<int> atuais;
+                int qtoId;
+                if (qtoDe.TryGetValue(kv.Key, out var q))
+                {
+                    StepEntity qto = m.Get(q.Qto);
+                    atuais = StepModel.RefList(qto.Args[5]);
+                    var nomes = new HashSet<string>(atuais.Select(i => StepModel.Text(m.Get(i).Args[0]) ?? ""), StringComparer.OrdinalIgnoreCase);
+                    novas = novas.Where(x => !nomes.Contains(x.Nome)).ToList();
+                    if (novas.Count == 0) continue;
+                    var ids = atuais.Concat(novas.Select(x => m.Add(x.Entidade, S(x.Nome), "$", "$", x.Valor, "$"))).ToList();
+                    if (usoDoQto[q.Qto] == 1) { m.SetArg(q.Qto, 5, StepModel.RefListText(ids)); continue; }
+                    // Qto compartilhado: esta peça ganha uma cópia.
+                    List<int> objs = StepModel.RefList(m.Get(q.Rel).Args[4]).Where(o => o != kv.Key).ToList();
+                    m.SetArg(q.Rel, 4, StepModel.RefListText(objs));
+                    usoDoQto[q.Qto]--;
+                    qtoId = m.Add("IFCELEMENTQUANTITY", Guid("qto|" + kv.Value.Chave), historico, qto.Args[2], "$", qto.Args[4], StepModel.RefListText(ids));
+                }
+                else
+                {
+                    var ids = novas.Select(x => m.Add(x.Entidade, S(x.Nome), "$", "$", x.Valor, "$")).ToList();
+                    qtoId = m.Add("IFCELEMENTQUANTITY", Guid("qto|" + kv.Value.Chave), historico,
+                        S(chapa ? "Qto_PlateBaseQuantities" : "Qto_MemberBaseQuantities"), "$", S("BaseQuantities"), StepModel.RefListText(ids));
+                }
+                m.Add("IFCRELDEFINESBYPROPERTIES", Guid("relqto|" + kv.Value.Chave), historico, "$", "$", "(#" + kv.Key + ")", "#" + qtoId);
+            }
+        }
+
+        /// <summary>
+        /// Material dos parafusos pela norma e classe do Revit (ex.: "ASTM A325 - 8.8"), no lugar do material da peça
+        /// ligada que o exportador costuma dar. Devolve quantos parafusos mudaram.
+        /// </summary>
+        private static int MaterialDosParafusos(StepModel m, Dictionary<int, PecaAco> pecas, string historico)
+        {
+            var porMaterial = new Dictionary<string, List<int>>(StringComparer.Ordinal);
+            foreach (var kv in pecas.OrderBy(k => k.Key))
+            {
+                if (!kv.Value.EhParafuso) continue;
+                string nome = string.Join(" - ", new[] { kv.Value.Norma, kv.Value.Classe }
+                    .Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct(StringComparer.OrdinalIgnoreCase));
+                if (nome.Length == 0) continue;
+                if (!porMaterial.TryGetValue(nome, out var lista)) porMaterial[nome] = lista = new List<int>();
+                lista.Add(kv.Key);
+            }
+            if (porMaterial.Count == 0) return 0;
+            var mudam = new HashSet<int>(porMaterial.Values.SelectMany(x => x));
+            foreach (StepEntity rel in m.OfType("IFCRELASSOCIATESMATERIAL").ToList())
+            {
+                List<int> objs = StepModel.RefList(rel.Args[4]);
+                if (!objs.Any(mudam.Contains)) continue;
+                List<int> ficam = objs.Where(o => !mudam.Contains(o)).ToList();
+                if (ficam.Count == 0) m.Remove(rel.Id);
+                else m.SetArg(rel.Id, 4, StepModel.RefListText(ficam));
+            }
+            var existentes = new Dictionary<string, int>(StringComparer.Ordinal);
+            foreach (StepEntity mat in m.OfType("IFCMATERIAL"))
+            {
+                string n = StepModel.Text(mat.Args[0]);
+                if (n != null && !existentes.ContainsKey(n)) existentes[n] = mat.Id;
+            }
+            foreach (var kv in porMaterial)
+            {
+                if (!existentes.TryGetValue(kv.Key, out int mat))
+                    mat = m.Add("IFCMATERIAL", S(kv.Key), "$", S("Steel"));
+                m.Add("IFCRELASSOCIATESMATERIAL", Guid("material|" + kv.Key), historico, "$", "$", StepModel.RefListText(kv.Value), "#" + mat);
+            }
+            return mudam.Count;
+        }
+
+        /// <summary>IfcElementAssembly da ligação, posicionado como a primeira peça dela.</summary>
+        private static int CriarConjunto(StepModel m, long hostId, string ligacao, int primeiraPeca, string historico)
+        {
+            string local = "$";
+            int lp = StepModel.Ref(m.Get(primeiraPeca).Args[5]);
+            if (lp > 0 && m.TypeOf(lp) == "IFCLOCALPLACEMENT")
+            {
+                StepEntity pl = m.Get(lp);
+                local = "#" + m.Add("IFCLOCALPLACEMENT", pl.Args[0], pl.Args[1]);
+            }
+            string tag = hostId.ToString(CultureInfo.InvariantCulture);
+            return m.Add("IFCELEMENTASSEMBLY", Guid("ligacao|" + tag), historico, S(string.IsNullOrWhiteSpace(ligacao) ? "Ligação" : ligacao.Trim()),
+                "$", S("Ligação metálica"), local, "$", S(tag), ".NOTDEFINED.", ".USERDEFINED.");
         }
 
         /// <summary>Quantas unidades de comprimento do IFC há em um metro (IfcSIUnit com prefixo, ou pé/polegada).</summary>

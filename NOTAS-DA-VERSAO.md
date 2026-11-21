@@ -25,6 +25,17 @@ Revit 0.3.19 · Civil 3D 0.12.9
   antes toda barra aparecia com 1 diâmetro a menos que o Revit.
 - Revit 2027, **erro "carregar os property sets no modelo"** ("The referenced object is not valid"): os property sets
   do modelo são apagados um por vez, pulando o que já não existe, e a mensagem de erro passa a dizer a subetapa.
+- Revit, **ligações metálicas, peças individuais**: cada cantoneira e cada chapa sai como elemento próprio, com o
+  Qto dela (antes um perfil de 2 ou 4 cantoneiras saía num elemento só, com o volume somado). As peças de cada
+  ligação ficam agrupadas num IfcElementAssembly com o nome da ligação (ex.: "L.01").
+- Revit, **parafusos no padrão IFC4**: diâmetro nominal também quando o Revit guarda o diâmetro como texto, tipo
+  BOLT/ANCHORBOLT, `Pset_MechanicalFastenerBolt` e material pela norma e classe do parafuso (ex.: "ASTM A325 - 8.8"),
+  no lugar do material da chapa.
+- Revit, **chapas e perfis das ligações**: espessura (Width) e pesos (GrossWeight, NetWeight) no Qto padrão.
+- Revit, **Pset MetroSP_LigacaoMetalica enxuto**: só Peca, Ligacao, Norma, Classe, Descricao, Perfil/Tipo, Material,
+  Revestimento, ComprimentoDeAperto e Peso (kg). Os demais parâmetros brutos do Revit saíram, e diâmetro, comprimento
+  e espessura ficam só nos campos padrão.
+
 ## 1.0.18 (20/11/2026)
 
 Revit 0.3.18 · Civil 3D 0.12.9
