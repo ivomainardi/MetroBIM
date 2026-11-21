@@ -36,71 +36,6 @@ namespace MetroSP.Ids
         private View _vista;
         /// <summary>Vista 3D usada para ler a geometria (as ligações detalhadas só mostram as peças numa vista).</summary>
         private View3D _vista3d;
-        /// <summary>Ligações deste modelo em que o Revit fechou ao ler a geometria dos subelementos: delas, só o corpo.</summary>
-        private HashSet<long> _ruins = new HashSet<long>();
-        private bool _modoCorpo;
-        /// <summary>O modelo mudou (formas criadas) desde a última regeneração: a geometria das ligações pode estar velha.</summary>
-        private bool _sujo;
-
-        private static string PastaMarca => System.IO.Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MetroSP");
-        private static string ArquivoMarca => System.IO.Path.Combine(PastaMarca, "aco-geometria.txt");
-        private static string ArquivoRuins => System.IO.Path.Combine(PastaMarca, "aco-geometria-ruins.txt");
-
-        /// <summary>Nome do arquivo do modelo, sem pasta nem extensão (o mesmo modelo aberto do servidor ou de uma cópia local).</summary>
-        private static string ChaveModelo(Document doc) => Chave(string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName);
-
-        private static string Chave(string caminho)
-        {
-            try { return System.IO.Path.GetFileNameWithoutExtension(caminho.Trim()).ToUpperInvariant(); }
-            catch { return (caminho ?? "").Trim().ToUpperInvariant(); }
-        }
-
-        private static void Marcar(Document doc, ElementId id)
-        {
-            try
-            {
-                System.IO.Directory.CreateDirectory(PastaMarca);
-                System.IO.File.WriteAllText(ArquivoMarca, ChaveModelo(doc) + "\t" + Compat.Numero(id).ToString(CultureInfo.InvariantCulture));
-            }
-            catch { }
-        }
-
-        /// <summary>
-        /// Se o Revit fechou na exportação anterior com a marca de uma ligação, guarda essa ligação na lista das que não
-        /// podem ter a geometria dos subelementos lida. Devolve a ligação nova da lista (ou null) e enche _ruins com as deste modelo.
-        /// </summary>
-        private string LerMarca(Document doc)
-        {
-            string chave = ChaveModelo(doc), nova = null;
-            try
-            {
-                if (System.IO.File.Exists(ArquivoMarca))
-                {
-                    string m = System.IO.File.ReadAllText(ArquivoMarca).Trim();
-                    ApagarMarca();
-                    string[] c = m.Split('\t');
-                    if (c.Length == 2 && Chave(c[0]) == chave)
-                    {
-                        System.IO.File.AppendAllText(ArquivoRuins, m + Environment.NewLine);
-                        nova = c[1];
-                    }
-                }
-                if (System.IO.File.Exists(ArquivoRuins))
-                    foreach (string l in System.IO.File.ReadAllLines(ArquivoRuins))
-                    {
-                        string[] c = l.Split('\t');
-                        if (c.Length == 2 && Chave(c[0]) == chave && long.TryParse(c[1], out long id)) _ruins.Add(id);
-                    }
-            }
-            catch { }
-            return nova;
-        }
-
-        private static void ApagarMarca()
-        {
-            try { if (System.IO.File.Exists(ArquivoMarca)) System.IO.File.Delete(ArquivoMarca); } catch { }
-        }
         private int _diagnosticos;
         private readonly List<ElementId> _categoriasMostradas = new List<ElementId>();
 
@@ -141,13 +76,6 @@ namespace MetroSP.Ids
         public static AcoIfc Preparar(Document doc, ElementId vistaId, ElementId fase)
         {
             var r = new AcoIfc();
-            string anterior = r.LerMarca(doc);
-            if (anterior != null)
-                r.Avisos.Add($"Ligações metálicas: na exportação anterior o Revit fechou ao ler a geometria da ligação {anterior}. " +
-                             "A partir de agora, as peças dela saem do corpo da ligação (sem ler cada subelemento). Confira essa ligação no Revit.");
-            if (r._ruins.Count > 0)
-                r.Avisos.Add($"Ligações metálicas: {r._ruins.Count} ligação(ões) com as peças tiradas do corpo, porque o Revit já fechou ao ler a geometria delas: " +
-                             string.Join(", ", r._ruins.OrderBy(x => x)) + ".");
             bool porVista = vistaId != null && vistaId != ElementId.InvalidElementId && doc.GetElement(vistaId) is View;
             if (porVista) r._vista = (View)doc.GetElement(vistaId);
             r._vista3d = Vista3D(doc, vistaId);
@@ -175,7 +103,6 @@ namespace MetroSP.Ids
             }
             if (semGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
-            ApagarMarca();
             if (r._vista != null) r.MostrarCategorias(doc);
             if (r._criadas.Count > 0) r.ConferirNaVista(doc);
             return r;
@@ -185,62 +112,36 @@ namespace MetroSP.Ids
         private int Separar(Document doc, Element origem)
         {
             bool ehLigacao = origem is StructuralConnectionHandler;
-            _modoCorpo = _ruins.Contains(Compat.Numero(origem.Id));
             string ligacao = ehLigacao ? doc.GetElement(origem.GetTypeId())?.Name : null;
             var doHost = DadosDoHost(doc, origem);
             // Ligação com um só elemento de aço (ex.: placa de base do pilar): do outro lado do parafuso não há viga nem
             // pilar de aço, então os parafusos dela são chumbadores.
             bool soUmAco = ehLigacao && ElementosDeAco(doc, (StructuralConnectionHandler)origem) == 1;
 
-            // Cada subelemento é uma peça (ou um grupo de parafusos). Um elemento de fabricação avulso pode não ter
-            // subelementos: aí ele próprio é a peça.
+            // As peças saem do corpo da ligação (ou do elemento de fabricação), separadas pela categoria (subcategoria) de
+            // cada sólido ou, sem ela, pela forma. A geometria de cada subelemento (Subelement.GetGeometryObject) não é
+            // lida: em alguns modelos ela derruba o Revit com um erro de memória que nenhum try pega. Os dados de cada peça
+            // vêm do subelemento da mesma categoria que mais combina com ela (volume da chapa ou do perfil, comprimento e
+            // diâmetro do parafuso).
             var itens = new List<(string Chave, Category Categoria, List<Solid> Geo, Subelement Sub)>();
             IList<Subelement> subs = null;
             try { subs = origem.GetSubelements(); } catch { /* elemento sem subelementos */ }
+            var dadosSubs = new List<(BuiltInCategory Cat, Dados D)>();
             if (subs != null)
-            {
-                // A geometria do subelemento pode derrubar o Revit (erro de memória dentro dele, que nenhum try pega).
-                // A marca diz qual ligação estava sendo lida; se o Revit fechar, a próxima exportação usa o corpo das ligações.
-                if (!_modoCorpo && subs.Count > 0)
-                {
-                    // Ler a geometria de um subelemento com o modelo alterado e não regenerado derruba o Revit: regenera antes.
-                    if (_sujo) { try { doc.Regenerate(); } catch { } _sujo = false; }
-                    Marcar(doc, origem.Id);
-                }
                 foreach (Subelement s in subs)
                 {
-                    GeometryObject g = null;
-                    if (!_modoCorpo)
-                    {
-                        // Primeiro a geometria do modelo (sem vista), que é a mais estável; a da vista só se ela vier vazia.
-                        try { g = s.GetGeometryObject(null); } catch { }
-                        if (Solidos(g).Count == 0 && _vista3d != null) try { g = s.GetGeometryObject(_vista3d); } catch { }
-                    }
-                    itens.Add((s.UniqueId, s.Category, Solidos(g), s));
+                    if (s?.Category == null || !Categorias.ContainsKey(s.Category.BuiltInCategory)) continue;
+                    try { dadosSubs.Add((s.Category.BuiltInCategory, LerDados(doc, s))); } catch { }
                 }
-            }
-            if (!ehLigacao && itens.All(i => i.Categoria == null || !Categorias.ContainsKey(i.Categoria.BuiltInCategory)))
-            {
-                itens.Clear();
+            if (!ehLigacao && dadosSubs.Count == 0)
                 itens.Add((origem.UniqueId, origem.Category, Solidos(Geometria(origem, _vista3d)), null));
-            }
-            // Ligação cujos subelementos não devolvem geometria: as peças vêm do corpo da ligação, separadas pela categoria
-            // (subcategoria) de cada sólido ou, sem ela, pela forma (chapa fina, parafuso pequeno). Os dados do subelemento
-            // só vão para as peças quando há um subelemento só daquela categoria (com dois, não dá para saber qual é qual).
-            if (ehLigacao && itens.All(i => i.Geo.Count == 0))
+            else
             {
                 List<Solid> todos = Solidos(Geometria(origem, _vista3d));
-                var subPorCategoria = itens.Where(i => i.Categoria != null).GroupBy(i => i.Categoria.BuiltInCategory)
-                    .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.First().Sub);
-                itens.Clear();
                 foreach (var g in ClassificarVolumes(doc, todos).GroupBy(x => x.Categoria, x => x.Volume))
-                {
-                    Category cat = Category.GetCategory(doc, g.Key);
-                    subPorCategoria.TryGetValue(g.Key, out Subelement sub);
-                    itens.Add((origem.UniqueId + "|" + ((int)g.Key).ToString(CultureInfo.InvariantCulture), cat, g.ToList(), sub));
-                }
+                    itens.Add((origem.UniqueId + "|" + ((int)g.Key).ToString(CultureInfo.InvariantCulture), Category.GetCategory(doc, g.Key), g.ToList(), null));
             }
-            if (itens.All(i => i.Geo.Count == 0) && _diagnosticos < 3 && !_modoCorpo)
+            if (itens.All(i => i.Geo.Count == 0) && _diagnosticos < 3)
             {
                 _diagnosticos++;
                 Avisos.Add("Ligações metálicas, diagnóstico: " + Diagnostico(doc, origem, subs));
@@ -255,7 +156,8 @@ namespace MetroSP.Ids
                 if (solidos.Count == 0) continue;
                 previstas++;
 
-                Dados dados = item.Sub != null ? LerDados(doc, item.Sub) : LerDados(doc, origem);
+                Dados dadosOrigem = LerDados(doc, origem);
+                var candidatos = dadosSubs.Where(x => x.Cat == item.Categoria.BuiltInCategory).Select(x => x.D).ToList();
                 // Grupo de parafusos: cada conjunto de sólidos que se tocam (parafuso, porca, arruelas) é um parafuso.
                 // Perfis e chapas: cada sólido é uma peça (um item de perfil pode ter 2 ou 4 cantoneiras).
                 bool porSolido = item.Categoria.BuiltInCategory == BuiltInCategory.OST_StructConnectionProfiles ||
@@ -268,6 +170,8 @@ namespace MetroSP.Ids
                 {
                     DirectShape ds = CriarForma(doc, origem, item.Categoria, pecas[i], info.Classe);
                     if (ds == null) continue;
+                    double volPes = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } });
+                    Dados dados = Escolher(candidatos, pecas[i], volPes, info.Parafuso, out bool mesmaPeca) ?? dadosOrigem;
                     var p = new PecaAco
                     {
                         HostId = Compat.Numero(origem.Id),
@@ -281,11 +185,12 @@ namespace MetroSP.Ids
                         EhParafuso = info.Parafuso,
                         Tipo = dados.Tipo,
                         Propriedades = dados.Propriedades,
-                        PecasNoItem = pecas.Count,
+                        // O peso do Revit vale para a peça quando o subelemento escolhido tem o volume dela.
+                        PecasNoItem = mesmaPeca && !info.Parafuso ? 1 : pecas.Count,
                         Uc = doHost.Uc,
                         CodigoMetro = doHost.Codigo,
                         Galvanizado = doHost.Galvanizado,
-                        Volume = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } }) * 0.028316846592,
+                        Volume = volPes * 0.028316846592,
                     };
                     // Parafuso sem diâmetro ou comprimento nos dados (ex.: chumbadores de placa de base que vêm do corpo da
                     // ligação): as medidas saem da geometria (corpo cilíndrico).
@@ -345,7 +250,6 @@ namespace MetroSP.Ids
                 return null;
             }
             _criadas.Add(ds.Id);
-            _sujo = true;
             _formas[ds.Id] = (origem, solidos, classe);
 
             // Mesmo subprojeto (workset) da origem: a forma nova cai no subprojeto ativo, que pode estar oculto na vista.
@@ -591,11 +495,7 @@ namespace MetroSP.Ids
             sb.Append($"; subelementos: {subs?.Count ?? 0}");
             if (subs != null && subs.Count > 0)
                 sb.Append(" [" + string.Join(", ", subs.Take(6).Select(x =>
-                {
-                    string tipo = "erro";
-                    try { tipo = x.GetGeometryObject(_vista3d)?.GetType().Name ?? "sem geometria"; } catch (Exception ex) { tipo = ex.GetType().Name; }
-                    return (x.Category?.Name ?? "?") + ": " + tipo;
-                })) + "]");
+                    (x.Category?.Name ?? "?"))) + "]");
             void Conta(string nome, Options o)
             {
                 try
@@ -715,6 +615,28 @@ namespace MetroSP.Ids
             return (uc, codigo, galv);
         }
 
+        /// <summary>
+        /// Dados do subelemento que corresponde à peça: o único da categoria, ou o de volume mais próximo (chapa, perfil),
+        /// ou o de comprimento e diâmetro mais próximos (parafuso). mesmaPeca: o volume do subelemento é o da peça (±5%).
+        /// </summary>
+        private static Dados Escolher(List<Dados> candidatos, List<Solid> peca, double volPes, bool parafuso, out bool mesmaPeca)
+        {
+            mesmaPeca = false;
+            if (candidatos == null || candidatos.Count == 0) return null;
+            Dados d;
+            if (candidatos.Count == 1) d = candidatos[0];
+            else if (parafuso)
+            {
+                var med = MedidasDoFixador(peca);
+                d = candidatos.OrderBy(c =>
+                    (c.Diametro > 0 && med.Diametro > 0 ? Math.Abs(c.Diametro.Value - med.Diametro.Value) * 10 : 0) +
+                    (c.Comprimento > 0 && med.Comprimento > 0 ? Math.Abs(c.Comprimento.Value - med.Comprimento.Value) : 1)).First();
+            }
+            else d = candidatos.OrderBy(c => c.VolumePes > 0 ? Math.Abs(c.VolumePes.Value - volPes) : double.MaxValue).First();
+            mesmaPeca = d.VolumePes > 0 && volPes > 0 && Math.Abs(d.VolumePes.Value - volPes) <= 0.05 * volPes;
+            return d;
+        }
+
         /// <summary>Quantos elementos de aço (viga, pilar, contraventamento com material estrutural aço) a ligação une.</summary>
         private static int ElementosDeAco(Document doc, StructuralConnectionHandler h)
         {
@@ -765,6 +687,7 @@ namespace MetroSP.Ids
         {
             public string Norma, Classe, Tipo;
             public double? Diametro, Comprimento;   // metros
+            public double? VolumePes;               // pés³ (parâmetro Volume do subelemento)
             public Dictionary<string, string> Propriedades = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
@@ -837,6 +760,7 @@ namespace MetroSP.Ids
                      double.TryParse(texto.Replace("mm", "").Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double mm) && mm > 2 && mm < 200)
                 d.Diametro = mm / 1000;
             else if (!furo && d.Comprimento == null && pes > 0 && (n.Contains("length") || n.Contains("comprimento"))) d.Comprimento = pes * 0.3048;
+            if (d.VolumePes == null && pes > 0 && n == "volume") d.VolumePes = pes;
             if (d.Norma == null && (n.Contains("standard") || n.Contains("norma"))) d.Norma = texto.Trim();
             if (d.Classe == null && (n.Contains("grade") || n.Contains("classe"))) d.Classe = texto.Trim();
             if (!d.Propriedades.ContainsKey(nome)) d.Propriedades[nome] = texto.Trim();

@@ -44,9 +44,11 @@ Revit 0.3.19 · Civil 3D 0.12.9
   grava como número sem unidade (IfcReal) passam a sair em kg, kg/m, kg/m² e Pa, em todos os elementos.
 - Revit, **ligações metálicas respeitam o exportador**: o MetroSP só acrescenta nos Psets as propriedades que o
   exportador não gravou; o que já saiu fica como está.
-- Revit, **erro fatal ao exportar ligações metálicas**: a leitura da geometria de um subelemento de ligação pode
-  derrubar o Revit (erro de memória dentro do Revit). O modelo é regenerado antes de ler cada ligação, a geometria é lida primeiro sem vista, e a ligação em
-  que o Revit fechou fica registrada: nas próximas exportações do mesmo modelo, as peças dela saem do corpo da ligação.
+- Revit, **erro fatal ao exportar ligações metálicas**: ler a geometria de cada subelemento da ligação
+  (Subelement.GetGeometryObject) derrubava o Revit em alguns modelos (erro de memória dentro do Revit). As peças passam
+  a sair sempre do corpo da ligação, separadas pela subcategoria ou pela forma, e os dados de cada peça vêm do
+  subelemento da mesma categoria que mais combina com ela (volume da chapa ou do perfil; comprimento e diâmetro do
+  parafuso). O GlobalId das peças muda uma vez em relação às versões anteriores.
 - Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
   ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
   ler Width e Length (antes "Actual Tread Depth" e tipo Volume).
