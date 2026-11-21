@@ -36,6 +36,62 @@ namespace MetroSP.Ids
         private View _vista;
         /// <summary>Vista 3D usada para ler a geometria (as ligações detalhadas só mostram as peças numa vista).</summary>
         private View3D _vista3d;
+        /// <summary>Ligações deste modelo em que o Revit fechou ao ler a geometria dos subelementos: delas, só o corpo.</summary>
+        private HashSet<long> _ruins = new HashSet<long>();
+        private bool _modoCorpo;
+
+        private static string PastaMarca => System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MetroSP");
+        private static string ArquivoMarca => System.IO.Path.Combine(PastaMarca, "aco-geometria.txt");
+        private static string ArquivoRuins => System.IO.Path.Combine(PastaMarca, "aco-geometria-ruins.txt");
+
+        private static string ChaveModelo(Document doc) => string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName;
+
+        private static void Marcar(Document doc, ElementId id)
+        {
+            try
+            {
+                System.IO.Directory.CreateDirectory(PastaMarca);
+                System.IO.File.WriteAllText(ArquivoMarca, ChaveModelo(doc) + "\t" + Compat.Numero(id).ToString(CultureInfo.InvariantCulture));
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Se o Revit fechou na exportação anterior com a marca de uma ligação, guarda essa ligação na lista das que não
+        /// podem ter a geometria dos subelementos lida. Devolve a ligação nova da lista (ou null) e enche _ruins com as deste modelo.
+        /// </summary>
+        private string LerMarca(Document doc)
+        {
+            string chave = ChaveModelo(doc), nova = null;
+            try
+            {
+                if (System.IO.File.Exists(ArquivoMarca))
+                {
+                    string m = System.IO.File.ReadAllText(ArquivoMarca).Trim();
+                    ApagarMarca();
+                    string[] c = m.Split('\t');
+                    if (c.Length == 2 && c[0] == chave)
+                    {
+                        System.IO.File.AppendAllText(ArquivoRuins, m + Environment.NewLine);
+                        nova = c[1];
+                    }
+                }
+                if (System.IO.File.Exists(ArquivoRuins))
+                    foreach (string l in System.IO.File.ReadAllLines(ArquivoRuins))
+                    {
+                        string[] c = l.Split('\t');
+                        if (c.Length == 2 && c[0] == chave && long.TryParse(c[1], out long id)) _ruins.Add(id);
+                    }
+            }
+            catch { }
+            return nova;
+        }
+
+        private static void ApagarMarca()
+        {
+            try { if (System.IO.File.Exists(ArquivoMarca)) System.IO.File.Delete(ArquivoMarca); } catch { }
+        }
         private int _diagnosticos;
         private readonly List<ElementId> _categoriasMostradas = new List<ElementId>();
 
@@ -76,6 +132,13 @@ namespace MetroSP.Ids
         public static AcoIfc Preparar(Document doc, ElementId vistaId, ElementId fase)
         {
             var r = new AcoIfc();
+            string anterior = r.LerMarca(doc);
+            if (anterior != null)
+                r.Avisos.Add($"Ligações metálicas: na exportação anterior o Revit fechou ao ler a geometria da ligação {anterior}. " +
+                             "A partir de agora, as peças dela saem do corpo da ligação (sem ler cada subelemento). Confira essa ligação no Revit.");
+            if (r._ruins.Count > 0)
+                r.Avisos.Add($"Ligações metálicas: {r._ruins.Count} ligação(ões) com as peças tiradas do corpo, porque o Revit já fechou ao ler a geometria delas: " +
+                             string.Join(", ", r._ruins.OrderBy(x => x)) + ".");
             bool porVista = vistaId != null && vistaId != ElementId.InvalidElementId && doc.GetElement(vistaId) is View;
             if (porVista) r._vista = (View)doc.GetElement(vistaId);
             r._vista3d = Vista3D(doc, vistaId);
@@ -103,6 +166,7 @@ namespace MetroSP.Ids
             }
             if (semGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
+            ApagarMarca();
             if (r._vista != null) r.MostrarCategorias(doc);
             if (r._criadas.Count > 0) r.ConferirNaVista(doc);
             return r;
@@ -112,6 +176,7 @@ namespace MetroSP.Ids
         private int Separar(Document doc, Element origem)
         {
             bool ehLigacao = origem is StructuralConnectionHandler;
+            _modoCorpo = _ruins.Contains(Compat.Numero(origem.Id));
             string ligacao = ehLigacao ? doc.GetElement(origem.GetTypeId())?.Name : null;
             var doHost = DadosDoHost(doc, origem);
             // Ligação com um só elemento de aço (ex.: placa de base do pilar): do outro lado do parafuso não há viga nem
@@ -124,25 +189,35 @@ namespace MetroSP.Ids
             IList<Subelement> subs = null;
             try { subs = origem.GetSubelements(); } catch { /* elemento sem subelementos */ }
             if (subs != null)
+            {
+                // A geometria do subelemento pode derrubar o Revit (erro de memória dentro dele, que nenhum try pega).
+                // A marca diz qual ligação estava sendo lida; se o Revit fechar, a próxima exportação usa o corpo das ligações.
+                if (!_modoCorpo && subs.Count > 0) Marcar(doc, origem.Id);
                 foreach (Subelement s in subs)
                 {
                     GeometryObject g = null;
-                    if (_vista3d != null) try { g = s.GetGeometryObject(_vista3d); } catch { }
-                    if (Solidos(g).Count == 0) try { g = s.GetGeometryObject(null); } catch { }
+                    if (!_modoCorpo)
+                    {
+                        // Primeiro a geometria do modelo (sem vista), que é a mais estável; a da vista só se ela vier vazia.
+                        try { g = s.GetGeometryObject(null); } catch { }
+                        if (Solidos(g).Count == 0 && _vista3d != null) try { g = s.GetGeometryObject(_vista3d); } catch { }
+                    }
                     itens.Add((s.UniqueId, s.Category, Solidos(g), s));
                 }
+            }
             if (!ehLigacao && itens.All(i => i.Categoria == null || !Categorias.ContainsKey(i.Categoria.BuiltInCategory)))
             {
                 itens.Clear();
                 itens.Add((origem.UniqueId, origem.Category, Solidos(Geometria(origem, _vista3d)), null));
             }
             // Ligação cujos subelementos não devolvem geometria: as peças vêm do corpo da ligação, separadas pela categoria
-            // (subcategoria) de cada sólido ou, sem ela, pela forma (chapa fina, parafuso pequeno).
+            // (subcategoria) de cada sólido ou, sem ela, pela forma (chapa fina, parafuso pequeno). Os dados do subelemento
+            // só vão para as peças quando há um subelemento só daquela categoria (com dois, não dá para saber qual é qual).
             if (ehLigacao && itens.All(i => i.Geo.Count == 0))
             {
                 List<Solid> todos = Solidos(Geometria(origem, _vista3d));
                 var subPorCategoria = itens.Where(i => i.Categoria != null).GroupBy(i => i.Categoria.BuiltInCategory)
-                    .ToDictionary(g => g.Key, g => g.First().Sub);
+                    .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.First().Sub);
                 itens.Clear();
                 foreach (var g in ClassificarVolumes(doc, todos).GroupBy(x => x.Categoria, x => x.Volume))
                 {
@@ -151,7 +226,7 @@ namespace MetroSP.Ids
                     itens.Add((origem.UniqueId + "|" + ((int)g.Key).ToString(CultureInfo.InvariantCulture), cat, g.ToList(), sub));
                 }
             }
-            if (itens.All(i => i.Geo.Count == 0) && _diagnosticos < 3)
+            if (itens.All(i => i.Geo.Count == 0) && _diagnosticos < 3 && !_modoCorpo)
             {
                 _diagnosticos++;
                 Avisos.Add("Ligações metálicas, diagnóstico: " + Diagnostico(doc, origem, subs));
