@@ -4,6 +4,22 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.17 (a publicar)
+
+Revit 0.3.17 · Civil 3D 0.12.9
+
+- Revit, **dados padrão das armaduras no IFC**: cada barra (IfcReinforcingBar) e cada tipo de barra passam a sair com
+  diâmetro nominal, área da seção, comprimento da barra, superfície (nervurada ou lisa), categoria do aço (CA-50,
+  CA-60...) e função (barra principal, estribo ou anel). O `Pset_ReinforcingBarCommon` sai completo. O código de forma
+  ISO 3766 só sai quando o nome da forma do Revit traz o código (ex.: "21").
+- Revit, **anéis fechados**: o exportador gravava o círculo com só 2 pontos (geometria inválida, o anel sumia nos
+  visualizadores). Agora o círculo sai em dois arcos de 3 pontos, no plano do anel no Revit.
+- Revit, **armaduras de comprimento variável**: o MetroQto de cada barra repetia a Quantidade e o PesoDoConjunto do
+  conjunto inteiro (somando por elemento, o peso saía muitas vezes maior). Agora vale a própria barra, com o Comprimento.
+- Revit, **material da armadura**: quando o material do Revit não diz a categoria do aço (ex.: "Rebar - ASTM A615M -
+  Grade 420", o padrão do Revit) e a classificação diz CA-50, o material no IFC passa a ser "Aço CA-50" e o registro
+  pede para corrigir o material no Revit.
+
 ## 1.0.16 (19/11/2026)
 
 Revit 0.3.16 · Civil 3D 0.12.9

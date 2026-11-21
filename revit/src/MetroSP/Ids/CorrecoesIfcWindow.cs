@@ -49,9 +49,11 @@ namespace MetroSP.Ids
                 ("MetroQto", "Os mesmos valores no MetroQto, nas propriedades que o MetroDATA pede.",
                  "Volume, Area, AreaSuperficie, Secao, Comprimento, Largura, Altura, Espessura e Peso, quando o parâmetro do Revit " +
                  "não existe no elemento. As propriedades vêm da planilha MetroDATA da Entrega e do .txt de property sets."),
-                ("Armaduras e telas", "Quantidade, comprimento e peso de cada barra; telas com diâmetro, espaçamento e peso.",
+                ("Armaduras e telas", "Quantidade, comprimento e peso de cada barra; diâmetro, aço e superfície; anéis; telas.",
                  "Qto_ReinforcingElementBaseQuantities das barras (inclusive conjuntos de comprimento variável e armaduras de área e " +
-                 "de caminho) e dimensões, diâmetros e espaçamentos das telas soldadas (IfcReinforcingMesh) pelo Revit."),
+                 "de caminho), diâmetro, área da seção, comprimento, aço, superfície e função da barra e do tipo (Pset_ReinforcingBarCommon), " +
+                 "anéis fechados em arcos de 3 pontos, MetroQto da própria barra nos conjuntos variáveis, material \"Aço CA-50\" quando o " +
+                 "do Revit não diz o aço e dimensões, diâmetros e espaçamentos das telas soldadas (IfcReinforcingMesh) pelo Revit."),
             }),
         };
 
