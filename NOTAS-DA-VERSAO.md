@@ -52,6 +52,15 @@ Revit 0.3.19 · Civil 3D 0.12.9
 - Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
   ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
   ler Width e Length (antes "Actual Tread Depth" e tipo Volume).
+- Revit, **soldas das ligações**: quando a vista 3D não mostra as soldas, o corpo da ligação é lido também sem vista
+  para elas saírem como IfcFastener (WELD). O registro avisa quantas ligações têm solda nos dados sem geometria.
+- Revit, **exportação mais rápida com muitas ligações**: a separação de parafusos, porcas e arruelas usa índice
+  espacial (antes cada volume era comparado com todos), os volumes não são separados duas vezes, as medidas do
+  parafuso pela geometria saem uma vez só e os parâmetros dos tipos são lidos uma vez por exportação.
+- Revit, **vigas pelo uso estrutural**: elementos de Structural Framing sem "Exportar para IFC como" no Revit saem
+  pelo uso estrutural: contraventamento como IfcMember BRACE, terça como IfcMember PURLIN, banzo de treliça como
+  IfcMember CHORD e uso pilar ou eixo vertical (até 5°) como IfcColumn. Antes tudo saía IfcBeam. O que tem classe no
+  Revit ou no arquivo de coordenação não muda.
 
 ## 1.0.18 (20/11/2026)
 

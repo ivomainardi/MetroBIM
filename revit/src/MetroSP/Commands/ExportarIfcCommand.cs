@@ -79,6 +79,7 @@ namespace MetroSP.Commands
             string passo = "montar as opções do setup";
             EixosIfc eixos = null;
             AcoIfc aco = null;
+            UsoEstruturalIfc usoEstrutural = null;
             Dictionary<long, string> classesPedidas = null;
             TimeSpan tCorrecoes = TimeSpan.Zero;
             try
@@ -107,6 +108,11 @@ namespace MetroSP.Commands
                     // Arquivo de coordenação: classes IFC por família e por elemento do perfil ativo, só nesta exportação.
                     passo = "aplicar as classes por família do arquivo de coordenação";
                     avisoCoordenacao = Coordenacao.CoordenacaoRevit.AplicarNaExportacao(doc);
+
+                    // Vigas pelo uso estrutural (contraventamento → IfcMember, pilar → IfcColumn), só sem classe no Revit.
+                    passo = "classificar os perfis pelo uso estrutural";
+                    try { usoEstrutural = UsoEstruturalIfc.Preparar(doc, janela.Vista); }
+                    catch { usoEstrutural = null; }
 
                     // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
                     if (janela.SempreEixos)
@@ -143,6 +149,7 @@ namespace MetroSP.Commands
                     }
                     eixos?.Restaurar();
                     aco?.Restaurar(doc);
+                    usoEstrutural?.Restaurar();
 
                     if (exportou && setup.GravaGuid)
                     {
@@ -204,6 +211,7 @@ namespace MetroSP.Commands
                     gridsNoIfc = modelo.OfType("IFCGRID").Count();
                     // Peças das ligações metálicas: dados, GlobalId estável e agrupamento na ligação (antes da contagem).
                     if (avisoAco != null) avisosClassificacao.Add(avisoAco);
+                    if (usoEstrutural?.Aviso != null) avisosClassificacao.Add(usoEstrutural.Aviso);
                     if (aco != null)
                     {
                         avisosClassificacao.AddRange(aco.Avisos);

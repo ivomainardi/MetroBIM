@@ -37,6 +37,9 @@ namespace MetroSP.Ids
         /// <summary>Vista 3D usada para ler a geometria (as ligações detalhadas só mostram as peças numa vista).</summary>
         private View3D _vista3d;
         private int _diagnosticos;
+        /// <summary>Soldas lidas do corpo sem vista, e ligações com solda nos subelementos sem nenhum sólido de solda.</summary>
+        public int SoldasRecuperadas { get; private set; }
+        public int LigacoesComSoldaSemGeometria { get; private set; }
         private readonly List<ElementId> _categoriasMostradas = new List<ElementId>();
 
         private static readonly Dictionary<BuiltInCategory, (string Peca, string Classe, bool Parafuso, bool Separar)> Categorias =
@@ -103,6 +106,8 @@ namespace MetroSP.Ids
             }
             if (semGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
+            if (r.LigacoesComSoldaSemGeometria > 0)
+                r.Avisos.Add($"Ligações metálicas: {r.LigacoesComSoldaSemGeometria} ligação(ões) têm solda nos dados, mas a API não devolveu a geometria da solda.");
             if (r._vista != null) r.MostrarCategorias(doc);
             if (r._criadas.Count > 0) r.ConferirNaVista(doc);
             return r;
@@ -138,7 +143,18 @@ namespace MetroSP.Ids
             else
             {
                 List<Solid> todos = Solidos(Geometria(origem, _vista3d));
-                foreach (var g in ClassificarVolumes(doc, todos).GroupBy(x => x.Categoria, x => x.Volume))
+                var vols = ClassificarVolumes(doc, todos);
+                // Soldas: a vista 3D muitas vezes não as mostra (subcategoria oculta ou só simbólica). Se a ligação tem
+                // solda nos subelementos e nenhum volume de solda veio da vista, lê o corpo sem vista, incluindo os
+                // invisíveis, e pega só os sólidos com o estilo da subcategoria de solda.
+                if (dadosSubs.Any(x => x.Cat == BuiltInCategory.OST_StructConnectionWelds) &&
+                    !vols.Any(v => v.Categoria == BuiltInCategory.OST_StructConnectionWelds))
+                {
+                    var soldas = SoldasSemVista(doc, origem);
+                    if (soldas.Count > 0) { SoldasRecuperadas += soldas.Count; vols.AddRange(soldas.Select(x => (BuiltInCategory.OST_StructConnectionWelds, x))); }
+                    else LigacoesComSoldaSemGeometria++;
+                }
+                foreach (var g in vols.GroupBy(x => x.Categoria, x => x.Volume))
                     itens.Add((origem.UniqueId + "|" + ((int)g.Key).ToString(CultureInfo.InvariantCulture), Category.GetCategory(doc, g.Key), g.ToList(), null));
             }
             if (itens.All(i => i.Geo.Count == 0) && _diagnosticos < 3)
@@ -149,6 +165,7 @@ namespace MetroSP.Ids
 
             int criadas = 0, previstas = 0, separadas = 0;
             var novas = new List<PecaAco>();
+            Dados dadosOrigem = null;
             foreach (var item in itens)
             {
                 if (item.Categoria == null || !Categorias.TryGetValue(item.Categoria.BuiltInCategory, out var info)) continue;
@@ -156,13 +173,13 @@ namespace MetroSP.Ids
                 if (solidos.Count == 0) continue;
                 previstas++;
 
-                Dados dadosOrigem = LerDados(doc, origem);
                 var candidatos = dadosSubs.Where(x => x.Cat == item.Categoria.BuiltInCategory).Select(x => x.D).ToList();
                 // Grupo de parafusos: cada conjunto de sólidos que se tocam (parafuso, porca, arruelas) é um parafuso.
                 // Perfis e chapas: cada sólido é uma peça (um item de perfil pode ter 2 ou 4 cantoneiras).
                 bool porSolido = item.Categoria.BuiltInCategory == BuiltInCategory.OST_StructConnectionProfiles ||
                                  item.Categoria.BuiltInCategory == BuiltInCategory.OST_StructConnectionPlates;
-                List<List<Solid>> pecas = info.Separar ? Agrupar(solidos)
+                // Os volumes já vêm separados (SplitVolumes) de ClassificarVolumes, exceto no elemento avulso.
+                List<List<Solid>> pecas = info.Separar ? Agrupar(solidos, jaSeparados: item.Chave != origem.UniqueId)
                     : porSolido ? solidos.Select(x => new List<Solid> { x }).ToList()
                     : new List<List<Solid>> { solidos };
                 int antes = criadas;
@@ -171,7 +188,15 @@ namespace MetroSP.Ids
                     DirectShape ds = CriarForma(doc, origem, item.Categoria, pecas[i], info.Classe);
                     if (ds == null) continue;
                     double volPes = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } });
-                    Dados dados = Escolher(candidatos, pecas[i], volPes, info.Parafuso, out bool mesmaPeca) ?? dadosOrigem;
+                    // Medidas do parafuso pela geometria: só quando precisa (vários candidatos ou dados sem medida), uma vez.
+                    (double? Diametro, double? Comprimento)? medidas = null;
+                    List<Solid> pecaAtual = pecas[i];
+                    (double? Diametro, double? Comprimento) Medidas()
+                    {
+                        if (medidas == null) medidas = MedidasDoFixador(pecaAtual);
+                        return medidas.Value;
+                    }
+                    Dados dados = Escolher(candidatos, volPes, info.Parafuso, Medidas, out bool mesmaPeca) ?? (dadosOrigem ??= LerDados(doc, origem));
                     var p = new PecaAco
                     {
                         HostId = Compat.Numero(origem.Id),
@@ -196,7 +221,7 @@ namespace MetroSP.Ids
                     // ligação): as medidas saem da geometria (corpo cilíndrico).
                     if (info.Parafuso && (p.Diametro == null || p.Comprimento == null))
                     {
-                        var med = MedidasDoFixador(pecas[i]);
+                        var med = Medidas();
                         p.Diametro ??= med.Diametro;
                         p.Comprimento ??= med.Comprimento;
                     }
@@ -423,6 +448,13 @@ namespace MetroSP.Ids
         /// <summary>Categoria do sólido pelo estilo gráfico (subcategoria da ligação), ou pela forma quando não tem.</summary>
         private static BuiltInCategory CategoriaDoSolido(Document doc, Solid s)
         {
+            BuiltInCategory c = CategoriaPeloEstilo(doc, s);
+            return c != BuiltInCategory.INVALID ? c : CategoriaPelaForma(s);
+        }
+
+        /// <summary>Categoria de ligação pelo estilo gráfico do sólido, ou INVALID.</summary>
+        private static BuiltInCategory CategoriaPeloEstilo(Document doc, Solid s)
+        {
             try
             {
                 if (doc.GetElement(s.GraphicsStyleId) is GraphicsStyle gs && gs.GraphicsStyleCategory is Category c)
@@ -430,7 +462,7 @@ namespace MetroSP.Ids
                         if (Categorias.ContainsKey(x.BuiltInCategory)) return x.BuiltInCategory;
             }
             catch { }
-            return CategoriaPelaForma(s);
+            return BuiltInCategory.INVALID;
         }
 
         private static BuiltInCategory CategoriaPelaForma(Solid s)
@@ -468,20 +500,24 @@ namespace MetroSP.Ids
                 return Math.Max(c.Max.X - c.Min.X, Math.Max(c.Max.Y - c.Min.Y, c.Max.Z - c.Min.Z)) * 0.3048 <= 0.10;
             }
             const double folga = 0.5 / 304.8;
-            bool mudou = true;
-            while (mudou)
+            // Índice espacial dos parafusos: cada volume pequeno só é comparado com os parafusos da vizinhança. Um volume
+            // que vira parafuso entra no índice e pode puxar a peça seguinte (arruela → porca).
+            var fila = new Queue<int>();
+            for (int i = 0; i < vols.Count; i++)
+                if (vols[i].Categoria == BuiltInCategory.OST_StructConnectionBolts) fila.Enqueue(i);
+            var pendentes = new HashSet<int>(Enumerable.Range(0, vols.Count)
+                .Where(i => vols[i].Categoria == BuiltInCategory.OST_StructConnectionPlates && Pequeno(i)));
+            var grade = new Grade(caixas, folga);
+            foreach (int i in pendentes) grade.Inserir(i);
+            while (fila.Count > 0 && pendentes.Count > 0)
             {
-                mudou = false;
-                for (int i = 0; i < vols.Count; i++)
+                int j = fila.Dequeue();
+                foreach (int i in grade.Vizinhos(caixas[j]).ToList())
                 {
-                    if (vols[i].Categoria != BuiltInCategory.OST_StructConnectionPlates || !Pequeno(i)) continue;
-                    for (int j = 0; j < vols.Count; j++)
-                        if (vols[j].Categoria == BuiltInCategory.OST_StructConnectionBolts && Tocam(caixas[i], caixas[j], folga))
-                        {
-                            vols[i] = (BuiltInCategory.OST_StructConnectionBolts, vols[i].Volume);
-                            mudou = true;
-                            break;
-                        }
+                    if (!pendentes.Contains(i) || !Tocam(caixas[i], caixas[j], folga)) continue;
+                    pendentes.Remove(i);
+                    vols[i] = (BuiltInCategory.OST_StructConnectionBolts, vols[i].Volume);
+                    fila.Enqueue(i);
                 }
             }
             return vols;
@@ -538,27 +574,108 @@ namespace MetroSP.Ids
         /// Separa os volumes e junta os que se tocam (parafuso + porca + arruelas), para cada parafuso de um grupo
         /// virar um elemento. A ordem segue a posição, para a numeração das peças (e o GlobalId) não mudar à toa.
         /// </summary>
-        private static List<List<Solid>> Agrupar(List<Solid> solidos)
+        private static List<List<Solid>> Agrupar(List<Solid> solidos, bool jaSeparados)
         {
             var volumes = new List<Solid>();
-            foreach (Solid s in solidos)
-            {
-                try { volumes.AddRange(SolidUtils.SplitVolumes(s).Where(v => v.Volume > 1e-9)); }
-                catch { volumes.Add(s); }
-            }
+            if (jaSeparados) volumes.AddRange(solidos);
+            else
+                foreach (Solid s in solidos)
+                {
+                    try { volumes.AddRange(SolidUtils.SplitVolumes(s).Where(v => v.Volume > 1e-9)); }
+                    catch { volumes.Add(s); }
+                }
             var caixas = volumes.Select(Caixa).ToList();
             int[] pai = Enumerable.Range(0, volumes.Count).ToArray();
             int Raiz(int i) { while (pai[i] != i) i = pai[i] = pai[pai[i]]; return i; }
             const double folga = 0.5 / 304.8;   // 0,5 mm
+            // Índice espacial: cada volume só é comparado com os da vizinhança (um grupo grande tinha n² comparações).
+            var grade = new Grade(caixas, folga);
             for (int i = 0; i < volumes.Count; i++)
-                for (int j = i + 1; j < volumes.Count; j++)
+            {
+                foreach (int j in grade.Vizinhos(caixas[i]))
                     if (Tocam(caixas[i], caixas[j], folga)) pai[Raiz(i)] = Raiz(j);
+                grade.Inserir(i);
+            }
             return Enumerable.Range(0, volumes.Count).GroupBy(Raiz)
                 .Select(g => g.ToList())
                 .OrderBy(l => Math.Round(l.Min(i => caixas[i].Min.Z), 3))
                 .ThenBy(l => Math.Round(l.Min(i => caixas[i].Min.X), 3))
                 .ThenBy(l => Math.Round(l.Min(i => caixas[i].Min.Y), 3))
                 .Select(l => l.Select(i => volumes[i]).ToList()).ToList();
+        }
+
+        /// <summary>
+        /// Índice espacial simples (grade uniforme) das caixas: devolve os itens já inseridos cujas células cruzam a caixa
+        /// consultada. A célula se ajusta ao tamanho mediano das caixas, para não depender das unidades nem do projeto.
+        /// </summary>
+        private sealed class Grade
+        {
+            private readonly List<(XYZ Min, XYZ Max)> _caixas;
+            private readonly double _folga, _celula;
+            private readonly Dictionary<(long, long, long), List<int>> _celulas = new Dictionary<(long, long, long), List<int>>();
+
+            public Grade(List<(XYZ Min, XYZ Max)> caixas, double folga)
+            {
+                _caixas = caixas;
+                _folga = folga;
+                var tamanhos = caixas.Select(c => Math.Max(c.Max.X - c.Min.X, Math.Max(c.Max.Y - c.Min.Y, c.Max.Z - c.Min.Z))).OrderBy(x => x).ToList();
+                double mediana = tamanhos.Count > 0 ? tamanhos[tamanhos.Count / 2] : 1;
+                _celula = Math.Max(mediana * 2, 0.01 / 0.3048);
+            }
+
+            private IEnumerable<(long, long, long)> Celulas((XYZ Min, XYZ Max) c)
+            {
+                long Ix(double v) => (long)Math.Floor(v / _celula);
+                long x0 = Ix(c.Min.X - _folga), x1 = Ix(c.Max.X + _folga), y0 = Ix(c.Min.Y - _folga), y1 = Ix(c.Max.Y + _folga),
+                     z0 = Ix(c.Min.Z - _folga), z1 = Ix(c.Max.Z + _folga);
+                // Caixa enorme (perfil longo, chapa grande) cobriria milhares de células: limita e cai na célula única.
+                if ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1) > 4096) { yield return (long.MinValue, 0, 0); yield break; }
+                for (long x = x0; x <= x1; x++)
+                    for (long y = y0; y <= y1; y++)
+                        for (long z = z0; z <= z1; z++)
+                            yield return (x, y, z);
+            }
+
+            public void Inserir(int i)
+            {
+                foreach (var k in Celulas(_caixas[i]))
+                {
+                    if (!_celulas.TryGetValue(k, out var l)) _celulas[k] = l = new List<int>();
+                    l.Add(i);
+                }
+            }
+
+            public IEnumerable<int> Vizinhos((XYZ Min, XYZ Max) c)
+            {
+                var vistos = new HashSet<int>();
+                if (_celulas.TryGetValue((long.MinValue, 0, 0), out var grandes))
+                    foreach (int i in grandes) if (vistos.Add(i)) yield return i;
+                var ks = Celulas(c).ToList();
+                if (ks.Count == 1 && ks[0].Item1 == long.MinValue) { foreach (var l in _celulas.Values) foreach (int i in l) if (vistos.Add(i)) yield return i; yield break; }
+                foreach (var k in ks)
+                    if (_celulas.TryGetValue(k, out var l))
+                        foreach (int i in l) if (vistos.Add(i)) yield return i;
+            }
+        }
+
+        /// <summary>Sólidos de solda do corpo lido sem vista (Fino, com os invisíveis), pelo estilo da subcategoria de solda.</summary>
+        private static List<Solid> SoldasSemVista(Document doc, Element origem)
+        {
+            var r = new List<Solid>();
+            foreach (Options o in new[]
+            {
+                new Options { DetailLevel = ViewDetailLevel.Fine },
+                new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true },
+            })
+            {
+                GeometryElement ge = null;
+                try { ge = origem.get_Geometry(o); } catch { }
+                if (ge == null) continue;
+                foreach (Solid s in Solidos(ge))
+                    if (CategoriaPeloEstilo(doc, s) == BuiltInCategory.OST_StructConnectionWelds) r.Add(s);
+                if (r.Count > 0) break;
+            }
+            return r;
         }
 
         private static (XYZ Min, XYZ Max) Caixa(Solid s)
@@ -619,7 +736,8 @@ namespace MetroSP.Ids
         /// Dados do subelemento que corresponde à peça: o único da categoria, ou o de volume mais próximo (chapa, perfil),
         /// ou o de comprimento e diâmetro mais próximos (parafuso). mesmaPeca: o volume do subelemento é o da peça (±5%).
         /// </summary>
-        private static Dados Escolher(List<Dados> candidatos, List<Solid> peca, double volPes, bool parafuso, out bool mesmaPeca)
+        private static Dados Escolher(List<Dados> candidatos, double volPes, bool parafuso,
+            Func<(double? Diametro, double? Comprimento)> medidas, out bool mesmaPeca)
         {
             mesmaPeca = false;
             if (candidatos == null || candidatos.Count == 0) return null;
@@ -627,7 +745,7 @@ namespace MetroSP.Ids
             if (candidatos.Count == 1) d = candidatos[0];
             else if (parafuso)
             {
-                var med = MedidasDoFixador(peca);
+                var med = medidas();
                 d = candidatos.OrderBy(c =>
                     (c.Diametro > 0 && med.Diametro > 0 ? Math.Abs(c.Diametro.Value - med.Diametro.Value) * 10 : 0) +
                     (c.Comprimento > 0 && med.Comprimento > 0 ? Math.Abs(c.Comprimento.Value - med.Comprimento.Value) : 1)).First();
@@ -667,11 +785,13 @@ namespace MetroSP.Ids
                         }
                 if (eixo == null) return (null, null);
                 double min = double.MaxValue, max = double.MinValue;
+                // Extremos das arestas bastam: as arestas curvas (círculos da cabeça, da porca e do corpo) ficam em planos
+                // perpendiculares ao eixo, então o meio delas não muda a projeção. Evita tesselar cada aresta.
                 foreach (Solid s in solidos)
                     foreach (Edge e in s.Edges)
-                        foreach (XYZ ponto in e.Tessellate())
+                        foreach (double u in new[] { 0.0, 0.5, 1.0 })
                         {
-                            double t = ponto.DotProduct(eixo);
+                            double t = e.Evaluate(u).DotProduct(eixo);
                             if (t < min) min = t;
                             if (t > max) max = t;
                         }
@@ -692,14 +812,20 @@ namespace MetroSP.Ids
         }
 
         /// <summary>Parâmetros do subelemento (grupo de parafusos, chapa...) e do tipo dele.</summary>
-        private static Dados LerDados(Document doc, Subelement s)
+        /// <summary>Nomes de parâmetro (por Id) e parâmetros de cada tipo, lidos uma vez por exportação.</summary>
+        private readonly Dictionary<long, string> _nomes = new Dictionary<long, string>();
+        private readonly Dictionary<long, List<(string Nome, string Texto, double? Pes)>> _paramsTipo =
+            new Dictionary<long, List<(string, string, double?)>>();
+
+        private Dados LerDados(Document doc, Subelement s)
         {
             var d = new Dados();
             try
             {
                 foreach (ElementId pid in s.GetAllParameters())
                 {
-                    string nome = NomeParametro(doc, pid);
+                    long chave = Compat.Numero(pid);
+                    if (!_nomes.TryGetValue(chave, out string nome)) _nomes[chave] = nome = NomeParametro(doc, pid);
                     if (string.IsNullOrWhiteSpace(nome)) continue;
                     ParameterValue v = null;
                     try { v = s.GetParameterValue(pid); } catch { }
@@ -713,24 +839,37 @@ namespace MetroSP.Ids
             if (s.TypeId != null && s.TypeId != ElementId.InvalidElementId && doc.GetElement(s.TypeId) is Element tipo)
             {
                 d.Tipo = tipo.Name;
-                LerParametros(d, tipo);
+                ParametrosDoTipo(d, tipo);
             }
             return d;
         }
 
-        private static Dados LerDados(Document doc, Element e)
+        private Dados LerDados(Document doc, Element e)
         {
             var d = new Dados();
             LerParametros(d, e);
             if (doc.GetElement(e.GetTypeId()) is Element tipo)
             {
                 d.Tipo = tipo.Name;
-                LerParametros(d, tipo);
+                ParametrosDoTipo(d, tipo);
             }
             return d;
         }
 
-        private static void LerParametros(Dados d, Element e)
+        /// <summary>Parâmetros do tipo: lidos na primeira vez e repetidos nas outras peças do mesmo tipo.</summary>
+        private void ParametrosDoTipo(Dados d, Element tipo)
+        {
+            long id = Compat.Numero(tipo.Id);
+            if (!_paramsTipo.TryGetValue(id, out var lista))
+            {
+                lista = new List<(string, string, double?)>();
+                LerParametros(null, tipo, lista);
+                _paramsTipo[id] = lista;
+            }
+            foreach (var (nome, texto, pes) in lista) Guardar(d, nome, texto, pes);
+        }
+
+        private static void LerParametros(Dados d, Element e, List<(string, string, double?)> lista = null)
         {
             foreach (Parameter p in e.Parameters)
             {
@@ -745,7 +884,8 @@ namespace MetroSP.Ids
                 string texto = p.StorageType == StorageType.String ? p.AsString() : p.AsValueString();
                 if (p.StorageType == StorageType.ElementId && string.IsNullOrEmpty(texto))
                     texto = e.Document.GetElement(p.AsElementId())?.Name;
-                Guardar(d, nome, texto, pes);
+                if (lista != null) lista.Add((nome, texto, pes));
+                else Guardar(d, nome, texto, pes);
             }
         }
 
