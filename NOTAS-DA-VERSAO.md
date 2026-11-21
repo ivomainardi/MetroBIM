@@ -40,6 +40,10 @@ Revit 0.3.19 · Civil 3D 0.12.9
 - Revit, **perfis das ligações**: saem como IfcMember USERDEFINED com tipo "Cantoneira de ligação" (ou "Perfil de
   ligação"), com área e massa linear nominais da seção; parafusos sem medidas no Revit (ex.: chumbadores da placa de
   base) ganham diâmetro e comprimento pela geometria, e os longos saem como chumbador (ANCHORBOLT).
+- Revit, **tipo de dado nos Psets do Metrô**: Peso, MassaLinear, MassaPorArea e ModuloElasticidade que o exportador
+  grava como número sem unidade (IfcReal) passam a sair em kg, kg/m, kg/m² e Pa, em todos os elementos.
+- Revit, **ligações metálicas respeitam o exportador**: o MetroSP só acrescenta nos Psets as propriedades que o
+  exportador não gravou; o que já saiu fica como está.
 - Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
   ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
   ler Width e Length (antes "Actual Tread Depth" e tipo Volume).

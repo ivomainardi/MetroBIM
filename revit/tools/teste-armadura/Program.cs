@@ -8,6 +8,7 @@ using MetroSP.Ifc;
 //   Tag 100: conjunto variável, um IfcReinforcingBar por barra (2,5 m, 3,0 m, 3,0 m), a primeira com um Qto antigo;
 //   Tag 200: conjunto uniforme de 5 barras de 1,2 m exportado como um IfcReinforcingBar só;
 //   Tag 999: sem armadura correspondente no Revit.
+if (args.Length > 2 && args[0] == "tipos") return TesteAco.Tipos(args[1], args[2]);
 if (args.Length > 2 && args[0] == "aco") return TesteAco.ArquivoReal(args[1], args[2]);
 if (args.Length > 0) return TesteIso.ArquivoReal(args[0], args.Length > 1 ? args[1] : null);
 int falhas = 0;

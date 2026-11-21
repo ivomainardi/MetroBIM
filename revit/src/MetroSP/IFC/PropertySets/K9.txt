@@ -14,6 +14,9 @@
 #	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
 #	VolumetricFlowRate
 #
+# Massas e módulo de elasticidade ficam como Real aqui (o exportador do Revit não tem tipo de massa). Na exportação,
+# o MetroSP grava Peso em kg (IfcMassMeasure), MassaLinear em kg/m, MassaPorArea em kg/m² e ModuloElasticidade em Pa.
+#
 #
 #
 #

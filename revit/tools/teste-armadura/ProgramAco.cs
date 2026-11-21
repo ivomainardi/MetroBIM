@@ -11,6 +11,14 @@ using MetroSP.Ifc;
 /// </summary>
 public static class TesteAco
 {
+    public static int Tipos(string entrada, string saida)
+    {
+        StepModel m = StepModel.Load(entrada);
+        Console.WriteLine($"{TiposMetroIfc.Aplicar(m)} propriedades tipadas; segunda passada: {TiposMetroIfc.Aplicar(m)}");
+        m.Save(saida);
+        return 0;
+    }
+
     public static int ArquivoReal(string entrada, string saida)
     {
         StepModel m = StepModel.Load(entrada);

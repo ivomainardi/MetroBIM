@@ -172,6 +172,11 @@ namespace MetroSP.Ifc
                 if (props.Count == 0) return;
                 if (existentes.TryGetValue(objeto, out var doObjeto) && doObjeto.TryGetValue(nomePset, out var antigo))
                 {
+                    // O que o exportador já gravou vale: só entram as propriedades que faltam.
+                    var jaTem = new HashSet<string>(StepModel.RefList(m.Get(antigo.Pset).Args[4])
+                        .Select(i => m.Get(i)).Where(x => x != null).Select(x => StepModel.Text(x.Args[0]) ?? ""), StringComparer.OrdinalIgnoreCase);
+                    props = props.Where(x => !jaTem.Contains(x.Nome)).ToList();
+                    if (props.Count == 0) return;
                     foreach (int pid in StepModel.RefList(m.Get(antigo.Pset).Args[4]))
                     {
                         StepEntity pr = m.Get(pid);
@@ -214,7 +219,6 @@ namespace MetroSP.Ifc
                 if (peso > 0) { pesoDaEntidade[kv.Key] = peso.Value; r.ComPeso++; }
                 double? Mm(params string[] nomes) => Numero(Pegar(p, nomes)) is double v && v > 0 ? v : (double?)null;
                 string Comp(double? mm) => mm > 0 ? "IFCPOSITIVELENGTHMEASURE(" + Num(mm.Value / 1000 * fator) + ")" : null;
-                string Real(double? v) => v > 0 ? "IFCREAL(" + Num(v.Value) + ")" : null;
                 string Massa(double? kg) => kg > 0 ? "IFCMASSMEASURE(" + Num(kg.Value * fatorMassa) + ")" : null;
 
                 // Metro
@@ -233,7 +237,7 @@ namespace MetroSP.Ifc
                 if (p.EhParafuso) mec = (EscoamentoDaClasse(p.Classe), null);
                 else if (Pegar(p, "Structural Material", "Material estrutural", "Material") is string mat && mecanica.TryGetValue(mat, out var mm)) mec = mm;
                 if (mec.Fy > 0) metro.Add(("Resistencia", "IFCPRESSUREMEASURE(" + Num(mec.Fy.Value) + ")"));
-                if (mec.E > 0) metro.Add(("ModuloElasticidade", Real(Math.Round(mec.E.Value / 1e9, 1))));
+                if (mec.E > 0) metro.Add(("ModuloElasticidade", "IFCMODULUSOFELASTICITYMEASURE(" + Num(Math.Round(mec.E.Value / 1e6) * 1e6) + ")"));
                 bool? galv = Galvanizado(Pegar(p, "Coating", "Revestimento")) ?? p.Galvanizado;
                 if (galv != null) metro.Add(("Galvanizacao", galv.Value ? "IFCBOOLEAN(.T.)" : "IFCBOOLEAN(.F.)"));
                 double? comprimento = Mm("Cut Length", "Comprimento de corte", "Length", "Comprimento");
@@ -242,11 +246,11 @@ namespace MetroSP.Ifc
                 // Área e massa linear nominais do perfil (da seção, sem os furos e recortes da peça); o Peso é o real da peça.
                 double? area = areaSecao.TryGetValue(kv.Key, out double a0) ? a0
                     : p.Volume > 0 && comprimento > 0 ? p.Volume / (comprimento.Value / 1000) : (double?)null;
-                if (perfil && area > 0) metro.Add(("MassaLinear", Real(Math.Round(area.Value * DensidadeAco, 3))));
+                if (perfil && area > 0) metro.Add(("MassaLinear", "IFCMASSPERLENGTHMEASURE(" + Num(Math.Round(area.Value * DensidadeAco, 3)) + ")"));
                 // Massa por área da chapa: peso dividido pela área da face (volume ÷ espessura); sem volume, 7850 kg/m³ × espessura.
                 if (chapa && espessura > 0)
-                    metro.Add(("MassaPorArea", Real(Math.Round(peso > 0 && p.Volume > 0 ? peso.Value / (p.Volume / (espessura.Value / 1000))
-                        : DensidadeAco * espessura.Value / 1000, 3))));
+                    metro.Add(("MassaPorArea", "IFCAREADENSITYMEASURE(" + Num(Math.Round(peso > 0 && p.Volume > 0 ? peso.Value / (p.Volume / (espessura.Value / 1000))
+                        : DensidadeAco * espessura.Value / 1000, 3)) + ")"));
                 if (p.EhParafuso) metro.Add(("ComprimentoDeAperto", Comp(Mm("Grip Length", "Comprimento de aperto"))));
                 Gravar(kv.Key, "Metro", metro);
 

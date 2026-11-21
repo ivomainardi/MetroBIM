@@ -292,6 +292,17 @@ namespace MetroSP.Commands
                         avisosClassificacao.AddRange(armadurasIso.Linhas());
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar os dados padrão das armaduras: " + ex.Message); }
+                    // Tipo de dado das massas e do módulo de elasticidade nos Psets do Metrô (o arquivo de Psets do Revit só tem Real).
+                    try
+                    {
+                        int tipadas = Ifc.TiposMetroIfc.Aplicar(modelo);
+                        if (tipadas > 0)
+                        {
+                            salvar = true;
+                            avisosClassificacao.Add($"Psets do Metrô: {tipadas} propriedade(s) de massa e módulo de elasticidade com a unidade certa (kg, kg/m, kg/m², Pa) no lugar de número sem unidade.");
+                        }
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível ajustar o tipo das propriedades do Metrô: " + ex.Message); }
                     try
                     {
                         escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);
