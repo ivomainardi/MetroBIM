@@ -15,21 +15,29 @@ namespace MetroSP.Ids
     /// </summary>
     public static class PsetsNoModelo
     {
+        /// <summary>Parte do carregamento em andamento, para a mensagem de erro dizer onde parou.</summary>
+        public static string Subetapa { get; private set; }
+
         /// <summary>
         /// Troca os property sets do usuário guardados no modelo pelos do .txt. Precisa de transação aberta.
         /// Retorna um texto para o relatório, ou null quando a versão do Revit ainda usa o .txt direto.
         /// </summary>
         public static string Carregar(Document doc, string txt)
         {
+            Subetapa = null;
 #if REVIT2027_OR_GREATER
             // Os que já estão no modelo sairiam junto no IFC: o .txt escolhido é a referência.
+            Subetapa = "apagar os property sets que já estavam no modelo";
             int antigos = ApagarPsetsDoModelo(doc);
 
             // No modelo cada property set é guardado pelo nome e cada propriedade aceita um só parâmetro.
             // Os blocos de mesmo nome são juntados, e a propriedade que muda de parâmetro conforme a entidade
             // (ou que só existe em parte dos blocos) passa por um parâmetro auxiliar preenchido elemento a elemento.
+            Subetapa = "ler o .txt de property sets";
             Plano plano = Planejar(File.ReadAllLines(txt));
+            Subetapa = "criar os parâmetros auxiliares";
             int preenchidos = ParametrosAuxiliares.Criar(doc, plano);
+            Subetapa = "importar os property sets no modelo";
 
             string arquivo = Path.Combine(Path.GetTempPath(), "MetroSP-psets-" + Guid.NewGuid().ToString("N") + ".txt");
             File.WriteAllLines(arquivo, plano.Txt, new UTF8Encoding(true));
@@ -40,6 +48,7 @@ namespace MetroSP.Ids
             if (!valido)
                 throw new InvalidOperationException("O Revit considerou o .txt de property sets inválido: " + txt);
             int n = importados?.Count ?? 0;
+            Subetapa = null;
             return $"{n} property sets do .txt carregados no modelo para a exportação" +
                    (plano.Juntados > 0 ? $", com {plano.Juntados} blocos de mesmo nome juntados" : "") +
                    (plano.Auxiliares.Count > 0 ? $"; {plano.Auxiliares.Count} propriedades que mudam de parâmetro conforme a entidade saíram por parâmetros auxiliares ({preenchidos} valores)" : "") +
@@ -68,14 +77,28 @@ namespace MetroSP.Ids
 #if REVIT2027_OR_GREATER
         private static int ApagarPsetsDoModelo(Document doc)
         {
+            // O mesmo nome pode aparecer mais de uma vez, e apagar um pset pode levar outro junto: apaga um por vez,
+            // sem repetir, e pula o que já não existe.
             var antigos = new List<ElementId>();
-            foreach (string nome in IFCUserDefinedPropertySet.ListPropertySetNames(doc))
+            foreach (string nome in IFCUserDefinedPropertySet.ListPropertySetNames(doc).Distinct())
             {
-                IFCUserDefinedPropertySet pset = IFCUserDefinedPropertySet.FindPropertySetByName(doc, nome);
-                if (pset != null) antigos.Add(pset.Id);
+                try
+                {
+                    IFCUserDefinedPropertySet pset = IFCUserDefinedPropertySet.FindPropertySetByName(doc, nome);
+                    if (pset != null && pset.IsValidObject && !antigos.Contains(pset.Id)) antigos.Add(pset.Id);
+                }
+                catch (Autodesk.Revit.Exceptions.InvalidObjectException) { }
             }
-            if (antigos.Count > 0) doc.Delete(antigos);
-            return antigos.Count;
+            int apagados = 0;
+            foreach (ElementId id in antigos)
+            {
+                Element e = doc.GetElement(id);
+                if (e == null || !e.IsValidObject) continue;
+                try { doc.Delete(id); apagados++; }
+                catch (Autodesk.Revit.Exceptions.InvalidObjectException) { }
+                catch (Autodesk.Revit.Exceptions.ArgumentException) { }
+            }
+            return apagados;
         }
 #endif
 

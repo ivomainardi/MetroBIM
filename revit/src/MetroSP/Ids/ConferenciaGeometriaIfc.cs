@@ -317,9 +317,19 @@ namespace MetroSP.Ifc
                     case "IFCFACETEDBREP":
                     case "IFCFACETEDBREPWITHVOIDS":
                     case "IFCADVANCEDBREP":
+                    case "IFCSWEPTDISKSOLID":
+                    {
+                        // Os pontos são do eixo (barra de armadura, tubo): a caixa cresce o raio para todos os lados.
+                        var eixo = new Caixa();
+                        if (Pontos(StepModel.Ref(x.Args[0]), T, eixo, 0, new HashSet<int>()) == 0 || eixo.Vazia) return false;
+                        double r = double.TryParse(x.Args[1], NumberStyles.Float, CultureInfo.InvariantCulture, out double raio) ? raio : 0;
+                        double[,] I = Id();
+                        c.Add(I, eixo.Min[0] - r, eixo.Min[1] - r, eixo.Min[2] - r);
+                        c.Add(I, eixo.Max[0] + r, eixo.Max[1] + r, eixo.Max[2] + r);
+                        return true;
+                    }
                     case "IFCSHELLBASEDSURFACEMODEL":
                     case "IFCFACEBASEDSURFACEMODEL":
-                    case "IFCSWEPTDISKSOLID":
                     {
                         int antes = Pontos(id, T, c, 0, new HashSet<int>());
                         return antes > 0;

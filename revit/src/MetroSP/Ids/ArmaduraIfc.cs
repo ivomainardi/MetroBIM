@@ -65,26 +65,7 @@ namespace MetroSP.Ifc
             double metrosPorUnidade = FatorUnidade(m, "LENGTHUNIT", 1.0);
             double kgPorUnidade = FatorUnidade(m, "MASSUNIT", 1.0);
 
-            // IfcReinforcingBar → (Count, Length em m, Weight em kg, BarLength em m)
-            var alvo = new Dictionary<int, (int Count, double Comprimento, double Peso, double BarLength)>();
-            foreach (var g in barras.GroupBy(e => long.TryParse(StepModel.Text(e.Args[7])?.Trim(), out long id) ? id : -1))
-            {
-                List<StepEntity> doConjunto = g.OrderBy(e => e.Id).ToList();
-                IReadOnlyList<BarraRevit> doRevit = g.Key < 0 ? null : barrasDoElemento(g.Key);
-                if (doRevit == null || doRevit.Count == 0) { r.SemRevit += doConjunto.Count; continue; }
-                if (doConjunto.Count == doRevit.Count)
-                {
-                    for (int i = 0; i < doConjunto.Count; i++)
-                        alvo[doConjunto[i].Id] = (1, doRevit[i].Comprimento, doRevit[i].Peso, doRevit[i].Comprimento);
-                }
-                else if (doConjunto.Count == 1)
-                {
-                    double total = doRevit.Sum(b => b.Comprimento);
-                    double peso = doRevit.Any(b => b.Peso <= 0) ? 0 : doRevit.Sum(b => b.Peso);
-                    alvo[doConjunto[0].Id] = (doRevit.Count, total, peso, total / doRevit.Count);
-                }
-                else r.Diferentes += doConjunto.Count;
-            }
+            var alvo = Valores(barras, barrasDoElemento, r);
             if (alvo.Count == 0) return r;
 
             // IFC 2x3: BarLength (atributo 11) com o comprimento da barra, na unidade do arquivo.
@@ -149,6 +130,40 @@ namespace MetroSP.Ifc
                 r.Gravadas += objs.Count;
             }
             return r;
+        }
+
+        /// <summary>
+        /// Valores de cada IfcReinforcingBar pelo Revit: Count, comprimento total (m), peso total (kg, 0 = desconhecido) e
+        /// comprimento de uma barra (m). PorBarra = o conjunto saiu barra a barra (um IfcReinforcingBar por barra).
+        /// </summary>
+        public static Dictionary<int, (int Count, double Comprimento, double Peso, double BarLength, bool PorBarra)> Valores(
+            StepModel m, Func<long, IReadOnlyList<BarraRevit>> barrasDoElemento) =>
+            Valores(m.OfType("IFCREINFORCINGBAR").Where(e => e.Args.Count >= 8).ToList(), barrasDoElemento, new Resultado());
+
+        private static Dictionary<int, (int Count, double Comprimento, double Peso, double BarLength, bool PorBarra)> Valores(
+            List<StepEntity> barras, Func<long, IReadOnlyList<BarraRevit>> barrasDoElemento, Resultado r)
+        {
+            // IfcReinforcingBar → (Count, Length em m, Weight em kg, BarLength em m)
+            var alvo = new Dictionary<int, (int Count, double Comprimento, double Peso, double BarLength, bool PorBarra)>();
+            foreach (var g in barras.GroupBy(e => long.TryParse(StepModel.Text(e.Args[7])?.Trim(), out long id) ? id : -1))
+            {
+                List<StepEntity> doConjunto = g.OrderBy(e => e.Id).ToList();
+                IReadOnlyList<BarraRevit> doRevit = g.Key < 0 ? null : barrasDoElemento(g.Key);
+                if (doRevit == null || doRevit.Count == 0) { r.SemRevit += doConjunto.Count; continue; }
+                if (doConjunto.Count == doRevit.Count)
+                {
+                    for (int i = 0; i < doConjunto.Count; i++)
+                        alvo[doConjunto[i].Id] = (1, doRevit[i].Comprimento, doRevit[i].Peso, doRevit[i].Comprimento, doConjunto.Count > 1);
+                }
+                else if (doConjunto.Count == 1)
+                {
+                    double total = doRevit.Sum(b => b.Comprimento);
+                    double peso = doRevit.Any(b => b.Peso <= 0) ? 0 : doRevit.Sum(b => b.Peso);
+                    alvo[doConjunto[0].Id] = (doRevit.Count, total, peso, total / doRevit.Count, false);
+                }
+                else r.Diferentes += doConjunto.Count;
+            }
+            return alvo;
         }
 
         /// <summary>

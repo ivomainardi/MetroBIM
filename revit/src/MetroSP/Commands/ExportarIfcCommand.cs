@@ -156,7 +156,9 @@ namespace MetroSP.Commands
             catch (Exception ex)
             {
                 ApagarTemp(pastaTemp);
-                TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message +
+                if (passo == "carregar os property sets no modelo" && PsetsNoModelo.Subetapa != null) passo += ": " + PsetsNoModelo.Subetapa;
+                string onde = ex.TargetSite == null ? "" : $"\n\n({ex.GetType().Name} em {ex.TargetSite.DeclaringType?.Name}.{ex.TargetSite.Name})";
+                TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message + onde +
                     (avisoCategorias != null ? "\n\n" + avisoCategorias : ""));
                 return Result.Failed;
             }
@@ -254,11 +256,14 @@ namespace MetroSP.Commands
                         }
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar o status da fase: " + ex.Message); }
+                    var cacheBarras = new Dictionary<long, IReadOnlyList<Ifc.BarraRevit>>();
+                    IReadOnlyList<Ifc.BarraRevit> barrasRevit(long id) =>
+                        cacheBarras.TryGetValue(id, out var emCache) ? emCache : cacheBarras[id] = ArmaduraRevit.Barras(doc, id);
                     // Armaduras: Count, Length e Weight de cada barra (Qto_ReinforcingElementBaseQuantities), que o exportador
                     // não grava, inclusive nos conjuntos de comprimento variável.
                     try
                     {
-                        var armaduras = Ifc.ArmaduraIfc.Aplicar(modelo, id => ArmaduraRevit.Barras(doc, id));
+                        var armaduras = Ifc.ArmaduraIfc.Aplicar(modelo, barrasRevit);
                         if (armaduras.Gravadas > 0) salvar = true;
                         if (armaduras.ToString() is string linha) avisosClassificacao.Add(linha);
                     }
@@ -278,6 +283,15 @@ namespace MetroSP.Commands
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível aplicar as correções do exportador: " + ex.Message); }
                     tCorrecoes += relogio.Elapsed - t1;
+                    // Armaduras: dados padrão da barra (diâmetro, área, aço, superfície, função), anéis fechados com 3 pontos,
+                    // MetroQto das barras variáveis e material sem a categoria do aço. Depois das correções, para valer o da barra.
+                    try
+                    {
+                        var armadurasIso = Ifc.ArmaduraIsoIfc.Aplicar(modelo, id => ArmaduraRevit.Dados(doc, id), barrasRevit);
+                        if (armadurasIso.Alterou) salvar = true;
+                        avisosClassificacao.AddRange(armadurasIso.Linhas());
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar os dados padrão das armaduras: " + ex.Message); }
                     try
                     {
                         escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);

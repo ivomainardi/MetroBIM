@@ -4,6 +4,62 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.19 (a publicar)
+
+Revit 0.3.19 · Civil 3D 0.12.9
+
+- Revit, **dados padrão das armaduras no IFC**: cada barra (IfcReinforcingBar) e cada tipo de barra passam a sair com
+  diâmetro nominal, área da seção, comprimento da barra, superfície (nervurada ou lisa), categoria do aço (CA-50,
+  CA-60...) e função (barra principal, estribo ou anel). O `Pset_ReinforcingBarCommon` sai completo. O código de forma
+  ISO 3766 só sai quando o nome da forma do Revit traz o código (ex.: "21").
+- Revit, **anéis fechados**: o exportador gravava o círculo com só 2 pontos (geometria inválida, o anel sumia nos
+  visualizadores). Agora o círculo sai em dois arcos de 3 pontos, no plano do anel no Revit.
+- Revit, **armaduras de comprimento variável**: o MetroQto de cada barra repetia a Quantidade e o PesoDoConjunto do
+  conjunto inteiro (somando por elemento, o peso saía muitas vezes maior). Agora vale a própria barra, com o Comprimento.
+- Revit, **material da armadura**: quando o material do Revit não diz a categoria do aço (ex.: "Rebar - ASTM A615M -
+  Grade 420", o padrão do Revit) e a classificação diz CA-50, o material no IFC passa a ser "Aço CA-50" e o registro
+  pede para corrigir o material no Revit.
+- Revit, **pesos com unidade**: PesoLinear sai em kg/m (IfcMassPerLengthMeasure) e PesoDoConjunto em kg
+  (IfcMassMeasure), no lugar do IfcReal sem unidade.
+- Revit, **conferência das medidas**: barras de armadura e tubos passam a contar a espessura (o raio) na caixa do IFC;
+  antes toda barra aparecia com 1 diâmetro a menos que o Revit.
+- Revit 2027, **erro "carregar os property sets no modelo"** ("The referenced object is not valid"): os property sets
+  do modelo são apagados um por vez, pulando o que já não existe, e a mensagem de erro passa a dizer a subetapa.
+- Revit, **ligações metálicas, peças individuais**: cada cantoneira e cada chapa sai como elemento próprio, com o
+  Qto dela (antes um perfil de 2 ou 4 cantoneiras saía num elemento só, com o volume somado). As peças de cada
+  ligação ficam agrupadas num IfcElementAssembly com o nome da ligação (ex.: "L.01").
+- Revit, **parafusos no padrão IFC4**: diâmetro nominal também quando o Revit guarda o diâmetro como texto, tipo
+  BOLT/ANCHORBOLT, `Pset_MechanicalFastenerBolt` e material pela norma e classe do parafuso (ex.: "ASTM A325 - 8.8"),
+  no lugar do material da chapa.
+- Revit, **chapas e perfis das ligações**: espessura (Width) e pesos (GrossWeight, NetWeight) no Qto padrão.
+- Revit, **dados das ligações nos Psets do Metrô**: o Pset MetroSP_LigacaoMetalica deixa de sair. Os dados das peças
+  vão para Metro (Nome, Ligacao, Material, SecaoTipo, Resistencia, ModuloElasticidade, Galvanizacao, MassaLinear ou
+  MassaPorArea, ComprimentoDeAperto), MetroLoc (Nivel, UC), MetroQto (Espessura, Largura, Comprimento,
+  ComprimentoFisico, AreaDaSecao, Peso em kg) e MetroClassificacao (CodigoMetro), juntando com o que o exportador já
+  gravou. Soldas também no Pset_FastenerWeld. A resistência do parafuso vem da classe ISO 898-1 (8.8 → 640 MPa).
+- Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
+  ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
+  ler Width e Length (antes "Actual Tread Depth" e tipo Volume).
+
+## 1.0.18 (20/11/2026)
+
+Revit 0.3.18 · Civil 3D 0.12.9
+
+- Revit, **parafusos inteiros no IFC**: arruelas e porcas saíam como IfcPlate, separadas da cabeça do parafuso. Agora
+  cada volume pequeno (até 10 cm) que toca um parafuso entra nele, e cada parafuso sai como um IfcMechanicalFastener só,
+  com cabeça, corpo, arruelas e porca. As chapas da ligação continuam como IfcPlate e as cantoneiras como IfcMember.
+
+## 1.0.17 (19/11/2026)
+
+Revit 0.3.17 · Civil 3D 0.12.9
+
+- Revit, **ligações metálicas no IFC**: na 1.0.16 as peças (chapas, parafusos, soldas) já eram montadas, mas o
+  exportador do Revit não as levava ao IFC, porque ele só exporta o que a vista mostra. Agora cada peça fica no mesmo
+  subprojeto (workset) da ligação, e não no subprojeto ativo, que pode estar oculto na vista. Antes de exportar, o
+  MetroSP confere se a vista mostra as peças; as que não aparecem são refeitas como Modelo genérico (a classe IFC
+  continua a certa) e, se mesmo assim ficarem de fora, o registro diz o motivo (categoria, subprojeto, fase, caixa de
+  corte, ocultar/isolar temporário, filtros).
+
 ## 1.0.16 (19/11/2026)
 
 Revit 0.3.16 · Civil 3D 0.12.9
