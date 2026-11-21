@@ -109,10 +109,10 @@ namespace MetroSP.Commands
                     passo = "aplicar as classes por família do arquivo de coordenação";
                     avisoCoordenacao = Coordenacao.CoordenacaoRevit.AplicarNaExportacao(doc);
 
-                    // Vigas pelo uso estrutural (contraventamento → IfcMember, pilar → IfcColumn), só sem classe no Revit.
-                    passo = "classificar os perfis pelo uso estrutural";
-                    try { usoEstrutural = UsoEstruturalIfc.Preparar(doc, janela.Vista); }
-                    catch (Exception ex) { usoEstrutural = null; avisoAco = (avisoAco == null ? "" : avisoAco + " ") + "Perfis pelo uso estrutural: erro (" + ex.Message + ")."; }
+                    // Vigas que pelo uso estrutural ou pela posição seriam outra classe: só aviso (a classe é do projetista).
+                    passo = "conferir o uso estrutural dos perfis";
+                    try { usoEstrutural = UsoEstruturalIfc.Conferir(doc, janela.Vista); }
+                    catch { usoEstrutural = null; }
 
                     // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
                     if (janela.SempreEixos)
@@ -149,7 +149,6 @@ namespace MetroSP.Commands
                     }
                     eixos?.Restaurar();
                     aco?.Restaurar(doc);
-                    usoEstrutural?.Restaurar();
 
                     if (exportou && setup.GravaGuid)
                     {
@@ -211,7 +210,7 @@ namespace MetroSP.Commands
                     gridsNoIfc = modelo.OfType("IFCGRID").Count();
                     // Peças das ligações metálicas: dados, GlobalId estável e agrupamento na ligação (antes da contagem).
                     if (avisoAco != null) avisosClassificacao.Add(avisoAco);
-                    if (usoEstrutural?.Aviso != null) avisosClassificacao.Add(usoEstrutural.Aviso); if (usoEstrutural?.Diagnostico != null) avisosClassificacao.Add(usoEstrutural.Diagnostico);
+                    if (usoEstrutural?.Aviso != null) avisosClassificacao.Add(usoEstrutural.Aviso);
                     if (aco != null)
                     {
                         avisosClassificacao.AddRange(aco.Avisos);

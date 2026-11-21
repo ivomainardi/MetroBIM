@@ -60,15 +60,9 @@ Revit 0.3.19 · Civil 3D 0.12.9
 - Revit, **perfis vazando**: barras com recorte ou recuo nas pontas (ex.: tubos que encostam na cobertura) saíam no
   IFC com a extrusão de ponta a ponta da linha de locação e atravessavam a cobertura ou a ligação. Agora o corpo é
   recortado no trecho do corpo do Revit.
-- Revit, **vigas pelo uso estrutural**: elementos de Structural Framing sem "Exportar para IFC como" no Revit saem
-  pelo uso estrutural: contraventamento como IfcMember BRACE, terça como IfcMember PURLIN, banzo de treliça como
-  IfcMember CHORD e uso pilar ou eixo vertical (até 5°) como IfcColumn. Antes tudo saía IfcBeam. O que tem classe no
-  Revit ou no arquivo de coordenação não muda.
-
-## 1.0.18 (20/11/2026)
-
-Revit 0.3.18 · Civil 3D 0.12.9
-
+- Revit, **conferência do uso estrutural**: o registro avisa quando uma viga (Structural Framing) sai como IfcBeam,
+  mas pelo uso estrutural (contraventamento, terça, treliça, pilar) ou por ser vertical seria IfcMember ou IfcColumn,
+  com exemplos de Ids. A classe é decisão do projetista: o MetroSP não troca, só aponta para corrigir no Revit.
 - Revit, **parafusos inteiros no IFC**: arruelas e porcas saíam como IfcPlate, separadas da cabeça do parafuso. Agora
   cada volume pequeno (até 10 cm) que toca um parafuso entra nele, e cada parafuso sai como um IfcMechanicalFastener só,
   com cabeça, corpo, arruelas e porca. As chapas da ligação continuam como IfcPlate e as cantoneiras como IfcMember.
