@@ -37,6 +37,12 @@ namespace MetroSP.Ifc
         public int PecasNoItem { get; set; } = 1;
         /// <summary>Volume da peça em m³ (dos sólidos dela), para o peso quando o Revit só dá o peso do item inteiro.</summary>
         public double Volume { get; set; }
+        /// <summary>UC da ligação (ou do elemento ligado), para o MetroLoc.</summary>
+        public string Uc { get; set; }
+        /// <summary>Código do Metrô da ligação, para o MetroClassificacao.</summary>
+        public string CodigoMetro { get; set; }
+        /// <summary>Galvanização do elemento ligado, quando a peça não diz o revestimento.</summary>
+        public bool? Galvanizado { get; set; }
     }
 
     /// <summary>
@@ -47,6 +53,7 @@ namespace MetroSP.Ifc
     /// </summary>
     public static class FixadoresIfc
     {
+        /// <summary>Pset das versões anteriores (não sai mais: os dados vão nos Psets do Metrô e nos padrão do IFC4).</summary>
         public const string Pset = "MetroSP_LigacaoMetalica";
 
         public class Resultado
@@ -138,48 +145,122 @@ namespace MetroSP.Ifc
             }
             double fatorMassa = FatorMassa(m);
             var pesoDaEntidade = new Dictionary<int, double>();
+            r.Materiais = MaterialDosParafusos(m, entidadeDaPeca, historico);
+            var mecanica = MecanicaDosMateriais(m);
+            var contencaoDe = new Dictionary<int, int>();
+            foreach (StepEntity rel in m.OfType("IFCRELCONTAINEDINSPATIALSTRUCTURE"))
+                foreach (int i in StepModel.RefList(rel.Args[4])) if (!contencaoDe.ContainsKey(i)) contencaoDe[i] = rel.Id;
+            string Pavimento(int elemento) =>
+                contencaoDe.TryGetValue(elemento, out int rel) && StepModel.Ref(m.Get(rel).Args[5]) is int pav && pav > 0
+                    ? StepModel.Text(m.Get(pav).Args[2]) : null;
+
+            // Psets do padrão do Metrô (K9.txt): Metro, MetroLoc, MetroQto e MetroClassificacao. Quando o exportador já gravou
+            // um Pset com o mesmo nome no elemento (ex.: Metro.Estado), as propriedades dele são mantidas junto com as novas.
+            var existentes = PsetsPorNome(m, new HashSet<int>(entidadeDaPeca.Keys));
+            var orfaos = new HashSet<int>();
+            void Gravar(int objeto, string nomePset, List<(string Nome, string Valor)> props)
+            {
+                props = props.Where(x => x.Valor != null).ToList();
+                if (props.Count == 0) return;
+                if (existentes.TryGetValue(objeto, out var doObjeto) && doObjeto.TryGetValue(nomePset, out var antigo))
+                {
+                    foreach (int pid in StepModel.RefList(m.Get(antigo.Pset).Args[4]))
+                    {
+                        StepEntity pr = m.Get(pid);
+                        if (pr == null || pr.Type != "IFCPROPERTYSINGLEVALUE") continue;
+                        string n = StepModel.Text(pr.Args[0]);
+                        if (n != null && !props.Any(x => string.Equals(x.Nome, n, StringComparison.OrdinalIgnoreCase))) props.Add((n, pr.Args[2]));
+                    }
+                    List<int> objs = StepModel.RefList(m.Get(antigo.Rel).Args[4]).Where(o => o != objeto).ToList();
+                    if (objs.Count == 0) { m.Remove(antigo.Rel); orfaos.Add(antigo.Pset); }
+                    else m.SetArg(antigo.Rel, 4, StepModel.RefListText(objs));
+                    doObjeto.Remove(nomePset);
+                }
+                Ligar(nomePset, props, objeto);
+            }
+
             foreach (var kv in entidadeDaPeca.OrderBy(k => k.Key))
             {
                 PecaAco p = kv.Value;
-                var metro = new List<(string, string)>();
-                void Add(string nome, string valor) { if (valor != null && !metro.Any(x => string.Equals(x.Item1, nome, StringComparison.OrdinalIgnoreCase))) metro.Add((nome, valor)); }
-                // Só o que o padrão IFC não cobre: diâmetro e comprimento vão nos atributos do IfcMechanicalFastener,
-                // espessura e pesos no Qto, a norma e a classe também no material.
-                Add("Peca", Label(p.Peca));
-                Add("Ligacao", Label(p.Ligacao));
-                Add("Norma", Label(p.Norma));
-                Add("Classe", Label(p.Classe));
-                Add("Descricao", Label(Pegar(p, "Descricao Complementar", "Descrição Complementar", "Description", "Descrição")));
-                Add("Perfil", Label(Pegar(p, "Profile Type", "Tipo de perfil", "Perfil")));
-                if (!p.EhParafuso) Add("Tipo", Label(Pegar(p, "Type", "Tipo") ?? p.Tipo));
-                if (!p.EhParafuso) Add("Material", Label(Pegar(p, "Structural Material", "Material estrutural", "Material")));
-                string revestimento = Pegar(p, "Coating", "Revestimento");
-                if (revestimento != null && revestimento.Trim('-', ' ').Length > 0) Add("Revestimento", Label(revestimento));
-                if (p.EhParafuso && Numero(Pegar(p, "Grip Length", "Comprimento de aperto")) is double aperto && aperto > 0)
-                    Add("ComprimentoDeAperto", "IFCPOSITIVELENGTHMEASURE(" + Num(aperto / 1000 * fator) + ")");
+                string tipo = m.TypeOf(kv.Key);
+                bool chapa = tipo == "IFCPLATE" || tipo == "IFCPLATESTANDARDCASE";
+                bool perfil = tipo == "IFCMEMBER" || tipo == "IFCMEMBERSTANDARDCASE";
+                bool solda = tipo == "IFCFASTENER";
                 double? peso = Peso(p);
-                if (peso > 0)
-                {
-                    pesoDaEntidade[kv.Key] = peso.Value;
-                    Add("Peso", "IFCMASSMEASURE(" + Num(peso.Value * fatorMassa) + ")");
-                    r.ComPeso++;
-                }
-                Ligar(Pset, metro, kv.Key);
+                if (peso > 0) { pesoDaEntidade[kv.Key] = peso.Value; r.ComPeso++; }
+                double? Mm(params string[] nomes) => Numero(Pegar(p, nomes)) is double v && v > 0 ? v : (double?)null;
+                string Comp(double? mm) => mm > 0 ? "IFCPOSITIVELENGTHMEASURE(" + Num(mm.Value / 1000 * fator) + ")" : null;
+                string Real(double? v) => v > 0 ? "IFCREAL(" + Num(v.Value) + ")" : null;
+                string Massa(double? kg) => kg > 0 ? "IFCMASSMEASURE(" + Num(kg.Value * fatorMassa) + ")" : null;
 
+                // Metro
+                var metro = new List<(string, string)>
+                {
+                    ("Nome", Label(Pegar(p, "Descricao Complementar", "Descrição Complementar", "Mark", "Marca") ?? p.Nome)),
+                    ("Ligacao", Label(p.Ligacao)),
+                };
+                if (perfil)
+                {
+                    metro.Add(("Material", Label(Pegar(p, "Structural Material", "Material estrutural", "Material"))));
+                    metro.Add(("SecaoTipo", Label(Pegar(p, "Profile Type", "Tipo de perfil", "Perfil"))));
+                }
+                (double? Fy, double? E) mec = (null, null);
+                if (p.EhParafuso) mec = (EscoamentoDaClasse(p.Classe), null);
+                else if (Pegar(p, "Structural Material", "Material estrutural", "Material") is string mat && mecanica.TryGetValue(mat, out var mm)) mec = mm;
+                if (mec.Fy > 0) metro.Add(("Resistencia", "IFCPRESSUREMEASURE(" + Num(mec.Fy.Value) + ")"));
+                if (mec.E > 0) metro.Add(("ModuloElasticidade", Real(Math.Round(mec.E.Value / 1e9, 1))));
+                bool? galv = Galvanizado(Pegar(p, "Coating", "Revestimento")) ?? p.Galvanizado;
+                if (galv != null) metro.Add(("Galvanizacao", galv.Value ? "IFCBOOLEAN(.T.)" : "IFCBOOLEAN(.F.)"));
+                double? comprimento = Mm("Cut Length", "Comprimento de corte", "Length", "Comprimento");
+                double? largura = Mm("Width", "Largura");
+                double? espessura = Mm("Thickness", "Espessura");
+                if (perfil && peso > 0 && comprimento > 0) metro.Add(("MassaLinear", Real(Math.Round(peso.Value / (comprimento.Value / 1000), 3))));
+                // Massa por área da chapa: peso dividido pela área da face (volume ÷ espessura); sem volume, 7850 kg/m³ × espessura.
+                if (chapa && espessura > 0)
+                    metro.Add(("MassaPorArea", Real(Math.Round(peso > 0 && p.Volume > 0 ? peso.Value / (p.Volume / (espessura.Value / 1000))
+                        : DensidadeAco * espessura.Value / 1000, 3))));
+                if (p.EhParafuso) metro.Add(("ComprimentoDeAperto", Comp(Mm("Grip Length", "Comprimento de aperto"))));
+                Gravar(kv.Key, "Metro", metro);
+
+                // MetroLoc e MetroClassificacao
+                Gravar(kv.Key, "MetroLoc", new List<(string, string)> { ("Nivel", Label(Pavimento(kv.Key))), ("UC", Label(p.Uc)) });
+                Gravar(kv.Key, "MetroClassificacao", new List<(string, string)> { ("CodigoMetro", Label(p.CodigoMetro)) });
+
+                // MetroQto
+                var qto = new List<(string, string)>();
+                if (chapa)
+                {
+                    qto.Add(("Espessura", Comp(espessura)));
+                    qto.Add(("Largura", Comp(largura)));
+                    qto.Add(("Comprimento", Comp(Mm("Length", "Comprimento"))));
+                }
+                if (perfil)
+                {
+                    qto.Add(("ComprimentoFisico", Comp(comprimento)));
+                    if (p.Volume > 0 && comprimento > 0) qto.Add(("AreaDaSecao", "IFCAREAMEASURE(" + Num(p.Volume / (comprimento.Value / 1000)) + ")"));
+                }
+                if (solda) qto.Add(("Comprimento", Comp(Mm("Length", "Comprimento"))));
+                qto.Add(("Peso", Massa(peso)));
+                Gravar(kv.Key, "MetroQto", qto);
+
+                // Psets padrão do IFC4
                 if (p.EhParafuso && p.Diametro > 0)
-                    Ligar("Pset_MechanicalFastenerBolt", new List<(string, string)> { ("ThreadDiameter", "IFCPOSITIVELENGTHMEASURE(" + Num(p.Diametro.Value * fator) + ")") }, kv.Key);
+                    Gravar(kv.Key, "Pset_MechanicalFastenerBolt", new List<(string, string)> { ("ThreadDiameter", "IFCPOSITIVELENGTHMEASURE(" + Num(p.Diametro.Value * fator) + ")") });
+                if (solda)
+                    Gravar(kv.Key, "Pset_FastenerWeld", new List<(string, string)>
+                    {
+                        ("Type1", Label(Pegar(p, "Weld Type", "Tipo de solda", "Type"))),
+                        ("a", Comp(Mm("Thickness", "Throat Thickness", "Espessura", "Garganta"))),
+                        ("l", Comp(Mm("Length", "Comprimento"))),
+                    });
             }
             CompletarQto(m, entidadeDaPeca, pesoDaEntidade, fator, fatorMassa, historico);
-            r.Materiais = MaterialDosParafusos(m, entidadeDaPeca, historico);
 
             // Cada peça agregada à sua ligação, quando a ligação está no IFC. A peça deixa de estar contida no pavimento
             // (no IFC, a parte segue a estrutura espacial do todo).
             // Quando a ligação não está no IFC (o exportador não leva a ligação do Revit), as peças dela são agrupadas
             // num IfcElementAssembly novo, contido no pavimento onde as peças estavam.
             var agregadas = new HashSet<int>();
-            var contencaoDe = new Dictionary<int, int>();
-            foreach (StepEntity rel in m.OfType("IFCRELCONTAINEDINSPATIALSTRUCTURE"))
-                foreach (int i in StepModel.RefList(rel.Args[4])) if (!contencaoDe.ContainsKey(i)) contencaoDe[i] = rel.Id;
             foreach (var g in entidadeDaPeca.GroupBy(k => k.Value.HostId))
             {
                 List<int> partes = g.Select(k => k.Key).OrderBy(i => i).ToList();
@@ -189,9 +270,12 @@ namespace MetroSP.Ifc
                     PecaAco p0 = g.First().Value;
                     if (partes.Count < 2 && string.IsNullOrWhiteSpace(p0.Ligacao)) continue;
                     host = CriarConjunto(m, g.Key, p0.Ligacao, partes[0], historico);
+                    string nivel = Pavimento(partes[0]);
                     if (contencaoDe.TryGetValue(partes[0], out int relPav))
                         m.SetArg(relPav, 4, StepModel.RefListText(StepModel.RefList(m.Get(relPav).Args[4]).Concat(new[] { host })));
-                    Ligar(Pset, new List<(string, string)> { ("Peca", Label("Ligação")), ("Ligacao", Label(p0.Ligacao)) }.Where(x => x.Item2 != null).ToList(), host);
+                    Gravar(host, "Metro", new List<(string, string)> { ("Nome", Label(p0.Ligacao)), ("Ligacao", Label(p0.Ligacao)) });
+                    Gravar(host, "MetroLoc", new List<(string, string)> { ("Nivel", Label(nivel)), ("UC", Label(p0.Uc)) });
+                    Gravar(host, "MetroClassificacao", new List<(string, string)> { ("CodigoMetro", Label(p0.CodigoMetro)) });
                     novo = true;
                     r.Conjuntos++;
                 }
@@ -214,6 +298,13 @@ namespace MetroSP.Ifc
                 m.Add("IFCRELDEFINESBYPROPERTIES", Guid("rel|" + ps.Key), historico, "$", "$",
                     StepModel.RefListText(ps.Value.Objetos), "#" + ps.Value.Pset);
 
+            // Psets antigos que ficaram sem elemento (foram juntados aos novos).
+            if (orfaos.Count > 0)
+            {
+                foreach (StepEntity rel in m.OfType("IFCRELDEFINESBYPROPERTIES")) orfaos.Remove(StepModel.Ref(rel.Args[5]));
+                foreach (int ps in orfaos) m.Remove(ps);
+            }
+
             var partesTexto = new List<string>();
             if (r.Parafusos > 0) partesTexto.Add($"{r.Parafusos} parafuso(s) e fixador(es)");
             if (r.Chapas > 0) partesTexto.Add($"{r.Chapas} chapa(s)");
@@ -222,10 +313,78 @@ namespace MetroSP.Ifc
             int grupos = r.Ligacoes + r.Conjuntos;
             log("Ligações metálicas: " + string.Join(", ", partesTexto) + " como elementos próprios" +
                 (grupos > 0 ? $", agrupados em {grupos} ligação(ões) (IfcElementAssembly)." : "."));
-            if (r.ComPeso > 0) log($"Ligações metálicas: peso em {r.ComPeso} peça(s) (Qto e Pset {Pset}).");
+            if (r.ComPeso > 0) log($"Ligações metálicas: peso em {r.ComPeso} peça(s) (Qto padrão e MetroQto).");
             if (r.Materiais > 0) log($"Ligações metálicas: material dos parafusos pela norma e classe em {r.Materiais} parafuso(s).");
             int faltaram = pecas.Count - entidadeDaPeca.Count;
             if (faltaram > 0) log($"Ligações metálicas: {faltaram} peça(s) preparada(s) não saíram no IFC.");
+            return r;
+        }
+
+        /// <summary>Galvanização pelo revestimento do Revit: null quando o campo está vazio ou "-".</summary>
+        internal static bool? Galvanizado(string revestimento)
+        {
+            if (string.IsNullOrWhiteSpace(revestimento) || revestimento.Trim('-', ' ').Length == 0) return null;
+            string n = revestimento.ToLowerInvariant();
+            if (n.Contains("galv") || n.Contains("zinc") || n.Contains("zinco")) return true;
+            if (n == "none" || n == "nenhum" || n == "sem") return false;
+            return null;
+        }
+
+        /// <summary>Escoamento (Pa) pela classe ISO 898-1 do parafuso ("8.8" → 640 MPa, "10.9" → 900 MPa).</summary>
+        internal static double? EscoamentoDaClasse(string classe)
+        {
+            if (string.IsNullOrWhiteSpace(classe)) return null;
+            var mt = System.Text.RegularExpressions.Regex.Match(classe, @"\b(\d{1,2})[.,](\d)\b");
+            if (!mt.Success) return null;
+            double fu = int.Parse(mt.Groups[1].Value, CultureInfo.InvariantCulture) * 100;
+            double razao = int.Parse(mt.Groups[2].Value, CultureInfo.InvariantCulture) / 10.0;
+            return fu * razao * 1e6;
+        }
+
+        /// <summary>Escoamento (Pa) e módulo de elasticidade (Pa) de cada material do IFC, pelas propriedades dele.</summary>
+        private static Dictionary<string, (double? Fy, double? E)> MecanicaDosMateriais(StepModel m)
+        {
+            var r = new Dictionary<string, (double? Fy, double? E)>(StringComparer.OrdinalIgnoreCase);
+            foreach (StepEntity mp in m.OfType("IFCMATERIALPROPERTIES"))
+            {
+                if (mp.Args.Count < 4) continue;
+                int mat = StepModel.Ref(mp.Args[3]);
+                if (mat <= 0 || m.TypeOf(mat) != "IFCMATERIAL") continue;
+                string nome = StepModel.Text(m.Get(mat).Args[0]);
+                if (nome == null) continue;
+                r.TryGetValue(nome, out var v);
+                foreach (int pid in StepModel.RefList(mp.Args[2]))
+                {
+                    StepEntity pr = m.Get(pid);
+                    if (pr == null || pr.Type != "IFCPROPERTYSINGLEVALUE") continue;
+                    string n = (StepModel.Text(pr.Args[0]) ?? "").ToLowerInvariant();
+                    int a = pr.Args[2].IndexOf('('), b = pr.Args[2].LastIndexOf(')');
+                    if (a < 0 || b <= a || !double.TryParse(pr.Args[2].Substring(a + 1, b - a - 1), NumberStyles.Float, CultureInfo.InvariantCulture, out double x) || x <= 0) continue;
+                    if (v.Fy == null && (n == "yieldstress" || n == "minimum yield stress")) v.Fy = x;
+                    if (v.E == null && (n == "youngmodulus" || n == "young modulus")) v.E = x;
+                }
+                r[nome] = v;
+            }
+            return r;
+        }
+
+        /// <summary>Psets (não Qto) de cada elemento, pelo nome: (relação, pset).</summary>
+        private static Dictionary<int, Dictionary<string, (int Rel, int Pset)>> PsetsPorNome(StepModel m, HashSet<int> elementos)
+        {
+            var r = new Dictionary<int, Dictionary<string, (int, int)>>();
+            foreach (StepEntity rel in m.OfType("IFCRELDEFINESBYPROPERTIES"))
+            {
+                int ps = StepModel.Ref(rel.Args[5]);
+                if (ps <= 0 || m.TypeOf(ps) != "IFCPROPERTYSET") continue;
+                string nome = StepModel.Text(m.Get(ps).Args[2]);
+                if (nome == null) continue;
+                foreach (int o in StepModel.RefList(rel.Args[4]))
+                {
+                    if (!elementos.Contains(o)) continue;
+                    if (!r.TryGetValue(o, out var d)) r[o] = d = new Dictionary<string, (int, int)>(StringComparer.Ordinal);
+                    if (!d.ContainsKey(nome)) d[nome] = (rel.Id, ps);
+                }
+            }
             return r;
         }
 

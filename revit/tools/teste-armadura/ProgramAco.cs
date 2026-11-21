@@ -53,6 +53,8 @@ public static class TesteAco
                 Propriedades = props,
                 PecasNoItem = e.Type == "IFCMECHANICALFASTENER" ? 2 : extrusoes,
                 Volume = vol,
+                Uc = "UC-TESTE",
+                Galvanizado = true,
             };
             if (double.TryParse(props.GetValueOrDefault("Diameter"), NumberStyles.Float, CultureInfo.InvariantCulture, out double d)) peca.Diametro = d / 1000;
             if (e.Args.Count > 9 && e.Args[9] != "$") peca.Comprimento = StepModel.Real(e.Args[9]) / 1000;

@@ -32,9 +32,14 @@ Revit 0.3.19 · Civil 3D 0.12.9
   BOLT/ANCHORBOLT, `Pset_MechanicalFastenerBolt` e material pela norma e classe do parafuso (ex.: "ASTM A325 - 8.8"),
   no lugar do material da chapa.
 - Revit, **chapas e perfis das ligações**: espessura (Width) e pesos (GrossWeight, NetWeight) no Qto padrão.
-- Revit, **Pset MetroSP_LigacaoMetalica enxuto**: só Peca, Ligacao, Norma, Classe, Descricao, Perfil/Tipo, Material,
-  Revestimento, ComprimentoDeAperto e Peso (kg). Os demais parâmetros brutos do Revit saíram, e diâmetro, comprimento
-  e espessura ficam só nos campos padrão.
+- Revit, **dados das ligações nos Psets do Metrô**: o Pset MetroSP_LigacaoMetalica deixa de sair. Os dados das peças
+  vão para Metro (Nome, Ligacao, Material, SecaoTipo, Resistencia, ModuloElasticidade, Galvanizacao, MassaLinear ou
+  MassaPorArea, ComprimentoDeAperto), MetroLoc (Nivel, UC), MetroQto (Espessura, Largura, Comprimento,
+  ComprimentoFisico, AreaDaSecao, Peso em kg) e MetroClassificacao (CodigoMetro), juntando com o que o exportador já
+  gravou. Soldas também no Pset_FastenerWeld. A resistência do parafuso vem da classe ISO 898-1 (8.8 → 640 MPa).
+- Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
+  ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
+  ler Width e Length (antes "Actual Tread Depth" e tipo Volume).
 
 ## 1.0.18 (20/11/2026)
 

@@ -113,6 +113,7 @@ namespace MetroSP.Ids
         {
             bool ehLigacao = origem is StructuralConnectionHandler;
             string ligacao = ehLigacao ? doc.GetElement(origem.GetTypeId())?.Name : null;
+            var doHost = DadosDoHost(doc, origem);
 
             // Cada subelemento é uma peça (ou um grupo de parafusos). Um elemento de fabricação avulso pode não ter
             // subelementos: aí ele próprio é a peça.
@@ -189,6 +190,9 @@ namespace MetroSP.Ids
                         Tipo = dados.Tipo,
                         Propriedades = dados.Propriedades,
                         PecasNoItem = pecas.Count,
+                        Uc = doHost.Uc,
+                        CodigoMetro = doHost.Codigo,
+                        Galvanizado = doHost.Galvanizado,
                         Volume = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } }) * 0.028316846592,
                     };
                     p.Nome = NomePeca(p);
@@ -575,6 +579,39 @@ namespace MetroSP.Ids
             a.Min.X <= b.Max.X + f && b.Min.X <= a.Max.X + f &&
             a.Min.Y <= b.Max.Y + f && b.Min.Y <= a.Max.Y + f &&
             a.Min.Z <= b.Max.Z + f && b.Min.Z <= a.Max.Z + f;
+
+        /// <summary>
+        /// UC, código do Metrô e galvanização da ligação, para os Psets do Metrô das peças. A UC e a galvanização,
+        /// quando a ligação não tem, vêm do primeiro elemento ligado (viga, pilar) que tiver; o código, só da própria ligação.
+        /// </summary>
+        private static (string Uc, string Codigo, bool? Galvanizado) DadosDoHost(Document doc, Element origem)
+        {
+            var fontes = new List<Element> { origem };
+            if (origem is StructuralConnectionHandler h)
+                try { fontes.AddRange(h.GetConnectedElementIds().Select(i => doc.GetElement(i)).Where(e => e != null)); } catch { }
+            Parameter Achar(Element e, string nome)
+            {
+                Parameter p = e.LookupParameter(nome);
+                if (p == null || !p.HasValue) p = doc.GetElement(e.GetTypeId())?.LookupParameter(nome);
+                return p != null && p.HasValue ? p : null;
+            }
+            string Texto(Element e, string nome)
+            {
+                Parameter p = Achar(e, nome);
+                if (p == null) return null;
+                string v = p.StorageType == StorageType.String ? p.AsString() : p.AsValueString();
+                return string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+            }
+            string uc = fontes.Select(e => Texto(e, "UC")).FirstOrDefault(x => x != null);
+            string codigo = Texto(origem, "ClassificationCode") ?? Texto(origem, "CodigoMetro");
+            bool? galv = null;
+            foreach (Element e in fontes)
+            {
+                Parameter p = Achar(e, "Galvanizacao");
+                if (p != null && p.StorageType == StorageType.Integer) { galv = p.AsInteger() == 1; break; }
+            }
+            return (uc, codigo, galv);
+        }
 
         // ------------------------------------------------------------------ dados
 
