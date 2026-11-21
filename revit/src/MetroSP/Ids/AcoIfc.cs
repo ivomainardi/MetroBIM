@@ -39,13 +39,22 @@ namespace MetroSP.Ids
         /// <summary>Ligações deste modelo em que o Revit fechou ao ler a geometria dos subelementos: delas, só o corpo.</summary>
         private HashSet<long> _ruins = new HashSet<long>();
         private bool _modoCorpo;
+        /// <summary>O modelo mudou (formas criadas) desde a última regeneração: a geometria das ligações pode estar velha.</summary>
+        private bool _sujo;
 
         private static string PastaMarca => System.IO.Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MetroSP");
         private static string ArquivoMarca => System.IO.Path.Combine(PastaMarca, "aco-geometria.txt");
         private static string ArquivoRuins => System.IO.Path.Combine(PastaMarca, "aco-geometria-ruins.txt");
 
-        private static string ChaveModelo(Document doc) => string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName;
+        /// <summary>Nome do arquivo do modelo, sem pasta nem extensão (o mesmo modelo aberto do servidor ou de uma cópia local).</summary>
+        private static string ChaveModelo(Document doc) => Chave(string.IsNullOrEmpty(doc.PathName) ? doc.Title : doc.PathName);
+
+        private static string Chave(string caminho)
+        {
+            try { return System.IO.Path.GetFileNameWithoutExtension(caminho.Trim()).ToUpperInvariant(); }
+            catch { return (caminho ?? "").Trim().ToUpperInvariant(); }
+        }
 
         private static void Marcar(Document doc, ElementId id)
         {
@@ -71,7 +80,7 @@ namespace MetroSP.Ids
                     string m = System.IO.File.ReadAllText(ArquivoMarca).Trim();
                     ApagarMarca();
                     string[] c = m.Split('\t');
-                    if (c.Length == 2 && c[0] == chave)
+                    if (c.Length == 2 && Chave(c[0]) == chave)
                     {
                         System.IO.File.AppendAllText(ArquivoRuins, m + Environment.NewLine);
                         nova = c[1];
@@ -81,7 +90,7 @@ namespace MetroSP.Ids
                     foreach (string l in System.IO.File.ReadAllLines(ArquivoRuins))
                     {
                         string[] c = l.Split('\t');
-                        if (c.Length == 2 && c[0] == chave && long.TryParse(c[1], out long id)) _ruins.Add(id);
+                        if (c.Length == 2 && Chave(c[0]) == chave && long.TryParse(c[1], out long id)) _ruins.Add(id);
                     }
             }
             catch { }
@@ -192,7 +201,12 @@ namespace MetroSP.Ids
             {
                 // A geometria do subelemento pode derrubar o Revit (erro de memória dentro dele, que nenhum try pega).
                 // A marca diz qual ligação estava sendo lida; se o Revit fechar, a próxima exportação usa o corpo das ligações.
-                if (!_modoCorpo && subs.Count > 0) Marcar(doc, origem.Id);
+                if (!_modoCorpo && subs.Count > 0)
+                {
+                    // Ler a geometria de um subelemento com o modelo alterado e não regenerado derruba o Revit: regenera antes.
+                    if (_sujo) { try { doc.Regenerate(); } catch { } _sujo = false; }
+                    Marcar(doc, origem.Id);
+                }
                 foreach (Subelement s in subs)
                 {
                     GeometryObject g = null;
@@ -331,6 +345,7 @@ namespace MetroSP.Ids
                 return null;
             }
             _criadas.Add(ds.Id);
+            _sujo = true;
             _formas[ds.Id] = (origem, solidos, classe);
 
             // Mesmo subprojeto (workset) da origem: a forma nova cai no subprojeto ativo, que pode estar oculto na vista.

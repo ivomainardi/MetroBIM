@@ -45,7 +45,7 @@ Revit 0.3.19 · Civil 3D 0.12.9
 - Revit, **ligações metálicas respeitam o exportador**: o MetroSP só acrescenta nos Psets as propriedades que o
   exportador não gravou; o que já saiu fica como está.
 - Revit, **erro fatal ao exportar ligações metálicas**: a leitura da geometria de um subelemento de ligação pode
-  derrubar o Revit (erro de memória dentro do Revit). A geometria passa a ser lida primeiro sem vista, e a ligação em
+  derrubar o Revit (erro de memória dentro do Revit). O modelo é regenerado antes de ler cada ligação, a geometria é lida primeiro sem vista, e a ligação em
   que o Revit fechou fica registrada: nas próximas exportações do mesmo modelo, as peças dela saem do corpo da ligação.
 - Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
   ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
