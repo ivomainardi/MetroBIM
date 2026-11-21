@@ -196,13 +196,13 @@ namespace MetroSP.Ids
                         Volume = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } }) * 0.028316846592,
                     };
                     // Parafuso sem diâmetro ou comprimento nos dados (ex.: chumbadores de placa de base que vêm do corpo da
-                    // ligação): as medidas saem da geometria (corpo cilíndrico). Peça longa (mais de 25 cm) é chumbador.
+                    // ligação): as medidas saem da geometria (corpo cilíndrico). Peça longa (10 diâmetros ou mais) e sem norma é chumbador.
                     if (info.Parafuso && (p.Diametro == null || p.Comprimento == null))
                     {
                         var med = MedidasDoFixador(pecas[i]);
                         p.Diametro ??= med.Diametro;
                         p.Comprimento ??= med.Comprimento;
-                        if (p.Peca == "Parafuso" && med.Comprimento > 0.25 && dados.Norma == null) p.Peca = "Chumbador";
+                        if (p.Peca == "Parafuso" && dados.Norma == null && med.Comprimento > 0 && med.Diametro > 0 && med.Comprimento >= 10 * med.Diametro) p.Peca = "Chumbador";
                     }
                     p.Nome = NomePeca(p);
                     Pecas[Compat.Numero(ds.Id)] = p;
