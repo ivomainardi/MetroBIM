@@ -57,6 +57,9 @@ Revit 0.3.19 · Civil 3D 0.12.9
 - Revit, **exportação mais rápida com muitas ligações**: a separação de parafusos, porcas e arruelas usa índice
   espacial (antes cada volume era comparado com todos), os volumes não são separados duas vezes, as medidas do
   parafuso pela geometria saem uma vez só e os parâmetros dos tipos são lidos uma vez por exportação.
+- Revit, **perfis vazando**: barras com recorte ou recuo nas pontas (ex.: tubos que encostam na cobertura) saíam no
+  IFC com a extrusão de ponta a ponta da linha de locação e atravessavam a cobertura ou a ligação. Agora o corpo é
+  recortado no trecho do corpo do Revit.
 - Revit, **vigas pelo uso estrutural**: elementos de Structural Framing sem "Exportar para IFC como" no Revit saem
   pelo uso estrutural: contraventamento como IfcMember BRACE, terça como IfcMember PURLIN, banzo de treliça como
   IfcMember CHORD e uso pilar ou eixo vertical (até 5°) como IfcColumn. Antes tudo saía IfcBeam. O que tem classe no
