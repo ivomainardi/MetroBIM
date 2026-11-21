@@ -156,7 +156,9 @@ namespace MetroSP.Commands
             catch (Exception ex)
             {
                 ApagarTemp(pastaTemp);
-                TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message +
+                if (passo == "carregar os property sets no modelo" && PsetsNoModelo.Subetapa != null) passo += ": " + PsetsNoModelo.Subetapa;
+                string onde = ex.TargetSite == null ? "" : $"\n\n({ex.GetType().Name} em {ex.TargetSite.DeclaringType?.Name}.{ex.TargetSite.Name})";
+                TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message + onde +
                     (avisoCategorias != null ? "\n\n" + avisoCategorias : ""));
                 return Result.Failed;
             }
