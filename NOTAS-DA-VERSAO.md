@@ -19,6 +19,12 @@ Revit 0.3.17 · Civil 3D 0.12.9
 - Revit, **material da armadura**: quando o material do Revit não diz a categoria do aço (ex.: "Rebar - ASTM A615M -
   Grade 420", o padrão do Revit) e a classificação diz CA-50, o material no IFC passa a ser "Aço CA-50" e o registro
   pede para corrigir o material no Revit.
+- Revit, **pesos com unidade**: PesoLinear sai em kg/m (IfcMassPerLengthMeasure) e PesoDoConjunto em kg
+  (IfcMassMeasure), no lugar do IfcReal sem unidade.
+- Revit, **conferência das medidas**: barras de armadura e tubos passam a contar a espessura (o raio) na caixa do IFC;
+  antes toda barra aparecia com 1 diâmetro a menos que o Revit.
+- Revit 2027, **erro "carregar os property sets no modelo"** ("The referenced object is not valid"): os property sets
+  do modelo são apagados um por vez, pulando o que já não existe, e a mensagem de erro passa a dizer a subetapa.
 
 ## 1.0.16 (19/11/2026)
 

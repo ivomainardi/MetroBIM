@@ -66,7 +66,8 @@ DATA;
 #83=IFCRELASSOCIATESCLASSIFICATION('0000000000000000000083',#2,$,$,(#10,#11,#20,#30),#82);
 #90=IFCPROPERTYSINGLEVALUE('Quantidade',$,IFCINTEGER(2),$);
 #91=IFCPROPERTYSINGLEVALUE('PesoDoConjunto',$,IFCREAL(3.),$);
-#92=IFCPROPERTYSET('0000000000000000000092',#2,'MetroQto',$,(#90,#91));
+#97=IFCPROPERTYSINGLEVALUE('PesoLinear',$,IFCREAL(0.617),$);
+#92=IFCPROPERTYSET('0000000000000000000092',#2,'MetroQto',$,(#90,#91,#97));
 #93=IFCRELDEFINESBYPROPERTIES('0000000000000000000093',#2,$,$,(#10,#11),#92);
 #94=IFCPROPERTYSINGLEVALUE('Reference',$,IFCIDENTIFIER('10'),$);
 #95=IFCPROPERTYSET('0000000000000000000095',#2,'Pset_ReinforcingBarCommon',$,(#94));
@@ -107,9 +108,9 @@ END-ISO-10303-21;
 
         var q10 = Props(m, 10, "MetroQto");
         var q11 = Props(m, 11, "MetroQto");
-        Confere(q10["Quantidade"] == "IFCINTEGER(1)" && q10["PesoDoConjunto"] == "IFCREAL(1.2)" && q10["Comprimento"] == "IFCLENGTHMEASURE(2.)",
+        Confere(q10["Quantidade"] == "IFCINTEGER(1)" && q10["PesoDoConjunto"] == "IFCMASSMEASURE(1.2)" && q10["PesoLinear"] == "IFCMASSPERLENGTHMEASURE(0.617)" && q10["Comprimento"] == "IFCLENGTHMEASURE(2.)",
             "MetroQto barra 1: " + string.Join(" ", q10.Select(k => k.Key + "=" + k.Value)));
-        Confere(q11["Quantidade"] == "IFCINTEGER(1)" && q11["PesoDoConjunto"] == "IFCREAL(1.8)" && q11["Comprimento"] == "IFCLENGTHMEASURE(3.)",
+        Confere(q11["Quantidade"] == "IFCINTEGER(1)" && q11["PesoDoConjunto"] == "IFCMASSMEASURE(1.8)" && q11["Comprimento"] == "IFCLENGTHMEASURE(3.)",
             "MetroQto barra 2 (pset compartilhado separado): " + string.Join(" ", q11.Select(k => k.Key + "=" + k.Value)));
 
         var p10 = Props(m, 10, "Pset_ReinforcingBarCommon");

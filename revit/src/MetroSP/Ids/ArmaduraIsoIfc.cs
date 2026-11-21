@@ -52,10 +52,10 @@ namespace MetroSP.Ifc
 
         public sealed class Resultado
         {
-            public int Barras, Atributos, Tipos, Psets, MetroQtoPorBarra, Aneis, AneisEstimados, AneisSemPlano, ComAco, MaterialTrocado, FormaIso, SemFormaIso;
+            public int Barras, Atributos, Tipos, Psets, MetroQtoPorBarra, PesosTipados, Aneis, AneisEstimados, AneisSemPlano, ComAco, MaterialTrocado, FormaIso, SemFormaIso;
             public string Aco, MaterialAntigo;
             public readonly List<string> Avisos = new List<string>();
-            public bool Alterou => Atributos + Tipos + Psets + MetroQtoPorBarra + Aneis + MaterialTrocado + FormaIso > 0;
+            public bool Alterou => Atributos + Tipos + Psets + MetroQtoPorBarra + PesosTipados + Aneis + MaterialTrocado + FormaIso > 0;
 
             public IEnumerable<string> Linhas()
             {
@@ -72,6 +72,8 @@ namespace MetroSP.Ifc
                     yield return $"Armaduras de comprimento variável: Quantidade, PesoDoConjunto e Comprimento do MetroQto da própria barra em {MetroQtoPorBarra} IfcReinforcingBar (antes repetiam o total do conjunto).";
                 if (MaterialTrocado > 0)
                     yield return $"Armaduras: o material do Revit \"{MaterialAntigo}\" não é {Aco}; no IFC ficou \"Aço {Aco}\" em {MaterialTrocado} barra(s). Corrija o material no Revit.";
+                if (PesosTipados > 0)
+                    yield return $"Armaduras: PesoLinear em kg/m (IfcMassPerLengthMeasure) e PesoDoConjunto em kg (IfcMassMeasure) em {PesosTipados} IfcReinforcingBar (o exportador gravou como IfcReal).";
                 if (FormaIso > 0) yield return $"Armaduras: código de forma ISO 3766 em {FormaIso} barra(s).";
                 foreach (string a in Avisos) yield return a;
             }
@@ -248,6 +250,9 @@ namespace MetroSP.Ifc
                         r.FormaIso++;
                 }
                 else if (d != null) r.SemFormaIso++;
+
+                // Pesos com unidade (kg/m e kg) no lugar de IfcReal
+                if (TiparPesos(m, id, psets, usoDef, historico)) r.PesosTipados++;
 
                 // MetroQto das barras de conjuntos exportados barra a barra
                 if (temV && v.PorBarra && MetroQtoPorBarra(m, id, v.Comprimento / fL, v.Peso / fW, psets, usoDef, historico)) r.MetroQtoPorBarra++;
@@ -519,6 +524,9 @@ namespace MetroSP.Ifc
 
         private static bool MesmoNumero(string a, string b)
         {
+            // Mesmo número com outro tipo (IFCREAL → IFCMASSMEASURE) conta como diferente.
+            string Tipo(string v) => v == null || v.IndexOf('(') < 0 ? "" : v.Substring(0, v.IndexOf('(')).Trim().ToUpperInvariant();
+            if (Tipo(a) != Tipo(b)) return false;
             double? x = Numero(a), y = Numero(b);
             return x != null && y != null && Math.Abs(x.Value - y.Value) <= 1e-6 * Math.Max(1, Math.Abs(y.Value));
         }
@@ -529,6 +537,47 @@ namespace MetroSP.Ifc
             int p = valor.IndexOf('(');
             string v = p >= 0 ? valor.Substring(p + 1).TrimEnd(')') : valor;
             return double.TryParse(v, NumberStyles.Float, CultureInfo.InvariantCulture, out double d) ? d : (double?)null;
+        }
+
+        /// <summary>Pesos do MetroQto/Metro que o exportador grava como número sem unidade (IfcReal).</summary>
+        private static readonly Dictionary<string, string> TipoDosPesos = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["PesoLinear"] = "IFCMASSPERLENGTHMEASURE",
+            ["PesoDoConjunto"] = "IFCMASSMEASURE",
+            ["Peso"] = "IFCMASSMEASURE",
+            ["PesoTotal"] = "IFCMASSMEASURE",
+        };
+
+        private static bool SemUnidade(string tipo)
+        {
+            string t = (tipo ?? "").Trim().ToUpperInvariant();
+            return t == "IFCREAL" || t == "IFCNUMERICMEASURE";
+        }
+
+        /// <summary>PesoLinear em IfcMassPerLengthMeasure (kg/m) e os pesos em IfcMassMeasure (kg), no lugar de IfcReal.</summary>
+        private static bool TiparPesos(StepModel m, int id, Dictionary<int, List<(int Rel, int Def)>> psets, Dictionary<int, int> usoDef, string historico)
+        {
+            if (!psets.TryGetValue(id, out var l)) return false;
+            bool mudou = false;
+            foreach (var (_, def) in l.ToList())
+            {
+                StepEntity p = m.Get(def);
+                if (p == null || p.Type != "IFCPROPERTYSET") continue;
+                string nome = StepModel.Text(p.Args[2]);
+                if (!string.Equals(nome, "MetroQto", StringComparison.OrdinalIgnoreCase) && !string.Equals(nome, "Metro", StringComparison.OrdinalIgnoreCase)) continue;
+                var props = new List<(string, string)>();
+                foreach (int pi in StepModel.RefList(p.Args[4]))
+                {
+                    StepEntity v = m.Get(pi);
+                    if (v == null || v.Type != "IFCPROPERTYSINGLEVALUE" || !(StepModel.Text(v.Args[0]) is string n) || !TipoDosPesos.TryGetValue(n, out string novo)) continue;
+                    string valor = v.Args[2];
+                    int a = valor == null ? -1 : valor.IndexOf('(');
+                    if (a <= 0 || !SemUnidade(valor.Substring(0, a))) continue;
+                    props.Add((n, novo + valor.Substring(a)));
+                }
+                if (props.Count > 0 && GravarPset(m, id, nome, props, true, psets, usoDef, historico)) mudou = true;
+            }
+            return mudou;
         }
 
         /// <summary>MetroQto da barra de um conjunto exportado barra a barra: Quantidade 1, PesoDoConjunto e Comprimento dela.</summary>
@@ -546,11 +595,15 @@ namespace MetroSP.Ifc
                 StepEntity p = m.Get(pi);
                 if (p != null && p.Type == "IFCPROPERTYSINGLEVALUE" && StepModel.Text(p.Args[0]) is string n) atuais[n] = p.Args[2];
             }
-            string Mesmo(string atual, string numero)
+            string Mesmo(string atual, string numero, bool peso = false)
             {
-                // Mantém o tipo do valor que o exportador gravou (IFCINTEGER, IFCREAL, IFCMASSMEASURE...).
+                // Mantém o tipo do valor que o exportador gravou (IFCINTEGER, IFCMASSMEASURE...); número sem unidade
+                // (IFCREAL) num peso vira IFCMASSMEASURE.
                 int p = atual == null ? -1 : atual.IndexOf('(');
-                return p > 0 ? atual.Substring(0, p) + "(" + numero + ")" : null;
+                if (p <= 0) return null;
+                string tipo = atual.Substring(0, p);
+                if (peso && SemUnidade(tipo)) tipo = "IFCMASSMEASURE";
+                return tipo + "(" + numero + ")";
             }
             var props = new List<(string, string)>();
             if (atuais.TryGetValue("Quantidade", out string q))
@@ -559,7 +612,7 @@ namespace MetroSP.Ifc
                     ? Mesmo(q, "1") : Mesmo(q, "1.");
                 if (s != null) props.Add(("Quantidade", s));
             }
-            if (peso > 0 && atuais.TryGetValue("PesoDoConjunto", out string w) && Mesmo(w, Real(peso)) is string sw) props.Add(("PesoDoConjunto", sw));
+            if (peso > 0 && atuais.TryGetValue("PesoDoConjunto", out string w) && Mesmo(w, Real(peso), true) is string sw) props.Add(("PesoDoConjunto", sw));
             if (comprimento > 0)
             {
                 if (atuais.TryGetValue("Comprimento", out string c)) { if (Mesmo(c, Real(comprimento)) is string sc) props.Add(("Comprimento", sc)); }
