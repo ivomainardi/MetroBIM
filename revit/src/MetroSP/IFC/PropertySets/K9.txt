@@ -226,6 +226,8 @@ PropertySet:	MetroLoc	I	IfcMechanicalFastener
 	UC	Label	UC
 #
 PropertySet:	MetroQto	I	IfcMechanicalFastener
+	Diametro	PositiveLength	Diameter
+	Comprimento	PositiveLength	Bolt Length
 	Peso	Real	Weight
 #-------------------------------------------------------------------------------------------------------------------------------------------
 #

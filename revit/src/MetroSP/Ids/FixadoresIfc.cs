@@ -109,7 +109,7 @@ namespace MetroSP.Ifc
                     if (p.Diametro > 0) m.SetArg(e.Id, 8, Num(p.Diametro.Value * fator));
                     if (p.Comprimento > 0) m.SetArg(e.Id, 9, Num(p.Comprimento.Value * fator));
                     string tipoIfc = TipoFixador(p.Peca);
-                    if (tipoIfc != null && (e.Args[10] == "$" || e.Args[10] == ".NOTDEFINED.")) m.SetArg(e.Id, 10, tipoIfc);
+                    if (tipoIfc != null) m.SetArg(e.Id, 10, tipoIfc);
                 }
                 switch (e.Type)
                 {
@@ -179,6 +179,22 @@ namespace MetroSP.Ifc
                 Ligar(nomePset, props, objeto);
             }
 
+            // Área da seção nominal (do perfil, sem furos e recortes) que o exportador gravou no Qto do perfil.
+            var areaSecao = new Dictionary<int, double>();
+            foreach (StepEntity rel in m.OfType("IFCRELDEFINESBYPROPERTIES"))
+            {
+                int q = StepModel.Ref(rel.Args[5]);
+                if (q <= 0 || m.TypeOf(q) != "IFCELEMENTQUANTITY") continue;
+                List<int> objs = StepModel.RefList(rel.Args[4]).Where(entidadeDaPeca.ContainsKey).ToList();
+                if (objs.Count == 0) continue;
+                foreach (int qi in StepModel.RefList(m.Get(q).Args[5]))
+                {
+                    StepEntity qe = m.Get(qi);
+                    if (qe?.Type == "IFCQUANTITYAREA" && StepModel.Text(qe.Args[0]) == "CrossSectionArea" && StepModel.Real(qe.Args[3]) > 0)
+                        foreach (int o in objs) areaSecao[o] = StepModel.Real(qe.Args[3]);
+                }
+            }
+
             foreach (var kv in entidadeDaPeca.OrderBy(k => k.Key))
             {
                 PecaAco p = kv.Value;
@@ -196,7 +212,8 @@ namespace MetroSP.Ifc
                 // Metro
                 var metro = new List<(string, string)>
                 {
-                    ("Nome", Label(Pegar(p, "Descricao Complementar", "Descrição Complementar", "Mark", "Marca") ?? p.Nome)),
+                    ("Nome", Label(Pegar(p, "Descricao Complementar", "Descrição Complementar", "Mark", "Marca") ??
+                        (perfil && Pegar(p, "Profile Type", "Tipo de perfil") is string perf ? "Perfil " + perf : p.Nome))),
                     ("Ligacao", Label(p.Ligacao)),
                 };
                 if (perfil)
@@ -214,7 +231,10 @@ namespace MetroSP.Ifc
                 double? comprimento = Mm("Cut Length", "Comprimento de corte", "Length", "Comprimento");
                 double? largura = Mm("Width", "Largura");
                 double? espessura = Mm("Thickness", "Espessura");
-                if (perfil && peso > 0 && comprimento > 0) metro.Add(("MassaLinear", Real(Math.Round(peso.Value / (comprimento.Value / 1000), 3))));
+                // Área e massa linear nominais do perfil (da seção, sem os furos e recortes da peça); o Peso é o real da peça.
+                double? area = areaSecao.TryGetValue(kv.Key, out double a0) ? a0
+                    : p.Volume > 0 && comprimento > 0 ? p.Volume / (comprimento.Value / 1000) : (double?)null;
+                if (perfil && area > 0) metro.Add(("MassaLinear", Real(Math.Round(area.Value * DensidadeAco, 3))));
                 // Massa por área da chapa: peso dividido pela área da face (volume ÷ espessura); sem volume, 7850 kg/m³ × espessura.
                 if (chapa && espessura > 0)
                     metro.Add(("MassaPorArea", Real(Math.Round(peso > 0 && p.Volume > 0 ? peso.Value / (p.Volume / (espessura.Value / 1000))
@@ -237,9 +257,14 @@ namespace MetroSP.Ifc
                 if (perfil)
                 {
                     qto.Add(("ComprimentoFisico", Comp(comprimento)));
-                    if (p.Volume > 0 && comprimento > 0) qto.Add(("AreaDaSecao", "IFCAREAMEASURE(" + Num(p.Volume / (comprimento.Value / 1000)) + ")"));
+                    if (area > 0) qto.Add(("AreaDaSecao", "IFCAREAMEASURE(" + Num(area.Value) + ")"));
                 }
                 if (solda) qto.Add(("Comprimento", Comp(Mm("Length", "Comprimento"))));
+                if (p.EhParafuso)
+                {
+                    if (p.Diametro > 0) qto.Add(("Diametro", "IFCPOSITIVELENGTHMEASURE(" + Num(p.Diametro.Value * fator) + ")"));
+                    if (p.Comprimento > 0) qto.Add(("Comprimento", "IFCPOSITIVELENGTHMEASURE(" + Num(p.Comprimento.Value * fator) + ")"));
+                }
                 qto.Add(("Peso", Massa(peso)));
                 Gravar(kv.Key, "MetroQto", qto);
 

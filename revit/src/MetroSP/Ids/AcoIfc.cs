@@ -195,6 +195,15 @@ namespace MetroSP.Ids
                         Galvanizado = doHost.Galvanizado,
                         Volume = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } }) * 0.028316846592,
                     };
+                    // Parafuso sem diâmetro ou comprimento nos dados (ex.: chumbadores de placa de base que vêm do corpo da
+                    // ligação): as medidas saem da geometria (corpo cilíndrico). Peça longa (mais de 25 cm) é chumbador.
+                    if (info.Parafuso && (p.Diametro == null || p.Comprimento == null))
+                    {
+                        var med = MedidasDoFixador(pecas[i]);
+                        p.Diametro ??= med.Diametro;
+                        p.Comprimento ??= med.Comprimento;
+                        if (p.Peca == "Parafuso" && med.Comprimento > 0.25 && dados.Norma == null) p.Peca = "Chumbador";
+                    }
                     p.Nome = NomePeca(p);
                     Pecas[Compat.Numero(ds.Id)] = p;
                     novas.Add(p);
@@ -611,6 +620,39 @@ namespace MetroSP.Ids
                 if (p != null && p.StorageType == StorageType.Integer) { galv = p.AsInteger() == 1; break; }
             }
             return (uc, codigo, galv);
+        }
+
+        /// <summary>
+        /// Diâmetro (do menor cilindro, o corpo) e comprimento total (ao longo do eixo dele) de um parafuso, em metros,
+        /// pela geometria. Para quando o Revit não dá essas medidas.
+        /// </summary>
+        private static (double? Diametro, double? Comprimento) MedidasDoFixador(List<Solid> solidos)
+        {
+            double raio = double.MaxValue;
+            XYZ eixo = null;
+            try
+            {
+                foreach (Solid s in solidos)
+                    foreach (Face f in s.Faces)
+                        if (f is CylindricalFace c)
+                        {
+                            double r = c.get_Radius(0).GetLength();
+                            if (r * 0.3048 > 0.002 && r < raio) { raio = r; eixo = c.Axis.Normalize(); }
+                        }
+                if (eixo == null) return (null, null);
+                double min = double.MaxValue, max = double.MinValue;
+                foreach (Solid s in solidos)
+                    foreach (Edge e in s.Edges)
+                        foreach (XYZ ponto in e.Tessellate())
+                        {
+                            double t = ponto.DotProduct(eixo);
+                            if (t < min) min = t;
+                            if (t > max) max = t;
+                        }
+                double d = Math.Round(2 * raio * 304.8, 1) / 1000;
+                return (d, max > min ? Math.Round((max - min) * 304.8, 1) / 1000 : (double?)null);
+            }
+            catch { return (null, null); }
         }
 
         // ------------------------------------------------------------------ dados
