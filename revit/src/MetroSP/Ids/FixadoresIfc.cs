@@ -115,7 +115,9 @@ namespace MetroSP.Ifc
                 if ((e.Type == "IFCMEMBER" || e.Type == "IFCMEMBERSTANDARDCASE") && e.Args.Count >= 9)
                 {
                     string perfil = Pegar(p, "Profile Type", "Tipo de perfil", "Perfil") ?? "";
-                    bool cantoneira = perfil.StartsWith("L", StringComparison.OrdinalIgnoreCase) && perfil.Length > 1 && char.IsDigit(perfil[1]);
+                    // Cantoneira pelo nome da seção, em qualquer catálogo: "L76X76X4.8", "L 3x3x1/4", "2L...", "Cantoneira...", "Angle...".
+                    string sec = perfil.Replace(" ", "").ToUpperInvariant();
+                    bool cantoneira = System.Text.RegularExpressions.Regex.IsMatch(sec, @"^\d*L\d") || sec.Contains("CANTONEIRA") || sec.Contains("ANGLE");
                     m.SetArg(e.Id, 4, S(cantoneira ? "Cantoneira de ligação" : "Perfil de ligação"));
                     m.SetArg(e.Id, 8, ".USERDEFINED.");
                 }
