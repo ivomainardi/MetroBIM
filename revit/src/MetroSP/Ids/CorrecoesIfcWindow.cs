@@ -52,8 +52,8 @@ namespace MetroSP.Ids
                 ("Armaduras e telas", "Quantidade, comprimento e peso de cada barra; diâmetro, aço e superfície; anéis; telas.",
                  "Qto_ReinforcingElementBaseQuantities das barras (inclusive conjuntos de comprimento variável e armaduras de área e " +
                  "de caminho), diâmetro, área da seção, comprimento, aço, superfície e função da barra e do tipo (Pset_ReinforcingBarCommon), " +
-                 "anéis fechados em arcos de 3 pontos, MetroQto da própria barra nos conjuntos variáveis, material \"Aço CA-50\" quando o " +
-                 "do Revit não diz o aço e dimensões, diâmetros e espaçamentos das telas soldadas (IfcReinforcingMesh) pelo Revit."),
+                 "anéis fechados em arcos de 3 pontos, MetroQto da própria barra nos conjuntos variáveis, aviso quando o material do Revit " +
+                 "não diz o aço da classificação e dimensões, diâmetros e espaçamentos das telas soldadas (IfcReinforcingMesh) pelo Revit."),
             }),
         };
 

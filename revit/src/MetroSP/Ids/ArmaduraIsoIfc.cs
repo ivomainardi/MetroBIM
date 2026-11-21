@@ -37,7 +37,7 @@ namespace MetroSP.Ifc
     /// <item>Conjuntos exportados barra a barra (comprimento variável): o MetroQto repete em cada barra a Quantidade e o
     /// PesoDoConjunto do conjunto inteiro e fica sem o Comprimento. Passa a valer a barra (1, peso e comprimento dela).</item>
     /// <item>Aço: a categoria (CA-25, CA-50, CA-60) vem do material ou da classificação. Se o material do Revit não diz a
-    /// categoria (ex.: o "Rebar - ASTM A615M - Grade 420" padrão), o material da armadura no IFC passa a ser "Aço CA-50".</item>
+    /// categoria (ex.: o "Rebar - ASTM A615M - Grade 420" padrão), o material do Revit fica no IFC e o registro avisa para corrigir.</item>
     /// <item>Atributos da barra e do tipo (NominalDiameter, CrossSectionArea, BarLength, BarSurface, SteelGrade e a função
     /// em PredefinedType) e o Pset_ReinforcingBarCommon completo. O código de forma ISO 3766 só sai se a forma do Revit
     /// tiver o código no nome (ex.: "ISO 3766 21" ou "21"): o Revit não guarda essa correspondência.</item>
@@ -52,10 +52,10 @@ namespace MetroSP.Ifc
 
         public sealed class Resultado
         {
-            public int Barras, Atributos, Tipos, Psets, MetroQtoPorBarra, PesosTipados, Aneis, AneisEstimados, AneisSemPlano, ComAco, MaterialTrocado, FormaIso, SemFormaIso;
+            public int Barras, Atributos, Tipos, Psets, MetroQtoPorBarra, PesosTipados, Aneis, AneisEstimados, AneisSemPlano, ComAco, MaterialDivergente, FormaIso, SemFormaIso;
             public string Aco, MaterialAntigo;
             public readonly List<string> Avisos = new List<string>();
-            public bool Alterou => Atributos + Tipos + Psets + MetroQtoPorBarra + PesosTipados + Aneis + MaterialTrocado + FormaIso > 0;
+            public bool Alterou => Atributos + Tipos + Psets + MetroQtoPorBarra + PesosTipados + Aneis + FormaIso > 0;
 
             public IEnumerable<string> Linhas()
             {
@@ -70,8 +70,8 @@ namespace MetroSP.Ifc
                     yield return $"Armaduras: {AneisSemPlano} anel(is) fechado(s) ficaram como o exportador gravou (não deu para saber o plano do círculo).";
                 if (MetroQtoPorBarra > 0)
                     yield return $"Armaduras de comprimento variável: Quantidade, PesoDoConjunto e Comprimento do MetroQto da própria barra em {MetroQtoPorBarra} IfcReinforcingBar (antes repetiam o total do conjunto).";
-                if (MaterialTrocado > 0)
-                    yield return $"Armaduras: o material do Revit \"{MaterialAntigo}\" não é {Aco}; no IFC ficou \"Aço {Aco}\" em {MaterialTrocado} barra(s). Corrija o material no Revit.";
+                if (MaterialDivergente > 0)
+                    yield return $"Armaduras: o material do Revit \"{MaterialAntigo}\" não diz {Aco}, que é o aço da classificação, em {MaterialDivergente} barra(s). O IFC manteve o material do Revit; corrija o material no Revit.";
                 if (PesosTipados > 0)
                     yield return $"Armaduras: PesoLinear em kg/m (IfcMassPerLengthMeasure) e PesoDoConjunto em kg (IfcMassMeasure) em {PesosTipados} IfcReinforcingBar (o exportador gravou como IfcReal).";
                 if (FormaIso > 0) yield return $"Armaduras: código de forma ISO 3766 em {FormaIso} barra(s).";
@@ -294,41 +294,15 @@ namespace MetroSP.Ifc
                 if (mudou) r.Tipos++;
             }
 
-            // 4. Material: renomeia o material do Revit quando só armaduras usam; senão, um material novo para as barras.
+            // 4. Material: o que está no Revit não é trocado. Se o material não diz a categoria do aço que a classificação
+            // diz, só o registro avisa, para corrigir no Revit.
             foreach (var kv in materiaisTrocar)
             {
                 string aco = AcoDaBarra(kv.Value[0]);
                 if (aco == null) continue;
-                StepEntity mat = m.Get(kv.Key);
-                string antigo = StepModel.Text(mat.Args[0]);
-                string novo = "Aço " + aco;
-                r.MaterialAntigo = r.MaterialAntigo ?? antigo;
-                r.Aco = aco;
-                // Renomeia só se todos os objetos com esse material são barras com a mesma categoria de aço.
-                bool todos = m.OfType("IFCRELASSOCIATESMATERIAL").Where(x => StepModel.Ref(x.Args[5]) == kv.Key)
-                    .SelectMany(x => StepModel.RefList(x.Args[4])).All(o => alvo.Contains(o) && AcoDaBarra(o) == aco);
-                if (todos)
-                {
-                    m.SetArg(kv.Key, 0, Texto(novo));
-                    if (mat.Args.Count > 1 && mat.Args[1] == "$") m.SetArg(kv.Key, 1, Texto("Revit: " + antigo));
-                    r.MaterialTrocado += m.OfType("IFCRELASSOCIATESMATERIAL").Where(x => StepModel.Ref(x.Args[5]) == kv.Key)
-                        .Sum(x => StepModel.RefList(x.Args[4]).Count);
-                    continue;
-                }
-                var porAco = kv.Value.GroupBy(AcoDaBarra).Where(g => g.Key != null);
-                foreach (var g in porAco)
-                {
-                    int nm = m.Add("IFCMATERIAL", Texto("Aço " + g.Key), Texto("Revit: " + antigo), mat.Args.Count > 2 ? mat.Args[2] : "$");
-                    var objs = g.ToList();
-                    foreach (var rel in objs.Select(o => material[o].Rel).Distinct().ToList())
-                    {
-                        List<int> ficam = StepModel.RefList(m.Get(rel).Args[4]).Where(o => !objs.Contains(o)).ToList();
-                        if (ficam.Count > 0) m.SetArg(rel, 4, StepModel.RefListText(ficam));
-                        else m.Remove(rel);
-                    }
-                    m.Add("IFCRELASSOCIATESMATERIAL", Guid("material|" + g.Key + "|" + objs[0]), historico, "$", "$", StepModel.RefListText(objs), "#" + nm);
-                    r.MaterialTrocado += objs.Count;
-                }
+                r.MaterialAntigo = r.MaterialAntigo ?? StepModel.Text(m.Get(kv.Key).Args[0]);
+                r.Aco = r.Aco ?? aco;
+                r.MaterialDivergente += kv.Value.Count;
             }
             if (r.SemFormaIso > 0 && r.FormaIso == 0)
                 r.Avisos.Add("Armaduras: sem código de forma ISO 3766 (as formas do Revit não trazem o código no nome).");

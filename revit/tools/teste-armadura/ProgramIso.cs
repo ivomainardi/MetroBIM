@@ -125,8 +125,8 @@ END-ISO-10303-21;
         Confere(tipo.Args[10] == "0.01" && tipo.Args[13] == ".TEXTURED." && tipo.Args[11] != "$", "tipo: " + string.Join(",", tipo.Args.Skip(9)));
 
         StepEntity mat = m.Get(80);
-        Confere(StepModel.Text(mat.Args[0]) == "Aço CA-50" && StepModel.Text(mat.Args[1]) == "Revit: Rebar - ASTM A615M - Grade 420",
-            "material renomeado: " + StepModel.Text(mat.Args[0]) + " / " + StepModel.Text(mat.Args[1]));
+        Confere(StepModel.Text(mat.Args[0]) == "Rebar - ASTM A615M - Grade 420",
+            "material do Revit mantido: " + StepModel.Text(mat.Args[0]));
 
         // Anel: dois arcos de 3 pontos, no plano horizontal (z = 0), raio 5.
         StepEntity curva = m.Get(61);
@@ -140,7 +140,7 @@ END-ISO-10303-21;
         // Rodar de novo não muda nada (o anel já tem 3 pontos e os valores já estão lá).
         ArmaduraIsoIfc.Resultado r2 = ArmaduraIsoIfc.Aplicar(m, id => dados.TryGetValue(id, out var d) ? d : null,
             id => barras.TryGetValue(id, out var b) ? b : null);
-        Confere(!r2.Alterou, $"segunda passada não altera: atributos {r2.Atributos}, psets {r2.Psets}, MetroQto {r2.MetroQtoPorBarra}, anéis {r2.Aneis}, material {r2.MaterialTrocado}");
+        Confere(!r2.Alterou, $"segunda passada não altera: atributos {r2.Atributos}, psets {r2.Psets}, MetroQto {r2.MetroQtoPorBarra}, anéis {r2.Aneis}, material {r2.MaterialDivergente}");
         File.Delete(arq);
         return _falhas;
     }

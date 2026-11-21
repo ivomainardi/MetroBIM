@@ -17,8 +17,8 @@ Revit 0.3.19 · Civil 3D 0.12.9
 - Revit, **armaduras de comprimento variável**: o MetroQto de cada barra repetia a Quantidade e o PesoDoConjunto do
   conjunto inteiro (somando por elemento, o peso saía muitas vezes maior). Agora vale a própria barra, com o Comprimento.
 - Revit, **material da armadura**: quando o material do Revit não diz a categoria do aço (ex.: "Rebar - ASTM A615M -
-  Grade 420", o padrão do Revit) e a classificação diz CA-50, o material no IFC passa a ser "Aço CA-50" e o registro
-  pede para corrigir o material no Revit.
+  Grade 420", o padrão do Revit) e a classificação diz CA-50, o material do Revit fica no IFC como está e o registro
+  pede para corrigir o material no Revit. A categoria do aço vai para o SteelGrade da barra.
 - Revit, **pesos com unidade**: PesoLinear sai em kg/m (IfcMassPerLengthMeasure) e PesoDoConjunto em kg
   (IfcMassMeasure), no lugar do IfcReal sem unidade.
 - Revit, **conferência das medidas**: barras de armadura e tubos passam a contar a espessura (o raio) na caixa do IFC;
