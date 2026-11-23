@@ -222,11 +222,17 @@ namespace MetroSP.Ids
             }).FirstOrDefault(c => c != null && DirectShape.IsValidCategoryId(c, doc));
             if (cat == null) return null;
 
-            var formas = solidos.Cast<GeometryObject>().ToList();
+            // Só sólidos fechados e válidos: um sólido defeituoso numa forma temporária pode derrubar o exportador do Revit.
+            var formas = solidos.Where(SolidoValido).Cast<GeometryObject>().ToList();
+            if (formas.Count == 0) return null;
             DirectShape ds = DirectShape.CreateElement(doc, cat);
             ds.ApplicationId = "MetroSP";
             ds.ApplicationDataId = origem.UniqueId;
-            try { ds.SetShape(formas); }
+            try
+            {
+                if (!ds.IsValidShape(formas)) throw new InvalidOperationException();
+                ds.SetShape(formas);
+            }
             catch
             {
                 doc.Delete(ds.Id);
@@ -253,6 +259,15 @@ namespace MetroSP.Ids
             Parameter exp = ExportarParaIfc(ds);
             if (exp != null && !exp.IsReadOnly) exp.Set(ExportarSim);
             return ds;
+        }
+
+        private static bool SolidoValido(Solid s)
+        {
+            try
+            {
+                return s != null && s.Volume > 1e-9 && s.Faces.Size > 0 && SolidUtils.IsValidForTessellation(s);
+            }
+            catch { return false; }
         }
 
         /// <summary>Na exportação por vista, mostra as categorias das formas temporárias se a vista as esconde.</summary>

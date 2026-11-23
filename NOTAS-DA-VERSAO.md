@@ -4,6 +4,13 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.20 (23/11/2026)
+
+Revit 0.3.20 · Civil 3D 0.12.9
+
+- Revit, **exportação IFC mais segura com ligações metálicas**: as peças temporárias das ligações só são criadas com
+  sólidos fechados e válidos para o exportador. Um sólido defeituoso podia fazer o Revit fechar durante a exportação.
+
 ## 1.0.19 (23/11/2026)
 
 Revit 0.3.19 · Civil 3D 0.12.9
