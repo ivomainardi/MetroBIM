@@ -87,6 +87,27 @@ namespace MetroSP.Ids
             return r;
         }
 
+        /// <summary>
+        /// A tabela que a exportação deixa ativa no modelo (Revit 2025+): o mapeamento atual do modelo com a tabela
+        /// que vale por cima (a salva ou, sem ela, o padrão MetroSP). Revit 2022 a 2024: vazia, porque lá a exportação
+        /// usa o mapeamento do próprio Revit, que a API não lê. Usada na conferência para dar a mesma classe da exportação.
+        /// </summary>
+        public static List<Linha> QueVaiNaExportacao(Document doc, string esquema)
+        {
+#if REVIT_ANTES_2025
+            return new List<Linha>();
+#else
+            if (esquema == null) return new List<Linha>();
+            List<Linha> doModelo = DoModelo(doc);
+            string arquivo = Arquivo(esquema);
+            if (arquivo == null) return Padrao(doc, esquema, doModelo);
+            var porChave = new Dictionary<string, Linha>(StringComparer.OrdinalIgnoreCase);
+            foreach (Linha l in doModelo) porChave[l.Chave] = l;
+            foreach (Linha l in Ler(arquivo)) porChave[l.Chave] = l;   // a tabela salva vale por cima do modelo
+            return porChave.Values.ToList();
+#endif
+        }
+
         public static List<Linha> Ler(string arquivo)
         {
             var r = new List<Linha>();
