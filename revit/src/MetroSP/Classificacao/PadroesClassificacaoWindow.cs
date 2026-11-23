@@ -37,6 +37,9 @@ namespace MetroSP.Classificacao
         private readonly ComboBox _pDescricao;
         private readonly ComboBox _pLonga;
         private readonly TextBlock _exemplo;
+        private readonly Border _alertaCodigo;
+        private readonly TextBlock _alertaTexto;
+        private readonly Button _alertaTrocar;
         private readonly MapaColunasPainel _mapa;
         private readonly TextBlock _info;
         private readonly Button _remover;
@@ -172,11 +175,36 @@ namespace MetroSP.Classificacao
             };
             _detalhe.Children.Add(_exemplo);
 
+            // Aviso quando a coluna do código repete o mesmo valor (ex.: "[LMB7]" em todas as linhas).
+            _alertaTexto = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Theme.Solid(Theme.LaranjaTexto), VerticalAlignment = VerticalAlignment.Center };
+            _alertaTrocar = new Button
+            {
+                Margin = new Thickness(10, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                ToolTip = "A coluna do Título passa a ser o código e o texto depois dos dois-pontos passa a vir da Descrição. Dá para ajustar na Planilha com a lista.",
+            };
+            _alertaTrocar.Click += (s, e) => TrocarColunaCodigo();
+            var alertaLinha = new DockPanel();
+            DockPanel.SetDock(_alertaTrocar, Dock.Right);
+            alertaLinha.Children.Add(_alertaTrocar);
+            alertaLinha.Children.Add(_alertaTexto);
+            _alertaCodigo = new Border
+            {
+                Background = Theme.Solid(Theme.LaranjaSelecao),
+                BorderBrush = Theme.Solid(Theme.Laranja),
+                BorderThickness = new Thickness(3, 0, 0, 0),
+                Padding = new Thickness(8, 6, 8, 6),
+                Margin = new Thickness(0, 6, 0, 0),
+                Child = alertaLinha,
+                Visibility = Visibility.Collapsed,
+            };
+            _detalhe.Children.Add(_alertaCodigo);
+
             var tituloPlanilha = Theme.Secao("Planilha com a lista");
             tituloPlanilha.ToolTip = "Escolha a planilha e indique em qual coluna está cada dado. Pode ser a mesma planilha para várias classificações, em abas ou colunas diferentes.";
             _detalhe.Children.Add(tituloPlanilha);
             _mapa = new MapaColunasPainel(new MapaColunas(), SistemaClassificacao.Campos);
-            _mapa.Mudou += () => { if (!_preenchendo) { _exemploItem = null; Alterou(); } };
+            _mapa.Mudou += () => { if (!_preenchendo) { _exemploItem = null; _exemploLista = null; Alterou(); } };
             _detalhe.Children.Add(_mapa);
             // A planilha vem primeiro: é o que o usuário precisa escolher; o resto já vem preenchido.
             _detalhe.Children.Remove(tituloPlanilha);
@@ -488,7 +516,7 @@ namespace MetroSP.Classificacao
             _pCodigo.Text = s.ParametroCodigo ?? "";
             _pDescricao.Text = s.ParametroDescricao ?? "";
             _pLonga.Text = s.ParametroDescricaoLonga ?? "";
-            _exemploItem = null;
+            _exemploItem = null; _exemploLista = null;
             _mapa.DefinirMapa(s.Planilha ??= new MapaColunas(), SistemaClassificacao.Campos);
             _preenchendo = false;
             AtualizarHabilitados();
@@ -516,19 +544,62 @@ namespace MetroSP.Classificacao
         }
 
         private ClassItem _exemploItem;
+        private ClassificationList _exemploLista;
 
         /// <summary>Primeiro item da planilha com título, para o exemplo (lido de novo só quando as colunas mudam).</summary>
         private ClassItem ItemExemplo()
         {
             if (_exemploItem != null || _sis == null || _mapa.Tabela == null) return _exemploItem;
+            _exemploLista = null;
             try
             {
                 if (_sis.Planilha?.Coluna(SistemaClassificacao.CampoCodigo.Chave) == null) return null;
                 ClassificationList l = ClassificationList.De(_mapa.Tabela, _sis.Planilha, _sis.Nome);
+                _exemploLista = l;
                 _exemploItem = l.Itens.FirstOrDefault(i => i.Descricao.Length > 0 && i.Pai != null) ?? l.Itens.FirstOrDefault();
             }
             catch { }
             return _exemploItem;
+        }
+
+        /// <summary>Coluna do Título com cara de código (sem espaços, curta, um valor por linha), para trocar com a do código.</summary>
+        private string ColunaTituloComCaraDeCodigo()
+        {
+            if (_sis?.Planilha == null || _mapa.Tabela == null) return null;
+            string col = _sis.Planilha.Coluna(SistemaClassificacao.CampoTitulo.Chave);
+            if (col == null) return null;
+            var valores = _sis.Planilha.Linhas(_mapa.Tabela).Select(l => l[SistemaClassificacao.CampoTitulo.Chave]).Where(v => !string.IsNullOrWhiteSpace(v)).ToList();
+            if (valores.Count == 0) return null;
+            bool curtos = valores.Count(v => v.Length <= 30 && !v.Trim().Contains(' ')) * 10 >= valores.Count * 9;
+            bool unicos = valores.Distinct(StringComparer.OrdinalIgnoreCase).Count() * 10 >= valores.Count * 9;
+            return curtos && unicos ? col : null;
+        }
+
+        private void MostrarAlertaCodigo()
+        {
+            ClassificationList l = _exemploLista;
+            if (l == null || !l.CodigoRepetido) { _alertaCodigo.Visibility = Visibility.Collapsed; return; }
+            string colTitulo = ColunaTituloComCaraDeCodigo();
+            string exemplo = colTitulo == null ? null : _exemploItem?.Descricao;
+            _alertaTexto.Text = $"A coluna do código tem \"{l.MaisRepetido}\" em {l.VezesMaisRepetido} de {l.LinhasComCodigo} linhas. " +
+                                "O código tem de mudar a cada item" + (string.IsNullOrEmpty(exemplo) ? "." : $", como {exemplo}.");
+            _alertaTrocar.Content = colTitulo == null ? null : $"Usar coluna {colTitulo} como código";
+            _alertaTrocar.Visibility = colTitulo == null ? Visibility.Collapsed : Visibility.Visible;
+            _alertaCodigo.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>O Título vira o código; o texto depois dos dois-pontos passa a vir da Descrição.</summary>
+        private void TrocarColunaCodigo()
+        {
+            string col = ColunaTituloComCaraDeCodigo();
+            if (col == null || _sis == null) return;
+            _sis.Planilha.DefinirColuna(SistemaClassificacao.CampoCodigo.Chave, col);
+            _sis.Planilha.DefinirColuna(SistemaClassificacao.CampoTitulo.Chave, null);
+            _exemploItem = null; _exemploLista = null;
+            _preenchendo = true;
+            _mapa.DefinirMapa(_sis.Planilha, SistemaClassificacao.Campos);
+            _preenchendo = false;
+            Alterou();
         }
 
         private void AtualizarInfo()
@@ -536,9 +607,11 @@ namespace MetroSP.Classificacao
             if (_exemplo != null && _sis != null)
             {
                 ClassItem it = ItemExemplo();
+                MostrarAlertaCodigo();
                 _exemplo.Text = _sis.Exemplo(it) +
                     (!string.IsNullOrWhiteSpace(_sis.ParametroDescricaoLonga) && !string.IsNullOrEmpty(it?.DescricaoLonga) ? $"\n{_sis.ParametroDescricaoLonga} = {it.DescricaoLonga}" : "");
             }
+            else if (_alertaCodigo != null) _alertaCodigo.Visibility = Visibility.Collapsed;
             if (_atual == null) { _info.Text = ""; return; }
             string pend = _sis == null ? null : _mapa.Pendencia();
             int n = _atual.Sistemas.Count;
