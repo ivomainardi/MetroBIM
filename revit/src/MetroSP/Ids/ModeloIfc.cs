@@ -40,6 +40,56 @@ namespace MetroSP.Ids
 
         public string Titulo => _doc.Title;
 
+        // ---------- guardado por documento (vale até o modelo mudar) ----------
+
+        private class Guardado
+        {
+            public Document Doc;
+            public HashSet<string> Nomes;
+            public ModeloIfc Modelo;
+        }
+
+        private static readonly List<Guardado> _guardados = new List<Guardado>();
+
+        private static Guardado DoDoc(Document doc)
+        {
+            _guardados.RemoveAll(g => !g.Doc.IsValidObject);
+            Guardado r = _guardados.FirstOrDefault(g => g.Doc.Equals(doc));
+            if (r == null) _guardados.Add(r = new Guardado { Doc = doc });
+            return r;
+        }
+
+        /// <summary>
+        /// Retrato do modelo já lido para este documento, ou lê agora. Editar o .txt de property sets não mexe no modelo,
+        /// então abrir o editor de novo (ou voltar dele) não relê tudo. Qualquer mudança no modelo descarta o retrato.
+        /// </summary>
+        public static ModeloIfc DoDocumento(Document doc)
+        {
+            if (doc == null) return null;
+            Guardado g = DoDoc(doc);
+            if (g.Modelo == null)
+            {
+                g.Modelo = new ModeloIfc(doc, g.Nomes);
+                g.Nomes = g.Modelo.Parametros;
+            }
+            return g.Modelo;
+        }
+
+        /// <summary>Nomes dos parâmetros do modelo, guardados como em <see cref="DoDocumento"/>.</summary>
+        public static HashSet<string> NomesDoDocumento(Document doc)
+        {
+            if (doc == null) return null;
+            Guardado g = DoDoc(doc);
+            return g.Nomes ?? (g.Nomes = NomesDosParametros(doc));
+        }
+
+        /// <summary>Descarta o que foi guardado (o modelo mudou, foi fechado ou a pessoa pediu para conferir de novo).</summary>
+        public static void Esquecer(Document doc)
+        {
+            if (doc == null) { _guardados.Clear(); return; }
+            _guardados.RemoveAll(g => !g.Doc.IsValidObject || g.Doc.Equals(doc));
+        }
+
         public ModeloIfc(Document doc, HashSet<string> parametros = null)
         {
             _doc = doc;

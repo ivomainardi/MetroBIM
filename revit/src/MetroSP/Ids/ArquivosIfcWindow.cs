@@ -256,7 +256,7 @@ namespace MetroSP.Ids
         /// <summary>Só os nomes dos parâmetros do modelo (rápido), para as marcas da lista.</summary>
         private HashSet<string> Nomes()
         {
-            if (_nomes == null && _doc != null) _nomes = _modelo?.Parametros ?? ModeloIfc.NomesDosParametros(_doc);
+            if (_nomes == null && _doc != null) _nomes = _modelo?.Parametros ?? ModeloIfc.NomesDoDocumento(_doc);
             return _nomes;
         }
 
@@ -266,7 +266,7 @@ namespace MetroSP.Ids
             {
                 Cursor antes = Mouse.OverrideCursor;
                 Mouse.OverrideCursor = Cursors.Wait;
-                try { _modelo = new ModeloIfc(_doc, _nomes); _nomes = _modelo.Parametros; _conferidoEm = DateTime.Now; }
+                try { _modelo = ModeloIfc.DoDocumento(_doc); _nomes = _modelo.Parametros; _conferidoEm = DateTime.Now; }
                 finally { Mouse.OverrideCursor = antes; }
             }
             return _modelo;
@@ -674,7 +674,7 @@ namespace MetroSP.Ids
             var editar = new Button { Content = "Editar...", Style = Theme.PrimaryButton };
             editar.Click += (s, e) => EditarPsets(a);
             var verificar = new Button { Content = "Verificar de novo", IsEnabled = _doc != null };
-            verificar.Click += (s, e) => { _modelo = null; _nomes = null; Recarregar(a.Classe); };
+            verificar.Click += (s, e) => { ModeloIfc.Esquecer(_doc); _modelo = null; _nomes = null; Recarregar(a.Classe); };
             baixo.Children.Add(AcoesDoArquivo(a, editar, verificar));
             painel.Children.Add(baixo);
 

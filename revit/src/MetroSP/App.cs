@@ -66,6 +66,14 @@ namespace MetroSP
                 System.Diagnostics.Debug.WriteLine("MetroSP: Painel MetroSP não registrado: " + ex.Message);
             }
 
+            // O retrato do modelo usado pelo editor de property sets fica guardado até o modelo mudar.
+            try
+            {
+                application.ControlledApplication.DocumentChanged += (s, e) => { try { Ids.ModeloIfc.Esquecer(e.GetDocument()); } catch { } };
+                application.ControlledApplication.DocumentClosing += (s, e) => { try { Ids.ModeloIfc.Esquecer(e.Document); } catch { } };
+            }
+            catch { }
+
             // As logos entram depois que a Ribbon do Revit está pronta (fica à direita, depois dos painéis).
             application.ControlledApplication.ApplicationInitialized += (s, e) =>
             {
