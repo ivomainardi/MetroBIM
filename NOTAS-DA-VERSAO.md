@@ -4,6 +4,14 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.19 (23/11/2026)
+
+Revit 0.3.19 · Civil 3D 0.12.9
+
+- Revit, **chapas e cantoneiras individualizadas**: cada ligação saía com todas as chapas num IfcPlate só e todas as
+  cantoneiras num IfcMember só. Agora cada chapa e cada cantoneira é um elemento próprio no IFC, como os parafusos,
+  para contar, pesar e identificar peça por peça.
+
 ## 1.0.18 (20/11/2026)
 
 Revit 0.3.18 · Civil 3D 0.12.9

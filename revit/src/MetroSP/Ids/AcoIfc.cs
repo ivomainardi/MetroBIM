@@ -45,9 +45,9 @@ namespace MetroSP.Ids
                 { BuiltInCategory.OST_StructConnectionBolts, ("Parafuso", "IfcMechanicalFastener.BOLT", true, true) },
                 { BuiltInCategory.OST_StructConnectionAnchors, ("Chumbador", "IfcMechanicalFastener.ANCHORBOLT", true, true) },
                 { BuiltInCategory.OST_StructConnectionShearStuds, ("Conector de cisalhamento", "IfcMechanicalFastener.SHEARCONNECTOR", false, true) },
-                { BuiltInCategory.OST_StructConnectionPlates, ("Chapa", "IfcPlate", false, false) },
+                { BuiltInCategory.OST_StructConnectionPlates, ("Chapa", "IfcPlate", false, true) },
                 { BuiltInCategory.OST_StructConnectionWelds, ("Solda", "IfcFastener.WELD", false, false) },
-                { BuiltInCategory.OST_StructConnectionProfiles, ("Perfil", "IfcMember", false, false) },
+                { BuiltInCategory.OST_StructConnectionProfiles, ("Perfil", "IfcMember", false, true) },
             };
 
         /// <summary>Valores do "Exportar para IFC" (IFCExportElement: 0 pelo tipo, 1 sim, 2 não).</summary>
@@ -163,7 +163,7 @@ namespace MetroSP.Ids
                 previstas++;
 
                 Dados dados = item.Sub != null ? LerDados(doc, item.Sub) : LerDados(doc, origem);
-                // Grupo de parafusos: cada conjunto de sólidos que se tocam (parafuso, porca, arruelas) é um parafuso.
+                // Cada conjunto de sólidos que se tocam é uma peça: um parafuso (com porca e arruelas), uma chapa, uma cantoneira.
                 List<List<Solid>> pecas = info.Separar ? Agrupar(solidos) : new List<List<Solid>> { solidos };
                 int antes = criadas;
                 for (int i = 0; i < pecas.Count; i++)
