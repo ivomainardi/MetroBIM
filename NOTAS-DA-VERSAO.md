@@ -4,6 +4,18 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## Próxima versão (em preparo)
+
+- Revit, **Perfis de exportação IFC sem abas**: cada perfil mostra os seus 3 arquivos, um por linha (1 configuração
+  .json, 1 property sets .txt e 1 mapeamento .txt, opcional), com **Abrir**/**Editar...**, **Trocar...** e **⋯** (voltar
+  ao original, salvar uma cópia, abrir a pasta). Para ligar um arquivo ao perfil, basta arrastá-lo para a linha dele.
+  As configurações do .json ficam logo abaixo, e **Salvar perfil** grava tudo. Na lista entram **Novo...**,
+  **Excluir...** (com confirmação; os arquivos ficam em Anteriores) e **Importar...**, e no perfil, **Exportar
+  perfil...**, que salva os 3 arquivos num .zip para mandar a outra pessoa.
+- Revit, **Arquivos do Metrô** (Entrega): os campos do setup (.json), dos property sets (.txt) e da tabela de classes
+  IFC (.txt) dão lugar a um seletor de **perfil de exportação**, que traz os três arquivos do perfil. Padrões antigos,
+  com os arquivos escolhidos um a um, continuam valendo até se escolher um perfil.
+
 ## 1.0.16 (19/11/2026)
 
 Revit 0.3.16 · Civil 3D 0.12.9

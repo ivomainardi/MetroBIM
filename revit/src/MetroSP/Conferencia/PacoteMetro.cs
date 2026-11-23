@@ -35,6 +35,25 @@ namespace MetroSP.Conferencia
         public string MetroShared { get; set; }
         public string ParametroClassificacao { get; set; } = "ClassificationCode";
 
+        /// <summary>
+        /// Perfil de exportação IFC dos padrões: o setup (.json), os property sets e o mapeamento (.txt) vêm dele
+        /// (ver <see cref="AplicarPerfil"/>). Vazio = padrões antigos, com os três arquivos escolhidos um a um.
+        /// </summary>
+        public string Perfil { get; set; }
+
+        /// <summary>Troca o setup, os property sets e o mapeamento pelos arquivos do perfil (se ele existir neste computador).</summary>
+        public void AplicarPerfil()
+        {
+            if (string.IsNullOrWhiteSpace(Perfil)) return;
+            MetroSP.Ids.ClassesIfc.Classe c;
+            try { c = MetroSP.Ids.ClassesIfc.Obter(Perfil.Trim()); }
+            catch { return; }
+            if (c == null || (c.Setup == null && c.PropertySets == null && c.Mapeamento == null)) return;
+            Setup = c.Setup;
+            PropertySets = c.PropertySets;
+            ClassesIfc = c.Mapeamento;
+        }
+
         /// <summary>Planilha do MetroDATA exportada do Airtable (.xlsx): os dados exigidos no passo MetroDATA.</summary>
         public string MetroData { get; set; }
         /// <summary>Disciplina do MetroDATA (ex.: "Arquitetura", "Sistemas / Telecom X"); vazio = todas.</summary>
@@ -120,6 +139,7 @@ namespace MetroSP.Conferencia
                 MetroSP.Ids.ClassesIfc.Classe arquivos = MetroSP.Ids.ClassesIfc.Obter(e.Padrao.Nome);
                 if (Existe(arquivos.Setup)) c.Setup = arquivos.Setup;
                 if (Existe(arquivos.PropertySets)) c.PropertySets = arquivos.PropertySets;
+                if (Existe(arquivos.Mapeamento)) c.ClassesIfc = arquivos.Mapeamento;
             }
             return c;
         }
@@ -132,7 +152,7 @@ namespace MetroSP.Conferencia
 
         /// <summary>Texto que muda quando qualquer arquivo ou o nome muda (para saber se o pacote foi editado).</summary>
         public string Assinatura() =>
-            string.Join("|", Nome, Ids, Setup, PropertySets, ClassesIfc, Planilha, MetroShared, ParametroClassificacao, MetroData);
+            string.Join("|", Nome, Perfil, Ids, Setup, PropertySets, ClassesIfc, Planilha, MetroShared, ParametroClassificacao, MetroData);
 
         // ------------------------------------------------------------------ usuário
 
@@ -302,6 +322,8 @@ namespace MetroSP.Conferencia
         private IEnumerable<string> ParaIni(string pasta)
         {
             yield return "nome=" + (Nome ?? "");
+            // perfil= vale sobre setup, psets e classes (que ficam gravados para versões antigas do MetroSP).
+            yield return "perfil=" + (Perfil ?? "");
             yield return "ids=" + Relativo(Ids, pasta);
             yield return "setup=" + Relativo(Setup, pasta);
             yield return "psets=" + Relativo(PropertySets, pasta);
@@ -336,6 +358,8 @@ namespace MetroSP.Conferencia
                 MetroShared = Absoluto(V("metroshared"), pasta),
             };
             if (V("parametro") != null) p.ParametroClassificacao = V("parametro");
+            p.Perfil = V("perfil");
+            p.AplicarPerfil();
             LerMetroData(p, d, pasta, false);
             return p;
         }

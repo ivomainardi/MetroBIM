@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -13,7 +15,13 @@ namespace MetroSP.Conferencia
     /// </summary>
     public class PacoteWindow : Window
     {
-        private readonly TextBox _nome, _ids, _setup, _psets, _classes, _planilha, _metroShared, _parametro;
+        private readonly TextBox _nome, _ids, _planilha, _metroShared, _parametro;
+        /// <summary>Perfil de exportação IFC: traz o setup (.json), os property sets e o mapeamento (.txt).</summary>
+        private readonly ComboBox _perfil;
+        private readonly WrapPanel _arquivosPerfil;
+        /// <summary>Padrões antigos (sem perfil): os três arquivos escolhidos um a um, mantidos enquanto não se escolhe um perfil.</summary>
+        private string _setupSolto, _psetsSolto, _classesSolto;
+        private const string SemPerfil = "(arquivos soltos dos padrões antigos)";
         private readonly TextBlock _origem;
         private readonly Button _excluir;
         private string _arquivo;
@@ -52,10 +60,26 @@ namespace MetroSP.Conferencia
             painel.Children.Add(aviso);
 
             _nome = Campo(painel, "Nome dos padrões (ex.: L20 · Classe B3 Arquitetura)");
-            _psets = Arquivo(painel, "Property sets do Metrô (.txt) — obrigatório", "Texto (*.txt)|*.txt");
-            _setup = Arquivo(painel, "Setup de exportação IFC (.json) — obrigatório", "Setup IFC (*.json)|*.json");
+            // O setup, os property sets e a tabela de classes vêm do perfil de exportação (um de cada).
+            painel.Children.Add(Theme.Label("Perfil de exportação IFC — obrigatório"));
+            var linhaPerfil = new DockPanel();
+            var perfis = new Button { Content = "Perfis...", Margin = new Thickness(6, 0, 0, 0),
+                ToolTip = "Abre os perfis de exportação IFC: criar, trocar os arquivos, importar ou exportar um perfil." };
+            DockPanel.SetDock(perfis, Dock.Right);
+            linhaPerfil.Children.Add(perfis);
+            _perfil = new ComboBox { ToolTip = "O perfil traz o setup de exportação (.json), os property sets (.txt) e a tabela de classes IFC (.txt, opcional)." };
+            linhaPerfil.Children.Add(_perfil);
+            painel.Children.Add(linhaPerfil);
+            _arquivosPerfil = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
+            painel.Children.Add(_arquivosPerfil);
+            _perfil.SelectionChanged += (s, e) => MostrarArquivosPerfil();
+            perfis.Click += (s, e) =>
+            {
+                var w = new ArquivosIfcWindow(null, PerfilEscolhido) { Owner = this };
+                w.ShowDialog();
+                if (w.Mudou) CarregarPerfis(PerfilEscolhido);
+            };
             _ids = Arquivo(painel, "Padrões Metrô (.ids) — opcional; com ele, só os campos obrigatórios dos padrões são exigidos", "Padrões Metrô (*.ids;*.xml)|*.ids;*.xml");
-            _classes = Arquivo(painel, "Tabela de classes IFC (.txt) — opcional", "Texto (*.txt)|*.txt");
             _planilha = Arquivo(painel, "Planilha de classificação (.xlsx ou .csv)", "Planilha (*.xlsx;*.csv)|*.xlsx;*.csv");
             _metroShared = Arquivo(painel, "MetroShared — parâmetros compartilhados (.txt)", "Texto (*.txt)|*.txt");
             _metroData = Arquivo(painel, "MetroDATA — planilha exportada do Airtable (.xlsx)", "Planilha do Excel (*.xlsx)|*.xlsx");
@@ -112,6 +136,9 @@ namespace MetroSP.Conferencia
             var usar = new Button { Content = "Usar e conferir", IsDefault = true, Style = Theme.PrimaryButton };
             usar.Click += (s, e) =>
             {
+                if (PerfilEscolhido == null && _setupSolto == null && _psetsSolto == null &&
+                    MessageBox.Show(this, "Nenhum perfil de exportação escolhido: a conferência fica sem setup e sem property sets.\n\nContinuar assim mesmo?", "MetroSP",
+                        MessageBoxButton.YesNo, MessageBoxImage.Warning, MessageBoxResult.No) != MessageBoxResult.Yes) return;
                 PacoteMetro p = Ler();
                 // Pacote de arquivo editado aqui e não salvo: passa a ser só deste usuário.
                 p.Arquivo = _arquivo != null && p.Assinatura() == _assinaturaArquivo ? _arquivo : null;
@@ -143,9 +170,11 @@ namespace MetroSP.Conferencia
         {
             _nome.Text = p.Nome ?? "";
             _ids.Text = p.Ids ?? "";
-            _setup.Text = p.Setup ?? "";
-            _psets.Text = p.PropertySets ?? "";
-            _classes.Text = p.ClassesIfc ?? "";
+            bool comPerfil = !string.IsNullOrWhiteSpace(p.Perfil);
+            _setupSolto = comPerfil ? null : p.Setup;
+            _psetsSolto = comPerfil ? null : p.PropertySets;
+            _classesSolto = comPerfil ? null : p.ClassesIfc;
+            CarregarPerfis(comPerfil ? p.Perfil.Trim() : null);
             _planilha.Text = p.Planilha ?? "";
             _metroShared.Text = p.MetroShared ?? "";
             _metroData.Text = p.MetroData ?? "";
@@ -159,16 +188,84 @@ namespace MetroSP.Conferencia
             {
                 Nome = V(_nome),
                 Ids = V(_ids),
-                Setup = V(_setup),
-                PropertySets = V(_psets),
-                ClassesIfc = V(_classes),
+                Perfil = PerfilEscolhido,
+                Setup = _setupSolto,
+                PropertySets = _psetsSolto,
+                ClassesIfc = _classesSolto,
                 Planilha = V(_planilha),
                 MetroShared = V(_metroShared),
                 ParametroClassificacao = V(_parametro) ?? "ClassificationCode",
                 MetroData = V(_metroData),
             };
+            p.AplicarPerfil();
             p.CopiarEscolhasMetroData(_escolhas);
             return p;
+        }
+
+        private string PerfilEscolhido => (_perfil.SelectedItem as ComboBoxItem)?.Tag as string;
+
+        /// <summary>Lista os perfis deste computador e escolhe o indicado.</summary>
+        private void CarregarPerfis(string escolher)
+        {
+            _perfil.Items.Clear();
+            List<ClassesIfc.Classe> perfis;
+            try { perfis = ClassesIfc.Listar(); }
+            catch { perfis = new List<ClassesIfc.Classe>(); }
+            foreach (ClassesIfc.Classe c in perfis)
+                _perfil.Items.Add(new ComboBoxItem { Content = c.Nome, Tag = c.Nome });
+            bool soltos = _setupSolto != null || _psetsSolto != null || _classesSolto != null;
+            if (soltos)
+                _perfil.Items.Add(new ComboBoxItem
+                {
+                    Content = SemPerfil, Tag = null,
+                    ToolTip = "Estes padrões foram feitos antes dos perfis, com os arquivos escolhidos um a um:\n" +
+                              string.Join("\n", new[] { _setupSolto, _psetsSolto, _classesSolto }.Where(x => x != null)) +
+                              "\n\nEscolha um perfil para usar os arquivos dele.",
+                });
+            ComboBoxItem item = _perfil.Items.Cast<ComboBoxItem>().FirstOrDefault(i => i.Tag is string n && string.Equals(n, escolher, StringComparison.CurrentCultureIgnoreCase));
+            if (item == null && escolher != null)
+            {
+                // Perfil dos padrões que não existe neste computador: fica na lista, avisado.
+                item = new ComboBoxItem { Content = escolher + "  (não encontrado neste computador)", Tag = escolher, Foreground = Theme.Solid(Theme.LaranjaTexto),
+                    ToolTip = "Importe este perfil em Perfis... › Importar (peça o .zip a quem preparou os padrões)." };
+                _perfil.Items.Insert(0, item);
+            }
+            _perfil.SelectedItem = item ?? (soltos ? _perfil.Items.Cast<ComboBoxItem>().Last() : null);
+            MostrarArquivosPerfil();
+        }
+
+        /// <summary>Embaixo do perfil: os três arquivos dele (● tem, ○ falta).</summary>
+        private void MostrarArquivosPerfil()
+        {
+            if (_arquivosPerfil == null) return;
+            _arquivosPerfil.Children.Clear();
+            string nome = PerfilEscolhido;
+            string setup, psets, classes;
+            if (nome != null)
+            {
+                ClassesIfc.Classe c = null;
+                try { c = ClassesIfc.Obter(nome); } catch { /* sem perfil */ }
+                setup = c?.Setup; psets = c?.PropertySets; classes = c?.Mapeamento;
+            }
+            else if (_perfil.SelectedItem != null) { setup = _setupSolto; psets = _psetsSolto; classes = _classesSolto; }
+            else
+            {
+                _arquivosPerfil.Children.Add(Theme.Detalhe(_perfil.Items.Count == 0 ? "Nenhum perfil neste computador: crie ou importe um em Perfis..." : "Escolha o perfil da entrega."));
+                return;
+            }
+            void Marca(string caminho, string rotulo, string falta, bool obrigatorio)
+            {
+                bool tem = caminho != null && File.Exists(caminho);
+                _arquivosPerfil.Children.Add(new TextBlock
+                {
+                    Text = (tem ? "● " : "○ ") + (tem ? Path.GetFileName(caminho) + " " + rotulo : falta),
+                    FontSize = 11, Margin = new Thickness(0, 0, 14, 0), ToolTip = caminho,
+                    Foreground = Theme.Solid(tem ? Theme.Verde : obrigatorio ? Theme.LaranjaTexto : Theme.Cinza),
+                });
+            }
+            Marca(setup, "(setup)", "sem setup (.json)", true);
+            Marca(psets, "(property sets)", "sem property sets (.txt)", true);
+            Marca(classes, "(classes IFC)", "sem tabela de classes (opcional)", false);
         }
 
         private static string Limpar(string nome)

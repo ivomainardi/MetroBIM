@@ -858,7 +858,7 @@ namespace MetroSP.Painel
             Padrao("Setup de exportação", "Configuração do exportador IFC do Revit (.json): versão do IFC, fase, o que exportar.",
                 pacote.Setup, new[] { "Setup de exportação (.json)" }, "6", pacote.Setup != _pacote.Setup ? doPerfil : null);
             Padrao("Classes IFC", "Tabela de classes IFC (.txt): a classe de cada categoria do Revit no IFC.",
-                pacote.ClassesIfc, new[] { "Tabela de classes IFC (.txt)" }, "2");
+                pacote.ClassesIfc, new[] { "Tabela de classes IFC (.txt)" }, "2", pacote.ClassesIfc != _pacote.ClassesIfc ? doPerfil : null);
             Padrao("MetroShared", "Base de parâmetros compartilhados do Metrô (.txt): confere o GUID de cada parâmetro.",
                 pacote.MetroShared, new[] { "MetroShared (.txt)" }, "3");
             Padrao("Property sets", "Property sets do Metrô (.txt): os campos que vão para o IFC e o parâmetro do Revit de cada um.",
