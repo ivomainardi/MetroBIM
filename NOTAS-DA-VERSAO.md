@@ -4,6 +4,16 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.21 (23/11/2026)
+
+Revit 0.3.21 · Civil 3D 0.12.9
+
+- Revit, **Revit fechando na exportação IFC** (modelo com ligações metálicas): o MetroSP não apaga mais formas
+  temporárias no meio da transação nem consulta a vista pelos gráficos do Revit para conferir as peças. A conferência
+  agora olha categoria, ocultação, subprojeto e fase.
+- Revit, **onde a exportação parou**: o MetroSP marca a etapa em andamento. Se o Revit fechar no meio, a próxima
+  exportação diz no registro em que etapa (e em que ligação) ele parou.
+
 ## 1.0.20 (23/11/2026)
 
 Revit 0.3.20 · Civil 3D 0.12.9

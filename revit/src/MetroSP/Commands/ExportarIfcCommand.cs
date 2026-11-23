@@ -76,7 +76,9 @@ namespace MetroSP.Commands
 
             bool exportou;
             string avisoPsets = null, avisoCategorias = null, avisoCoordenacao = null, avisoAco = null;
+            string interrompida = RastroExportacao.Interrompida();
             string passo = "montar as opções do setup";
+            RastroExportacao.Passo(passo);
             EixosIfc eixos = null;
             AcoIfc aco = null;
             Dictionary<long, string> classesPedidas = null;
@@ -96,27 +98,27 @@ namespace MetroSP.Commands
                     t.SetFailureHandlingOptions(falhas);
 
                     // Revit 2027+: o exportador lê os psets do modelo, não do .txt.
-                    passo = "carregar os property sets no modelo";
+                    RastroExportacao.Passo(passo = "carregar os property sets no modelo");
                     if (!string.IsNullOrEmpty(janela.PropertySetsEscolhido))
                         avisoPsets = PsetsNoModelo.Carregar(doc, janela.PropertySetsEscolhido);
 
                     // Tabela de categorias → classe IFC do esquema do setup (janela Categorias IFC), se houver.
-                    passo = "aplicar a tabela de categorias IFC";
+                    RastroExportacao.Passo(passo = "aplicar a tabela de categorias IFC");
                     avisoCategorias = CategoriasIfc.AplicarNaExportacao(doc, setup.Versao.ToString());
 
                     // Arquivo de coordenação: classes IFC por família e por elemento do perfil ativo, só nesta exportação.
-                    passo = "aplicar as classes por família do arquivo de coordenação";
+                    RastroExportacao.Passo(passo = "aplicar as classes por família do arquivo de coordenação");
                     avisoCoordenacao = Coordenacao.CoordenacaoRevit.AplicarNaExportacao(doc);
 
                     // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
                     if (janela.SempreEixos)
                     {
-                        passo = "preparar os eixos (Grids)";
+                        RastroExportacao.Passo(passo = "preparar os eixos (Grids)");
                         eixos = EixosIfc.Preparar(doc, janela.Vista);
                     }
 
                     // Ligações metálicas: parafusos, chapas e soldas como elementos próprios (o exportador só separa no IFC 2x3).
-                    passo = "separar as peças das ligações metálicas";
+                    RastroExportacao.Passo(passo = "separar as peças das ligações metálicas");
                     if (setup.VersaoAceita && AcoIfc.TemAco(doc))
                     {
                         try { aco = AcoIfc.Preparar(doc, janela.Vista, FiltroIfc.Fase(doc, janela.Fase, janela.Vista)); }
@@ -127,7 +129,7 @@ namespace MetroSP.Commands
                     {
                         progresso.Etapa($"Exportando {janela.NomeArquivo}.ifc com o setup {setup.Nome}");
                         progresso.Item("O exportador do Revit não informa o andamento; em modelos grandes pode levar alguns minutos.");
-                        passo = "exportar (exportador do Revit)";
+                        RastroExportacao.Passo(passo = "exportar (exportador do Revit)");
                         tPreparo = relogio.Elapsed;
                         exportou = doc.Export(pastaTemp, janela.NomeArquivo + ".ifc", opcoes);
                         tExportador = relogio.Elapsed - tPreparo;
@@ -155,12 +157,14 @@ namespace MetroSP.Commands
             }
             catch (Exception ex)
             {
+                RastroExportacao.Fim();
                 ApagarTemp(pastaTemp);
                 TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message +
                     (avisoCategorias != null ? "\n\n" + avisoCategorias : ""));
                 return Result.Failed;
             }
 
+            RastroExportacao.Fim();
             if (!exportou || !File.Exists(arquivo))
             {
                 ApagarTemp(pastaTemp);
@@ -202,6 +206,7 @@ namespace MetroSP.Commands
                     gridsNoIfc = modelo.OfType("IFCGRID").Count();
                     // Peças das ligações metálicas: dados, GlobalId estável e agrupamento na ligação (antes da contagem).
                     if (avisoAco != null) avisosClassificacao.Add(avisoAco);
+                    if (interrompida != null) avisosClassificacao.Add("Exportação anterior: o Revit fechou no meio, na etapa " + interrompida + ".");
                     if (aco != null)
                     {
                         avisosClassificacao.AddRange(aco.Avisos);

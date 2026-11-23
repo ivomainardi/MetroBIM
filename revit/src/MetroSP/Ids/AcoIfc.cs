@@ -90,6 +90,7 @@ namespace MetroSP.Ids
             {
                 if (FiltroIfc.MotivoFora(doc, origem, fase) is string motivo && motivo != "Sem geometria 3D") continue;
                 r.Origens++;
+                RastroExportacao.Passo($"separar as peças das ligações metálicas (elemento {Compat.Numero(origem.Id)}, {r.Origens} de {origens.Count}, {r._criadas.Count} peças até aqui)");
                 try
                 {
                     int n = r.Separar(doc, origem);
@@ -103,7 +104,9 @@ namespace MetroSP.Ids
             }
             if (semGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
+            RastroExportacao.Passo($"mostrar na vista as {r._criadas.Count} peças das ligações metálicas");
             if (r._vista != null) r.MostrarCategorias(doc);
+            RastroExportacao.Passo($"conferir na vista as {r._criadas.Count} peças das ligações metálicas");
             if (r._criadas.Count > 0) r.ConferirNaVista(doc);
             return r;
         }
@@ -228,14 +231,15 @@ namespace MetroSP.Ids
             DirectShape ds = DirectShape.CreateElement(doc, cat);
             ds.ApplicationId = "MetroSP";
             ds.ApplicationDataId = origem.UniqueId;
-            try
+            // Forma que o Revit recusa não é apagada aqui (apagar na mesma transação já derrubou o Revit): fica sem exportar e
+            // some no fim, com as outras.
+            bool ok;
+            try { ok = ds.IsValidShape(formas); if (ok) ds.SetShape(formas); }
+            catch { ok = false; }
+            if (!ok)
             {
-                if (!ds.IsValidShape(formas)) throw new InvalidOperationException();
-                ds.SetShape(formas);
-            }
-            catch
-            {
-                doc.Delete(ds.Id);
+                _criadas.Add(ds.Id);
+                try { ExportarParaIfc(ds)?.Set(ExportarNao); } catch { }
                 return null;
             }
             _criadas.Add(ds.Id);
@@ -309,8 +313,7 @@ namespace MetroSP.Ids
                 Pecas.Remove(Compat.Numero(id));
                 Pecas[Compat.Numero(novo.Id)] = p;
                 _formas.Remove(id);
-                _criadas.Remove(id);
-                try { doc.Delete(id); } catch { }
+                try { ExportarParaIfc(doc.GetElement(id))?.Set(ExportarNao); } catch { }
                 recriadas++;
             }
             if (recriadas > 0)
@@ -328,16 +331,30 @@ namespace MetroSP.Ids
 
         private List<ElementId> ForaDaVista(Document doc)
         {
-            var vivas = _criadas.Where(id => doc.GetElement(id) != null).ToList();
-            if (vivas.Count == 0) return vivas;
-            HashSet<ElementId> visiveis;
-            try
+            // Sem coletor pela vista (ele aciona os gráficos do Revit com milhares de formas novas): confere categoria,
+            // ocultação, subprojeto e fase, que é o que tira uma forma nova da vista.
+            ElementId fase = _vista.get_Parameter(BuiltInParameter.VIEW_PHASE)?.AsElementId();
+            var fora = new List<ElementId>();
+            foreach (ElementId id in _formas.Keys.ToList())
             {
-                visiveis = new HashSet<ElementId>(new FilteredElementCollector(doc, _vista.Id)
-                    .WherePasses(new ElementIdSetFilter(vivas)).ToElementIds());
+                Element e = doc.GetElement(id);
+                if (e == null) continue;
+                try
+                {
+                    Category c = e.Category;
+                    bool visivel = !(c != null && c.get_AllowsVisibilityControl(_vista) && !c.get_Visible(_vista))
+                        && !e.IsHidden(_vista)
+                        && (!doc.IsWorkshared || _vista.IsWorksetVisible(e.WorksetId));
+                    if (visivel && fase != null && fase != ElementId.InvalidElementId)
+                    {
+                        ElementOnPhaseStatus st = e.GetPhaseStatus(fase);
+                        visivel = st != ElementOnPhaseStatus.Future && st != ElementOnPhaseStatus.Demolished;
+                    }
+                    if (!visivel) fora.Add(id);
+                }
+                catch { }
             }
-            catch { return new List<ElementId>(); }
-            return vivas.Where(id => !visiveis.Contains(id)).ToList();
+            return fora;
         }
 
         /// <summary>Por que a forma não aparece na vista da exportação (para o registro).</summary>
