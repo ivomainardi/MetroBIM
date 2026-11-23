@@ -102,8 +102,19 @@ namespace MetroSP.Classificacao
             return v;
         }
 
+        /// <summary>
+        /// Escrita do exportador IFC da Autodesk: "[Nome]Código:Título" ou "Código:Título".
+        /// Colchetes em volta do código ("[LMB7]") saem: no exportador, colchetes só marcam o nome da classificação.
+        /// </summary>
         public static string Escrever(string codigo, string descricao, string sistema = null) =>
-            (string.IsNullOrEmpty(sistema) ? "" : $"[{sistema}]") + $"{codigo}:{descricao}";
+            (string.IsNullOrEmpty(sistema) ? "" : $"[{sistema}]") + $"{SemColchetes(codigo)}:{descricao}";
+
+        /// <summary>"[LMB7]" → "LMB7"; o resto fica como está.</summary>
+        public static string SemColchetes(string codigo)
+        {
+            string c = (codigo ?? "").Trim();
+            return c.Length > 2 && c[0] == '[' && c[c.Length - 1] == ']' && c.IndexOf(']') == c.Length - 1 ? c.Substring(1, c.Length - 2).Trim() : c;
+        }
     }
 
     /// <summary>Onde o parâmetro está num elemento (na instância ou no tipo) e o valor atual.</summary>

@@ -52,6 +52,17 @@ namespace MetroSP.Classificacao
         public List<ClassItem> Raizes { get; } = new List<ClassItem>();
         public Dictionary<string, ClassItem> PorCodigo { get; } = new Dictionary<string, ClassItem>(StringComparer.OrdinalIgnoreCase);
         public List<string> Avisos { get; } = new List<string>();
+        /// <summary>Linhas de dados com código (contando as repetidas).</summary>
+        public int LinhasComCodigo { get; private set; }
+        /// <summary>Código que mais se repete na planilha e quantas linhas ele ocupa.</summary>
+        public string MaisRepetido { get; private set; }
+        public int VezesMaisRepetido { get; private set; }
+
+        /// <summary>
+        /// true quando a coluna do código repete o mesmo valor em boa parte das linhas
+        /// (ex.: "[LMB7]" em todas): é outra coluna (tipo, grupo, nome da lista), não o código do item.
+        /// </summary>
+        public bool CodigoRepetido => LinhasComCodigo >= 3 && Itens.Count * 2 <= LinhasComCodigo;
 
         // ---- preparado uma vez por lista, para não recalcular a cada elemento na verificação
         private List<(ClassItem Item, string Alfa, string Desc)> _preparados;
@@ -105,10 +116,13 @@ namespace MetroSP.Classificacao
         {
             var lista = new ClassificationList { Arquivo = mapa.Arquivo, Nome = nome };
             bool comTitulo = mapa.Coluna(SistemaClassificacao.CampoTitulo.Chave) != null;
+            var contagem = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
             foreach (LinhaPlanilha l in mapa.Linhas(t))
             {
-                string cod = l[SistemaClassificacao.CampoCodigo.Chave];
+                string cod = ValorClassificacao.SemColchetes(l[SistemaClassificacao.CampoCodigo.Chave]);
                 if (string.IsNullOrWhiteSpace(cod)) continue;
+                lista.LinhasComCodigo++;
+                contagem[cod] = contagem.TryGetValue(cod, out int n) ? n + 1 : 1;
                 string desc = (l[SistemaClassificacao.CampoDescricao.Chave] ?? "").Trim();
                 var item = new ClassItem
                 {
@@ -127,6 +141,14 @@ namespace MetroSP.Classificacao
                 lista.PorCodigo[item.Codigo] = item;
                 lista.Itens.Add(item);
             }
+            if (contagem.Count > 0)
+            {
+                var mais = contagem.OrderByDescending(kv => kv.Value).First();
+                lista.MaisRepetido = mais.Key;
+                lista.VezesMaisRepetido = mais.Value;
+            }
+            if (lista.CodigoRepetido)
+                lista.Avisos.Insert(0, $"A coluna do código repete \"{lista.MaisRepetido}\" em {lista.VezesMaisRepetido} de {lista.LinhasComCodigo} linhas: confira se é mesmo a coluna do código.");
             lista.MontarArvore();
             return lista;
         }
