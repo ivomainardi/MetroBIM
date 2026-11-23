@@ -4,6 +4,15 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
+## 1.0.22 (23/11/2026)
+
+Revit 0.3.22 · Civil 3D 0.12.9
+
+- Revit, **Revit fechando na exportação IFC** (modelo com milhares de chapas e parafusos de fabricação avulsos): o
+  Revit caía ao ler a geometria de um desses elementos pela vista 3D. Agora os avulsos são lidos só do jeito comum
+  (nível Fino, sem a vista e sem os objetos invisíveis). Se os primeiros 50 não têm geometria legível, o MetroSP para
+  de tentar e eles saem como o exportador do Revit faz. As ligações continuam lidas pela vista 3D.
+
 ## 1.0.21 (23/11/2026)
 
 Revit 0.3.21 · Civil 3D 0.12.9

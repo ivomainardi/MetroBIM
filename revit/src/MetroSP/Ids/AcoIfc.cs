@@ -85,9 +85,12 @@ namespace MetroSP.Ids
             origens.AddRange(Coletor().OfClass(typeof(StructuralConnectionHandler)).ToElements());
             origens.AddRange(Coletor().WherePasses(new ElementMulticategoryFilter(Categorias.Keys.ToList()))
                 .WhereElementIsNotElementType().ToElements().Where(e => !(e is StructuralConnectionHandler)));
-            int semGeometria = 0, falhas = 0;
+            int semGeometria = 0, falhas = 0, avulsosVazios = 0;
+            bool avulsosParados = false;
             foreach (Element origem in origens)
             {
+                bool avulso = !(origem is StructuralConnectionHandler);
+                if (avulso && avulsosParados) continue;
                 if (FiltroIfc.MotivoFora(doc, origem, fase) is string motivo && motivo != "Sem geometria 3D") continue;
                 r.Origens++;
                 RastroExportacao.Passo($"separar as peças das ligações metálicas (elemento {Compat.Numero(origem.Id)}, {r.Origens} de {origens.Count}, {r._criadas.Count} peças até aqui)");
@@ -95,6 +98,14 @@ namespace MetroSP.Ids
                 {
                     int n = r.Separar(doc, origem);
                     if (n == 0) semGeometria++;
+                    // Elementos de fabricação avulsos: se os primeiros não têm geometria legível, os outros também não terão
+                    // (e cada leitura custa tempo e já derrubou o Revit). Para de tentar.
+                    if (avulso) avulsosVazios = n == 0 ? avulsosVazios + 1 : -1000000;
+                    if (avulsosVazios >= 50)
+                    {
+                        avulsosParados = true;
+                        r.Avisos.Add("Ligações metálicas: os primeiros 50 elementos de fabricação avulsos (chapas, parafusos fora de ligação) não têm geometria legível pela API; os demais saíram como o exportador do Revit faz.");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -126,14 +137,16 @@ namespace MetroSP.Ids
                 foreach (Subelement s in subs)
                 {
                     GeometryObject g = null;
-                    if (_vista3d != null) try { g = s.GetGeometryObject(_vista3d); } catch { }
+                    if (ehLigacao && _vista3d != null) try { g = s.GetGeometryObject(_vista3d); } catch { }
                     if (Solidos(g).Count == 0) try { g = s.GetGeometryObject(null); } catch { }
                     itens.Add((s.UniqueId, s.Category, Solidos(g), s));
                 }
             if (!ehLigacao && itens.All(i => i.Categoria == null || !Categorias.ContainsKey(i.Categoria.BuiltInCategory)))
             {
                 itens.Clear();
-                itens.Add((origem.UniqueId, origem.Category, Solidos(Geometria(origem, _vista3d)), null));
+                // Avulso: só a leitura comum (nível Fino). A leitura pela vista e com os invisíveis derrubou o Revit em
+                // chapas de fabricação de um modelo.
+                itens.Add((origem.UniqueId, origem.Category, Solidos(Geometria(origem, null, invisiveis: false)), null));
             }
             // Ligação cujos subelementos não devolvem geometria: as peças vêm do corpo da ligação, separadas pela categoria
             // (subcategoria) de cada sólido ou, sem ela, pela forma (chapa fina, parafuso pequeno).
@@ -417,12 +430,12 @@ namespace MetroSP.Ids
         /// Geometria do elemento: primeiro como a vista 3D mostra (ligações detalhadas, perfis com recortes), depois sem
         /// vista no nível Fino e, por último, incluindo os objetos invisíveis.
         /// </summary>
-        internal static GeometryElement Geometria(Element e, View3D vista)
+        internal static GeometryElement Geometria(Element e, View3D vista, bool invisiveis = true)
         {
             var opcoes = new List<Options>();
             if (vista != null) opcoes.Add(new Options { View = vista });
             opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine });
-            opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true });
+            if (invisiveis) opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true });
             GeometryElement primeira = null;
             foreach (Options o in opcoes)
             {
