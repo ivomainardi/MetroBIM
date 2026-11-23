@@ -21,6 +21,8 @@ namespace MetroSP.Ids
             BuiltInCategory.OST_SectionBox, BuiltInCategory.OST_Viewers, BuiltInCategory.OST_ReferenceLines,
             BuiltInCategory.OST_RoomSeparationLines, BuiltInCategory.OST_AreaSchemeLines, BuiltInCategory.OST_MEPSpaceSeparationLines,
             BuiltInCategory.OST_StructuralFramingSystem,
+            // Áreas dos planos de área: o Exportar IFC do MetroSP nunca as leva (ver AreasIfc).
+            BuiltInCategory.OST_Areas, BuiltInCategory.OST_AreaSchemes,
         };
 
         /// <summary>

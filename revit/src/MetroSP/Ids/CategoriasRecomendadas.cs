@@ -54,6 +54,7 @@ namespace MetroSP.Ids
             ("OST_Casework", "Casework", "IfcFurniture", null, true, ""),
             ("OST_Rooms", "Rooms", "IfcSpace", null, true, ""),
             ("OST_MEPSpaces", "Spaces", "IfcSpace", null, true, ""),
+            ("OST_Areas", "Areas", "", null, false, "Áreas dos planos de área: nunca exportar (sairiam como IfcSpace, duplicando os ambientes). Os ambientes saem por Rooms."),
             ("OST_GenericModel", "Generic Models", "IfcCivilElement", "IfcBuiltElement", true, "Categoria genérica: IfcCivilElement no IFC4 e IfcBuiltElement no 4.3. Melhor ainda: defina a classe certa por família."),
             ("OST_SpecialityEquipment", "Specialty Equipment", "IfcCivilElement", "IfcBuiltElement", true, "Categoria genérica (IfcFurnishingElement é depreciada para instanciar). Defina por família. Bloqueio, como no MetroDATA: IfcCommunicationsAppliance.USERDEFINED, ObjectType BLOQUEIO."),
             ("OST_Parts", "Parts", "IfcBuildingElementPart", null, true, ""),

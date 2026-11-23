@@ -78,6 +78,7 @@ namespace MetroSP.Commands
             string avisoPsets = null, avisoCategorias = null, avisoCoordenacao = null, avisoAco = null;
             string passo = "montar as opções do setup";
             EixosIfc eixos = null;
+            AreasIfc areas = null;
             AcoIfc aco = null;
             Dictionary<long, string> classesPedidas = null;
             TimeSpan tCorrecoes = TimeSpan.Zero;
@@ -107,6 +108,10 @@ namespace MetroSP.Commands
                     // Arquivo de coordenação: classes IFC por família e por elemento do perfil ativo, só nesta exportação.
                     passo = "aplicar as classes por família do arquivo de coordenação";
                     avisoCoordenacao = Coordenacao.CoordenacaoRevit.AplicarNaExportacao(doc);
+
+                    // Áreas do Revit (planos de área) nunca vão para o IFC: sairiam como IfcSpace. Só nesta exportação.
+                    passo = "deixar as áreas fora do IFC";
+                    areas = AreasIfc.Preparar(doc);
 
                     // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
                     if (janela.SempreEixos)
@@ -142,6 +147,7 @@ namespace MetroSP.Commands
                         tCorrecoes += relogio.Elapsed - t0;
                     }
                     eixos?.Restaurar();
+                    areas?.Restaurar();
                     aco?.Restaurar(doc);
 
                     if (exportou && setup.GravaGuid)
@@ -339,6 +345,7 @@ namespace MetroSP.Commands
                     "Property sets: " + (janela.PropertySetsEscolhido ?? "nenhum") +
                     (avisoCategorias == null ? "" : "\n" + avisoCategorias) +
                     (avisoCoordenacao == null ? "" : "\n" + avisoCoordenacao) +
+                    (areas?.Aviso == null ? "" : "\n" + areas.Aviso) +
                     TextoEixos(eixos, gridsNoIfc) +
                     (avisoPsets == null ? "" : "\n" + avisoPsets +
                         (setup.GravaGuid ? " Como o setup grava o GUID IFC, eles ficaram salvos no modelo." : " O modelo voltou a ficar como estava.")) +
