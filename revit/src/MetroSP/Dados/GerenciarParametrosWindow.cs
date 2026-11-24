@@ -491,7 +491,7 @@ namespace MetroSP.Dados
             Ids.EditarPsetsWindow editor;
             try
             {
-                var modelo = new Ids.ModeloIfc(_doc);
+                var modelo = Ids.ModeloIfc.DoDocumento(_doc);
                 editor = new Ids.EditarPsetsWindow(pacote.PropertySets, modelo.Parametros, pacote.PropertySets, podeRestaurar: false, modelo: modelo) { Owner = this };
             }
             catch (Exception ex) { MessageBox.Show(this, "Não deu para abrir o .txt de property sets:\n" + ex.Message, Title); return; }

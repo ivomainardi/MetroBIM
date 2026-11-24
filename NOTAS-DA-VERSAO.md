@@ -15,6 +15,126 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 - Revit, **Arquivos do Metrô** (Entrega): os campos do setup (.json), dos property sets (.txt) e da tabela de classes
   IFC (.txt) dão lugar a um seletor de **perfil de exportação**, que traz os três arquivos do perfil. Padrões antigos,
   com os arquivos escolhidos um a um, continuam valendo até se escolher um perfil.
+- Revit, **Áreas fora do IFC**: o Exportar IFC nunca leva as Áreas do Revit (planos de área), que saíam como
+  IfcSpace e duplicavam os ambientes. A categoria Areas fica desligada na tabela de categorias (no padrão MetroSP e
+  também numa tabela salva) e cada área recebe "Exportar para IFC = Não" só durante a exportação. Os Ambientes (Rooms)
+  e os Espaços (Spaces) continuam saindo como IfcSpace.
+- Revit, **conferências**: as Áreas também saem das contagens da Entrega e dos padrões Metrô (FiltroIfc).
+- Revit, **passo Classe IFC da Entrega**: cada elemento aparece com a mesma classe que o Exportar IFC grava (tabela de
+  Categorias IFC ativa e classes por família do arquivo de coordenação). Antes uma categoria mapeada aparecia como proxy
+  no passo, mas saía certa no IFC.
+- Revit, **editor de property sets mais rápido**: o retrato do modelo fica guardado até o modelo mudar ou ser fechado,
+  então reabrir o editor não relê todos os elementos.
+- Revit, **ligações metálicas (mescla)**: as peças saem sempre do corpo da ligação, sem ler a geometria de cada
+  subelemento; os elementos de fabricação avulsos continuam lidos sem a vista e com o limite de 50 da 1.0.22.
+- Revit, **dados padrão das armaduras no IFC**: cada barra (IfcReinforcingBar) e cada tipo de barra passam a sair com
+  diâmetro nominal, área da seção, comprimento da barra, superfície (nervurada ou lisa), categoria do aço (CA-50,
+  CA-60...) e função (barra principal, estribo ou anel). O `Pset_ReinforcingBarCommon` sai completo. O código de forma
+  ISO 3766 só sai quando o nome da forma do Revit traz o código (ex.: "21").
+- Revit, **anéis fechados**: o exportador gravava o círculo com só 2 pontos (geometria inválida, o anel sumia nos
+  visualizadores). Agora o círculo sai em dois arcos de 3 pontos, no plano do anel no Revit.
+- Revit, **armaduras de comprimento variável**: o MetroQto de cada barra repetia a Quantidade e o PesoDoConjunto do
+  conjunto inteiro (somando por elemento, o peso saía muitas vezes maior). Agora vale a própria barra, com o Comprimento.
+- Revit, **material da armadura**: quando o material do Revit não diz a categoria do aço (ex.: "Rebar - ASTM A615M -
+  Grade 420", o padrão do Revit) e a classificação diz CA-50, o material do Revit fica no IFC como está e o registro
+  pede para corrigir o material no Revit. A categoria do aço vai para o SteelGrade da barra.
+- Revit, **pesos com unidade**: PesoLinear sai em kg/m (IfcMassPerLengthMeasure) e PesoDoConjunto em kg
+  (IfcMassMeasure), no lugar do IfcReal sem unidade.
+- Revit, **conferência das medidas**: barras de armadura e tubos passam a contar a espessura (o raio) na caixa do IFC;
+  antes toda barra aparecia com 1 diâmetro a menos que o Revit.
+- Revit 2027, **erro "carregar os property sets no modelo"** ("The referenced object is not valid"): os property sets
+  do modelo são apagados um por vez, pulando o que já não existe, e a mensagem de erro passa a dizer a subetapa.
+- Revit, **ligações metálicas, peças individuais**: cada cantoneira e cada chapa sai como elemento próprio, com o
+  Qto dela (antes um perfil de 2 ou 4 cantoneiras saía num elemento só, com o volume somado). As peças de cada
+  ligação ficam agrupadas num IfcElementAssembly com o nome da ligação (ex.: "L.01").
+- Revit, **parafusos no padrão IFC4**: diâmetro nominal também quando o Revit guarda o diâmetro como texto, tipo
+  BOLT/ANCHORBOLT, `Pset_MechanicalFastenerBolt` e material pela norma e classe do parafuso (ex.: "ASTM A325 - 8.8"),
+  no lugar do material da chapa.
+- Revit, **chapas e perfis das ligações**: espessura (Width) e pesos (GrossWeight, NetWeight) no Qto padrão.
+- Revit, **dados das ligações nos Psets do Metrô**: o Pset MetroSP_LigacaoMetalica deixa de sair. Os dados das peças
+  vão para Metro (Nome, Ligacao, Material, SecaoTipo, Resistencia, ModuloElasticidade, Galvanizacao, MassaLinear ou
+  MassaPorArea, ComprimentoDeAperto), MetroLoc (Nivel, UC), MetroQto (Espessura, Largura, Comprimento,
+  ComprimentoFisico, AreaDaSecao, Peso em kg) e MetroClassificacao (CodigoMetro), juntando com o que o exportador já
+  gravou. Soldas também no Pset_FastenerWeld. A resistência do parafuso vem da classe ISO 898-1 (8.8 → 640 MPa).
+- Revit, **perfis das ligações**: saem como IfcMember USERDEFINED com tipo "Cantoneira de ligação" (ou "Perfil de
+  ligação"), com área e massa linear nominais da seção; parafusos sem medidas no Revit (ex.: chumbadores da placa de
+  base) ganham diâmetro e comprimento pela geometria, e os parafusos de ligação com um só elemento de aço (ex.: placa de base) saem como chumbador (ANCHORBOLT).
+- Revit, **tipo de dado nos Psets do Metrô**: Peso, MassaLinear, MassaPorArea e ModuloElasticidade que o exportador
+  grava como número sem unidade (IfcReal) passam a sair em kg, kg/m, kg/m² e Pa, em todos os elementos.
+- Revit, **ligações metálicas respeitam o exportador**: o MetroSP só acrescenta nos Psets as propriedades que o
+  exportador não gravou; o que já saiu fica como está.
+- Revit, **erro fatal ao exportar ligações metálicas**: ler a geometria de cada subelemento da ligação
+  (Subelement.GetGeometryObject) derrubava o Revit em alguns modelos (erro de memória dentro do Revit). As peças passam
+  a sair sempre do corpo da ligação, separadas pela subcategoria ou pela forma, e os dados de cada peça vêm do
+  subelemento da mesma categoria que mais combina com ela (volume da chapa ou do perfil; comprimento e diâmetro do
+  parafuso). O GlobalId das peças muda uma vez em relação às versões anteriores.
+- Revit, **K9.txt**: novas seções para perfis (IfcMember), parafusos (IfcMechanicalFastener), soldas (IfcFastener) e
+  ligações (IfcElementAssembly); a chapa ganha Ligacao e Nivel, e Largura/Comprimento do MetroQto da chapa passam a
+  ler Width e Length (antes "Actual Tread Depth" e tipo Volume).
+- Revit, **soldas das ligações**: quando a vista 3D não mostra as soldas, o corpo da ligação é lido também sem vista
+  para elas saírem como IfcFastener (WELD). O registro avisa quantas ligações têm solda nos dados sem geometria.
+- Revit, **exportação mais rápida com muitas ligações**: a separação de parafusos, porcas e arruelas usa índice
+  espacial (antes cada volume era comparado com todos), os volumes não são separados duas vezes, as medidas do
+  parafuso pela geometria saem uma vez só e os parâmetros dos tipos são lidos uma vez por exportação.
+- Revit, **perfis vazando**: barras com recorte ou recuo nas pontas (ex.: tubos que encostam na cobertura) saíam no
+  IFC com a extrusão de ponta a ponta da linha de locação e atravessavam a cobertura ou a ligação. Agora o corpo é
+  recortado no trecho do corpo do Revit.
+- Revit, **conferência do uso estrutural**: o registro avisa quando uma viga (Structural Framing) sai como IfcBeam,
+  mas pelo uso estrutural (contraventamento, terça, treliça, pilar) ou por ser vertical seria IfcMember ou IfcColumn,
+  com exemplos de Ids. A classe é decisão do projetista: o MetroSP não troca, só aponta para corrigir no Revit.
+
+## 1.0.22 (23/11/2026)
+
+Revit 0.3.22 · Civil 3D 0.12.9
+
+- Revit, **Revit fechando na exportação IFC** (modelo com milhares de chapas e parafusos de fabricação avulsos): o
+  Revit caía ao ler a geometria de um desses elementos pela vista 3D. Agora os avulsos são lidos só do jeito comum
+  (nível Fino, sem a vista e sem os objetos invisíveis). Se os primeiros 50 não têm geometria legível, o MetroSP para
+  de tentar e eles saem como o exportador do Revit faz. As ligações continuam lidas pela vista 3D.
+
+## 1.0.21 (23/11/2026)
+
+Revit 0.3.21 · Civil 3D 0.12.9
+
+- Revit, **Revit fechando na exportação IFC** (modelo com ligações metálicas): o MetroSP não apaga mais formas
+  temporárias no meio da transação nem consulta a vista pelos gráficos do Revit para conferir as peças. A conferência
+  agora olha categoria, ocultação, subprojeto e fase.
+- Revit, **onde a exportação parou**: o MetroSP marca a etapa em andamento. Se o Revit fechar no meio, a próxima
+  exportação diz no registro em que etapa (e em que ligação) ele parou.
+
+## 1.0.20 (23/11/2026)
+
+Revit 0.3.20 · Civil 3D 0.12.9
+
+- Revit, **exportação IFC mais segura com ligações metálicas**: as peças temporárias das ligações só são criadas com
+  sólidos fechados e válidos para o exportador. Um sólido defeituoso podia fazer o Revit fechar durante a exportação.
+
+## 1.0.19 (23/11/2026)
+
+Revit 0.3.19 · Civil 3D 0.12.9
+
+- Revit, **chapas e cantoneiras individualizadas**: cada ligação saía com todas as chapas num IfcPlate só e todas as
+  cantoneiras num IfcMember só. Agora cada chapa e cada cantoneira é um elemento próprio no IFC, como os parafusos,
+  para contar, pesar e identificar peça por peça.
+
+## 1.0.18 (20/11/2026)
+
+Revit 0.3.18 · Civil 3D 0.12.9
+
+- Revit, **parafusos inteiros no IFC**: arruelas e porcas saíam como IfcPlate, separadas da cabeça do parafuso. Agora
+  cada volume pequeno (até 10 cm) que toca um parafuso entra nele, e cada parafuso sai como um IfcMechanicalFastener só,
+  com cabeça, corpo, arruelas e porca. As chapas da ligação continuam como IfcPlate e as cantoneiras como IfcMember.
+
+## 1.0.17 (19/11/2026)
+
+Revit 0.3.17 · Civil 3D 0.12.9
+
+- Revit, **ligações metálicas no IFC**: na 1.0.16 as peças (chapas, parafusos, soldas) já eram montadas, mas o
+  exportador do Revit não as levava ao IFC, porque ele só exporta o que a vista mostra. Agora cada peça fica no mesmo
+  subprojeto (workset) da ligação, e não no subprojeto ativo, que pode estar oculto na vista. Antes de exportar, o
+  MetroSP confere se a vista mostra as peças; as que não aparecem são refeitas como Modelo genérico (a classe IFC
+  continua a certa) e, se mesmo assim ficarem de fora, o registro diz o motivo (categoria, subprojeto, fase, caixa de
+  corte, ocultar/isolar temporário, filtros).
 
 ## 1.0.16 (19/11/2026)
 

@@ -11,5 +11,10 @@
     <Compile Include="Program.cs;Compat.cs" />
     <Compile Include="../../src/MetroSP/Ids/StepModel.cs" />
     <Compile Include="../../src/MetroSP/Ids/ArmaduraIfc.cs" />
+    <Compile Include="../../src/MetroSP/Ids/ArmaduraIsoIfc.cs" />
+    <Compile Include="../../src/MetroSP/Ids/ConferenciaGeometriaIfc.cs" />
+    <Compile Include="../../src/MetroSP/Ids/FixadoresIfc.cs" />
+    <Compile Include="../../src/MetroSP/Ids/TiposMetroIfc.cs" />
+    <Compile Include="ProgramIso.cs;ProgramAco.cs" />
   </ItemGroup>
 </Project>

@@ -75,7 +75,7 @@ namespace MetroSP.Painel
             Ids.EditarPsetsWindow editor;
             try
             {
-                var modelo = new Ids.ModeloIfc(doc);
+                var modelo = Ids.ModeloIfc.DoDocumento(doc);
                 editor = new Ids.EditarPsetsWindow(pacote.PropertySets, modelo.Parametros, pacote.PropertySets, podeRestaurar: false, modelo: modelo);
             }
             catch (Exception ex) { TaskDialog.Show("MetroSP", "Não deu para abrir o .txt de property sets:\n" + ex.Message); return false; }

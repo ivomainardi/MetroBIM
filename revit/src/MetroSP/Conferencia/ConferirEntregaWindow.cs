@@ -865,7 +865,7 @@ namespace MetroSP.Conferencia
                         EditarPsetsWindow editor;
                         try
                         {
-                            var modelo = new ModeloIfc(_doc);
+                            var modelo = ModeloIfc.DoDocumento(_doc);
                             editor = new EditarPsetsWindow(_pacote.PropertySets, modelo.Parametros, _pacote.PropertySets, podeRestaurar: false, modelo: modelo);
                         }
                         catch (Exception ex) { TaskDialog.Show("MetroSP", "Não deu para abrir o .txt de property sets:\n" + ex.Message); break; }

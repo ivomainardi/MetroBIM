@@ -9,6 +9,7 @@ using MetroSP.Planilha;
 using MetroSP.Ui;
 using Grid = System.Windows.Controls.Grid;
 using Control = System.Windows.Controls.Control;
+using Visibility = System.Windows.Visibility;
 
 namespace MetroSP.Classificacao
 {

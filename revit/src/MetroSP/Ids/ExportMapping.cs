@@ -166,6 +166,30 @@ namespace MetroSP.Ids
             }
         }
 
+        /// <summary>
+        /// Põe na frente as linhas da tabela que a exportação aplica (Categorias IFC): valem mais que a tabela de classes
+        /// dos padrões. Linha sem classe fica de fora (o exportador usa a classe padrão); categoria não exportada vira
+        /// "Not Exported". Retorna quantas linhas entraram.
+        /// </summary>
+        public int UsarTabelaDaExportacao(IEnumerable<CategoriasIfc.Linha> linhas)
+        {
+            var novas = new List<CategoryMapping>();
+            foreach (CategoriasIfc.Linha l in linhas)
+            {
+                if (string.IsNullOrWhiteSpace(l.Categoria)) continue;
+                if (l.Exportar && string.IsNullOrWhiteSpace(l.Classe)) continue;
+                novas.Add(new CategoryMapping
+                {
+                    Category = l.Categoria.Trim(),
+                    SubCategory = (l.Subcategoria ?? "").Trim(),
+                    IfcClass = l.Exportar ? l.Classe.Trim() : "Not Exported",
+                    PredefinedType = l.Exportar && !string.IsNullOrWhiteSpace(l.Tipo) ? l.Tipo.Trim() : null,
+                });
+            }
+            Categories.InsertRange(0, novas);
+            return novas.Count;
+        }
+
         /// <summary>Classe IFC configurada para a categoria (linha sem subcategoria). null se não houver.</summary>
         public string IfcClassForCategory(string category)
         {

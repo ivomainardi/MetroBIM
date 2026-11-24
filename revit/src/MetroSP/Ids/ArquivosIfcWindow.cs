@@ -274,7 +274,7 @@ namespace MetroSP.Ids
         /// <summary>Só os nomes dos parâmetros do modelo (rápido), para as marcas da lista.</summary>
         private HashSet<string> Nomes()
         {
-            if (_nomes == null && _doc != null) _nomes = _modelo?.Parametros ?? ModeloIfc.NomesDosParametros(_doc);
+            if (_nomes == null && _doc != null) _nomes = _modelo?.Parametros ?? ModeloIfc.NomesDoDocumento(_doc);
             return _nomes;
         }
 
@@ -284,7 +284,7 @@ namespace MetroSP.Ids
             {
                 Cursor antes = Mouse.OverrideCursor;
                 Mouse.OverrideCursor = Cursors.Wait;
-                try { _modelo = new ModeloIfc(_doc, _nomes); _nomes = _modelo.Parametros; }
+                try { _modelo = ModeloIfc.DoDocumento(_doc); _nomes = _modelo.Parametros; }
                 finally { Mouse.OverrideCursor = antes; }
             }
             return _modelo;

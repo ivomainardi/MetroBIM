@@ -28,7 +28,7 @@ namespace MetroSP.Ids
 
             // 1. Para cada auxiliar, o valor de cada elemento (a origem certa para a entidade dele).
             var instancias = new FilteredElementCollector(doc).WhereElementIsNotElementType()
-                .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model).ToList();
+                .Where(e => Valido(e) && e.Category != null && e.Category.CategoryType == CategoryType.Model).ToList();
             List<Element> tipos = null;
             var escolhas = new List<(PsetsNoModelo.Auxiliar Aux, List<(Element Elemento, Parameter Origem)> Valores)>();
             foreach (PsetsNoModelo.Auxiliar aux in plano.Auxiliares)
@@ -36,12 +36,17 @@ namespace MetroSP.Ids
                 IEnumerable<Element> alvo = instancias;
                 if (aux.DeTipo)
                     alvo = tipos ?? (tipos = new FilteredElementCollector(doc).WhereElementIsElementType()
-                        .Where(e => e.Category != null && e.Category.CategoryType == CategoryType.Model).ToList());
+                        .Where(e => Valido(e) && e.Category != null && e.Category.CategoryType == CategoryType.Model).ToList());
                 var valores = new List<(Element, Parameter)>();
                 foreach (Element e in alvo)
                 {
-                    Parameter origem = Origem(doc, e, aux);
-                    if (origem != null) valores.Add((e, origem));
+                    // Elemento que deixou de existir no meio do caminho (peça de ligação, grupo): fica sem o auxiliar.
+                    try
+                    {
+                        Parameter origem = Origem(doc, e, aux);
+                        if (origem != null) valores.Add((e, origem));
+                    }
+                    catch (Autodesk.Revit.Exceptions.InvalidObjectException) { }
                 }
                 escolhas.Add((aux, valores));
             }
@@ -91,13 +96,23 @@ namespace MetroSP.Ids
                 if (!definicoes.TryGetValue(aux, out var d)) continue;
                 foreach (var (elemento, origem) in valores)
                 {
-                    Parameter destino = elemento.get_Parameter(d.Def.GUID);
-                    if (destino == null || destino.IsReadOnly) continue;
-                    try { if (Copiar(doc, origem, destino, d.Guarda)) gravados++; }
-                    catch { /* elemento que não aceita o valor (grupo, vínculo): fica sem */ }
+                    try
+                    {
+                        if (!elemento.IsValidObject) continue;
+                        Parameter destino = elemento.get_Parameter(d.Def.GUID);
+                        if (destino == null || destino.IsReadOnly) continue;
+                        if (Copiar(doc, origem, destino, d.Guarda)) gravados++;
+                    }
+                    catch { /* elemento que não aceita o valor (grupo, vínculo) ou que deixou de existir: fica sem */ }
                 }
             }
             return gravados;
+        }
+
+        private static bool Valido(Element e)
+        {
+            try { return e != null && e.IsValidObject; }
+            catch { return false; }
         }
 
         /// <summary>Tira os auxiliares criados nesta exportação. Retorna false se não havia nenhum.</summary>

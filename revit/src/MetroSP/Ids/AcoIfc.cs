@@ -29,11 +29,21 @@ namespace MetroSP.Ids
         public List<string> Avisos { get; } = new List<string>();
 
         private readonly List<ElementId> _criadas = new List<ElementId>();
+        /// <summary>Forma temporária → origem, sólidos e classe, para recriar como Modelo genérico se a vista não a mostrar.</summary>
+        private readonly Dictionary<ElementId, (Element Origem, List<Solid> Solidos, string Classe)> _formas =
+            new Dictionary<ElementId, (Element, List<Solid>, string)>();
         private readonly List<(Element Elemento, int Valor)> _exportarOriginal = new List<(Element, int)>();
         private View _vista;
         /// <summary>Vista 3D usada para ler a geometria (as ligações detalhadas só mostram as peças numa vista).</summary>
         private View3D _vista3d;
         private int _diagnosticos;
+        /// <summary>Soldas lidas do corpo sem vista, e ligações com solda nos subelementos sem nenhum sólido de solda.</summary>
+        public int SoldasRecuperadas { get; private set; }
+        public int LigacoesComSoldaSemGeometria { get; private set; }
+        /// <summary>Categorias dos subelementos e estilos dos sólidos lidos (para o registro: confere soldas e peças).</summary>
+        private readonly Dictionary<string, int> _catSubs = new Dictionary<string, int>(StringComparer.Ordinal);
+        private readonly Dictionary<string, int> _estilos = new Dictionary<string, int>(StringComparer.Ordinal);
+        private static void Contar(Dictionary<string, int> d, string k) => d[k ?? "?"] = d.TryGetValue(k ?? "?", out int n) ? n + 1 : 1;
         private readonly List<ElementId> _categoriasMostradas = new List<ElementId>();
 
         private static readonly Dictionary<BuiltInCategory, (string Peca, string Classe, bool Parafuso, bool Separar)> Categorias =
@@ -82,15 +92,27 @@ namespace MetroSP.Ids
             origens.AddRange(Coletor().OfClass(typeof(StructuralConnectionHandler)).ToElements());
             origens.AddRange(Coletor().WherePasses(new ElementMulticategoryFilter(Categorias.Keys.ToList()))
                 .WhereElementIsNotElementType().ToElements().Where(e => !(e is StructuralConnectionHandler)));
-            int semGeometria = 0, falhas = 0;
+            int semGeometria = 0, falhas = 0, avulsosVazios = 0;
+            bool avulsosParados = false;
             foreach (Element origem in origens)
             {
+                bool avulso = !(origem is StructuralConnectionHandler);
+                if (avulso && avulsosParados) continue;
                 if (FiltroIfc.MotivoFora(doc, origem, fase) is string motivo && motivo != "Sem geometria 3D") continue;
                 r.Origens++;
+                RastroExportacao.Passo($"separar as peças das ligações metálicas (elemento {Compat.Numero(origem.Id)}, {r.Origens} de {origens.Count}, {r._criadas.Count} peças até aqui)");
                 try
                 {
                     int n = r.Separar(doc, origem);
                     if (n == 0) semGeometria++;
+                    // Elementos de fabricação avulsos: se os primeiros não têm geometria legível, os outros também não terão
+                    // (e cada leitura custa tempo e já derrubou o Revit). Para de tentar.
+                    if (avulso) avulsosVazios = n == 0 ? avulsosVazios + 1 : -1000000;
+                    if (avulsosVazios >= 50)
+                    {
+                        avulsosParados = true;
+                        r.Avisos.Add("Ligações metálicas: os primeiros 50 elementos de fabricação avulsos (chapas, parafusos fora de ligação) não têm geometria legível pela API; os demais saíram como o exportador do Revit faz.");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -100,7 +122,17 @@ namespace MetroSP.Ids
             }
             if (semGeometria > 0)
                 r.Avisos.Add($"Ligações metálicas: {semGeometria} ligação(ões) ou peça(s) sem geometria legível pela API; saíram como o exportador do Revit faz.");
+            if (r._catSubs.Count > 0 || r._estilos.Count > 0)
+                r.Avisos.Add("Ligações metálicas, conferência: subelementos por categoria: " +
+                    string.Join(", ", r._catSubs.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}")) +
+                    "; sólidos por estilo: " + string.Join(", ", r._estilos.OrderByDescending(k => k.Value).Take(12).Select(k => $"{k.Key} {k.Value}")) +
+                    $"; soldas lidas sem a vista: {r.SoldasRecuperadas}.");
+            if (r.LigacoesComSoldaSemGeometria > 0)
+                r.Avisos.Add($"Ligações metálicas: {r.LigacoesComSoldaSemGeometria} ligação(ões) têm solda nos dados, mas a API não devolveu a geometria da solda.");
+            RastroExportacao.Passo($"mostrar na vista as {r._criadas.Count} peças das ligações metálicas");
             if (r._vista != null) r.MostrarCategorias(doc);
+            RastroExportacao.Passo($"conferir na vista as {r._criadas.Count} peças das ligações metálicas");
+            if (r._criadas.Count > 0) r.ConferirNaVista(doc);
             return r;
         }
 
@@ -109,39 +141,54 @@ namespace MetroSP.Ids
         {
             bool ehLigacao = origem is StructuralConnectionHandler;
             string ligacao = ehLigacao ? doc.GetElement(origem.GetTypeId())?.Name : null;
+            var doHost = DadosDoHost(doc, origem);
+            // Ligação com um só elemento de aço (ex.: placa de base do pilar): do outro lado do parafuso não há viga nem
+            // pilar de aço, então os parafusos dela são chumbadores.
+            bool soUmAco = ehLigacao && ElementosDeAco(doc, (StructuralConnectionHandler)origem) == 1;
 
-            // Cada subelemento é uma peça (ou um grupo de parafusos). Um elemento de fabricação avulso pode não ter
-            // subelementos: aí ele próprio é a peça.
+            // As peças saem do corpo da ligação (ou do elemento de fabricação), separadas pela categoria (subcategoria) de
+            // cada sólido ou, sem ela, pela forma. A geometria de cada subelemento (Subelement.GetGeometryObject) não é
+            // lida: em alguns modelos ela derruba o Revit com um erro de memória que nenhum try pega. Os dados de cada peça
+            // vêm do subelemento da mesma categoria que mais combina com ela (volume da chapa ou do perfil, comprimento e
+            // diâmetro do parafuso).
             var itens = new List<(string Chave, Category Categoria, List<Solid> Geo, Subelement Sub)>();
             IList<Subelement> subs = null;
             try { subs = origem.GetSubelements(); } catch { /* elemento sem subelementos */ }
+            var dadosSubs = new List<(BuiltInCategory Cat, Dados D)>();
             if (subs != null)
                 foreach (Subelement s in subs)
                 {
-                    GeometryObject g = null;
-                    if (_vista3d != null) try { g = s.GetGeometryObject(_vista3d); } catch { }
-                    if (Solidos(g).Count == 0) try { g = s.GetGeometryObject(null); } catch { }
-                    itens.Add((s.UniqueId, s.Category, Solidos(g), s));
+                    try { Contar(_catSubs, s?.Category?.Name); } catch { }
+                    if (s?.Category == null || !Categorias.ContainsKey(s.Category.BuiltInCategory)) continue;
+                    try { dadosSubs.Add((s.Category.BuiltInCategory, LerDados(doc, s))); } catch { }
                 }
-            if (!ehLigacao && itens.All(i => i.Categoria == null || !Categorias.ContainsKey(i.Categoria.BuiltInCategory)))
+            if (!ehLigacao && dadosSubs.Count == 0)
+                // Avulso: só a leitura comum (nível Fino). A leitura pela vista e com os invisíveis derrubou o Revit em
+                // chapas de fabricação de um modelo.
+                itens.Add((origem.UniqueId, origem.Category, Solidos(Geometria(origem, null, invisiveis: false)), null));
+            else
             {
-                itens.Clear();
-                itens.Add((origem.UniqueId, origem.Category, Solidos(Geometria(origem, _vista3d)), null));
-            }
-            // Ligação cujos subelementos não devolvem geometria: as peças vêm do corpo da ligação, separadas pela categoria
-            // (subcategoria) de cada sólido ou, sem ela, pela forma (chapa fina, parafuso pequeno).
-            if (ehLigacao && itens.All(i => i.Geo.Count == 0))
-            {
-                List<Solid> todos = Solidos(Geometria(origem, _vista3d));
-                var subPorCategoria = itens.Where(i => i.Categoria != null).GroupBy(i => i.Categoria.BuiltInCategory)
-                    .ToDictionary(g => g.Key, g => g.First().Sub);
-                itens.Clear();
-                foreach (var g in todos.GroupBy(so => CategoriaDoSolido(doc, so)))
+                // Avulso com subelementos: também sem a vista e sem os invisíveis (ver acima).
+                List<Solid> todos = Solidos(ehLigacao ? Geometria(origem, _vista3d) : Geometria(origem, null, invisiveis: false));
+                foreach (Solid x in todos)
                 {
-                    Category cat = Category.GetCategory(doc, g.Key);
-                    subPorCategoria.TryGetValue(g.Key, out Subelement sub);
-                    itens.Add((origem.UniqueId + "|" + ((int)g.Key).ToString(CultureInfo.InvariantCulture), cat, g.ToList(), sub));
+                    string est = "sem estilo";
+                    try { if (doc.GetElement(x.GraphicsStyleId) is GraphicsStyle gs && gs.GraphicsStyleCategory is Category c) est = c.Name; } catch { }
+                    Contar(_estilos, est);
                 }
+                var vols = ClassificarVolumes(doc, todos);
+                // Soldas: a vista 3D muitas vezes não as mostra (subcategoria oculta ou só simbólica). Se a ligação tem
+                // solda nos subelementos e nenhum volume de solda veio da vista, lê o corpo sem vista, incluindo os
+                // invisíveis, e pega só os sólidos com o estilo da subcategoria de solda.
+                if (dadosSubs.Any(x => x.Cat == BuiltInCategory.OST_StructConnectionWelds) &&
+                    !vols.Any(v => v.Categoria == BuiltInCategory.OST_StructConnectionWelds))
+                {
+                    var soldas = SoldasSemVista(doc, origem);
+                    if (soldas.Count > 0) { SoldasRecuperadas += soldas.Count; vols.AddRange(soldas.Select(x => (BuiltInCategory.OST_StructConnectionWelds, x))); }
+                    else LigacoesComSoldaSemGeometria++;
+                }
+                foreach (var g in vols.GroupBy(x => x.Categoria, x => x.Volume))
+                    itens.Add((origem.UniqueId + "|" + ((int)g.Key).ToString(CultureInfo.InvariantCulture), Category.GetCategory(doc, g.Key), g.ToList(), null));
             }
             if (itens.All(i => i.Geo.Count == 0) && _diagnosticos < 3)
             {
@@ -151,6 +198,7 @@ namespace MetroSP.Ids
 
             int criadas = 0, previstas = 0, separadas = 0;
             var novas = new List<PecaAco>();
+            Dados dadosOrigem = null;
             foreach (var item in itens)
             {
                 if (item.Categoria == null || !Categorias.TryGetValue(item.Categoria.BuiltInCategory, out var info)) continue;
@@ -158,14 +206,30 @@ namespace MetroSP.Ids
                 if (solidos.Count == 0) continue;
                 previstas++;
 
-                Dados dados = item.Sub != null ? LerDados(doc, item.Sub) : LerDados(doc, origem);
+                var candidatos = dadosSubs.Where(x => x.Cat == item.Categoria.BuiltInCategory).Select(x => x.D).ToList();
                 // Grupo de parafusos: cada conjunto de sólidos que se tocam (parafuso, porca, arruelas) é um parafuso.
-                List<List<Solid>> pecas = info.Separar ? Agrupar(solidos) : new List<List<Solid>> { solidos };
+                // Perfis e chapas: cada sólido é uma peça (um item de perfil pode ter 2 ou 4 cantoneiras).
+                bool porSolido = item.Categoria.BuiltInCategory == BuiltInCategory.OST_StructConnectionProfiles ||
+                                 item.Categoria.BuiltInCategory == BuiltInCategory.OST_StructConnectionPlates;
+                // Os volumes já vêm separados (SplitVolumes) de ClassificarVolumes, exceto no elemento avulso.
+                List<List<Solid>> pecas = info.Separar ? Agrupar(solidos, jaSeparados: item.Chave != origem.UniqueId)
+                    : porSolido ? solidos.Select(x => new List<Solid> { x }).ToList()
+                    : new List<List<Solid>> { solidos };
                 int antes = criadas;
                 for (int i = 0; i < pecas.Count; i++)
                 {
                     DirectShape ds = CriarForma(doc, origem, item.Categoria, pecas[i], info.Classe);
                     if (ds == null) continue;
+                    double volPes = pecas[i].Sum(x => { try { return x.Volume; } catch { return 0; } });
+                    // Medidas do parafuso pela geometria: só quando precisa (vários candidatos ou dados sem medida), uma vez.
+                    (double? Diametro, double? Comprimento)? medidas = null;
+                    List<Solid> pecaAtual = pecas[i];
+                    (double? Diametro, double? Comprimento) Medidas()
+                    {
+                        if (medidas == null) medidas = MedidasDoFixador(pecaAtual);
+                        return medidas.Value;
+                    }
+                    Dados dados = Escolher(candidatos, volPes, info.Parafuso, Medidas, out bool mesmaPeca) ?? (dadosOrigem ??= LerDados(doc, origem));
                     var p = new PecaAco
                     {
                         HostId = Compat.Numero(origem.Id),
@@ -179,7 +243,22 @@ namespace MetroSP.Ids
                         EhParafuso = info.Parafuso,
                         Tipo = dados.Tipo,
                         Propriedades = dados.Propriedades,
+                        // O peso do Revit vale para a peça quando o subelemento escolhido tem o volume dela.
+                        PecasNoItem = mesmaPeca && !info.Parafuso ? 1 : pecas.Count,
+                        Uc = doHost.Uc,
+                        CodigoMetro = doHost.Codigo,
+                        Galvanizado = doHost.Galvanizado,
+                        Volume = volPes * 0.028316846592,
                     };
+                    // Parafuso sem diâmetro ou comprimento nos dados (ex.: chumbadores de placa de base que vêm do corpo da
+                    // ligação): as medidas saem da geometria (corpo cilíndrico).
+                    if (info.Parafuso && (p.Diametro == null || p.Comprimento == null))
+                    {
+                        var med = Medidas();
+                        p.Diametro ??= med.Diametro;
+                        p.Comprimento ??= med.Comprimento;
+                    }
+                    if (soUmAco && p.Peca == "Parafuso") p.Peca = "Chumbador";
                     p.Nome = NomePeca(p);
                     Pecas[Compat.Numero(ds.Id)] = p;
                     novas.Add(p);
@@ -209,26 +288,43 @@ namespace MetroSP.Ids
             return criadas;
         }
 
-        private DirectShape CriarForma(Document doc, Element origem, Category categoria, List<Solid> solidos, string classe)
+        private DirectShape CriarForma(Document doc, Element origem, Category categoria, List<Solid> solidos, string classe, bool generico = false)
         {
-            ElementId cat = new[]
+            ElementId cat = (generico ? new[] { new ElementId(BuiltInCategory.OST_GenericModel) } : new[]
             {
                 categoria?.Id, categoria?.Parent?.Id, origem.Category?.Id,
                 new ElementId(BuiltInCategory.OST_StructConnections), new ElementId(BuiltInCategory.OST_GenericModel),
-            }.FirstOrDefault(c => c != null && DirectShape.IsValidCategoryId(c, doc));
+            }).FirstOrDefault(c => c != null && DirectShape.IsValidCategoryId(c, doc));
             if (cat == null) return null;
 
-            var formas = solidos.Cast<GeometryObject>().ToList();
+            // Só sólidos fechados e válidos: um sólido defeituoso numa forma temporária pode derrubar o exportador do Revit.
+            var formas = solidos.Where(SolidoValido).Cast<GeometryObject>().ToList();
+            if (formas.Count == 0) return null;
             DirectShape ds = DirectShape.CreateElement(doc, cat);
             ds.ApplicationId = "MetroSP";
             ds.ApplicationDataId = origem.UniqueId;
-            try { ds.SetShape(formas); }
-            catch
+            // Forma que o Revit recusa não é apagada aqui (apagar na mesma transação já derrubou o Revit): fica sem exportar e
+            // some no fim, com as outras.
+            bool ok;
+            try { ok = ds.IsValidShape(formas); if (ok) ds.SetShape(formas); }
+            catch { ok = false; }
+            if (!ok)
             {
-                doc.Delete(ds.Id);
+                _criadas.Add(ds.Id);
+                try { ExportarParaIfc(ds)?.Set(ExportarNao); } catch { }
                 return null;
             }
             _criadas.Add(ds.Id);
+            _formas[ds.Id] = (origem, solidos, classe);
+
+            // Mesmo subprojeto (workset) da origem: a forma nova cai no subprojeto ativo, que pode estar oculto na vista.
+            if (doc.IsWorkshared)
+                try
+                {
+                    Parameter ws = ds.get_Parameter(BuiltInParameter.ELEM_PARTITION_PARAM);
+                    if (ws != null && !ws.IsReadOnly && origem.WorksetId != WorksetId.InvalidWorksetId) ws.Set(origem.WorksetId.IntegerValue);
+                }
+                catch { }
 
             // Mesma fase do elemento de origem, para sair na fase exportada como ele.
             try { ds.CreatedPhaseId = origem.CreatedPhaseId; } catch { }
@@ -239,6 +335,15 @@ namespace MetroSP.Ids
             Parameter exp = ExportarParaIfc(ds);
             if (exp != null && !exp.IsReadOnly) exp.Set(ExportarSim);
             return ds;
+        }
+
+        private static bool SolidoValido(Solid s)
+        {
+            try
+            {
+                return s != null && s.Volume > 1e-9 && s.Faces.Size > 0 && SolidUtils.IsValidForTessellation(s);
+            }
+            catch { return false; }
         }
 
         /// <summary>Na exportação por vista, mostra as categorias das formas temporárias se a vista as esconde.</summary>
@@ -256,6 +361,105 @@ namespace MetroSP.Ids
                 }
                 catch (Exception ex) { Avisos.Add($"Ligações metálicas: a vista \"{_vista.Name}\" não deixou mostrar as peças ({ex.Message})."); }
             }
+        }
+
+        /// <summary>
+        /// Na exportação por vista, o exportador só leva o que a vista mostra. Confere se as formas aparecem na vista;
+        /// as que não aparecem são recriadas como Modelo genérico (a classe IFC vem do "Exportar para IFC como") e,
+        /// se ainda assim ficarem de fora, o motivo vai para o registro.
+        /// </summary>
+        private void ConferirNaVista(Document doc)
+        {
+            try { doc.Regenerate(); } catch { }
+            if (_vista == null) return;
+            List<ElementId> fora = ForaDaVista(doc);
+            if (fora.Count == 0) return;
+
+            string motivo = MotivoFora(doc, doc.GetElement(fora[0]));
+            int recriadas = 0;
+            foreach (ElementId id in fora)
+            {
+                if (!_formas.TryGetValue(id, out var f) || !Pecas.TryGetValue(Compat.Numero(id), out PecaAco p)) continue;
+                DirectShape novo = CriarForma(doc, f.Origem, null, f.Solidos, f.Classe, generico: true);
+                if (novo == null) continue;
+                Pecas.Remove(Compat.Numero(id));
+                Pecas[Compat.Numero(novo.Id)] = p;
+                _formas.Remove(id);
+                try { ExportarParaIfc(doc.GetElement(id))?.Set(ExportarNao); } catch { }
+                recriadas++;
+            }
+            if (recriadas > 0)
+            {
+                MostrarCategorias(doc);
+                try { doc.Regenerate(); } catch { }
+            }
+            List<ElementId> ainda = ForaDaVista(doc);
+            string antes = $"Ligações metálicas: {fora.Count} peça(s) não apareciam na vista \"{_vista.Name}\" ({motivo})";
+            if (ainda.Count == 0)
+                Avisos.Add(antes + $"; foram recriadas como Modelo genérico e entram no IFC com a classe certa.");
+            else
+                Avisos.Add(antes + $"; {ainda.Count} continuam fora ({MotivoFora(doc, doc.GetElement(ainda[0]))}) e não vão sair no IFC.");
+        }
+
+        private List<ElementId> ForaDaVista(Document doc)
+        {
+            // Sem coletor pela vista (ele aciona os gráficos do Revit com milhares de formas novas): confere categoria,
+            // ocultação, subprojeto e fase, que é o que tira uma forma nova da vista.
+            ElementId fase = _vista.get_Parameter(BuiltInParameter.VIEW_PHASE)?.AsElementId();
+            var fora = new List<ElementId>();
+            foreach (ElementId id in _formas.Keys.ToList())
+            {
+                Element e = doc.GetElement(id);
+                if (e == null) continue;
+                try
+                {
+                    Category c = e.Category;
+                    bool visivel = !(c != null && c.get_AllowsVisibilityControl(_vista) && !c.get_Visible(_vista))
+                        && !e.IsHidden(_vista)
+                        && (!doc.IsWorkshared || _vista.IsWorksetVisible(e.WorksetId));
+                    if (visivel && fase != null && fase != ElementId.InvalidElementId)
+                    {
+                        ElementOnPhaseStatus st = e.GetPhaseStatus(fase);
+                        visivel = st != ElementOnPhaseStatus.Future && st != ElementOnPhaseStatus.Demolished;
+                    }
+                    if (!visivel) fora.Add(id);
+                }
+                catch { }
+            }
+            return fora;
+        }
+
+        /// <summary>Por que a forma não aparece na vista da exportação (para o registro).</summary>
+        private string MotivoFora(Document doc, Element e)
+        {
+            if (e == null) return "forma apagada";
+            var r = new List<string>();
+            try
+            {
+                Category c = e.Category;
+                r.Add("categoria " + (c?.Name ?? "?"));
+                if (c != null && c.get_AllowsVisibilityControl(_vista) && !c.get_Visible(_vista)) r.Add("categoria oculta na vista");
+                if (e.IsHidden(_vista)) r.Add("elemento oculto na vista");
+                if (_vista.IsInTemporaryViewMode(TemporaryViewMode.TemporaryHideIsolate)) r.Add("vista com ocultar/isolar temporário ativo");
+                if (doc.IsWorkshared && !_vista.IsWorksetVisible(e.WorksetId)) r.Add("subprojeto oculto na vista");
+                if (e.DesignOption != null) r.Add("na opção de projeto " + e.DesignOption.Name);
+                ElementId fase = _vista.get_Parameter(BuiltInParameter.VIEW_PHASE)?.AsElementId();
+                if (fase != null && fase != ElementId.InvalidElementId) r.Add("fase " + e.GetPhaseStatus(fase));
+                if (_vista is View3D v3 && v3.IsSectionBoxActive)
+                {
+                    BoundingBoxXYZ caixa = v3.GetSectionBox(), bb = e.get_BoundingBox(null);
+                    if (bb != null)
+                    {
+                        XYZ centro = caixa.Transform.Inverse.OfPoint((bb.Min + bb.Max) / 2);
+                        bool dentro = centro.X >= caixa.Min.X && centro.X <= caixa.Max.X && centro.Y >= caixa.Min.Y && centro.Y <= caixa.Max.Y
+                            && centro.Z >= caixa.Min.Z && centro.Z <= caixa.Max.Z;
+                        if (!dentro) r.Add("fora da caixa de corte");
+                    }
+                }
+                if (_vista.GetFilters().Count > 0) r.Add($"{_vista.GetFilters().Count} filtro(s) na vista");
+            }
+            catch (Exception ex) { r.Add(ex.Message); }
+            return string.Join(", ", r);
         }
 
         /// <summary>
@@ -285,12 +489,12 @@ namespace MetroSP.Ids
         /// Geometria do elemento: primeiro como a vista 3D mostra (ligações detalhadas, perfis com recortes), depois sem
         /// vista no nível Fino e, por último, incluindo os objetos invisíveis.
         /// </summary>
-        internal static GeometryElement Geometria(Element e, View3D vista)
+        internal static GeometryElement Geometria(Element e, View3D vista, bool invisiveis = true)
         {
             var opcoes = new List<Options>();
             if (vista != null) opcoes.Add(new Options { View = vista });
             opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine });
-            opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true });
+            if (invisiveis) opcoes.Add(new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true });
             GeometryElement primeira = null;
             foreach (Options o in opcoes)
             {
@@ -306,6 +510,13 @@ namespace MetroSP.Ids
         /// <summary>Categoria do sólido pelo estilo gráfico (subcategoria da ligação), ou pela forma quando não tem.</summary>
         private static BuiltInCategory CategoriaDoSolido(Document doc, Solid s)
         {
+            BuiltInCategory c = CategoriaPeloEstilo(doc, s);
+            return c != BuiltInCategory.INVALID ? c : CategoriaPelaForma(s);
+        }
+
+        /// <summary>Categoria de ligação pelo estilo gráfico do sólido, ou INVALID.</summary>
+        private static BuiltInCategory CategoriaPeloEstilo(Document doc, Solid s)
+        {
             try
             {
                 if (doc.GetElement(s.GraphicsStyleId) is GraphicsStyle gs && gs.GraphicsStyleCategory is Category c)
@@ -313,12 +524,65 @@ namespace MetroSP.Ids
                         if (Categorias.ContainsKey(x.BuiltInCategory)) return x.BuiltInCategory;
             }
             catch { }
+            return BuiltInCategory.INVALID;
+        }
+
+        private static BuiltInCategory CategoriaPelaForma(Solid s)
+        {
             BoundingBoxXYZ bb = s.GetBoundingBox();
             double[] d = { bb.Max.X - bb.Min.X, bb.Max.Y - bb.Min.Y, bb.Max.Z - bb.Min.Z };
             Array.Sort(d);
             double m = 0.3048;
             if (d[2] * m < 0.30 && d[0] * m > 0.004 && d[1] < d[0] * 2.5) return BuiltInCategory.OST_StructConnectionBolts;
             return BuiltInCategory.OST_StructConnectionPlates;
+        }
+
+        /// <summary>
+        /// Separa o corpo da ligação em volumes e dá a categoria de cada um. Arruela e porca são discos e prismas
+        /// pequenos que a forma sozinha confunde com chapa: um volume pequeno (até 10 cm) que toca um parafuso é parte
+        /// dele, para o parafuso sair inteiro (cabeça, corpo, arruelas e porca) e as chapas só com as chapas.
+        /// </summary>
+        private static List<(BuiltInCategory Categoria, Solid Volume)> ClassificarVolumes(Document doc, List<Solid> solidos)
+        {
+            var vols = new List<(BuiltInCategory Categoria, Solid Volume)>();
+            foreach (Solid s in solidos)
+            {
+                BuiltInCategory cat = CategoriaDoSolido(doc, s);
+                List<Solid> partes;
+                try { partes = SolidUtils.SplitVolumes(s).Where(v => v.Volume > 1e-9).ToList(); }
+                catch { partes = new List<Solid>(); }
+                if (partes.Count == 0) partes.Add(s);
+                foreach (Solid v in partes)
+                    vols.Add((partes.Count > 1 && cat == BuiltInCategory.OST_StructConnectionPlates ? CategoriaPelaForma(v) : cat, v));
+            }
+            var caixas = vols.Select(v => Caixa(v.Volume)).ToList();
+            bool Pequeno(int i)
+            {
+                var c = caixas[i];
+                return Math.Max(c.Max.X - c.Min.X, Math.Max(c.Max.Y - c.Min.Y, c.Max.Z - c.Min.Z)) * 0.3048 <= 0.10;
+            }
+            const double folga = 0.5 / 304.8;
+            // Índice espacial dos parafusos: cada volume pequeno só é comparado com os parafusos da vizinhança. Um volume
+            // que vira parafuso entra no índice e pode puxar a peça seguinte (arruela → porca).
+            var fila = new Queue<int>();
+            for (int i = 0; i < vols.Count; i++)
+                if (vols[i].Categoria == BuiltInCategory.OST_StructConnectionBolts) fila.Enqueue(i);
+            var pendentes = new HashSet<int>(Enumerable.Range(0, vols.Count)
+                .Where(i => vols[i].Categoria == BuiltInCategory.OST_StructConnectionPlates && Pequeno(i)));
+            var grade = new Grade(caixas, folga);
+            foreach (int i in pendentes) grade.Inserir(i);
+            while (fila.Count > 0 && pendentes.Count > 0)
+            {
+                int j = fila.Dequeue();
+                foreach (int i in grade.Vizinhos(caixas[j]).ToList())
+                {
+                    if (!pendentes.Contains(i) || !Tocam(caixas[i], caixas[j], folga)) continue;
+                    pendentes.Remove(i);
+                    vols[i] = (BuiltInCategory.OST_StructConnectionBolts, vols[i].Volume);
+                    fila.Enqueue(i);
+                }
+            }
+            return vols;
         }
 
         /// <summary>O que a API devolve para a ligação, para o registro (quando nenhuma peça saiu).</summary>
@@ -329,11 +593,7 @@ namespace MetroSP.Ids
             sb.Append($"; subelementos: {subs?.Count ?? 0}");
             if (subs != null && subs.Count > 0)
                 sb.Append(" [" + string.Join(", ", subs.Take(6).Select(x =>
-                {
-                    string tipo = "erro";
-                    try { tipo = x.GetGeometryObject(_vista3d)?.GetType().Name ?? "sem geometria"; } catch (Exception ex) { tipo = ex.GetType().Name; }
-                    return (x.Category?.Name ?? "?") + ": " + tipo;
-                })) + "]");
+                    (x.Category?.Name ?? "?"))) + "]");
             void Conta(string nome, Options o)
             {
                 try
@@ -376,27 +636,108 @@ namespace MetroSP.Ids
         /// Separa os volumes e junta os que se tocam (parafuso + porca + arruelas), para cada parafuso de um grupo
         /// virar um elemento. A ordem segue a posição, para a numeração das peças (e o GlobalId) não mudar à toa.
         /// </summary>
-        private static List<List<Solid>> Agrupar(List<Solid> solidos)
+        private static List<List<Solid>> Agrupar(List<Solid> solidos, bool jaSeparados)
         {
             var volumes = new List<Solid>();
-            foreach (Solid s in solidos)
-            {
-                try { volumes.AddRange(SolidUtils.SplitVolumes(s).Where(v => v.Volume > 1e-9)); }
-                catch { volumes.Add(s); }
-            }
+            if (jaSeparados) volumes.AddRange(solidos);
+            else
+                foreach (Solid s in solidos)
+                {
+                    try { volumes.AddRange(SolidUtils.SplitVolumes(s).Where(v => v.Volume > 1e-9)); }
+                    catch { volumes.Add(s); }
+                }
             var caixas = volumes.Select(Caixa).ToList();
             int[] pai = Enumerable.Range(0, volumes.Count).ToArray();
             int Raiz(int i) { while (pai[i] != i) i = pai[i] = pai[pai[i]]; return i; }
             const double folga = 0.5 / 304.8;   // 0,5 mm
+            // Índice espacial: cada volume só é comparado com os da vizinhança (um grupo grande tinha n² comparações).
+            var grade = new Grade(caixas, folga);
             for (int i = 0; i < volumes.Count; i++)
-                for (int j = i + 1; j < volumes.Count; j++)
+            {
+                foreach (int j in grade.Vizinhos(caixas[i]))
                     if (Tocam(caixas[i], caixas[j], folga)) pai[Raiz(i)] = Raiz(j);
+                grade.Inserir(i);
+            }
             return Enumerable.Range(0, volumes.Count).GroupBy(Raiz)
                 .Select(g => g.ToList())
                 .OrderBy(l => Math.Round(l.Min(i => caixas[i].Min.Z), 3))
                 .ThenBy(l => Math.Round(l.Min(i => caixas[i].Min.X), 3))
                 .ThenBy(l => Math.Round(l.Min(i => caixas[i].Min.Y), 3))
                 .Select(l => l.Select(i => volumes[i]).ToList()).ToList();
+        }
+
+        /// <summary>
+        /// Índice espacial simples (grade uniforme) das caixas: devolve os itens já inseridos cujas células cruzam a caixa
+        /// consultada. A célula se ajusta ao tamanho mediano das caixas, para não depender das unidades nem do projeto.
+        /// </summary>
+        private sealed class Grade
+        {
+            private readonly List<(XYZ Min, XYZ Max)> _caixas;
+            private readonly double _folga, _celula;
+            private readonly Dictionary<(long, long, long), List<int>> _celulas = new Dictionary<(long, long, long), List<int>>();
+
+            public Grade(List<(XYZ Min, XYZ Max)> caixas, double folga)
+            {
+                _caixas = caixas;
+                _folga = folga;
+                var tamanhos = caixas.Select(c => Math.Max(c.Max.X - c.Min.X, Math.Max(c.Max.Y - c.Min.Y, c.Max.Z - c.Min.Z))).OrderBy(x => x).ToList();
+                double mediana = tamanhos.Count > 0 ? tamanhos[tamanhos.Count / 2] : 1;
+                _celula = Math.Max(mediana * 2, 0.01 / 0.3048);
+            }
+
+            private IEnumerable<(long, long, long)> Celulas((XYZ Min, XYZ Max) c)
+            {
+                long Ix(double v) => (long)Math.Floor(v / _celula);
+                long x0 = Ix(c.Min.X - _folga), x1 = Ix(c.Max.X + _folga), y0 = Ix(c.Min.Y - _folga), y1 = Ix(c.Max.Y + _folga),
+                     z0 = Ix(c.Min.Z - _folga), z1 = Ix(c.Max.Z + _folga);
+                // Caixa enorme (perfil longo, chapa grande) cobriria milhares de células: limita e cai na célula única.
+                if ((x1 - x0 + 1) * (y1 - y0 + 1) * (z1 - z0 + 1) > 4096) { yield return (long.MinValue, 0, 0); yield break; }
+                for (long x = x0; x <= x1; x++)
+                    for (long y = y0; y <= y1; y++)
+                        for (long z = z0; z <= z1; z++)
+                            yield return (x, y, z);
+            }
+
+            public void Inserir(int i)
+            {
+                foreach (var k in Celulas(_caixas[i]))
+                {
+                    if (!_celulas.TryGetValue(k, out var l)) _celulas[k] = l = new List<int>();
+                    l.Add(i);
+                }
+            }
+
+            public IEnumerable<int> Vizinhos((XYZ Min, XYZ Max) c)
+            {
+                var vistos = new HashSet<int>();
+                if (_celulas.TryGetValue((long.MinValue, 0, 0), out var grandes))
+                    foreach (int i in grandes) if (vistos.Add(i)) yield return i;
+                var ks = Celulas(c).ToList();
+                if (ks.Count == 1 && ks[0].Item1 == long.MinValue) { foreach (var l in _celulas.Values) foreach (int i in l) if (vistos.Add(i)) yield return i; yield break; }
+                foreach (var k in ks)
+                    if (_celulas.TryGetValue(k, out var l))
+                        foreach (int i in l) if (vistos.Add(i)) yield return i;
+            }
+        }
+
+        /// <summary>Sólidos de solda do corpo lido sem vista (Fino, com os invisíveis), pelo estilo da subcategoria de solda.</summary>
+        private static List<Solid> SoldasSemVista(Document doc, Element origem)
+        {
+            var r = new List<Solid>();
+            foreach (Options o in new[]
+            {
+                new Options { DetailLevel = ViewDetailLevel.Fine },
+                new Options { DetailLevel = ViewDetailLevel.Fine, IncludeNonVisibleObjects = true },
+            })
+            {
+                GeometryElement ge = null;
+                try { ge = origem.get_Geometry(o); } catch { }
+                if (ge == null) continue;
+                foreach (Solid s in Solidos(ge))
+                    if (CategoriaPeloEstilo(doc, s) == BuiltInCategory.OST_StructConnectionWelds) r.Add(s);
+                if (r.Count > 0) break;
+            }
+            return r;
         }
 
         private static (XYZ Min, XYZ Max) Caixa(Solid s)
@@ -420,24 +761,133 @@ namespace MetroSP.Ids
             a.Min.Y <= b.Max.Y + f && b.Min.Y <= a.Max.Y + f &&
             a.Min.Z <= b.Max.Z + f && b.Min.Z <= a.Max.Z + f;
 
+        /// <summary>
+        /// UC, código do Metrô e galvanização da ligação, para os Psets do Metrô das peças. A UC e a galvanização,
+        /// quando a ligação não tem, vêm do primeiro elemento ligado (viga, pilar) que tiver; o código, só da própria ligação.
+        /// </summary>
+        private static (string Uc, string Codigo, bool? Galvanizado) DadosDoHost(Document doc, Element origem)
+        {
+            var fontes = new List<Element> { origem };
+            if (origem is StructuralConnectionHandler h)
+                try { fontes.AddRange(h.GetConnectedElementIds().Select(i => doc.GetElement(i)).Where(e => e != null)); } catch { }
+            Parameter Achar(Element e, string nome)
+            {
+                Parameter p = e.LookupParameter(nome);
+                if (p == null || !p.HasValue) p = doc.GetElement(e.GetTypeId())?.LookupParameter(nome);
+                return p != null && p.HasValue ? p : null;
+            }
+            string Texto(Element e, string nome)
+            {
+                Parameter p = Achar(e, nome);
+                if (p == null) return null;
+                string v = p.StorageType == StorageType.String ? p.AsString() : p.AsValueString();
+                return string.IsNullOrWhiteSpace(v) ? null : v.Trim();
+            }
+            string uc = fontes.Select(e => Texto(e, "UC")).FirstOrDefault(x => x != null);
+            string codigo = Texto(origem, "ClassificationCode") ?? Texto(origem, "CodigoMetro");
+            bool? galv = null;
+            foreach (Element e in fontes)
+            {
+                Parameter p = Achar(e, "Galvanizacao");
+                if (p != null && p.StorageType == StorageType.Integer) { galv = p.AsInteger() == 1; break; }
+            }
+            return (uc, codigo, galv);
+        }
+
+        /// <summary>
+        /// Dados do subelemento que corresponde à peça: o único da categoria, ou o de volume mais próximo (chapa, perfil),
+        /// ou o de comprimento e diâmetro mais próximos (parafuso). mesmaPeca: o volume do subelemento é o da peça (±5%).
+        /// </summary>
+        private static Dados Escolher(List<Dados> candidatos, double volPes, bool parafuso,
+            Func<(double? Diametro, double? Comprimento)> medidas, out bool mesmaPeca)
+        {
+            mesmaPeca = false;
+            if (candidatos == null || candidatos.Count == 0) return null;
+            Dados d;
+            if (candidatos.Count == 1) d = candidatos[0];
+            else if (parafuso)
+            {
+                var med = medidas();
+                d = candidatos.OrderBy(c =>
+                    (c.Diametro > 0 && med.Diametro > 0 ? Math.Abs(c.Diametro.Value - med.Diametro.Value) * 10 : 0) +
+                    (c.Comprimento > 0 && med.Comprimento > 0 ? Math.Abs(c.Comprimento.Value - med.Comprimento.Value) : 1)).First();
+            }
+            else d = candidatos.OrderBy(c => c.VolumePes > 0 ? Math.Abs(c.VolumePes.Value - volPes) : double.MaxValue).First();
+            mesmaPeca = d.VolumePes > 0 && volPes > 0 && Math.Abs(d.VolumePes.Value - volPes) <= 0.05 * volPes;
+            return d;
+        }
+
+        /// <summary>Quantos elementos de aço (viga, pilar, contraventamento com material estrutural aço) a ligação une.</summary>
+        private static int ElementosDeAco(Document doc, StructuralConnectionHandler h)
+        {
+            try
+            {
+                return h.GetConnectedElementIds().Select(i => doc.GetElement(i)).OfType<FamilyInstance>()
+                    .Count(e => e.StructuralMaterialType == StructuralMaterialType.Steel);
+            }
+            catch { return -1; }
+        }
+
+        /// <summary>
+        /// Diâmetro (do menor cilindro, o corpo) e comprimento total (ao longo do eixo dele) de um parafuso, em metros,
+        /// pela geometria. Para quando o Revit não dá essas medidas.
+        /// </summary>
+        private static (double? Diametro, double? Comprimento) MedidasDoFixador(List<Solid> solidos)
+        {
+            double raio = double.MaxValue;
+            XYZ eixo = null;
+            try
+            {
+                foreach (Solid s in solidos)
+                    foreach (Face f in s.Faces)
+                        if (f is CylindricalFace c)
+                        {
+                            double r = c.get_Radius(0).GetLength();
+                            if (r * 0.3048 > 0.002 && r < raio) { raio = r; eixo = c.Axis.Normalize(); }
+                        }
+                if (eixo == null) return (null, null);
+                double min = double.MaxValue, max = double.MinValue;
+                // Extremos das arestas bastam: as arestas curvas (círculos da cabeça, da porca e do corpo) ficam em planos
+                // perpendiculares ao eixo, então o meio delas não muda a projeção. Evita tesselar cada aresta.
+                foreach (Solid s in solidos)
+                    foreach (Edge e in s.Edges)
+                        foreach (double u in new[] { 0.0, 0.5, 1.0 })
+                        {
+                            double t = e.Evaluate(u).DotProduct(eixo);
+                            if (t < min) min = t;
+                            if (t > max) max = t;
+                        }
+                double d = Math.Round(2 * raio * 304.8, 1) / 1000;
+                return (d, max > min ? Math.Round((max - min) * 304.8, 1) / 1000 : (double?)null);
+            }
+            catch { return (null, null); }
+        }
+
         // ------------------------------------------------------------------ dados
 
         private class Dados
         {
             public string Norma, Classe, Tipo;
             public double? Diametro, Comprimento;   // metros
+            public double? VolumePes;               // pés³ (parâmetro Volume do subelemento)
             public Dictionary<string, string> Propriedades = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>Parâmetros do subelemento (grupo de parafusos, chapa...) e do tipo dele.</summary>
-        private static Dados LerDados(Document doc, Subelement s)
+        /// <summary>Nomes de parâmetro (por Id) e parâmetros de cada tipo, lidos uma vez por exportação.</summary>
+        private readonly Dictionary<long, string> _nomes = new Dictionary<long, string>();
+        private readonly Dictionary<long, List<(string Nome, string Texto, double? Pes)>> _paramsTipo =
+            new Dictionary<long, List<(string, string, double?)>>();
+
+        private Dados LerDados(Document doc, Subelement s)
         {
             var d = new Dados();
             try
             {
                 foreach (ElementId pid in s.GetAllParameters())
                 {
-                    string nome = NomeParametro(doc, pid);
+                    long chave = Compat.Numero(pid);
+                    if (!_nomes.TryGetValue(chave, out string nome)) _nomes[chave] = nome = NomeParametro(doc, pid);
                     if (string.IsNullOrWhiteSpace(nome)) continue;
                     ParameterValue v = null;
                     try { v = s.GetParameterValue(pid); } catch { }
@@ -451,24 +901,37 @@ namespace MetroSP.Ids
             if (s.TypeId != null && s.TypeId != ElementId.InvalidElementId && doc.GetElement(s.TypeId) is Element tipo)
             {
                 d.Tipo = tipo.Name;
-                LerParametros(d, tipo);
+                ParametrosDoTipo(d, tipo);
             }
             return d;
         }
 
-        private static Dados LerDados(Document doc, Element e)
+        private Dados LerDados(Document doc, Element e)
         {
             var d = new Dados();
             LerParametros(d, e);
             if (doc.GetElement(e.GetTypeId()) is Element tipo)
             {
                 d.Tipo = tipo.Name;
-                LerParametros(d, tipo);
+                ParametrosDoTipo(d, tipo);
             }
             return d;
         }
 
-        private static void LerParametros(Dados d, Element e)
+        /// <summary>Parâmetros do tipo: lidos na primeira vez e repetidos nas outras peças do mesmo tipo.</summary>
+        private void ParametrosDoTipo(Dados d, Element tipo)
+        {
+            long id = Compat.Numero(tipo.Id);
+            if (!_paramsTipo.TryGetValue(id, out var lista))
+            {
+                lista = new List<(string, string, double?)>();
+                LerParametros(null, tipo, lista);
+                _paramsTipo[id] = lista;
+            }
+            foreach (var (nome, texto, pes) in lista) Guardar(d, nome, texto, pes);
+        }
+
+        private static void LerParametros(Dados d, Element e, List<(string, string, double?)> lista = null)
         {
             foreach (Parameter p in e.Parameters)
             {
@@ -483,7 +946,8 @@ namespace MetroSP.Ids
                 string texto = p.StorageType == StorageType.String ? p.AsString() : p.AsValueString();
                 if (p.StorageType == StorageType.ElementId && string.IsNullOrEmpty(texto))
                     texto = e.Document.GetElement(p.AsElementId())?.Name;
-                Guardar(d, nome, texto, pes);
+                if (lista != null) lista.Add((nome, texto, pes));
+                else Guardar(d, nome, texto, pes);
             }
         }
 
@@ -493,7 +957,12 @@ namespace MetroSP.Ids
             string n = SemAcento(nome).ToLowerInvariant();
             bool furo = n.Contains("hole") || n.Contains("furo") || n.Contains("thread") || n.Contains("rosca") || n.Contains("grip") || n.Contains("aperto");
             if (!furo && d.Diametro == null && pes > 0 && (n.Contains("diameter") || n.Contains("diametro"))) d.Diametro = pes * 0.3048;
+            // Diâmetro guardado como número ou texto, sem unidade de comprimento (ex.: "12.7"): em mm.
+            else if (!furo && d.Diametro == null && pes == null && (n == "diameter" || n == "diametro" || n == "bolt diameter" || n == "diametro do parafuso") &&
+                     double.TryParse(texto.Replace("mm", "").Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out double mm) && mm > 2 && mm < 200)
+                d.Diametro = mm / 1000;
             else if (!furo && d.Comprimento == null && pes > 0 && (n.Contains("length") || n.Contains("comprimento"))) d.Comprimento = pes * 0.3048;
+            if (d.VolumePes == null && pes > 0 && n == "volume") d.VolumePes = pes;
             if (d.Norma == null && (n.Contains("standard") || n.Contains("norma"))) d.Norma = texto.Trim();
             if (d.Classe == null && (n.Contains("grade") || n.Contains("classe"))) d.Classe = texto.Trim();
             if (!d.Propriedades.ContainsKey(nome)) d.Propriedades[nome] = texto.Trim();
