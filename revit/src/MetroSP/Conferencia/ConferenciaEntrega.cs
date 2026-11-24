@@ -77,7 +77,7 @@ namespace MetroSP.Conferencia
 
             Ui.Progresso.Atual?.Etapa("Lendo os arquivos dos padrões");
             EtapaConferencia arquivos = ConferirArquivos();
-            _analisador = new MappingAnalyzer(_doc, _mapping, checkValues: true);
+            _analisador = NovoAnalisador();
 
             Ui.Progresso.Atual?.Etapa("Separando os elementos que vão para o IFC");
             List<(Element E, string Entidade)> exportados = ElementosExportados();
@@ -89,7 +89,7 @@ namespace MetroSP.Conferencia
             r.TotalElementos = elementos.Count;
             r.ForaDoPadrao = foraDoPadrao.Count;
             r.ClassesDoPadrao.AddRange(ClassesDoPadrao());
-            r.Esquema = CategoriasIfc.EsquemaDaVersao(_setup?.Versao.ToString()) ?? (_setup == null ? CategoriasIfc.Ifc4x3 : CategoriasIfc.Ifc4);
+            r.Esquema = Esquema();
             r.Ids = _ids;
             r.MetroData = _metroData;
 
@@ -138,13 +138,39 @@ namespace MetroSP.Conferencia
             var c = new ConferenciaEntrega(doc, pacote, vista);
             c.ConferirArquivos();
             if (c._ids == null) return (null, null);
-            c._analisador = new MappingAnalyzer(doc, c._mapping, checkValues: true);
+            c._analisador = c.NovoAnalisador();
             List<Element> elementos = c.ElementosExportados().Select(x => x.E).ToList();
             List<CheckResult> res = c._analisador.Run(c._ids, elementos);
             foreach (string aviso in c._mapping.Warnings)
                 res.Add(new CheckResult { Especificacao = "(arquivo de mapeamento)", Status = CheckStatus.Aviso, Detalhe = aviso });
             return (c._ids, res);
         }
+
+        /// <summary>
+        /// Analisador que dá a cada elemento a mesma classe que a exportação: a tabela de Categorias IFC que o Exportar
+        /// IFC aplica vale mais que a tabela de classes dos padrões, e as classes do arquivo de coordenação valem como
+        /// "Exportar para IFC como". Chamar depois de ConferirArquivos (precisa do setup).
+        /// </summary>
+        private MappingAnalyzer NovoAnalisador()
+        {
+            try { _mapping.UsarTabelaDaExportacao(CategoriasIfc.QueVaiNaExportacao(_doc, Esquema())); }
+            catch { /* sem tabela legível: fica a tabela dos padrões e as classes padrão */ }
+            try { (_coordTipos, _coordElementos) = Coordenacao.CoordenacaoRevit.ClassesNaExportacao(_doc); }
+            catch { _coordTipos = new Dictionary<ElementId, string>(); _coordElementos = new Dictionary<ElementId, string>(); }
+            return new MappingAnalyzer(_doc, _mapping, checkValues: true) { ClassePorElemento = _coordElementos, ClassePorTipo = _coordTipos };
+        }
+
+        /// <summary>Esquema da tabela de Categorias IFC para o setup dos padrões (sem setup, IFC 4.3).</summary>
+        private string Esquema() =>
+            CategoriasIfc.EsquemaDaVersao(_setup?.Versao.ToString()) ?? (_setup == null ? CategoriasIfc.Ifc4x3 : CategoriasIfc.Ifc4);
+
+        private Dictionary<ElementId, string> _coordTipos = new Dictionary<ElementId, string>();
+        private Dictionary<ElementId, string> _coordElementos = new Dictionary<ElementId, string>();
+
+        /// <summary>Classe própria: "Exportar para IFC como" na instância ou no tipo, no modelo ou pelo arquivo de coordenação.</summary>
+        private bool TemClassePropria(Element e) =>
+            _coordElementos.ContainsKey(e.Id) || _coordTipos.ContainsKey(e.GetTypeId()) ||
+            CategoriasIfc.TemClasseNoElemento(_doc, e, _tipoComClasse);
 
         // ================================================================== 1. padrões
 
@@ -232,7 +258,7 @@ namespace MetroSP.Conferencia
 
             // Tabela de classes IFC (opcional)
             if (string.IsNullOrWhiteSpace(_pacote.ClassesIfc))
-                Linha(Sinal.Cinza, "Tabela de classes IFC (.txt)", "Sem tabela de classes: usa as classes padrão do exportador e o \"Exportar para IFC como\" dos elementos.");
+                Linha(Sinal.Cinza, "Tabela de classes IFC (.txt)", "Sem tabela de classes: vale a de Categorias IFC (a mesma da exportação) e o \"Exportar para IFC como\" dos elementos.");
             else if (!File.Exists(_pacote.ClassesIfc))
                 Linha(Sinal.Vermelho, "Tabela de classes IFC (.txt)", $"Arquivo não encontrado: {_pacote.ClassesIfc}", "Confira o caminho nos padrões.");
             else
@@ -318,12 +344,11 @@ namespace MetroSP.Conferencia
             var lista = new List<(Element, string)>();
             ElementId fase = FiltroIfc.Fase(_doc, _setup?.Fase ?? -1, _vista);
             // Categorias marcadas "não exportar" em Categorias IFC não vão para o IFC: não entram como proxy nem como erro.
-            HashSet<string> naoExportadas = CategoriasIfc.NaoExportadas(_doc,
-                CategoriasIfc.EsquemaDaVersao(_setup?.Versao.ToString()) ?? (_setup == null ? CategoriasIfc.Ifc4x3 : CategoriasIfc.Ifc4));
+            HashSet<string> naoExportadas = CategoriasIfc.NaoExportadas(_doc, Esquema());
             foreach (Element e in ClassificationCore.Elementos(_doc, null, _vista, soIfc: false))
             {
                 if (!FiltroIfc.VaiParaIfc(_doc, e, fase)) continue;
-                if ((naoExportadas.Contains(CategoriasIfc.ChaveDe(e.Category)) || (e.Category.Parent != null && naoExportadas.Contains(e.Category.Parent.Name))) && !CategoriasIfc.TemClasseNoElemento(_doc, e, _tipoComClasse)) continue;
+                if ((naoExportadas.Contains(CategoriasIfc.ChaveDe(e.Category)) || (e.Category.Parent != null && naoExportadas.Contains(e.Category.Parent.Name))) && !TemClassePropria(e)) continue;
                 string entidade = _analisador.ResolveEntity(e);
                 if (entidade == null) continue;
                 lista.Add((e, entidade));
@@ -348,8 +373,8 @@ namespace MetroSP.Conferencia
             // Classe escolhida no tipo ou na instância ("Exportar para IFC como") é decisão do projetista: está certo,
             // mesmo que a categoria não tenha classe na tabela. Esses elementos não viram pendência; só os demais da
             // categoria (sem classe própria) aparecem.
-            int comClasseNoElemento = foraDoPadrao.Count(x => CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse));
-            foreach (var g in foraDoPadrao.Where(x => !CategoriasIfc.TemClasseNoElemento(_doc, x.E, _tipoComClasse))
+            int comClasseNoElemento = foraDoPadrao.Count(x => TemClassePropria(x.E));
+            foreach (var g in foraDoPadrao.Where(x => !TemClassePropria(x.E))
                          .GroupBy(x => (Cat: x.E.Category.Name, x.Entidade))
                          .OrderByDescending(g => g.Count()))
             {

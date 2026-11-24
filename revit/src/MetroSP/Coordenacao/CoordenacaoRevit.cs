@@ -387,20 +387,11 @@ namespace MetroSP.Coordenacao
             if (p == null) return (0, 0, naoAchados);
             if (p.Familias.Count > 0)
             {
-                var porChave = new Dictionary<string, List<ElementType>>(StringComparer.CurrentCultureIgnoreCase);
-                foreach (ElementType t in new FilteredElementCollector(doc).WhereElementIsElementType().Cast<ElementType>())
-                {
-                    if (t.Category == null || t.Category.CategoryType != CategoryType.Model) continue;
-                    string k = (t.FamilyName ?? "").Trim() + " : " + (t.Name ?? "").Trim();
-                    if (!porChave.TryGetValue(k, out List<ElementType> l)) porChave[k] = l = new List<ElementType>();
-                    l.Add(t);
-                }
+                Dictionary<string, List<ElementType>> porChave = TiposPorChave(doc);
                 foreach (AjusteFamilia a in p.Familias)
                 {
-                    if (!porChave.TryGetValue(a.Chave, out List<ElementType> l)) { naoAchados.Add(a.Chave); continue; }
-                    // Mesmo nome em categorias diferentes: vale a categoria do arquivo.
-                    IEnumerable<ElementType> alvo = l.Count > 1 && a.Categoria != null
-                        ? l.Where(t => string.Equals(t.Category.Name, a.Categoria, StringComparison.CurrentCultureIgnoreCase)) : l;
+                    List<ElementType> alvo = TiposDoAjuste(porChave, a);
+                    if (alvo == null) { naoAchados.Add(a.Chave); continue; }
                     foreach (ElementType t in alvo) if (Gravar(t, true, a)) tipos++;
                 }
             }
@@ -411,6 +402,57 @@ namespace MetroSP.Coordenacao
                 if (Gravar(e, false, a)) elementos++;
             }
             return (tipos, elementos, naoAchados);
+        }
+
+        /// <summary>Tipos de modelo por "Família : Tipo".</summary>
+        private static Dictionary<string, List<ElementType>> TiposPorChave(Document doc)
+        {
+            var porChave = new Dictionary<string, List<ElementType>>(StringComparer.CurrentCultureIgnoreCase);
+            foreach (ElementType t in new FilteredElementCollector(doc).WhereElementIsElementType().Cast<ElementType>())
+            {
+                if (t.Category == null || t.Category.CategoryType != CategoryType.Model) continue;
+                string k = (t.FamilyName ?? "").Trim() + " : " + (t.Name ?? "").Trim();
+                if (!porChave.TryGetValue(k, out List<ElementType> l)) porChave[k] = l = new List<ElementType>();
+                l.Add(t);
+            }
+            return porChave;
+        }
+
+        /// <summary>Tipos que o ajuste da família pega (null = não achado). Mesmo nome em categorias diferentes: vale a categoria do arquivo.</summary>
+        private static List<ElementType> TiposDoAjuste(Dictionary<string, List<ElementType>> porChave, AjusteFamilia a)
+        {
+            if (!porChave.TryGetValue(a.Chave, out List<ElementType> l)) return null;
+            return l.Count > 1 && a.Categoria != null
+                ? l.Where(t => string.Equals(t.Category.Name, a.Categoria, StringComparison.CurrentCultureIgnoreCase)).ToList() : l;
+        }
+
+        /// <summary>
+        /// Classes IFC que a exportação vai gravar pelo perfil ativo ("Exportar para IFC como"), sem mexer no modelo:
+        /// por tipo (classes por família) e por elemento. Vazio sem coordenação. Usado na conferência, para dar a mesma
+        /// classe da exportação.
+        /// </summary>
+        public static (Dictionary<ElementId, string> Tipos, Dictionary<ElementId, string> Elementos) ClassesNaExportacao(Document doc)
+        {
+            var tipos = new Dictionary<ElementId, string>();
+            var elementos = new Dictionary<ElementId, string>();
+            PerfilCoordenacao p;
+            try { p = De(doc)?.Perfil; }
+            catch { p = null; }
+            if (p == null) return (tipos, elementos);
+            List<AjusteFamilia> familias = p.Familias.Where(a => Nulo(a.Classe) != null).ToList();
+            if (familias.Count > 0)
+            {
+                Dictionary<string, List<ElementType>> porChave = TiposPorChave(doc);
+                foreach (AjusteFamilia a in familias)
+                    foreach (ElementType t in TiposDoAjuste(porChave, a) ?? new List<ElementType>())
+                        tipos[t.Id] = a.Classe.Trim();
+            }
+            foreach (AjusteElemento a in p.Elementos.Where(a => Nulo(a.Classe) != null))
+            {
+                Element e = doc.GetElement(a.UniqueId);
+                if (e != null) elementos[e.Id] = a.Classe.Trim();
+            }
+            return (tipos, elementos);
         }
 
         private static bool Gravar(Element e, bool tipo, AjusteIfc a)

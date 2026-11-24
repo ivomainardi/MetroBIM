@@ -41,6 +41,13 @@ namespace MetroSP.Ids
         private readonly ExportMapping _mapping;
         private readonly bool _checkValues;
         private readonly Dictionary<ElementId, string> _entityCache = new Dictionary<ElementId, string>();
+
+        /// <summary>
+        /// "Exportar para IFC como" que a exportação grava por cima do modelo (arquivo de coordenação), por elemento e
+        /// por tipo. Valem como se já estivessem no parâmetro. null = nenhum.
+        /// </summary>
+        public Dictionary<ElementId, string> ClassePorElemento { get; set; }
+        public Dictionary<ElementId, string> ClassePorTipo { get; set; }
         private List<Element> _elements;
 
         // Atributos IFC que o exportador lê de parâmetros com nome fixo.
@@ -392,8 +399,10 @@ namespace MetroSP.Ids
 
             Element type = _doc.GetElement(e.GetTypeId());
             string valor =
+                Sobreposta(ClassePorElemento, e) ??
                 BuiltInString(e, "IFC_EXPORT_ELEMENT_AS") ??
                 StringParam(e, "IfcExportAs") ??
+                Sobreposta(ClassePorTipo, type) ??
                 BuiltInString(type, "IFC_EXPORT_ELEMENT_TYPE_AS") ??
                 StringParam(type, "IfcExportAs");
 
@@ -565,6 +574,9 @@ namespace MetroSP.Ids
             Parameter p = e.get_Parameter(bip);
             return p != null && p.StorageType == StorageType.String ? NullIfEmpty(p.AsString()) : null;
         }
+
+        private static string Sobreposta(Dictionary<ElementId, string> classes, Element e) =>
+            e != null && classes != null && classes.TryGetValue(e.Id, out string c) ? NullIfEmpty(c) : null;
 
         private static string StringParam(Element e, string name)
         {
