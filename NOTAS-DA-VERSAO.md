@@ -21,6 +21,59 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
   e os Espaços (Spaces) continuam saindo como IfcSpace.
 - Revit, **conferências**: as Áreas também saem das contagens da Entrega e dos padrões Metrô (FiltroIfc).
 
+## 1.0.22 (23/11/2026)
+
+Revit 0.3.22 · Civil 3D 0.12.9
+
+- Revit, **Revit fechando na exportação IFC** (modelo com milhares de chapas e parafusos de fabricação avulsos): o
+  Revit caía ao ler a geometria de um desses elementos pela vista 3D. Agora os avulsos são lidos só do jeito comum
+  (nível Fino, sem a vista e sem os objetos invisíveis). Se os primeiros 50 não têm geometria legível, o MetroSP para
+  de tentar e eles saem como o exportador do Revit faz. As ligações continuam lidas pela vista 3D.
+
+## 1.0.21 (23/11/2026)
+
+Revit 0.3.21 · Civil 3D 0.12.9
+
+- Revit, **Revit fechando na exportação IFC** (modelo com ligações metálicas): o MetroSP não apaga mais formas
+  temporárias no meio da transação nem consulta a vista pelos gráficos do Revit para conferir as peças. A conferência
+  agora olha categoria, ocultação, subprojeto e fase.
+- Revit, **onde a exportação parou**: o MetroSP marca a etapa em andamento. Se o Revit fechar no meio, a próxima
+  exportação diz no registro em que etapa (e em que ligação) ele parou.
+
+## 1.0.20 (23/11/2026)
+
+Revit 0.3.20 · Civil 3D 0.12.9
+
+- Revit, **exportação IFC mais segura com ligações metálicas**: as peças temporárias das ligações só são criadas com
+  sólidos fechados e válidos para o exportador. Um sólido defeituoso podia fazer o Revit fechar durante a exportação.
+
+## 1.0.19 (23/11/2026)
+
+Revit 0.3.19 · Civil 3D 0.12.9
+
+- Revit, **chapas e cantoneiras individualizadas**: cada ligação saía com todas as chapas num IfcPlate só e todas as
+  cantoneiras num IfcMember só. Agora cada chapa e cada cantoneira é um elemento próprio no IFC, como os parafusos,
+  para contar, pesar e identificar peça por peça.
+
+## 1.0.18 (20/11/2026)
+
+Revit 0.3.18 · Civil 3D 0.12.9
+
+- Revit, **parafusos inteiros no IFC**: arruelas e porcas saíam como IfcPlate, separadas da cabeça do parafuso. Agora
+  cada volume pequeno (até 10 cm) que toca um parafuso entra nele, e cada parafuso sai como um IfcMechanicalFastener só,
+  com cabeça, corpo, arruelas e porca. As chapas da ligação continuam como IfcPlate e as cantoneiras como IfcMember.
+
+## 1.0.17 (19/11/2026)
+
+Revit 0.3.17 · Civil 3D 0.12.9
+
+- Revit, **ligações metálicas no IFC**: na 1.0.16 as peças (chapas, parafusos, soldas) já eram montadas, mas o
+  exportador do Revit não as levava ao IFC, porque ele só exporta o que a vista mostra. Agora cada peça fica no mesmo
+  subprojeto (workset) da ligação, e não no subprojeto ativo, que pode estar oculto na vista. Antes de exportar, o
+  MetroSP confere se a vista mostra as peças; as que não aparecem são refeitas como Modelo genérico (a classe IFC
+  continua a certa) e, se mesmo assim ficarem de fora, o registro diz o motivo (categoria, subprojeto, fase, caixa de
+  corte, ocultar/isolar temporário, filtros).
+
 ## 1.0.16 (19/11/2026)
 
 Revit 0.3.16 · Civil 3D 0.12.9
