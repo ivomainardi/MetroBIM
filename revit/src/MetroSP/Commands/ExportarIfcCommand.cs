@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -82,6 +82,7 @@ namespace MetroSP.Commands
             EixosIfc eixos = null;
             AreasIfc areas = null;
             AcoIfc aco = null;
+            UsoEstruturalIfc usoEstrutural = null;
             Dictionary<long, string> classesPedidas = null;
             TimeSpan tCorrecoes = TimeSpan.Zero;
             try
@@ -112,8 +113,13 @@ namespace MetroSP.Commands
                     avisoCoordenacao = Coordenacao.CoordenacaoRevit.AplicarNaExportacao(doc);
 
                     // Áreas do Revit (planos de área) nunca vão para o IFC: sairiam como IfcSpace. Só nesta exportação.
-                    passo = "deixar as áreas fora do IFC";
+                    RastroExportacao.Passo(passo = "deixar as áreas fora do IFC");
                     areas = AreasIfc.Preparar(doc);
+
+                    // Vigas que pelo uso estrutural ou pela posição seriam outra classe: só aviso (a classe é do projetista).
+                    RastroExportacao.Passo(passo = "conferir o uso estrutural dos perfis");
+                    try { usoEstrutural = UsoEstruturalIfc.Conferir(doc, janela.Vista); }
+                    catch { usoEstrutural = null; }
 
                     // Sempre exportar os eixos: Grids visíveis na vista filtrada e exportáveis na tabela, só nesta exportação.
                     if (janela.SempreEixos)
@@ -165,7 +171,9 @@ namespace MetroSP.Commands
             {
                 RastroExportacao.Fim();
                 ApagarTemp(pastaTemp);
-                TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message +
+                if (passo == "carregar os property sets no modelo" && PsetsNoModelo.Subetapa != null) passo += ": " + PsetsNoModelo.Subetapa;
+                string onde = ex.TargetSite == null ? "" : $"\n\n({ex.GetType().Name} em {ex.TargetSite.DeclaringType?.Name}.{ex.TargetSite.Name})";
+                TaskDialog.Show("MetroSP", $"Erro ao exportar o IFC, na etapa \"{passo}\":\n" + ex.Message + onde +
                     (avisoCategorias != null ? "\n\n" + avisoCategorias : ""));
                 return Result.Failed;
             }
@@ -213,6 +221,7 @@ namespace MetroSP.Commands
                     // Peças das ligações metálicas: dados, GlobalId estável e agrupamento na ligação (antes da contagem).
                     if (avisoAco != null) avisosClassificacao.Add(avisoAco);
                     if (interrompida != null) avisosClassificacao.Add("Exportação anterior: o Revit fechou no meio, na etapa " + interrompida + ".");
+                    if (usoEstrutural?.Aviso != null) avisosClassificacao.Add(usoEstrutural.Aviso);
                     if (aco != null)
                     {
                         avisosClassificacao.AddRange(aco.Avisos);
@@ -265,11 +274,14 @@ namespace MetroSP.Commands
                         }
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível gravar o status da fase: " + ex.Message); }
+                    var cacheBarras = new Dictionary<long, IReadOnlyList<Ifc.BarraRevit>>();
+                    IReadOnlyList<Ifc.BarraRevit> barrasRevit(long id) =>
+                        cacheBarras.TryGetValue(id, out var emCache) ? emCache : cacheBarras[id] = ArmaduraRevit.Barras(doc, id);
                     // Armaduras: Count, Length e Weight de cada barra (Qto_ReinforcingElementBaseQuantities), que o exportador
                     // não grava, inclusive nos conjuntos de comprimento variável.
                     try
                     {
-                        var armaduras = Ifc.ArmaduraIfc.Aplicar(modelo, id => ArmaduraRevit.Barras(doc, id));
+                        var armaduras = Ifc.ArmaduraIfc.Aplicar(modelo, barrasRevit);
                         if (armaduras.Gravadas > 0) salvar = true;
                         if (armaduras.ToString() is string linha) avisosClassificacao.Add(linha);
                     }
@@ -289,6 +301,26 @@ namespace MetroSP.Commands
                     }
                     catch (Exception ex) { avisosClassificacao.Add("Não foi possível aplicar as correções do exportador: " + ex.Message); }
                     tCorrecoes += relogio.Elapsed - t1;
+                    // Armaduras: dados padrão da barra (diâmetro, área, aço, superfície, função), anéis fechados com 3 pontos,
+                    // MetroQto das barras variáveis e material sem a categoria do aço. Depois das correções, para valer o da barra.
+                    try
+                    {
+                        var armadurasIso = Ifc.ArmaduraIsoIfc.Aplicar(modelo, id => ArmaduraRevit.Dados(doc, id), barrasRevit);
+                        if (armadurasIso.Alterou) salvar = true;
+                        avisosClassificacao.AddRange(armadurasIso.Linhas());
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível completar os dados padrão das armaduras: " + ex.Message); }
+                    // Tipo de dado das massas e do módulo de elasticidade nos Psets do Metrô (o arquivo de Psets do Revit só tem Real).
+                    try
+                    {
+                        int tipadas = Ifc.TiposMetroIfc.Aplicar(modelo);
+                        if (tipadas > 0)
+                        {
+                            salvar = true;
+                            avisosClassificacao.Add($"Psets do Metrô: {tipadas} propriedade(s) de massa e módulo de elasticidade com a unidade certa (kg, kg/m, kg/m², Pa) no lugar de número sem unidade.");
+                        }
+                    }
+                    catch (Exception ex) { avisosClassificacao.Add("Não foi possível ajustar o tipo das propriedades do Metrô: " + ex.Message); }
                     try
                     {
                         escolha.Dados.AplicarNoIfc(modelo, out bool alterouDados);

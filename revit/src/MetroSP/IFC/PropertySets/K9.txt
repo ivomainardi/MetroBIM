@@ -14,11 +14,15 @@
 #	Pressure, Ratio, Real, Text, ThermalTransmittance, ThermodynamicTemperature, Volume, 
 #	VolumetricFlowRate
 #
+# Massas e módulo de elasticidade ficam como Real aqui (o exportador do Revit não tem tipo de massa). Na exportação,
+# o MetroSP grava Peso em kg (IfcMassMeasure), MassaLinear em kg/m, MassaPorArea em kg/m² e ModuloElasticidade em Pa.
+#
 #
 #
 #
 # Revision	Data	Description
 # 00	06/10/2026	Emissão inicial
+# 01	20/11/2026	Peças de ligação metálica (perfis, parafusos, soldas e ligações); chapa com Ligacao e Nivel; correção de Largura e Comprimento da chapa
 #
 #
 #
@@ -169,15 +173,96 @@ PropertySet:	Metro	I	IfcPlate
 	TRRF	Label	FireResistanceRating
 	Galvanizacao	Boolean	Galvanizacao
 	MassaPorArea	Real	MassaPorArea
+	Ligacao	Label	Ligacao
 #
 PropertySet:	MetroLoc	I	IfcPlate
+	Nivel	Label	Reference Level
 	UC	Label	UC
 #
 PropertySet:	MetroQto	I	IfcPlate
-	Largura	Length	Actual Tread Depth
-	Comprimento	Volume	Length
+	Largura	Length	Width
+	Comprimento	Length	Length
 	Espessura	PositiveLength	Thickness
 	Peso	Real	Weight
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Perfis (contraventamentos e cantoneiras das ligações)
+# Nas peças das ligações, o MetroSP preenche estes Psets na exportação (as peças não têm esses parâmetros no Revit).
+#
+PropertySet:	Metro	I	IfcMember
+	Material	Label	Structural Material
+	SecaoTipo	Label	Profile Type
+	ModuloElasticidade	Real	YoungModulus
+	Resistencia	Pressure	Resistencia
+	Nome	Label	Mark
+	Galvanizacao	Boolean	Galvanizacao
+	MassaLinear	Real	Nominal Weight
+	Ligacao	Label	Ligacao
+#
+PropertySet:	MetroLoc	I	IfcMember
+	Nivel	Label	Reference Level
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcMember
+	ComprimentoFisico	PositiveLength	Cut Length
+	AreaDaSecao	Area	Section Area
+	Peso	Real	Weight
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Parafusos, chumbadores e conectores (ligações metálicas)
+# Diâmetro e comprimento nominais saem nos atributos do IfcMechanicalFastener e no Pset_MechanicalFastenerBolt;
+# norma e classe saem no material (ex.: ASTM A325 - 8.8). Preenchidos pelo MetroSP na exportação.
+#
+PropertySet:	Metro	I	IfcMechanicalFastener
+	Nome	Label	Descricao Complementar
+	Ligacao	Label	Ligacao
+	Resistencia	Pressure	Resistencia
+	Galvanizacao	Boolean	Galvanizacao
+	ComprimentoDeAperto	PositiveLength	Grip Length
+#
+PropertySet:	MetroLoc	I	IfcMechanicalFastener
+	Nivel	Label	Reference Level
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcMechanicalFastener
+	Diametro	PositiveLength	Diameter
+	Comprimento	PositiveLength	Bolt Length
+	Peso	Real	Weight
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Soldas (ligações metálicas)
+# Tipo, garganta e comprimento também no Pset_FastenerWeld (Type1, a, l). Preenchidos pelo MetroSP na exportação.
+#
+PropertySet:	Metro	I	IfcFastener
+	Nome	Label	Descricao Complementar
+	Ligacao	Label	Ligacao
+#
+PropertySet:	MetroLoc	I	IfcFastener
+	Nivel	Label	Reference Level
+	UC	Label	UC
+#
+PropertySet:	MetroQto	I	IfcFastener
+	Comprimento	PositiveLength	Length
+	Peso	Real	Weight
+#-------------------------------------------------------------------------------------------------------------------------------------------
+#
+#
+#===========================================================================================================================================
+# Ligações metálicas (IfcElementAssembly que agrupa as peças de cada ligação). Preenchidos pelo MetroSP na exportação.
+#
+PropertySet:	Metro	I	IfcElementAssembly
+	Nome	Label	Ligacao
+	Ligacao	Label	Ligacao
+#
+PropertySet:	MetroLoc	I	IfcElementAssembly
+	Nivel	Label	Reference Level
+	UC	Label	UC
 #-------------------------------------------------------------------------------------------------------------------------------------------
 #
 #

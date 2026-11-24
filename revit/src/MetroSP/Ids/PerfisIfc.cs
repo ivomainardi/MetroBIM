@@ -24,17 +24,20 @@ namespace MetroSP.Ifc
     {
         public sealed class Resultado
         {
-            public int Corrigidos, Extrusoes, Quantidades, Divergentes, Aparados;
+            public int Corrigidos, Extrusoes, Quantidades, Divergentes, Aparados, Encurtados;
             public readonly Dictionary<string, int> PorClasse = new Dictionary<string, int>(StringComparer.Ordinal);
 
             public override string ToString()
             {
-                if (Corrigidos == 0 && Divergentes == 0) return null;
+                if (Corrigidos == 0 && Divergentes == 0 && Encurtados == 0) return null;
+                if (Corrigidos == 0 && Divergentes == 0)
+                    return $"Perfis metálicos: {Encurtados} elemento(s) com o corpo maior que o do Revit (recortes e recuos nas pontas) foram recortados como no Revit.";
                 string s = $"Perfis metálicos: {Corrigidos} elemento(s) com o corpo no dobro do comprimento do Revit voltaram ao comprimento certo (" +
                            string.Join(", ", PorClasse.OrderByDescending(k => k.Value).Select(k => $"{k.Key} {k.Value}")) +
                            $"); {Extrusoes} extrusão(ões) e {Quantidades} quantidade(s) ajustadas" +
                            (Aparados > 0 ? $", e {Aparados} com o corpo recortado nas ligações como no Revit." : ".");
                 if (Divergentes > 0) s += $" {Divergentes} extrusão(ões) compartilhada(s) por elementos de comprimentos diferentes ficaram como estavam.";
+                if (Encurtados > 0) s += $" Outros {Encurtados} elemento(s) com o corpo maior que o do Revit (recortes e recuos nas pontas) foram recortados como no Revit.";
                 return s;
             }
         }
@@ -89,8 +92,6 @@ namespace MetroSP.Ifc
                 corrigidas.Add(kv.Key);
                 r.Extrusoes++;
             }
-            if (corrigidas.Count == 0) return r;
-
             // Elementos cujo corpo inteiro foi corrigido: Qto de comprimento, volume bruto e superfície pela metade.
             var corrigidos = new Dictionary<int, double>();   // elemento → profundidade antiga (unidade do IFC)
             foreach (var kv in extrusoesDoElemento)
@@ -102,7 +103,19 @@ namespace MetroSP.Ifc
                 r.PorClasse[nome] = (r.PorClasse.TryGetValue(nome, out int n) ? n : 0) + 1;
                 r.Corrigidos++;
             }
-            r.Quantidades = Quantidades(m, corrigidos);
+            r.Quantidades = corrigidos.Count > 0 ? Quantidades(m, corrigidos) : 0;
+            // Barras cujo corpo no IFC passa do corpo do Revit (recortes, recuos e cortes nas pontas que o exportador
+            // ignora: a extrusão vai de ponta a ponta da linha de locação e o perfil "vaza" da ligação ou da cobertura).
+            var maiores = new List<int>();
+            foreach (var kv in extrusoesDoElemento)
+            {
+                if (corrigidos.ContainsKey(kv.Key) || kv.Value.Count != 1) continue;
+                if (!barras.TryGetValue(kv.Key, out PerfilRevit bm) || bm.Dir == null || double.IsNaN(bm.Ini) || double.IsNaN(bm.Fim)) continue;
+                double prof = Prof(m, kv.Value[0].Ext) * kv.Value[0].Escala;
+                double corpo = (bm.Fim - bm.Ini) * fator;
+                if (corpo > 0.01 * fator && corpo < prof * 0.99 && prof - corpo > 0.005 * fator) maiores.Add(kv.Key);
+            }
+            if (corrigidos.Count == 0 && maiores.Count == 0) return r;
             // O corpo do tipo é a barra inteira; cada elemento corrigido ganha o seu corpo com os recortes do Revit.
             var geo = new ConferenciaGeometriaIfc.Geo(m);
             int placementSite = 0;
@@ -119,7 +132,7 @@ namespace MetroSP.Ifc
             }
             // Giro entre o sistema do IfcSite e as coordenadas internas, para saber de que lado fica cada recorte.
             var difs = new List<double>();
-            foreach (int el in corrigidos.Keys)
+            foreach (int el in corrigidos.Keys.Concat(maiores))
                 if (barras.TryGetValue(el, out PerfilRevit b0) && b0.Dir != null)
                     try { Aparar(m, geo, el, b0, fator, placementSite, estilos, usoPds, 0, difs); } catch { }
             double giro = ConferenciaGeometriaIfc.EstimarGiro(difs) ?? double.NaN;
@@ -127,6 +140,11 @@ namespace MetroSP.Ifc
             {
                 if (!barras.TryGetValue(el, out PerfilRevit b) || double.IsNaN(b.Ini) || double.IsNaN(b.Fim) || b.Fim - b.Ini < 0.01) continue;
                 try { if (Aparar(m, geo, el, b, fator, placementSite, estilos, usoPds, giro, null)) r.Aparados++; }
+                catch { /* fica com a barra inteira */ }
+            }
+            foreach (int el in maiores)
+            {
+                try { if (Aparar(m, geo, el, barras[el], fator, placementSite, estilos, usoPds, giro, null)) r.Encurtados++; }
                 catch { /* fica com a barra inteira */ }
             }
             return r;
