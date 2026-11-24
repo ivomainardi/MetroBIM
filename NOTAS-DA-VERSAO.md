@@ -4,7 +4,9 @@ Cada versão do MetroSP sai num instalador só, `MetroSP-Setup-<versão>.exe`, c
 A versão de cada plugin aparece entre parênteses. As notas antigas de cada plugin ficam em
 `revit/NOTAS-DA-VERSAO.md` e `civil3d/NOTAS-DA-VERSAO.md`.
 
-## Próxima versão (em preparo)
+## 1.0.23 (teste, ainda não publicada)
+
+Revit 0.3.23 · Civil 3D 0.12.9
 
 - Revit, **Perfis de exportação IFC sem abas**: cada perfil mostra os seus 3 arquivos, um por linha (1 configuração
   .json, 1 property sets .txt e 1 mapeamento .txt, opcional), com **Abrir**/**Editar...**, **Trocar...** e **⋯** (voltar
