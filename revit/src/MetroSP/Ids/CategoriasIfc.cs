@@ -270,6 +270,7 @@ namespace MetroSP.Ids
                 mudar[p.Key] = info;
             }
             if (mudar.Count > 0) t.SetMappingInfo(mudar);
+            DesligarAreas(doc, t);   // Áreas nunca vão para o IFC, mesmo que a tabela salva diga outra coisa
 #if REVIT2025
             t.SetActiveTemplate(doc);
 #else
@@ -301,6 +302,34 @@ namespace MetroSP.Ids
                 if (info.IFCExportFlag && !semClasse) continue;
                 info.IFCExportFlag = true;
                 if (semClasse) info.IFCEntityName = "IfcGrid";
+                mudar[p.Key] = info;
+            }
+            if (mudar.Count > 0) t.SetMappingInfo(mudar);
+            return mudar.Count > 0;
+#endif
+        }
+
+        /// <summary>
+        /// Desliga a categoria Areas (e as subcategorias dela) no modelo de mapeamento ativo, ou no informado: as áreas dos
+        /// planos de área nunca vão para o IFC (sairiam como IfcSpace). Precisa de transação aberta. Retorna se precisou mudar.
+        /// </summary>
+        public static bool DesligarAreas(Document doc) => DesligarAreas(doc, null);
+
+        private static bool DesligarAreas(Document doc, object modelo)
+        {
+#if REVIT_ANTES_2025
+            return false;
+#else
+            IFCCategoryTemplate t = modelo as IFCCategoryTemplate ?? IFCCategoryTemplate.GetActiveTemplate(doc);
+            if (t == null) return false;
+            string nome = Category.GetCategory(doc, BuiltInCategory.OST_Areas)?.Name;
+            if (string.IsNullOrEmpty(nome)) return false;
+            var mudar = new Dictionary<ExportIFCCategoryKey, ExportIFCCategoryInfo>();
+            foreach (KeyValuePair<ExportIFCCategoryKey, ExportIFCCategoryInfo> p in t.GetCategoryMappingTable(doc))
+            {
+                if (!string.Equals(p.Key.CategoryName, nome, StringComparison.OrdinalIgnoreCase) || !p.Value.IFCExportFlag) continue;
+                ExportIFCCategoryInfo info = p.Value;
+                info.IFCExportFlag = false;
                 mudar[p.Key] = info;
             }
             if (mudar.Count > 0) t.SetMappingInfo(mudar);

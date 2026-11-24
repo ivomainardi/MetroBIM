@@ -15,6 +15,11 @@ A versão de cada plugin aparece entre parênteses. As notas antigas de cada plu
 - Revit, **Arquivos do Metrô** (Entrega): os campos do setup (.json), dos property sets (.txt) e da tabela de classes
   IFC (.txt) dão lugar a um seletor de **perfil de exportação**, que traz os três arquivos do perfil. Padrões antigos,
   com os arquivos escolhidos um a um, continuam valendo até se escolher um perfil.
+- Revit, **Áreas fora do IFC**: o Exportar IFC nunca leva as Áreas do Revit (planos de área), que saíam como
+  IfcSpace e duplicavam os ambientes. A categoria Areas fica desligada na tabela de categorias (no padrão MetroSP e
+  também numa tabela salva) e cada área recebe "Exportar para IFC = Não" só durante a exportação. Os Ambientes (Rooms)
+  e os Espaços (Spaces) continuam saindo como IfcSpace.
+- Revit, **conferências**: as Áreas também saem das contagens da Entrega e dos padrões Metrô (FiltroIfc).
 
 ## 1.0.16 (19/11/2026)
 
