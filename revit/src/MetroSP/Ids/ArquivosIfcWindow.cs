@@ -764,7 +764,7 @@ namespace MetroSP.Ids
                         string destino = Path.Combine(temp, (n++).ToString(), e.Name);
                         Directory.CreateDirectory(Path.GetDirectoryName(destino));
                         e.ExtractToFile(destino, true);
-                        string pasta = e.FullName.Replace('\\', '/').Split('/').Reverse().Skip(1).FirstOrDefault() ?? "";
+                        string pasta = Enumerable.Reverse(e.FullName.Replace('\\', '/').Split('/')).Skip(1).FirstOrDefault() ?? "";
                         ArquivosIfc.Tipo? tipo = Tipos.Cast<ArquivosIfc.Tipo?>().FirstOrDefault(t =>
                             string.Equals(ArquivosIfc.Sub(t.Value), pasta, StringComparison.OrdinalIgnoreCase) && ext == ArquivosIfc.Extensao(t.Value));
                         arquivos[destino] = tipo ?? ArquivosIfc.Detectar(destino, out _);
