@@ -355,7 +355,7 @@ namespace MetroSP.Ids
                 if (_parametrosModelo == null) _parametrosModelo = ParametrosDoModelo(_doc);
                 System.Windows.Input.Cursor antes = System.Windows.Input.Mouse.OverrideCursor;
                 System.Windows.Input.Mouse.OverrideCursor = System.Windows.Input.Cursors.Wait;
-                try { _modeloIfc = new ModeloIfc(_doc, _parametrosModelo); }
+                try { _modeloIfc = ModeloIfc.DoDocumento(_doc); _parametrosModelo = _modeloIfc.Parametros; }
                 catch { /* sem a conferência por elemento, o editor confere só os nomes */ }
                 finally { System.Windows.Input.Mouse.OverrideCursor = antes; }
             }
@@ -1338,7 +1338,7 @@ namespace MetroSP.Ids
         }
 
         /// <summary>Nomes de parâmetros presentes nos tipos e numa instância de cada tipo.</summary>
-        private static HashSet<string> ParametrosDoModelo(DB.Document doc) => ModeloIfc.NomesDosParametros(doc);
+        private static HashSet<string> ParametrosDoModelo(DB.Document doc) => ModeloIfc.NomesDoDocumento(doc);
 
         private static string NomePadrao(DB.Document doc)
         {
